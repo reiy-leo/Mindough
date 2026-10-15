@@ -2646,3 +2646,86 @@ button {
   display: inline-flex;
   color: var(--accent);
 }
+
+/* 管理打卡分类 */
+.cat-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cat-manage-list .cat-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+.cat-manage-list .cat-row + .cat-row {
+  border-top: 1px solid var(--border);
+}
+.cat-manage-list .cat-name .input {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.cat-manage-list .cat-name .input:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.cat-row-actions {
+  display: inline-flex;
+  flex: none;
+}
+.cat-row-actions .icon-btn[data-disabled] {
+  opacity: 0.3;
+}
+.cat-row.is-hidden .cat-row-icon {
+  opacity: 0.4;
+}
+.cat-row-add {
+  padding-top: 10px !important;
+}
+.filter-edit {
+  flex: none;
+}
+.cat-manage-link {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  padding: 2px 0;
+  cursor: pointer;
+  outline: none;
+}
+.cat-manage-link[data-hovered] {
+  text-decoration: underline;
+}
+.cat-manage-link[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.btn.filter-edit {
+  color: var(--accent);
+  min-width: 0;
+  padding: 0 10px;
+}
+/* 手机：分类胶囊 + 「编辑」一行，排列方式另起一行 */
+[data-layout='mobile'] .checkin-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 4px;
+}
+[data-layout='mobile'] .checkin-filters > :last-child {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+/* 桌面：「编辑」紧跟在分类胶囊后面，排列方式靠右 */
+[data-layout='desktop'] .checkin-filters .chip-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+[data-layout='desktop'] .checkin-filters .filter-edit {
+  margin-right: auto;
+}

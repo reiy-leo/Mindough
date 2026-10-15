@@ -16,6 +16,7 @@ import {
 } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { CategoryLabel, NO_CATEGORY } from '../components/CheckInCategory';
+import { CategoryManager } from '../components/CategoryManager';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
 import { Button, ChipPicker, Empty, Section, Segmented } from '../ui/primitives';
@@ -37,6 +38,7 @@ export function CheckInsPage() {
   const dayRatio = useCallback((d: DateKey) => idx.dayRatio(d), [idx]);
 
   const [cat, setCat] = useState<string>('all');
+  const [managing, setManaging] = useState(false);
   const [arrange, setArrange] = useState<'today' | 'category'>('today');
   const allRecurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
   const catOf = (t: Task) => store.get('checkin_category', t.checkin_category_id);
@@ -126,6 +128,9 @@ export function CheckInsPage() {
               ...(hasUncategorized ? [{ id: NO_CATEGORY, label: '未分类' }] : []),
             ]}
           />
+          <RacButton className="btn btn-quiet filter-edit" onPress={() => setManaging(true)}>
+            编辑
+          </RacButton>
           <Segmented
             label="排列方式"
             value={arrange}
@@ -199,6 +204,7 @@ export function CheckInsPage() {
           </div>
         </Section>
       )}
+      <CategoryManager isOpen={managing} onOpenChange={setManaging} />
     </div>
   );
 }

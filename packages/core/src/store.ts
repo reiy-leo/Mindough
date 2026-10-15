@@ -746,6 +746,22 @@ export class Store {
     return pickFrequentCategories(this.checkInCategories(), usage, n);
   }
 
+  /** 打卡分类上移 / 下移一位（含隐藏的一起排）；只改 sort，id 不变。 */
+  moveCheckInCategory(id: string, delta: -1 | 1): void {
+    const all = this.checkInCategories(true);
+    const i = all.findIndex((c) => c.id === id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= all.length) return;
+    const order = all.map((c) => c.id);
+    [order[i], order[j]] = [order[j]!, order[i]!];
+    // 只写顺序真的变了的行（重新编号 1..n）
+    const rows = order
+      .map((cid, k) => ({ cur: this.get('checkin_category', cid)!, sort: k + 1 }))
+      .filter(({ cur, sort }) => cur.sort !== sort)
+      .map(({ cur, sort }) => ({ table: 'checkin_category' as const, row: { ...cur, sort } as BaseRow }));
+    this.write(rows);
+  }
+
   createCheckInCategory(name: string, icon = 'tag', color = '#8e8e93'): TableMap['checkin_category'] {
     const sort = this.list('checkin_category').reduce((m, c) => Math.max(m, c.sort), 0) + 1;
     return this.insert('checkin_category', { name, icon, color, builtin: false, hidden: false, sort });

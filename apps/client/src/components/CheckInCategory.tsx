@@ -3,6 +3,7 @@ import { Button as RacButton, Input, SearchField, ToggleButton, ToggleButtonGrou
 import { ChevronDown, Search } from 'lucide-react';
 import type { CheckInCategory, Store } from '@mindough/core';
 import { typeIcon } from '../lib/icons';
+import { CategoryManager } from './CategoryManager';
 
 export const NO_CATEGORY = '__none';
 
@@ -32,6 +33,7 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
   const first = cur && !frequent.some((c) => c.id === cur.id) ? [...frequent, cur] : frequent;
   const rest = cats.filter((c) => !first.some((f) => f.id === c.id));
   const [more, setMore] = useState(false);
+  const [managing, setManaging] = useState(false);
   const term = q.trim().toLowerCase();
   const all = cur && cur.hidden ? [...cats, cur] : cats;
   const matches = term ? all.filter((c) => c.name.toLowerCase().includes(term)) : null;
@@ -98,9 +100,13 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
             </SearchField>
           )}
           {matches ? (matches.length > 0 && group('搜到的打卡分类', matches.map(tile))) : more && group('更多打卡分类', rest.map(tile))}
-          {matches && !matches.length && <p className="muted small">没有叫“{q}”的分类，可以在 设置 → 打卡分类 里新增。</p>}
+          {matches && !matches.length && <p className="muted small">没有叫“{q}”的分类，可以在「管理分类…」里添加。</p>}
+          <RacButton className="cat-manage-link" onPress={() => setManaging(true)}>
+            管理分类…
+          </RacButton>
         </div>
       )}
+      <CategoryManager isOpen={managing} onOpenChange={setManaging} />
     </div>
   );
 }

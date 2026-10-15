@@ -250,3 +250,17 @@ describe('同步的偏好（pref）', () => {
     expect(prefId('locale')).not.toBe(prefId('other'));
   });
 });
+
+describe('打卡分类排序', () => {
+  it('上移 / 下移只改 sort，id 不变，到头不动', async () => {
+    const s = await Store.open(new MemoryAdapter(), { deviceId: 'a' });
+    const before = s.checkInCategories(true).map((c) => c.id);
+    s.moveCheckInCategory(before[1]!, -1);
+    const after = s.checkInCategories(true).map((c) => c.id);
+    expect(after[0]).toBe(before[1]);
+    expect(after[1]).toBe(before[0]);
+    expect(new Set(after)).toEqual(new Set(before));
+    s.moveCheckInCategory(after[0]!, -1);
+    expect(s.checkInCategories(true).map((c) => c.id)).toEqual(after);
+  });
+});
