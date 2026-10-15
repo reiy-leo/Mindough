@@ -13,7 +13,7 @@
 
 ## 技术栈（计划，开工时落定版本）
 - Tauri 2（桌面 + iOS/Android）+ TypeScript（strict）+ React + Vite
-- UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、Fluent 2（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
+- UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
 - 本地存储：原生 SQLite（tauri-plugin-sql）/ Web SQLite WASM（OPFS），同一 schema

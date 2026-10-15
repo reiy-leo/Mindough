@@ -24,7 +24,7 @@
 - 共用：数据、状态、交互逻辑、页面结构全部一份；组件用无样式的 headless 组件（React Aria Components），自己不带外观。
 - 每端一套皮肤（启动时按平台选，设置里可手动切）：
   - Apple（macOS + iOS 共用）：SF 字体、HIG 圆角与间距；macOS 侧边栏 + 工具栏 + 窗口毛玻璃（Tauri window-vibrancy），iOS 大标题、底部标签栏、左滑操作、底部弹层。Liquid Glass 只能用 backdrop-filter 近似。
-  - Windows：Fluent 2（Segoe UI Variable、Mica 窗口背景、NavigationView 式侧栏），可直接用 Fluent UI React v9 的令牌。
+  - Windows：Windows 11 / Microsoft Store 那种 WinUI 3 风格（Windows 版 Fluent 2）：Segoe UI Variable、Mica / Acrylic 窗口材质、NavigationView 侧栏、圆角卡片、系统强调色。不用 Fluent UI React v9（它是 Office / Teams 网页那套外观）；按微软 Windows UI Kit（Figma）和 WinUI 3 的设计令牌自己写皮肤。
   - Android：Material 3（Roboto、动态取色、底部导航栏、FAB、底部弹层、返回手势）。
   - Web：默认跟随访问者的系统，也可固定一种。
 - 移动端可用 Konsta UI（同一组件出 iOS 和 Material 两种外观）加速。
