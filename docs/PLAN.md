@@ -71,6 +71,7 @@
 - task 增加 type_id（可空=普通）、type_data（JSON，按字段定义填写，图片存 asset_id）
 - group 增加 default_type_id（可空）
 - task 增加 completion_mode（once / timer / count / countdown）、target_value、unit、target_date、recurrence（RRULE，可空）
+- my_day：task_id、date（本地日期）、sort、added_at（同步时按 task_id+date 合并）
 - check_in：id、task_id、period_key（重复任务的周期）、kind（start / pause / resume / stop / add）、amount、at
 - task_type 增加 default_completion_mode
 - person：id、name、avatar_asset_id、relation、birthday、note_md
@@ -79,6 +80,12 @@
 - 依赖可以跨组。
 
 ## 视图（MVP）
+0. 我的一天：今天打算做的任务清单，打开 app 的首页。
+   - 任何地方都能加入：搜索结果、列表、组、依赖图节点、人物详情、打卡页，右键 / 长按 / 悬停按钮“加入我的一天”，快捷键可一键加。
+   - 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、人物、组；结果项直接带“加入我的一天”按钮。
+   - 每天零点清空（按本机时区），没做完的不自动顺延，放进“昨天没做完”区一键带回今天。
+   - 建议区：今天到期的、今天要打卡的、刚被解锁可开始的任务，点一下加入。
+   - 可拖动排序；完成的沉到底部。
 1. 列表（Agenda 式）：按日期往下流的时间线，今天居中，过去在上、将来在下；琐事随手记，无需建组。
 2. 组：组卡片（名称、图标、起止、分类、进度），点开看组内任务列表 + 组内依赖图。
 3. 人物：人物列表（头像 + 姓名），点开看相关任务
@@ -91,7 +98,7 @@
    - 窄屏（手机）默认显示最近 16 周，可横向滑动看全年。
    - 格子严格正方形（宽高相等，不随容器拉伸），直角或极小圆角。
    - 每月 1 号那一格做标记：格子够大（桌面）时在格内显示月份数字（如“3”），格子小（手机）时显示一个小圆点；设置里可固定选“数字 / 圆点 / 不标”。
-- 全局：快速新建（快捷键）、搜索、按分类筛选。
+- 全局：快速新建（快捷键）、⌘K 搜索（可直接加入我的一天）、按分类筛选。
 
 ## 以后再做
 SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、body_md 逐字合并（CRDT）、导入导出 Markdown 文件夹。
