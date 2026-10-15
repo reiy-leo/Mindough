@@ -31,6 +31,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     recurrence: 'text?',
     checkin_category_id: 'text?',
     library_item_id: 'text?',
+    remind_time: 'text?',
     done_at: 'text?',
     sort: 'real',
     created_at: 'text',
@@ -58,6 +59,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   asset: { sha256: 'text', mime: 'text', width: 'int?', height: 'int?', r2_key: 'text?', url: 'text?' },
   library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text' },
   task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
+  pref: { key: 'text', value: 'json' },
 };
 
 /** SQL 标识符加引号（"group" 是关键字）。 */
@@ -165,6 +167,17 @@ CREATE TABLE IF NOT EXISTS "task_link" (
 );
 CREATE INDEX IF NOT EXISTS "task_link_a" ON "task_link" ("a_task_id");
 CREATE INDEX IF NOT EXISTS "task_link_b" ON "task_link" ("b_task_id");
+`,
+  },
+  {
+    version: 4,
+    name: '提醒时间（task.remind_time）+ 同步的偏好（pref）',
+    sql: `
+ALTER TABLE "task" ADD COLUMN "remind_time" TEXT;
+CREATE TABLE IF NOT EXISTS "pref" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "key" TEXT NOT NULL, "value" TEXT NOT NULL DEFAULT 'null'
+);
 `,
   },
 ];

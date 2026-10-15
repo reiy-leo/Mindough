@@ -7,7 +7,7 @@ import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, findCycleEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
-import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, relatedIdsOf, taskLinkId, visibleLinks } from './related';
+import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, prefId, relatedIdsOf, taskLinkId, visibleLinks } from './related';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
 import {
   entryOfItem,
@@ -93,6 +93,8 @@ export class Store {
         if (t === 'task' && (row as Task).checkin_category_id === undefined) (row as Task).checkin_category_id = null;
         // 资料库之前的任务没有 library_item_id：同上，只在内存补 null
         if (t === 'task' && (row as Task).library_item_id === undefined) (row as Task).library_item_id = null;
+        // v4 之前没有 remind_time：同上
+        if (t === 'task' && (row as Task).remind_time === undefined) (row as Task).remind_time = null;
         map.set(row.id, row);
         // 本地时钟不落后于已存数据
         if (row.updated_at && /^\d{13}-/.test(row.updated_at)) store.clock.receive(row.updated_at);
@@ -268,6 +270,7 @@ export class Store {
         const t = row as Task;
         if (t.checkin_category_id === undefined) t.checkin_category_id = null;
         if (t.library_item_id === undefined) t.library_item_id = null;
+        if (t.remind_time === undefined) t.remind_time = null;
       }
       table.set(row.id, row);
       applied.push({ table: c.table, row } as Change);
@@ -513,6 +516,7 @@ export class Store {
       recurrence: input.recurrence ?? null,
       checkin_category_id: input.checkin_category_id ?? null,
       library_item_id: input.library_item_id ?? null,
+      remind_time: input.remind_time ?? null,
       done_at: input.done_at ?? null,
       sort: input.sort ?? maxSort + 1,
       created_at: input.created_at ?? now.toISOString(),
@@ -706,6 +710,23 @@ export class Store {
 
   tasksOfPerson(personId: string): Task[] {
     return this.tasks().filter((t) => this.peopleOf(t.id).some((p) => p.id === personId));
+  }
+
+  // ───────────── 偏好（同步） ─────────────
+
+  /** 同步的偏好值（没设过是 undefined）。 */
+  pref(key: string): FieldValue | undefined {
+    const row = this.get('pref', prefId(key));
+    return row ? row.value : undefined;
+  }
+
+  /** 设偏好（同一个 key 各设备同一行，LWW）；值没变不写。 */
+  setPref(key: string, value: FieldValue): void {
+    const id = prefId(key);
+    const cur = this.get('pref', id);
+    if (cur && JSON.stringify(cur.value) === JSON.stringify(value)) return;
+    if (this.raw('pref', id)) this.update('pref', id, { value, deleted: false });
+    else this.insert('pref', { id, key, value });
   }
 
   // ───────────── 打卡分类 ─────────────

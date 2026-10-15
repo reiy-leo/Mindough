@@ -59,6 +59,7 @@ export function emptySnapshot(): Snapshot {
     asset: [],
     library_item: [],
     task_link: [],
+    pref: [],
   };
 }
 

@@ -230,3 +230,23 @@ describe('Store', () => {
     expect(await adapter.getMeta('device_id')).toBe(s.deviceId);
   });
 });
+
+describe('同步的偏好（pref）', () => {
+  it('同一个 key 各设备同一行；值没变不写；可读回', async () => {
+    const { Store } = await import('../src/store');
+    const { MemoryAdapter } = await import('../src/storage/memory');
+    const { prefId } = await import('../src/related');
+    const a = await Store.open(new MemoryAdapter(), { deviceId: 'a' });
+    expect(a.pref('locale')).toBeUndefined();
+    a.setPref('locale', 'en');
+    const row = a.get('pref', prefId('locale'))!;
+    expect(row.value).toBe('en');
+    const stamp = row.updated_at;
+    a.setPref('locale', 'en');
+    expect(a.get('pref', prefId('locale'))!.updated_at).toBe(stamp);
+    a.setPref('locale', 'zh');
+    expect(a.pref('locale')).toBe('zh');
+    expect(prefId('locale')).toBe(prefId('locale'));
+    expect(prefId('locale')).not.toBe(prefId('other'));
+  });
+});

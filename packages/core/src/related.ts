@@ -68,3 +68,10 @@ export function relatedIdsOf(links: readonly TaskLink[], taskId: string): string
     .sort((p, q) => (p.created_at < q.created_at ? -1 : p.created_at > q.created_at ? 1 : 0))
     .map((l) => (l.a_task_id === taskId ? l.b_task_id : l.a_task_id));
 }
+
+/** 偏好行的 id：由 key 算出（UUID 形状），各设备同一个 key 得到同一行。 */
+export function prefId(key: string): string {
+  const k = `pref\u0000${key}`;
+  const hex = [fnv(k), fnv(k, 0x01234567), fnv(k, 0x89abcdef), fnv(k, 0x2468ace0)].map((n) => n.toString(16).padStart(8, '0')).join('');
+  return `00000000-${hex.slice(0, 4)}-7${hex.slice(5, 8)}-8${hex.slice(9, 12)}-${hex.slice(12, 24)}`;
+}

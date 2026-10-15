@@ -105,6 +105,11 @@ export interface Task extends BaseRow {
    * 人物类型不走这里，仍用 type_data.person 指向 person 表。
    */
   library_item_id: string | null;
+  /**
+   * 提醒时间「HH:MM」（本机时区），可空。只做一次的任务：到期那天（日期，或倒数日的目标日）这个时间提醒；
+   * 定期打卡：每个要打卡的日子这个时间提醒（「每天 X 点提醒」）。计时到点的提醒不靠它（总会提醒）。SQLite 迁移 v4。
+   */
+  remind_time: string | null;
   done_at: Timestamp | null;
   sort: number;
   created_at: Timestamp;
@@ -269,6 +274,15 @@ export interface Asset extends BaseRow {
   url: string | null;
 }
 
+/**
+ * 用户偏好（跟着账户同步的设置，比如界面语言）：一键一行，id 由 key 算出（各设备同一行，LWW 合并）。SQLite 迁移 v4。
+ * 只放应该跨设备一致的；皮肤、明暗这类跟设备走的仍在本机设置里。
+ */
+export interface Pref extends BaseRow {
+  key: string;
+  value: FieldValue;
+}
+
 export interface TableMap {
   task: Task;
   dependency: Dependency;
@@ -283,6 +297,7 @@ export interface TableMap {
   checkin_category: CheckInCategory;
   asset: Asset;
   library_item: LibraryItem;
+  pref: Pref;
 }
 
 export type TableName = keyof TableMap;
@@ -300,6 +315,7 @@ export const TABLES: readonly TableName[] = [
   'asset',
   'library_item',
   'task_link',
+  'pref',
 ];
 
 /** 写入时调用方提供的部分：id / updated_at / deleted 由存储层补齐。 */

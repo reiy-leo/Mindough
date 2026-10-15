@@ -33,6 +33,7 @@ export function mkTask(id: string, patch: Partial<Task> = {}): Task {
     recurrence: null,
     checkin_category_id: null,
     library_item_id: null,
+    remind_time: null,
     done_at: null,
     sort: 0,
     created_at: new Date(2026, 0, 1, 8).toISOString(),
