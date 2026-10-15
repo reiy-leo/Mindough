@@ -8,6 +8,7 @@ export * from './recurrence';
 export * from './checkin';
 export * from './heatmap';
 export * from './myday';
+export * from './backlog';
 export * from './preview';
 export * from './describe';
 export * from './search';

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -189,15 +189,15 @@ function Composer() {
     for (const pid of d.people) store.linkPerson(t.id, pid);
     // 和「接在后面」的那件已经有前后关系了，就不再标相关
     for (const rid of d.related) if (rid !== req.after && store.get('task', rid)) store.linkTasks(t.id, rid);
-    // 从侧边栏 / 快捷键新建（不在组里、没定日期、不是打卡）的任务自动进我的一天
-    const toMyDay = !req.after && req.defaults.scheduled_date === undefined && !d.groupId && !d.date && !recurring;
+    // 只有从「我的一天」新建的才放进今天（Rei 2026-10-16 改了 M0 决定 8）；别处新建、没日期的默认在「待安排」
+    const toMyDay = shouldJoinMyDay({ fromMyDay: !!req.myDay, recurring, date: d.date, today });
     if (toMyDay) store.addToMyDay(t.id);
     ui.closeQuickCreate();
     const name = titleOf(store, store.get('task', t.id) ?? t);
     ui.toast(
       {
         tone: 'success',
-        message: recurring ? `已添加到打卡：「${name}」` : toMyDay ? `已添加到我的一天：「${name}」` : `已添加：「${name}」`,
+        message: recurring ? `已添加到打卡：「${name}」` : toMyDay ? `已添加到我的一天：「${name}」` : !d.date && t.completion_mode !== 'countdown' ? `已添加到待安排：「${name}」` : `已添加：「${name}」`,
         actions: [{ label: '查看', onPress: () => ui.openEditor(t.id) }],
       },
       4000,

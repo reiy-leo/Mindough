@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 export type Route =
   | { page: 'myday' }
+  | { page: 'backlog' }
   | { page: 'agenda' }
   | { page: 'groups' }
   | { page: 'group'; id: string }
@@ -21,6 +22,8 @@ export function parseHash(hash: string): Route {
   switch (a) {
     case 'agenda':
       return { page: 'agenda' };
+    case 'backlog':
+      return { page: 'backlog' };
     case 'groups':
       return b ? { page: 'group', id: b } : { page: 'groups' };
     case 'people':

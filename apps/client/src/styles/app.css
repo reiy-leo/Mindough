@@ -2729,3 +2729,25 @@ button {
 [data-layout='desktop'] .checkin-filters .filter-edit {
   margin-right: auto;
 }
+
+/* 待安排的空状态：图标 + 一句安心话 + 记一件事 */
+.empty-backlog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 64px 16px;
+}
+.empty-backlog .empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.empty-backlog .btn {
+  margin-top: 10px;
+}

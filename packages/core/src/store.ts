@@ -5,6 +5,7 @@
 import { HlcClock } from './hlc';
 import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
+import { backlogTasks } from './backlog';
 import { assertCanAddEdge, deriveAll, findCycleEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
 import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, prefId, relatedIdsOf, taskLinkId, visibleLinks } from './related';
@@ -662,6 +663,26 @@ export class Store {
     taskIds.forEach((tid, i) => {
       const e = entries.find((x) => x.task_id === tid);
       if (e && e.sort !== i + 1) rows.push({ table: 'my_day', row: { ...e, sort: i + 1 } as BaseRow });
+    });
+    this.write(rows);
+  }
+
+  // ───────────── 待安排 ─────────────
+
+  /** 待安排：没结束、只做一次、没日期、今天的我的一天里没有的任务（见 backlog.ts）。 */
+  backlog(today: string = toDateKey(this.now())): Task[] {
+    return backlogTasks(this.tasks(), this.list('my_day'), today);
+  }
+
+  /** 待安排里拖动排序：这几件按新顺序重新占用它们原来的那些 sort 值（不影响别的任务的相对顺序）。 */
+  reorderBacklog(taskIds: string[]): void {
+    const tasks = taskIds.map((id) => this.get('task', id)).filter((t): t is Task => !!t);
+    const slots = tasks.map((t) => t.sort).sort((a, b) => a - b);
+    // 有重复的 sort 时拉开一点，保证新顺序严格递增
+    for (let i = 1; i < slots.length; i++) if (slots[i]! <= slots[i - 1]!) slots[i] = slots[i - 1]! + 1e-6;
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    tasks.forEach((t, i) => {
+      if (t.sort !== slots[i]) rows.push({ table: 'task', row: { ...t, sort: slots[i]! } as BaseRow });
     });
     this.write(rows);
   }

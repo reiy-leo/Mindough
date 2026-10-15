@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
 import { useStore } from './store/StoreProvider';
 import { MyDayPage } from './pages/MyDay';
 import { AgendaPage } from './pages/Agenda';
+import { BacklogPage } from './pages/Backlog';
 import { GroupDetailPage, GroupsPage } from './pages/Groups';
 import { PersonDetailPage } from './pages/People';
 import { LibraryItemPage, LibraryPage } from './pages/Library';
@@ -44,6 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: '今天',
     items: [
       { page: 'myday', label: '我的一天', icon: Sun, match: ['myday'] },
+      { page: 'backlog', label: '待安排', icon: Inbox, match: ['backlog'] },
       { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
       { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
     ],
@@ -68,7 +70,7 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 const SETTINGS: NavItem = { page: 'settings', label: '设置', icon: Settings, match: ['settings'] };
-const MOBILE_TABS: Route['page'][] = ['myday', 'checkin', 'agenda', 'graph'];
+const MOBILE_TABS: Route['page'][] = ['myday', 'backlog', 'checkin', 'agenda'];
 const COLLAPSED_KEY = 'mindough:nav_collapsed';
 
 function useCollapsed() {
@@ -107,6 +109,8 @@ function Page({ route }: { route: Route }) {
       return <MyDayPage />;
     case 'agenda':
       return <AgendaPage />;
+    case 'backlog':
+      return <BacklogPage />;
     case 'groups':
       return <GroupsPage />;
     case 'group':
@@ -216,14 +220,15 @@ export function App() {
         ui.setPaletteOpen(true);
       } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !isTyping(e.target) && !ui.editingId && !ui.paletteOpen) {
         e.preventDefault();
-        ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {});
+        ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
       }
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
   }, [ui, route]);
 
-  const newTask = () => ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {});
+  const newTask = () => ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
+  const backlogCount = store.backlog(toDateKey(store.now())).length;
   const current = [...NAV, SETTINGS].find(isActive);
 
   let shell: ReactNode;
@@ -250,7 +255,7 @@ export function App() {
                     <ChevronRight size={12} aria-hidden className={`nav-section-chevron${isCollapsed ? '' : ' is-open'}`} />
                   </RacButton>
                   {!isCollapsed &&
-                    sec.items.map((n) => <NavLink key={n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : undefined} />)}
+                    sec.items.map((n) => <NavLink key={n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : n.page === 'backlog' ? backlogCount : undefined} />)}
                 </div>
               );
             })}
