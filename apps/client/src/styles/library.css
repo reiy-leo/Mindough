@@ -771,3 +771,313 @@
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
 }
+
+/* ───────── 链接：站点编号、更多链接、链接小标签 ───────── */
+.field-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-hint.is-invalid {
+  color: var(--warning);
+  white-space: normal;
+}
+.field-hint-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.field-hint-link:hover {
+  color: var(--accent);
+}
+.input.mono-id {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.field[data-invalid] .input,
+.input.is-invalid {
+  border-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong));
+}
+.field[data-invalid] .input:focus,
+.input.is-invalid:focus {
+  box-shadow: 0 0 0 1px var(--warning);
+  border-color: var(--warning);
+}
+.links-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.links-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.links-label {
+  flex: 0 0 92px;
+  width: 92px;
+  font-weight: 500;
+}
+.links-url {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+.links-row-actions {
+  display: inline-flex;
+  flex: none;
+}
+.links-row-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+.links-move {
+  opacity: 0;
+  transition: opacity 0.12s var(--ease);
+}
+.links-row:hover .links-move,
+.links-row:focus-within .links-move,
+[data-layout='mobile'] .links-move {
+  opacity: 1;
+}
+.links-row:hover .links-move[data-disabled],
+.links-row:focus-within .links-move[data-disabled],
+[data-layout='mobile'] .links-move[data-disabled] {
+  opacity: 0.3;
+  cursor: default;
+}
+.links-add {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.links-add-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+.input.links-add-input {
+  padding-left: 32px;
+  border-style: dashed;
+  background: transparent;
+}
+.input.links-add-input:focus {
+  border-style: solid;
+  background: var(--surface);
+}
+.select-value.is-placeholder {
+  color: var(--text-3);
+}
+.multi-select-popover .pick-item {
+  min-height: 32px;
+}
+
+.link-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.link-chip svg {
+  color: var(--text-3);
+}
+.link-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.link-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.item-card-links {
+  margin-top: 8px;
+}
+.lib-hero-links {
+  margin-top: 16px;
+}
+[data-layout='mobile'] .lib-hero .lib-hero-links {
+  justify-content: center;
+}
+[data-layout='mobile'] .links-label {
+  flex-basis: 84px;
+  width: 84px;
+}
+/* WinUI：HyperlinkButton 式的小标签——4px 圆角、无底色描边更淡 */
+[data-skin='winui'] .link-chip {
+  border-radius: 4px;
+  height: 28px;
+  background: var(--surface);
+}
+/* Material 3：Assist chip——8dp 圆角、32dp 高、描边 */
+[data-skin='material'] .link-chip {
+  border-radius: 8px;
+  height: 32px;
+  padding: 0 12px;
+  background: transparent;
+  border-color: var(--border-strong);
+}
+[data-skin='material'] .input.links-add-input {
+  border-radius: 4px;
+}
+
+/* ───────── 备注（Markdown） ───────── */
+.note-field-label {
+  justify-content: space-between;
+}
+.note-md-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.input.note-textarea {
+  display: block;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  padding: 8px 10px;
+  line-height: 1.55;
+  resize: none;
+  min-height: 78px;
+}
+.input.note-preview {
+  min-height: 40px;
+  padding: 8px 10px;
+  cursor: text;
+  height: auto;
+}
+.input.note-preview:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ───────── 金额 + 币种 ───────── */
+.money-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.money-field > .field {
+  flex: 1;
+}
+.currency-select {
+  flex: 0 0 auto;
+  /* 和左边输入框对齐：让出标签的高度 */
+  margin-top: calc(12px * 1.4 + 4px);
+}
+.currency-btn {
+  min-width: 88px;
+  font-variant-numeric: tabular-nums;
+}
+.currency-popover {
+  width: 260px;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+.currency-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.currency-search-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+.input.currency-search-input {
+  padding-left: 28px;
+  min-height: 30px;
+}
+.currency-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+.currency-list {
+  overflow: auto;
+  min-height: 0;
+}
+.currency-symbol {
+  width: 34px;
+  flex: none;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────── 已识别 第 2 季第 3 集 ───────── */
+.ep-chip {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 10%, transparent);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.ep-chip b {
+  color: var(--text);
+  font-weight: 600;
+}
+.ep-chip svg:first-child {
+  color: var(--chip-color, var(--accent));
+}
+.ep-chip-x {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.ep-chip-x[data-hovered] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.ep-chip-undo {
+  font-size: 12.5px;
+  padding-right: 6px;
+}
+[data-skin='winui'] .ep-chip {
+  border-radius: 4px;
+}
+[data-skin='material'] .ep-chip {
+  border-radius: 8px;
+}

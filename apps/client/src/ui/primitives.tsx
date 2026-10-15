@@ -1,7 +1,7 @@
 /**
  * Headless React Aria 组件 + 语义类名。外观全部来自皮肤层（tokens.css / app.css / skins.css）。
  */
-import { useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import {
   Button as RacButton,
   Dialog,
@@ -20,6 +20,7 @@ import {
   Popover,
   Select as RacSelect,
   SelectValue,
+  Text,
   TextArea,
   TextField,
   ToggleButton,
@@ -30,7 +31,7 @@ import {
   type PopoverProps,
   type Key,
 } from 'react-aria-components';
-import { ChevronDown, MoreHorizontal, X } from 'lucide-react';
+import { Check, ChevronDown, MoreHorizontal, X } from 'lucide-react';
 import { useSettings } from '../lib/settings';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid' | 'tonal' | 'quiet';
@@ -304,6 +305,12 @@ export function Field({
   rows,
   autoFocus,
   className,
+  description,
+  isInvalid,
+  onBlur,
+  onPaste,
+  inputClassName,
+  inputMode,
 }: {
   label: string;
   value: string;
@@ -314,12 +321,85 @@ export function Field({
   rows?: number;
   autoFocus?: boolean;
   className?: string;
+  /** 输入框下面的一行轻提示（格式不对、预览链接）。 */
+  description?: ReactNode;
+  isInvalid?: boolean;
+  onBlur?: () => void;
+  onPaste?: (text: string, e: ClipboardEvent<HTMLInputElement>) => void;
+  inputClassName?: string;
+  inputMode?: 'decimal' | 'numeric' | 'text' | 'url';
 }) {
   return (
-    <TextField className={`field${className ? ` ${className}` : ''}`} value={value} onChange={onChange} type={multiline ? undefined : type} autoFocus={autoFocus}>
+    <TextField
+      className={`field${className ? ` ${className}` : ''}`}
+      value={value}
+      onChange={onChange}
+      type={multiline ? undefined : type}
+      autoFocus={autoFocus}
+      isInvalid={!!isInvalid}
+      {...(onBlur ? { onBlur } : {})}
+    >
       <Label className="field-label">{label}</Label>
-      {multiline ? <TextArea className="input textarea" rows={rows ?? 6} placeholder={placeholder} /> : <Input className="input" placeholder={placeholder} />}
+      {multiline ? (
+        <TextArea className="input textarea" rows={rows ?? 6} placeholder={placeholder} />
+      ) : (
+        <Input
+          className={`input${inputClassName ? ` ${inputClassName}` : ''}`}
+          placeholder={placeholder}
+          {...(inputMode ? { inputMode } : {})}
+          {...(onPaste ? { onPaste: (e: ClipboardEvent<HTMLInputElement>) => onPaste(e.clipboardData.getData('text'), e) } : {})}
+        />
+      )}
+      {description && (
+        <Text slot="description" className={`field-hint${isInvalid ? ' is-invalid' : ''}`}>
+          {description}
+        </Text>
+      )}
     </TextField>
+  );
+}
+
+/** 多选下拉：按钮上显示选中的几项（「不选」= 空），弹出带勾的列表，可以连着点几项。 */
+export function MultiSelect({
+  label,
+  value,
+  onChange,
+  options,
+  className,
+  emptyLabel = '不选',
+}: {
+  label: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: Option[];
+  className?: string;
+  emptyLabel?: string;
+}) {
+  const text = options.filter((o) => value.includes(o.id)).map((o) => o.label).join('、');
+  return (
+    <RacSelect
+      className={`field multi-select${className ? ` ${className}` : ''}`}
+      selectionMode="multiple"
+      value={value}
+      onChange={(keys) => onChange(options.map((o) => o.id).filter((id) => (keys as Key[]).map(String).includes(id)))}
+      placeholder={emptyLabel}
+    >
+      <Label className="field-label">{label}</Label>
+      <RacButton className="input select-btn">
+        <span className={`select-value${text ? '' : ' is-placeholder'}`}>{text || emptyLabel}</span>
+        <ChevronDown size={16} aria-hidden />
+      </RacButton>
+      <Popover className="popover multi-select-popover">
+        <ListBox className="listbox" items={options}>
+          {(o) => (
+            <ListBoxItem id={o.id} className="listbox-item pick-item" textValue={o.label}>
+              <span className="grow">{o.label}</span>
+              <Check size={15} className="pick-check" aria-hidden />
+            </ListBoxItem>
+          )}
+        </ListBox>
+      </Popover>
+    </RacSelect>
   );
 }
 

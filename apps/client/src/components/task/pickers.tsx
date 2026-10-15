@@ -1,7 +1,7 @@
 /**
  * 新建面板与任务详情共用的属性编辑件。文案规则见 docs/COPY.md。
  */
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Button as RacButton,
   ListBox,
@@ -25,6 +25,9 @@ import {
   durationParts,
   formatRecurrence,
   friendlyDate,
+  multiValuesOf,
+  normalizeEpisodeInput,
+  fieldText,
   parseRecurrence,
   weekday,
   type CompletionMode,
@@ -37,7 +40,9 @@ import {
   type Task,
   type TaskType,
 } from '@mindough/core';
-import { Field, InlineNumber, InlineText, PopoverPanel, Select } from '../../ui/primitives';
+import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
+import { LinksInput, SiteIdInput } from '../library/LinkFields';
+import { MoneyInput } from '../library/MoneyField';
 import { DatePanel } from './DatePanel';
 import { Avatar } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
@@ -355,10 +360,48 @@ function readFile(file: File): Promise<string> {
   });
 }
 
+/** 看到哪：可以直接写 S02E03 / 第二季第三集，离开时整理成「第 2 季第 3 集」；别的写法原样留着。 */
+function EpisodeInput({ def, value, onChange }: { def: FieldDef; value: FieldValue | undefined; onChange: (v: FieldValue) => void }) {
+  const shown = fieldText(value);
+  const [text, setText] = useState(shown);
+  useEffect(() => {
+    if (fieldText(normalizeEpisodeInput(text)) !== shown) setText(shown);
+  }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Field
+      label={def.label}
+      value={text}
+      placeholder={def.placeholder ?? '第 2 季第 3 集，或 S02E03'}
+      onChange={(t) => {
+        setText(t);
+        onChange(normalizeEpisodeInput(t));
+      }}
+      onBlur={() => setText(fieldText(normalizeEpisodeInput(text)))}
+    />
+  );
+}
+
 /** 类型字段的一个输入。 */
 export function FieldInput({ store, def, value, onChange }: { store: Store; def: FieldDef; value: FieldValue | undefined; onChange: (v: FieldValue) => void }) {
   const str = value === null || value === undefined ? '' : Array.isArray(value) ? value.join('\n') : String(value);
   switch (def.kind) {
+    case 'multiselect':
+      return (
+        <MultiSelect
+          label={def.label}
+          value={multiValuesOf(def, value)}
+          onChange={(v) => onChange(v.length ? v : null)}
+          options={(def.options ?? []).map((o) => ({ id: o, label: o }))}
+        />
+      );
+    case 'money':
+      return <MoneyInput store={store} def={def} value={value} onChange={onChange} />;
+    case 'episode':
+      return <EpisodeInput def={def} value={value} onChange={onChange} />;
+    case 'site_id':
+      return <SiteIdInput def={def} value={value} onChange={onChange} />;
+    case 'links':
+      return <LinksInput def={def} value={value} onChange={onChange} />;
     case 'select':
       return (
         <Select
@@ -454,7 +497,7 @@ export function TypeFields({ store, type, data, onChange, bare }: { store: Store
       )}
       <div className="type-fields-grid">
         {fields.map((f) => (
-          <div key={f.key} className={f.primary || f.kind === 'image' || f.kind === 'list' ? 'span-2' : undefined}>
+          <div key={f.key} className={f.primary || f.kind === 'image' || f.kind === 'list' || f.kind === 'links' || f.kind === 'multiselect' ? 'span-2' : undefined}>
             <FieldInput store={store} def={f} value={data[f.key]} onChange={(v) => onChange(f.key, v)} />
           </div>
         ))}

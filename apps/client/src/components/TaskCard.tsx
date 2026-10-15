@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Lock } from 'lucide-react';
-import { fieldText, type Store, type Task } from '@mindough/core';
+import { fieldText, isLinkField, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
@@ -15,7 +15,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
   const layout = v.type?.layout ?? 'text';
   const Icon = typeIcon(v.type?.icon);
   const facts = (v.type?.fields ?? [])
-    .filter((f) => !f.primary && !f.media && f.kind !== 'image' && f.kind !== 'link' && f.kind !== 'person')
+    .filter((f) => !f.primary && !f.media && f.kind !== 'image' && f.kind !== 'link' && f.kind !== 'person' && !isLinkField(f))
     .map((f) => {
       const val = fieldText(v.data[f.key]);
       return val ? (f.kind === 'progress' ? `${f.label} ${val}${f.unit ?? ''}` : val) : '';

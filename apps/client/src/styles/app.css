@@ -1827,6 +1827,67 @@ button {
   border-left: 3px solid var(--border-strong);
   color: var(--text-2);
 }
+.md ul,
+.md ol {
+  padding-left: 20px;
+}
+.md li:has(> input[type='checkbox']) {
+  list-style: none;
+  margin-left: -20px;
+}
+.md input[type='checkbox'] {
+  margin: 0 6px 0 0;
+  vertical-align: -1px;
+  accent-color: var(--accent);
+}
+.md a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.md a:hover {
+  text-decoration: underline;
+}
+.md code {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+}
+.md pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  overflow-x: auto;
+}
+.md pre code {
+  padding: 0;
+  background: none;
+}
+.md table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.94em;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.md th,
+.md td {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.md th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
 .md-preview {
   min-height: 140px;
   padding: var(--space-3);

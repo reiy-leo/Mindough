@@ -4,6 +4,9 @@ import { CalendarDays, Check, ChevronDown, ChevronRight, CircleSlash, ListPlus, 
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
+  findEpisode,
+  firstLine,
+  formatEpisode,
   describeCompletion,
   describeRecurrence,
   formatDuration,
@@ -65,8 +68,37 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
     },
     [store, task.id],
   );
+  const ui = useUi();
   const commit = () => {
-    if (body !== task.body_md) store.updateTask(task.id, { body_md: body });
+    if (body !== task.body_md) {
+      store.updateTask(task.id, { body_md: body });
+      // 看到哪还空着、第一行写了 S02E03 / 第二季第三集：顺手填上，提示里可以撤销
+      const type = store.get('task_type', task.type_id);
+      const ep = type?.fields.find((f) => f.kind === 'episode' && f.scope === 'task');
+      const cur = store.get('task', task.id);
+      const m = ep && cur && (cur.type_data[ep.key] === undefined || cur.type_data[ep.key] === null || cur.type_data[ep.key] === '') ? findEpisode(firstLine(body)) : null;
+      if (ep && cur && m) {
+        store.updateTask(task.id, { type_data: { ...cur.type_data, [ep.key]: m.value } });
+        ui.toast(
+          {
+            message: `已识别 ${formatEpisode(m.value)}，填进了「${ep.label}」`,
+            actions: [
+              {
+                label: '撤销',
+                onPress: () => {
+                  const t = store.get('task', task.id);
+                  if (!t) return;
+                  const td = { ...t.type_data };
+                  delete td[ep.key];
+                  store.updateTask(task.id, { type_data: td });
+                },
+              },
+            ],
+          },
+          5000,
+        );
+      }
+    }
     setEditing(false);
   };
   if (editing)

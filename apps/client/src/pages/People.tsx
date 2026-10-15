@@ -8,6 +8,7 @@ import { Button, Empty, Field, Section, Sheet } from '../ui/primitives';
 import { Avatar } from '../components/Avatar';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
+import { NoteField } from '../components/library/NoteField';
 import { BUILTIN_TYPE_IDS } from '@mindough/core';
 
 export function PersonDialog({ id, initialName, onClose }: { id?: string; initialName?: string; onClose: () => void }) {
@@ -62,7 +63,7 @@ export function PersonDialog({ id, initialName, onClose }: { id?: string; initia
           <Field label="生日" type="date" value={birthday} onChange={setBirthday} />
         </div>
       </div>
-      <Field label="备注" multiline rows={4} value={note} onChange={setNote} />
+      <NoteField value={note} onChange={setNote} />
     </Sheet>
   );
 }

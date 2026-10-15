@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarDays, CircleHelp, CornerDownRight, Shapes, Users } from 'lucide-react';
-import { PLAIN_TYPE_ID, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store } from '@mindough/core';
+import { CalendarDays, CircleHelp, CornerDownRight, Shapes, Sparkles, Users, X } from 'lucide-react';
+import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -26,13 +26,32 @@ export function PropChip({ icon, label, value, color }: { icon: ReactNode; label
   );
 }
 
-export const MARKDOWN_HELP = (
-  <span className="md-help">
-    可以用 Markdown 排版：
-    <br />
-    <code># 标题</code> <code>- [ ] 清单</code> <code>**粗体**</code>
-  </span>
-);
+export { MARKDOWN_HELP } from '../Markdown';
+
+/** 「已识别 第 2 季第 3 集」：让人看见自动填了什么；还没填进去时是 ×（不用），填进去后是「撤销」。 */
+function EpisodeChip({ text, pending, onUndo }: { text: string; pending: boolean; onUndo: () => void }) {
+  return (
+    <div className="ep-chip" role="status">
+      <Sparkles size={13} aria-hidden />
+      <span>
+        已识别 <b>{text}</b>
+        {pending ? '，会填进「看到哪」' : ''}
+      </span>
+      {pending ? (
+        <Tip content="不用识别">
+          <RacButton className="ep-chip-x" aria-label="不用识别" onPress={onUndo}>
+            <X size={13} />
+          </RacButton>
+        </Tip>
+      ) : (
+        <RacButton className="link-btn ep-chip-undo" onPress={onUndo}>
+          撤销
+        </RacButton>
+      )}
+    </div>
+  );
+}
+import { MARKDOWN_HELP } from '../Markdown';
 
 interface Draft extends CompletionValue {
   body: string;
@@ -48,6 +67,10 @@ interface Draft extends CompletionValue {
   entryId: string | null;
   newItem: ItemDraft | null;
   query: string;
+  /** 看到哪：不要自动识别（点了 × 或撤销）。 */
+  epIgnored: boolean;
+  /** 已经从名字里识别并填进看到哪的：原来的整段名字（撤销时还回去）。 */
+  epApplied: { fullName: string } | null;
 }
 
 function initialDraft(store: Store, d: NewTaskInput): Draft {
@@ -72,6 +95,8 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     entryId: d.library_item_id ?? (type && isPersonLibrary(type) && typeof d.type_data?.person === 'string' ? d.type_data.person : null),
     newItem: null,
     query: '',
+    epIgnored: false,
+    epApplied: null,
   };
 }
 
@@ -102,6 +127,13 @@ function Composer() {
   const after = req.after ? store.get('task', req.after) : undefined;
   const afterTitle = after ? titleOf(store, after) : '';
   const primaryKey = type?.fields.find((f) => f.primary)?.key;
+  // 看到哪：从搜索框 / 内容第一行认出 S02E03、第二季第三集
+  const epDef = taskFields.find((f) => f.kind === 'episode');
+  const epFilled = !!epDef && d.typeData[epDef.key] !== undefined && d.typeData[epDef.key] !== null && d.typeData[epDef.key] !== '';
+  const queryEp = epDef && !d.epIgnored ? stripEpisode(d.query) : { rest: d.query, match: null };
+  const bodyEp = epDef && !d.epIgnored && !epFilled && !queryEp.match ? findEpisode(firstLine(d.body)) : null;
+  const withEp = (typeData: Record<string, FieldValue>): Partial<Draft> =>
+    epDef && queryEp.match && !epFilled ? { typeData: { ...typeData, [epDef.key]: queryEp.match.value }, epApplied: { fullName: d.query.trim() } } : {};
   const hasItem = !!entry || !!d.newItem?.name.trim();
   const hasContent = d.body.trim() !== '' || hasItem || (!lib && !!primaryKey && !!d.typeData[primaryKey]);
   const needsDate = d.completion_mode === 'countdown' && !d.target_date;
@@ -124,6 +156,7 @@ function Composer() {
     const recurring = !!d.recurrence;
     // 资料库类型：资料存进库（新建的先存），任务只留任务字段
     let typeData = d.typeData;
+    if (epDef && bodyEp) typeData = { ...typeData, [epDef.key]: bodyEp.value };
     let itemId: string | null = null;
     if (lib) {
       const own = new Set(taskFields.map((f) => f.key));
@@ -173,7 +206,7 @@ function Composer() {
 
   const pickType = (id: string) => {
     const nt = store.get('task_type', id);
-    const p: Partial<Draft> = { typeId: id, entryId: null, newItem: null, query: '' };
+    const p: Partial<Draft> = { typeId: id, entryId: null, newItem: null, query: '', epIgnored: false, epApplied: null };
     // 已经写了一行字再选类型：把它当作要找的名字（「沙丘」→ 选影视 → 直接搜到）
     if (hasLibrary(nt) && d.body.trim() && !d.body.includes('\n') && d.body.trim().length <= 40) Object.assign(p, { query: d.body.trim(), body: '' });
     // 类型可以带默认的完成方式（如旅行 → 倒数日）；用户自己挑过就不动
@@ -246,18 +279,31 @@ function Composer() {
               store={store}
               type={lib}
               query={d.query}
+              searchText={queryEp.rest}
               onQueryChange={(q) => set({ query: q })}
               autoFocus
               onPick={(e) => {
-                set({ entryId: e.id, query: '' });
+                set({ entryId: e.id, query: '', ...withEp(d.typeData) });
                 focusBody();
               }}
               onCreate={(name) => {
-                set({ newItem: emptyDraft(name) });
+                set({ newItem: emptyDraft(name), ...withEp(d.typeData) });
                 setTimeout(() => document.querySelector<HTMLInputElement>('.composer-newitem .item-editor-fields input')?.focus(), 40);
               }}
             />
           ))}
+        {epDef && ((queryEp.match && !epFilled) || bodyEp || (d.epApplied && epFilled)) && (
+          <EpisodeChip
+            text={formatEpisode(((queryEp.match && !epFilled ? queryEp.match : null) ?? bodyEp)?.value ?? episodeOf(d.typeData[epDef.key]) ?? {})}
+            pending={!!((queryEp.match && !epFilled) || bodyEp)}
+            onUndo={() => {
+              if ((queryEp.match && !epFilled) || bodyEp) return set({ epIgnored: true });
+              const typeData = { ...d.typeData };
+              delete typeData[epDef.key];
+              set({ typeData, epApplied: null, epIgnored: true, ...(d.newItem && d.epApplied ? { newItem: { ...d.newItem, name: d.epApplied.fullName } } : {}) });
+            }}
+          />
+        )}
         <AutoTextarea label="内容" className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={lib || typed ? '还想记点什么？（可以不填）' : '要做什么？'} minRows={1} />
 
         <div className="prop-chips" role="group" aria-label="更多属性">

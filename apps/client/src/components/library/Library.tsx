@@ -11,6 +11,7 @@ import {
   isPersonLibrary,
   itemSubtitle,
   libraryCopy,
+  linkChips,
   placeholderArt,
   searchLibrary,
   type FieldValue,
@@ -21,6 +22,8 @@ import {
 import { imageUrl } from '../../lib/view';
 import { Button, Field, Sheet } from '../../ui/primitives';
 import { FieldInput } from '../task/pickers';
+import { LinkChips } from './LinkFields';
+import { NoteField } from './NoteField';
 
 export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
 
@@ -63,6 +66,7 @@ export function LibraryPicker({
   autoFocus,
   exclude,
   className,
+  searchText,
 }: {
   store: Store;
   type: TaskType;
@@ -74,11 +78,13 @@ export function LibraryPicker({
   /** 不列出（详情里“换一个”时排除当前这条）。 */
   exclude?: string | null;
   className?: string;
+  /** 实际拿去搜 / 新建的名字（如去掉了「S02E03」）；不给就用输入框里的字。 */
+  searchText?: string;
 }) {
   const copy = libraryCopy(type);
   const shape = artShape(type);
   const all = useMemo(() => store.libraryEntries(type.id).filter((e) => e.id !== exclude), [store, store.version, type.id, exclude]); // eslint-disable-line react-hooks/exhaustive-deps
-  const q = query.trim();
+  const q = (searchText ?? query).trim();
   const results = useMemo(() => searchLibrary(all, q, 40), [all, q]);
   const same = q ? findSameName(all, q) : undefined;
   const canCreate = !!q && !same;
@@ -290,14 +296,14 @@ export function ItemEditor({ store, type, value, onChange, autoFocusName, showNo
         ) : (
           <>
             {extras.map((f) => (
-              <div key={f.key} className={f.kind === 'list' || f.kind === 'link' ? 'span-2' : undefined}>
+              <div key={f.key} className={f.kind === 'list' || f.kind === 'link' || f.kind === 'links' || f.kind === 'multiselect' ? 'span-2' : undefined}>
                 <FieldInput store={store} def={f} value={value.fields[f.key]} onChange={(v) => set({ fields: { ...value.fields, [f.key]: v } })} />
               </div>
             ))}
             {media && <Field className="span-2" label={`${media.label}链接`} value={linkVal} onChange={(v) => set({ image: v.trim() || null })} placeholder="可以直接粘贴图片链接" />}
           </>
         )}
-        {showNote && <Field className="span-2" label="备注" multiline rows={3} value={value.note_md} onChange={(v) => set({ note_md: v })} />}
+        {showNote && <NoteField className="span-2" value={value.note_md} onChange={(v) => set({ note_md: v })} />}
       </div>
     </div>
   );
@@ -323,7 +329,7 @@ export function saveDraft(store: Store, type: TaskType, d: ItemDraft, existingId
 }
 
 /** 选中的资料：缩略图 + 名字 + 一行简介，右边放操作。 */
-export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: Store; type: TaskType; entry: Pick<LibraryEntry, 'name' | 'image' | 'subtitle'>; actions?: ReactNode; size?: 'md' | 'lg' }) {
+export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: Store; type: TaskType; entry: Pick<LibraryEntry, 'name' | 'image' | 'subtitle' | 'links'>; actions?: ReactNode; size?: 'md' | 'lg' }) {
   const shape = artShape(type);
   return (
     <div className={`item-card shape-${shape} size-${size}`} style={{ '--chip-color': type.color } as CSSProperties}>
@@ -331,6 +337,7 @@ export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: 
       <div className="item-card-text">
         <div className="item-card-name">{entry.name}</div>
         {entry.subtitle && <div className="item-card-sub">{entry.subtitle}</div>}
+        {size === 'lg' && <LinkChips links={entry.links} className="item-card-links" />}
         {size === 'lg' && actions && <div className="item-card-actions">{actions}</div>}
       </div>
       {size !== 'lg' && actions && <div className="item-card-actions">{actions}</div>}
@@ -340,7 +347,7 @@ export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: 
 
 /** 草稿 → 卡片显示用的条目。 */
 export function draftEntry(type: TaskType, d: ItemDraft) {
-  return { name: d.name, image: d.image, subtitle: isPersonLibrary(type) ? String(d.fields.relation ?? '') : itemSubtitle(type, d.fields) };
+  return { name: d.name, image: d.image, subtitle: isPersonLibrary(type) ? String(d.fields.relation ?? '') : itemSubtitle(type, d.fields), links: isPersonLibrary(type) ? [] : linkChips(type.fields, d.fields) };
 }
 
 /**

@@ -7,7 +7,8 @@ import { Button as RacButton, Input, SearchField } from 'react-aria-components';
 import { ChevronLeft, ExternalLink, Library as LibraryIcon, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import {
   BUILTIN_TYPE_IDS,
-  extraItemFieldsOf,
+  factFieldsOf,
+  linkChips,
   fieldDisplay,
   fieldText,
   hasLibrary,
@@ -28,6 +29,7 @@ import { PageHeader } from '../components/PageHeader';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { ItemArt, ItemSheet, artShape, entryArt } from '../components/library/Library';
+import { LinkChips } from '../components/library/LinkFields';
 import { PersonDialog } from './People';
 import { imageUrl } from '../lib/view';
 
@@ -196,7 +198,8 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
   const tasks = store.tasksOfItem(id);
   const open = tasks.filter((t) => !isFinished(t.status));
   const done = tasks.filter((t) => isFinished(t.status));
-  const facts = extraItemFieldsOf(type)
+  const links = linkChips(type.fields, item.fields);
+  const facts = factFieldsOf(type)
     .map((f) => ({ f, v: item.fields[f.key] }))
     .filter(({ v }) => fieldText(v).trim() !== '');
   return (
@@ -229,6 +232,7 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
               ))}
             </dl>
           )}
+          <LinkChips links={links} className="lib-hero-links" />
           <div className="lib-hero-actions">
             <Button variant="primary" onPress={() => ui.openQuickCreate({ type_id: type.id, library_item_id: id })}>
               <Plus size={16} />
