@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { DEMO_STAMP_META, SqlAdapter, Store, TABLES, WebStorageAdapter, migrateStorage, seedDemo, type BaseRow, type StorageAdapter } from '@mindough/core';
 import { bindSync } from '../lib/sync';
+import { installWindowSync, isMiniWindow } from '../lib/windows';
+import { installWidgetSnapshot } from '../lib/widget-snapshot';
 import { openWebSqlite, webSqliteSupported } from './sqlite-web';
 import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
@@ -72,7 +74,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     openWebStore().then(setStore, (e: unknown) => setError(String(e)));
   }, []);
   // 登录后多设备同步；退出登录就停（本机数据不动）
-  useEffect(() => (store ? bindSync(store) : undefined), [store]);
+  // 同步只在主窗口跑（小窗的写入经窗口事件交给主窗口，主窗口照常推）
+  useEffect(() => (store && !isMiniWindow() ? bindSync(store) : undefined), [store]);
+  useEffect(() => (store ? installWindowSync(store) : undefined), [store]);
+  useEffect(() => (store ? installWidgetSnapshot(store) : undefined), [store]);
   if (error) return <div className="boot-error">{tr('打不开本地数据：{error}', { error })}</div>;
   if (!store) return <div className="boot">Mindough</div>;
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

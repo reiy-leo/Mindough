@@ -172,7 +172,7 @@ function MorePage() {
   );
 }
 
-function Toasts() {
+export function Toasts() {
   const ui = useUi();
   return (
     <div className="toasts" role="status" aria-live="polite">

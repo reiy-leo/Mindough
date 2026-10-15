@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { SettingsProvider } from './lib/settings';
 import { StoreProvider } from './store/StoreProvider';
 import { UiProvider } from './lib/ui';
-import { App } from './App';
+import { App, Toasts } from './App';
+import { MiniWindow } from './components/MiniWindow';
+import { TaskDetail } from './components/task/TaskDetail';
+import { isMiniWindow } from './lib/windows';
 import { initLoginError, startAccountWatch } from './lib/account';
 import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
@@ -22,8 +25,12 @@ applyLocalePref(initialLocalePref());
 // 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
 initLoginError();
 // 账户状态（同步跟着它开 / 停）；原生端监听登录回调的 deep link
-startAccountWatch();
-void initNativeLogin();
+// 小窗不跑同步、不接登录回调（都交给主窗口）
+const mini = isMiniWindow();
+if (!mini) {
+  startAccountWatch();
+  void initNativeLogin();
+}
 // App 里的外链交给系统浏览器
 installExternalLinks();
 
@@ -37,7 +44,15 @@ createRoot(document.getElementById('root')!).render(
       <StoreProvider>
         <LocaleRoot>
           <UiProvider>
-            <App />
+            {mini ? (
+              <>
+                <MiniWindow />
+                <TaskDetail />
+                <Toasts />
+              </>
+            ) : (
+              <App />
+            )}
           </UiProvider>
         </LocaleRoot>
       </StoreProvider>

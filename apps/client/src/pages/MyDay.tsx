@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
-import { GripVertical, Lightbulb, Plus, RotateCcw, Search, Sun, X } from 'lucide-react';
+import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Search, Sun, X } from 'lucide-react';
 import { SUGGESTION_REASON_LABEL, formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
-import { Button, Chip, Empty, Section } from '../ui/primitives';
+import { Button, Chip, Empty, Section, Tip } from '../ui/primitives';
+import { openMiniWindow } from '../lib/windows';
+import { isTauri } from '../store/sqlite-tauri';
+
+/** 小窗只在桌面 app 里有（手机、网页没有置顶窗口）。 */
+const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings } from '../lib/settings';
@@ -67,6 +72,17 @@ export function MyDayPage() {
         title={tr('我的一天')}
         subtitle={`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
         icon={<Sun size={22} />}
+        {...(canMini
+          ? {
+              actions: (
+                <Tip content={tr('小窗：置顶显示今天的事')}>
+                  <RacButton className="icon-btn" aria-label={tr('打开小窗')} onPress={() => void openMiniWindow()}>
+                    <PictureInPicture2 size={18} />
+                  </RacButton>
+                </Tip>
+              ),
+            }
+          : {})}
       />
 
       <Form

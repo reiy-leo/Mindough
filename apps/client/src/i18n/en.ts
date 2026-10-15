@@ -574,4 +574,13 @@ export const EN: Record<string, EnValue> = {
   允许通知: 'Allow Notifications',
   什么时候提醒: 'When You’re Reminded',
   '在任务上设「提醒」时间：有日期的那天、倒数日的目标日、定期打卡的每个要打卡的日子。计时有目标时长的，到点总会提醒。': 'Set a reminder time on a task: it goes off on the task’s date, on a countdown’s day, or on each check-in day. Timers with a goal always let you know when time’s up.',
+
+  // ── 小窗 ──
+  不再置顶: 'Don’t Keep on Top',
+  置顶: 'Keep on Top',
+  打开主窗口: 'Open Main Window',
+  '今天还没有安排。': 'Nothing planned for today.',
+  '加到今天…': 'Add to Today…',
+  '小窗：置顶显示今天的事': 'Mini window — keeps today on top',
+  打开小窗: 'Open Mini Window',
 };

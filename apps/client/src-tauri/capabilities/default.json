@@ -1,15 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "主窗口的默认权限",
+  "description": "主窗口与小窗（mini）的权限",
   "windows": [
-    "main"
+    "main",
+    "mini"
   ],
   "permissions": [
     "core:default",
     "os:default",
     "opener:default",
     "deep-link:default",
-    "notification:default"
+    "notification:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-unminimize"
   ]
 }
