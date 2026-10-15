@@ -32,6 +32,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   checkin.ts            check_in 事件折叠出进度（计时/计量/点一下/倒数日）、热力图比例索引
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
+  library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
   store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）
   storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
   seed/                 内置 11 种类型、27 个打卡分类（固定 id）、演示数据
@@ -40,8 +41,11 @@ apps/client/src/
   styles/app.css        结构样式（只用令牌变量）
   ui/primitives.tsx     React Aria 包装（Button、Sheet、PopoverPanel、OverflowMenu、ConfirmDialog、InlineNumber、AutoTextarea、Tip…）
   components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel
+  components/library/   资料库共用件：占位图 ItemArt、选择框 LibraryPicker、资料编辑 ItemEditor / ItemSheet、资料卡 ItemCard
+  pages/Library.tsx     资料库页与资料详情（人物库沿用 pages/People.tsx 的人物详情）
   components/ pages/    业务组件与页面（不写死平台样式）
   styles/task.css       新建面板与详情的结构样式
+  styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
   lib/ store/           设置、路由、提示、账户（account.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
 apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层）
 apps/server/            Cloudflare Worker：Google 登录、/api、静态资源（未部署）
@@ -74,6 +78,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 - 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
 - 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、前后关系）；两者共用 `components/task/pickers.tsx`。
 - 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
+- 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时一律用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
 - 类型只管展示与新建模板，不替代正文；内置类型与自定义类型走同一套 layout + fields + body_template 机制，不要写死特例。
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。

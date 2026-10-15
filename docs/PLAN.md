@@ -82,12 +82,26 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
 | 饮食 | 菜品照片 + 菜名 | 菜名、照片、餐次、食材清单 | 做法 / 感受 |
 | 人物 | 头像 + 姓名 | 人物（从人物列表选）、事由 | 要聊什么 / 备注 |
 
+- 资料库（2026-10-15 加，见下“资料库”）：每个类型的字段分 资料字段（属于这部片 / 这本书）和 任务字段（属于这一次）；资料存在资料库里，任务引用它。
 - 人物列表：独立的一张人物表（姓名、头像、关系、生日、备注 md）。“人物”类型的任务显示对方头像 + 姓名；任何任务也可以关联多个人物，在卡片上显示小头像。人物详情页列出与 TA 相关的所有任务。
 - 自定义类型：选一种版式（海报 / 图标+名称 / 横幅 / 纯文字），定义字段（文本、数字、进度、日期、链接、图片、单选、人物），写一段正文模板，配名称、图标、颜色。内置类型走同一套机制，不写死特例。
 - 新建任务时先选类型（快捷键直接新建普通任务）；组可设“默认类型”，组里新建自动套用。
 - 改类型时保留已填字段，新类型没有的字段先隐藏不删。
 - 图片：本地上传或粘贴链接；原生端存本地文件，同步时上传到 Cloudflare R2，D1 只存引用。
 - 以后再做：按名称自动找图和资料（影视 TMDB、游戏 Steam/IGDB、书籍 Open Library），展示时附来源。
+
+## 资料库（Rei 2026-10-15：“可以添加影视库、书库、项目库、游戏库、课程库等等，这样不用每次都添加这些资料而是可以选，如果没有再新建”）
+- 每个非“普通”的类型有一个库，自定义类型自动有库。库名（界面）：影视库、书库、游戏库、项目库、课程库、目的地、好物清单、餐厅库、菜谱、人物；写在 `library.ts` 的 `LIBRARY_COPY`。
+- 表 `library_item`：id（UUIDv7）、type_id、name（= 主字段：片名、书名…）、image（图片字段：asset id / 外链 / data URL）、fields（JSON，其余资料字段）、note_md、created_at、updated_at（HLC）、deleted 墓碑。task 加 `library_item_id`（可空）。一条资料可被多件任务引用（重看、再去一次）。
+- 字段定义 `FieldDef.scope`：`item`（默认，资料字段）/ `task`（任务字段）；主字段和图片字段总是资料字段。任务的 `type_data` 只存任务字段；显示时 `Store.taskData()` = 资料展开 + 任务字段（同名以任务为准）。
+- 内置类型拆分（资料 → 任务）：影视 片名·海报·年份·电影/剧集·平台 → 看到哪；书 书名·封面·作者·页数 → 读到第几页；游戏 游戏名·图标·平台 → 进度 %；项目 项目名·图标·链接 → （无）；课程 课程名·图标·平台·链接 → 学到第几课；旅行 目的地·照片 → 出发 / 返回日期；购物 名称·图片·价格·链接 → 买几件；餐厅 店名·照片·地址·链接 → （无）；饮食 菜名·照片·食材清单 → 餐次；人物 人物（person 表）→ 事由。
+- 人物库 = person 表（不迁移，风险大）：`Store.libraryEntries(typeId)` 把资料和人物统一成 `LibraryEntry`（kind item / person），选择框、资料库页、⌘K 用同一套；人物详情仍在 `#/people/:id`。
+- 内置类型改定义：`BUILTIN_TYPES_REVISION` 版本戳（`0000000000000-0001-builtin`）。打开时，存着的内置类型若仍是更早的内置戳（用户没改过）就换成新定义；用户改过的（真实 HLC）不覆盖，只在内存补上各字段的 scope。
+- 迁移（`Store.migrateToLibrary()`，每次打开都跑，无事可做时是空操作）：资料直接写在 type_data 里、没挂资料的旧任务 → 按 类型 + 规范化名字（NFKC、小写、去空白和标点）去重，先找库里已有的，没有就新建；同名的后来者只补空缺；任务改为引用资料、type_data 只留任务字段。迁移出来的资料用确定性 id（类型 + 规范化名字的哈希，UUID 形状），两台设备各自迁移得到同一条，同步时自然合并。没填主字段的、人物类型的、普通任务不动。SQLite：迁移 v2（建 library_item、task 加列与索引）；localStorage：旧 JSON 没有新表 / 新字段时在内存补空。
+- 新建 / 改类型：`createTask` 时若 type_data 里写着名字（旧调用方式、⌘K 等），自动找同名或建资料挂上；`changeTaskType` 先把资料抄回 type_data（“改类型时保留已填字段”），再按新类型重新挂。删除资料：用到它的任务不删，把资料抄回各自 type_data 再解开引用。
+- 搜索：`searchLibrary` 空查询按最近用到（任务 created_at 或资料创建时间）排，有查询按 完全一致 > 开头 > 包含 > 按顺序出现（如「王泪」→「王国之泪」），简介也能搜到；⌘K 结果里有资料，可「用它新建任务」。
+- 界面：新建面板选类型后，主输入变成选择框（↑↓ 回车，缩略图，最后一行「新建“xxx”」→ 就地填资料：图片可上传 / 粘贴图片或链接，名字预填）；已经写了一行字再选类型，那行字直接当搜索词。详情顶部是资料卡（图 + 名字 + 简介，「换一个」「编辑资料」「在影视库里看 · N 件任务」），任务字段在内容下方。资料库页在导航里（桌面侧边栏，手机在「更多」里，人物页并入这里）：按库切换的标签条（Apple 胶囊、WinUI SelectorBar 下划短条、Material filter chip），网格按版式：影视 / 书竖版海报 2:3、游戏 / 项目 / 课程 / 好物方形圆角、目的地 / 餐厅 / 菜谱横幅 16:9、人物圆形头像。没有图时按名字生成渐变 + 缩写的占位（不用任何有版权的海报）。
+- 以后：按名字自动补资料和图（影视 TMDB、书 Open Library、游戏 Steam / IGDB），展示时附来源；资料合并（两条其实是同一部片）；资料库排序方式（最近 / 名字）。
 
 ## 完成方式（打卡）
 完成方式与类型独立：任何任务都可选一种，类型可以给默认值。
@@ -112,7 +126,8 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
 - group：id、name、icon（emoji 或 lucide）、start_at、end_at、category_id
 - category：id、name、color
 - task_type：id、name、icon、color、layout（poster / icon_name / banner / text）、fields（JSON 字段定义）、body_template（markdown）、builtin、hidden
-- task 增加 type_id（可空=普通）、type_data（JSON，按字段定义填写，图片存 asset_id）
+- task 增加 type_id（可空=普通）、type_data（JSON，按字段定义填写，图片存 asset_id；有资料库后只存任务字段）
+- library_item：id、type_id、name、image、fields（JSON）、note_md、created_at；task 增加 library_item_id（可空）；FieldDef 增加 scope（item / task）
 - group 增加 default_type_id（可空）
 - task 增加 completion_mode（once / timer / count / countdown）、target_value、unit、target_date、recurrence（RRULE，可空）
 - my_day：task_id、date（本地日期）、sort、added_at（同步时按 task_id+date 合并）
@@ -193,6 +208,10 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 文案：docs/COPY.md（术语表 + 语气原则），AGENTS 规定界面文案按它写；core 的 COMPLETION_MODE_LABEL / HINT 与 describe.ts（时长、倒数日、口语日期、完成方式摘要、快捷日期）统一说法。
 - 依赖：@internationalized/date（React Aria 月历）。
 
+### M1c ✅（2026-10-15）：资料库
+- core：`library.ts`（叫法、字段拆分、规范化与模糊搜索、迁移计划、确定性 id、占位图配色）、`library_item` 表（SQLite 迁移 v2）、Store 的资料增删改 / 换资料 / 改类型保留字段 / 打开时迁移、⌘K 搜资料；内置类型拆 资料 / 任务 字段并按版本戳升级；演示数据每个库几条（星际穿越重看两次）。测试覆盖迁移（localStorage、node:sqlite、Turso 三种存储 v1 → v2）、去重、模糊搜索、删除 / 改类型。
+- client：新建面板的资料选择框与就地新建、详情资料卡、资料库页与资料详情、人物并入资料库、⌘K「用它新建任务」、渐变占位图；三种皮肤的切换条与卡片形状。
+
 ### M2：多端同步
 - 定同步引擎（A Turso Sync 推荐 / B 自建 Worker + D1）；从 outbox push、按游标 pull；字段级 / 行级 LWW；check_in 只追加；合并后重跑环检测并标冲突边。
 - 图片上传 R2，asset 只存引用。
@@ -200,7 +219,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 ### 以后
 - 自定义类型编辑器（版式、字段、模板、图标、颜色）；类型隐藏 / 排序。
 - 提醒通知（计时到点、倒数日）、桌面 / 主屏小组件。
-- 按名称自动找图（TMDB / Steam / Open Library）。
+- 按名称自动找图和资料（TMDB / Steam / Open Library），填进资料库。
 - 下面“以后再做”里的 SS/FF/SF、关键路径、甘特图等。
 
 ## 以后再做
