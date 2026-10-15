@@ -2350,3 +2350,41 @@ button {
 .cat-current {
   justify-content: space-between;
 }
+
+/* ───────────── 提示条 / 账户 ───────────── */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: var(--space-4) auto 0;
+  max-width: calc(var(--content-max) - 2 * var(--space-8));
+  width: calc(100% - 2 * var(--space-8));
+  box-sizing: border-box;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+}
+.banner-error {
+  border-color: color-mix(in srgb, var(--state-blocked) 45%, transparent);
+  background: color-mix(in srgb, var(--state-blocked) 10%, var(--surface));
+}
+.banner-error > svg {
+  color: var(--state-blocked);
+  flex: none;
+}
+.account-row {
+  gap: 12px;
+}
+.account-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--border);
+  flex: none;
+  object-fit: cover;
+}
+.app-mobile .banner {
+  width: calc(100% - 2 * var(--space-4));
+}

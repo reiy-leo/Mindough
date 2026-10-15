@@ -7,11 +7,12 @@
     "dev": "wrangler dev",
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo \"server：M0 只有占位，暂无单测\""
+    "test": "vitest run"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261006.1",
     "typescript": "~5.9.3",
+    "vitest": "^4.1.11",
     "wrangler": "^4.40.0"
   }
 }

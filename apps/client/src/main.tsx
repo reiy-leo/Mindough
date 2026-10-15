@@ -4,9 +4,13 @@ import { SettingsProvider } from './lib/settings';
 import { StoreProvider } from './store/StoreProvider';
 import { UiProvider } from './lib/ui';
 import { App } from './App';
+import { initLoginError } from './lib/account';
 import './skin/tokens.css';
 import './styles/app.css';
 import './skin/skins.css';
+
+// 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
+initLoginError();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

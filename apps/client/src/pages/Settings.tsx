@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Eye, EyeOff, LogIn, LogOut, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { loginUrl, logout, useAccount } from '../lib/account';
 import { Input, TextField } from 'react-aria-components';
 import type { CheckInCategory } from '@mindough/core';
 import { typeIcon } from '../lib/icons';
@@ -20,6 +21,7 @@ export function SettingsPage() {
   return (
     <div className="page">
       <PageHeader title="设置" icon={<SettingsIcon size={22} />} />
+      <AccountSection />
       <Section title="外观">
         <div className="card settings-card">
           <div className="setting">
@@ -185,5 +187,61 @@ function CategoryRow({ c }: { c: CheckInCategory }) {
         {c.hidden ? '已隐藏' : '显示中'}
       </Button>
     </div>
+  );
+}
+
+/** 登录 / 账户。不登录也能完整离线使用；登录是为以后的多端同步（M2）。 */
+function AccountSection() {
+  const [acc, refresh] = useAccount();
+  return (
+    <Section title="账户">
+      <div className="card settings-card">
+        <div className="setting account-row">
+          {acc.status === 'in' ? (
+            <>
+              {acc.user.picture ? <img className="account-avatar" src={acc.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="account-avatar" />}
+              <div className="setting-text">
+                <div className="setting-name">{acc.user.name}</div>
+                <div className="setting-hint">{acc.user.email} · 已登录 Google（同步在 M2 开通）</div>
+              </div>
+              <Button
+                variant="secondary"
+                onPress={async () => {
+                  await logout().catch(() => {});
+                  refresh();
+                }}
+              >
+                <LogOut size={15} />
+                退出登录
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="setting-text">
+                <div className="setting-name">{acc.status === 'loading' ? '正在查看登录状态…' : '未登录'}</div>
+                <div className="setting-hint">
+                  {acc.status === 'offline'
+                    ? '现在离线，联网后可以登录。'
+                    : acc.status === 'unavailable'
+                      ? `暂时不能登录：${acc.reason}。`
+                      : '登录后可在多台设备间同步（M2 开通）。'}
+                  不登录也能完整使用，数据都存在本机。
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                isDisabled={acc.status !== 'out'}
+                onPress={() => {
+                  window.location.href = loginUrl();
+                }}
+              >
+                <LogIn size={15} />
+                用 Google 登录
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }

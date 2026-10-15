@@ -17,6 +17,7 @@ import { TaskEditor } from './components/TaskEditor';
 import { QuickCreate } from './components/QuickCreate';
 import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
+import { LoginErrorBanner } from './components/LoginErrorBanner';
 
 interface NavItem {
   page: Route['page'];
@@ -188,6 +189,7 @@ export function App() {
           </div>
         </aside>
         <main className="main">
+          <LoginErrorBanner />
           <Page route={route} />
         </main>
       </div>
@@ -209,6 +211,7 @@ export function App() {
           )}
         </div>
         <main className="main">
+          <LoginErrorBanner />
           <Page route={route} />
         </main>
         {skin === 'material' && (

@@ -1,5 +1,5 @@
-// Mindough Worker（M0 占位，尚未部署）。
-// 以后负责：Google OAuth 登录、Web 静态资源、签发同步凭据（Turso）或同步 API（自建 D1 方案）、R2 图片。
+// Mindough Worker（尚未部署）：Google 登录、/api、托管 Web 端静态资源（apps/client/dist）。
+// 密钥用 `wrangler secret put` 配：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mindough",
@@ -7,5 +7,12 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
+  "assets": {
+    "directory": "../client/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // /api 与 /auth 先进 Worker，其余直接出静态文件（带 dist/_headers 里的 COOP / COEP）
+    "run_worker_first": ["/api/*", "/auth/*"]
+  },
   "observability": { "enabled": true }
 }

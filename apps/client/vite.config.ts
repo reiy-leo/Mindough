@@ -22,6 +22,12 @@ export default defineConfig({
     hmr: host ? { protocol: 'ws', host, port: 1421 } : undefined,
     watch: { ignored: ['**/src-tauri/**'] },
     headers: isolation,
+    // 本地联调登录：/api 与 /auth 转给 wrangler dev（pnpm --filter server dev，:8787）。
+    // changeOrigin 让 Worker 看到 localhost:8787，Google 回调地址就是 http://localhost:8787/auth/callback
+    proxy: {
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+      '/auth': { target: 'http://localhost:8787', changeOrigin: true },
+    },
   },
   preview: { port: 4173, headers: isolation },
   // wasm 包自带 worker 与 .wasm 资源，不让 vite 预打包
