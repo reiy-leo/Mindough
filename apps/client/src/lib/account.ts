@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from 'react';
 import { isTauri } from '../store/sqlite-tauri';
 
+import { tr } from './i18n';
 /** 线上 Worker。 */
 export const SERVER_ORIGIN = 'https://mindough.rei8t.dev';
 
@@ -58,17 +59,17 @@ export type AccountState =
   | { status: 'unavailable'; reason: string };
 
 export const LOGIN_ERROR_TEXT: Record<string, string> = {
-  config_missing: '登录暂不可用：服务端还没配置 Google 登录。',
-  access_denied: '你取消了 Google 登录。',
-  state_mismatch: '登录已过期或被打断，请重新点“用 Google 登录”。',
-  token_exchange_failed: 'Google 没有通过这次登录（换取凭据失败），请再试一次。',
-  userinfo_failed: '没拿到 Google 账户信息，请再试一次。',
-  email_unverified: '这个 Google 邮箱还没有验证，换一个账户试试。',
-  not_allowed: '这个 Google 账户不在允许登录的名单里。',
+  get config_missing() { return tr('登录暂不可用：服务端还没配置 Google 登录。'); },
+  get access_denied() { return tr('你取消了 Google 登录。'); },
+  get state_mismatch() { return tr('登录已过期或被打断，请重新点“用 Google 登录”。'); },
+  get token_exchange_failed() { return tr('Google 没有通过这次登录（换取凭据失败），请再试一次。'); },
+  get userinfo_failed() { return tr('没拿到 Google 账户信息，请再试一次。'); },
+  get email_unverified() { return tr('这个 Google 邮箱还没有验证，换一个账户试试。'); },
+  get not_allowed() { return tr('这个 Google 账户不在允许登录的名单里。'); },
 };
 
 export function loginErrorText(code: string): string {
-  return LOGIN_ERROR_TEXT[code] ?? `登录失败（${code}）。`;
+  return LOGIN_ERROR_TEXT[code] ?? tr('登录失败（{code}）。', { code });
 }
 
 /** 从地址栏取出 login_error 并立刻去掉（保留 hash 路由与其他参数）。启动时调用一次。 */
@@ -119,15 +120,15 @@ export async function fetchAccount(fetcher: typeof fetch = fetch): Promise<Accou
       if (isTauri()) setNativeSession(null);
       return { status: 'out' };
     }
-    if (res.status === 403 && isJson) return { status: 'unavailable', reason: '这个 Google 账户不在允许登录的名单里（403 无权限）' };
-    return { status: 'unavailable', reason: isJson ? `服务端返回 ${res.status} ${statusZh(res.status)}` : '同步服务尚未上线' };
+    if (res.status === 403 && isJson) return { status: 'unavailable', reason: tr('这个 Google 账户不在允许登录的名单里（403 无权限）') };
+    return { status: 'unavailable', reason: isJson ? tr('服务端返回 {status} {statusZh}', { status: res.status, statusZh: statusZh(res.status) }) : tr('同步服务尚未上线') };
   } catch {
     return { status: 'offline' };
   }
 }
 
 export function statusZh(code: number): string {
-  const m: Record<number, string> = { 400: '请求有误', 401: '未登录', 403: '无权限', 404: '未找到', 408: '请求超时', 413: '内容太大', 415: '不支持的格式', 429: '请求太多', 500: '服务器内部错误', 501: '未实现', 502: '网关错误', 503: '服务不可用', 504: '网关超时' };
+  const m: Record<number, string> = { 400: tr('请求有误'), 401: tr('未登录'), 403: tr('无权限'), 404: tr('未找到'), 408: tr('请求超时'), 413: tr('内容太大'), 415: tr('不支持的格式'), 429: tr('请求太多'), 500: tr('服务器内部错误'), 501: tr('未实现'), 502: tr('网关错误'), 503: tr('服务不可用'), 504: tr('网关超时') };
   return m[code] ?? '';
 }
 

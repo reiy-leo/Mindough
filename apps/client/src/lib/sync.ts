@@ -10,6 +10,7 @@ import { useSyncExternalStore } from 'react';
 import { SyncEngine, SyncHttpError, type PullResult, type PushResult, type Store, type SyncStatus, type SyncToken, type SyncTransport, type WireRow } from '@mindough/core';
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
 
+import { tr } from './i18n';
 const INTERVAL_MS = 60_000;
 
 async function readError(res: Response): Promise<string> {
@@ -34,7 +35,7 @@ export class TokenSource {
     try {
       res = await this.fetcher(`${API_BASE}/api/sync/token`, authInit({ method: 'POST', headers: { accept: 'application/json' } }));
     } catch {
-      throw new SyncHttpError(0, '网络不通');
+      throw new SyncHttpError(0, tr('网络不通'));
     }
     if (!res.ok) throw new SyncHttpError(res.status, await readError(res));
     this.cached = (await res.json()) as SyncToken;
@@ -59,7 +60,7 @@ export function httpTransport(tokens: TokenSource, fetcher: typeof fetch = (...a
         credentials: 'omit',
       });
     } catch {
-      throw new SyncHttpError(0, '网络不通');
+      throw new SyncHttpError(0, tr('网络不通'));
     }
     if (res.status === 401 && !retried) return call<T>(path, body, true);
     if (!res.ok) throw new SyncHttpError(res.status, await readError(res));
@@ -155,5 +156,5 @@ export function useSyncView(): SyncView {
 /** 同步出错时说的话（COPY.md）。 */
 export function syncErrorText(v: SyncView): string {
   if (!v.enabled || v.phase !== 'error') return '';
-  return v.error ?? '同步出错';
+  return v.error ?? tr('同步出错');
 }

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { MonthMarker } from '@mindough/core';
 import { detectPlatform, layoutForWidth, resolveSkin, type LayoutKind, type Platform, type Skin, type SkinPref, type ThemePref } from '../skin/platform';
 
+import { tr } from './i18n';
 export interface Settings {
   skin: SkinPref;
   theme: ThemePref;
@@ -106,6 +107,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export function useSettings(): SettingsCtx {
   const v = useContext(Ctx);
-  if (!v) throw new Error('SettingsProvider 缺失');
+  if (!v) throw new Error(tr('SettingsProvider 缺失'));
   return v;
 }

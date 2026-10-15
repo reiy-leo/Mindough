@@ -3,6 +3,7 @@ import { Button as RacButton, Calendar, CalendarCell, CalendarGrid, CalendarGrid
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { quickDates, type DateKey } from '@mindough/core';
 
+import { tr } from '../../lib/i18n';
 function toKey(d: CalendarDate): DateKey {
   return d.toString();
 }
@@ -12,7 +13,7 @@ export function DatePanel({
   value,
   today,
   onChange,
-  clearLabel = '不设日期',
+  clearLabel = tr('不设日期'),
   quick = true,
 }: {
   value: DateKey | null;
@@ -33,7 +34,7 @@ export function DatePanel({
         </div>
       )}
       <Calendar
-        aria-label="选择日期"
+        aria-label={tr('选择日期')}
         className="calendar"
         firstDayOfWeek="mon"
         value={value ? parseDate(value) : null}
@@ -42,10 +43,10 @@ export function DatePanel({
       >
         <header className="calendar-head">
           <Heading className="calendar-title" />
-          <RacButton slot="previous" className="icon-btn" aria-label="上个月">
+          <RacButton slot="previous" className="icon-btn" aria-label={tr('上个月')}>
             <ChevronLeft size={16} />
           </RacButton>
-          <RacButton slot="next" className="icon-btn" aria-label="下个月">
+          <RacButton slot="next" className="icon-btn" aria-label={tr('下个月')}>
             <ChevronRight size={16} />
           </RacButton>
         </header>

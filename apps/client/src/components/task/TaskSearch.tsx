@@ -8,12 +8,13 @@ import { Check, Plus, Search } from 'lucide-react';
 import { isFinished, type Store, type Task } from '@mindough/core';
 import { titleOf } from '../../lib/view';
 
+import { tr } from '../../lib/i18n';
 /** 列表里一件任务的状态短语（可开始的待办不写，免得满屏字）。 */
 export function taskStateText(store: Store, t: Task): string | null {
-  if (t.status === '完成') return '已完成';
-  if (t.status === '关闭') return '已关闭';
+  if (t.status === '完成') return tr('已完成');
+  if (t.status === '关闭') return tr('已关闭');
   if (t.status === '进行中') return '进行中';
-  if (store.derived().get(t.id)?.state === '被阻塞') return '还不能开始';
+  if (store.derived().get(t.id)?.state === '被阻塞') return tr('还不能开始');
   return null;
 }
 
@@ -21,7 +22,7 @@ export function TaskSearch({
   store,
   exclude,
   selected,
-  label = '搜索任务',
+  label = tr('搜索任务'),
   onPick,
   onCreate,
 }: {
@@ -59,7 +60,7 @@ export function TaskSearch({
           <Input className="input" placeholder={label} />
         </SearchField>
         <ListBox
-          aria-label="任务"
+          aria-label={tr('任务')}
           className="listbox pick-list task-search-list"
           items={items}
           {...(selected ? { selectionMode: 'multiple' as const, selectedKeys: [...selected].filter((id) => items.some((i) => i.id === id)) } : {})}
@@ -70,12 +71,12 @@ export function TaskSearch({
             const changed = [...next].find((id) => !selected.has(id)) ?? [...selected].find((id) => !next.has(id));
             if (changed) onPick(changed);
           } : undefined}
-          renderEmptyState={() => (onCreate && term ? null : <div className="pick-empty">没有找到</div>)}
+          renderEmptyState={() => (onCreate && term ? null : <div className="pick-empty">{tr('没有找到')}</div>)}
         >
           {(t) => (
             <ListBoxItem id={t.id} className="listbox-item pick-item" textValue={t.title}>
               <span className={`grow ellipsis${t.finished ? ' muted' : ''}`}>{t.title}</span>
-              {t.finished && <span className="pick-meta">已结束</span>}
+              {t.finished && <span className="pick-meta">{tr('已结束')}</span>}
               {selected && <Check size={14} className="pick-check" />}
             </ListBoxItem>
           )}
@@ -84,7 +85,7 @@ export function TaskSearch({
       {onCreate && term && (
         <RacButton className="pick-create" onPress={() => onCreate(term)}>
           <Plus size={15} aria-hidden />
-          <span className="grow ellipsis">新建“{term}”</span>
+          <span className="grow ellipsis">{tr('新建“{term}”', { term })}</span>
         </RacButton>
       )}
     </div>

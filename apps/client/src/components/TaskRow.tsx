@@ -10,6 +10,7 @@ import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
 import { ItemArt } from './library/Library';
 
+import { dataLabel, tr } from '../lib/i18n';
 export interface TaskRowProps {
   store: Store;
   task: Task;
@@ -61,7 +62,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           className={`check${closed ? ' is-closed' : ''}`}
           isSelected={done || closed}
           onChange={() => toggleDone(store, ui, task.id)}
-          aria-label={closed ? '已关闭，轻点可重新打开' : done ? '标为未完成' : '标为完成'}
+          aria-label={closed ? tr('已关闭，轻点可重新打开') : done ? tr('标为未完成') : tr('标为完成')}
         >
           <span className="check-box" aria-hidden>
             {closed ? <X size={13} strokeWidth={3} /> : <Check size={13} strokeWidth={3} />}
@@ -75,18 +76,17 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           {v.type && v.type.layout !== 'text' && (
             <span className="meta-type" style={{ color: v.type.color }}>
               <TypeIcon size={12} />
-              {v.type.name}
+              {dataLabel(v.type.name)}
             </span>
           )}
           {state === '被阻塞' && (
             <span className="meta-state state-blocked">
               <Lock size={11} />
-              还在等 {v.derived!.missing.length} 件事
-            </span>
+              {tr('还在等 {length} 件事', { length: v.derived!.missing.length })}</span>
           )}
-          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">可开始</span>}
-          {task.status === '进行中' && <span className="meta-state state-doing">进行中</span>}
-          {closed && <span className="meta-state state-closed">已关闭</span>}
+          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">{tr('可开始')}</span>}
+          {task.status === '进行中' && <span className="meta-state state-doing">{tr('进行中')}</span>}
+          {closed && <span className="meta-state state-closed">{tr('已关闭')}</span>}
           {showGroup && v.group && (
             <span className="meta-group">
               {v.group.icon} {v.group.name}
@@ -100,7 +100,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
             </span>
           )}
           {relatedCount > 0 && (
-            <span className="meta-related" role="img" aria-label={`${relatedCount} 件相关任务`}>
+            <span className="meta-related" role="img" aria-label={tr('{relatedCount} 件相关任务', { relatedCount })}>
               <Link2 size={11} aria-hidden />
               {relatedCount}
             </span>
@@ -114,7 +114,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
       {showMyDay && (
         <RacButton
           className={`icon-btn myday-btn${inDay ? ' is-on' : ''}`}
-          aria-label={inDay ? '移出我的一天' : '加入我的一天'}
+          aria-label={inDay ? tr('移出我的一天') : tr('加入我的一天')}
           onPress={() => toggleMyDay(store, ui, task.id)}
         >
           {inDay ? <Sun size={17} /> : <SunDim size={17} />}

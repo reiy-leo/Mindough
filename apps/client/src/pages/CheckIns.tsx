@@ -26,6 +26,8 @@ import { PageHeader } from '../components/PageHeader';
 import { titleOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 
+import { tr, trc } from '../lib/i18n';
+import { trx } from '../lib/trx';
 export function CheckInsPage() {
   const store = useStore();
   const ui = useUi();
@@ -69,7 +71,7 @@ export function CheckInsPage() {
             {s && (
               <span className="habit-streak">
                 <Flame size={12} className={s.current > 0 ? 'flame-on' : ''} />
-                连续 {s.current} · 最长 {s.best}
+                {tr('连续 {current} · 最长 {best}', { current: s.current, best: s.best })}
               </span>
             )}
           </span>
@@ -80,7 +82,7 @@ export function CheckInsPage() {
           weeks={layout === 'mobile' ? 12 : 20}
           ratioFor={(d) => idx.taskRatio(t.id, d)}
           color={color}
-          label={`${title(t)} 的打卡记录`}
+          label={tr('{title} 的打卡记录', { title: title(t) })}
         />
         <div className="habit-action">
           <CheckInControl store={store} task={t} compact={layout === 'mobile'} />
@@ -92,8 +94,8 @@ export function CheckInsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="打卡"
-        subtitle={`今天 ${metToday}/${dueNow.length} 已完成 · 最长连续 ${best} 天`}
+        title={trc('导航', '打卡')}
+        subtitle={tr('今天 {metToday}/{length} 已完成 · 最长连续 {best} 天', { metToday, length: dueNow.length, best })}
         icon={<CalendarCheck2 size={22} />}
         actions={
           <Button
@@ -103,41 +105,39 @@ export function CheckInsPage() {
             }
           >
             <Plus size={16} />
-            新建打卡
-          </Button>
+            {tr('新建打卡')}</Button>
         }
       />
 
       <section className="card heatmap-card">
         <div className="heatmap-card-head">
-          <span className="section-title">过去一年</span>
-          <span className="muted small">每格是一天，颜色越深，那天完成得越多</span>
+          <span className="section-title">{tr('过去一年')}</span>
+          <span className="muted small">{tr('每格是一天，颜色越深，那天完成得越多')}</span>
         </div>
-        <Heatmap end={today} ratioFor={dayRatio} label="过去一年的打卡热力图" />
+        <Heatmap end={today} ratioFor={dayRatio} label={tr('过去一年的打卡热力图')} />
       </section>
 
       {allRecurring.length > 0 && (
         <div className="filter-row checkin-filters">
           <ChipPicker
-            label="按打卡分类筛选"
+            label={tr('按打卡分类筛选')}
             value={cat}
             onChange={setCat}
             options={[
-              { id: 'all', label: `全部 ${allRecurring.length}` },
+              { id: 'all', label: tr('全部 {length}', { length: allRecurring.length }) },
               ...usedCats.map((c) => ({ id: c.id, label: <CategoryLabel c={c} />, color: c.color })),
-              ...(hasUncategorized ? [{ id: NO_CATEGORY, label: '未分类' }] : []),
+              ...(hasUncategorized ? [{ id: NO_CATEGORY, label: tr('未分类') }] : []),
             ]}
           />
           <RacButton className="btn btn-quiet filter-edit" onPress={() => setManaging(true)}>
-            编辑
-          </RacButton>
+            {tr('编辑')}</RacButton>
           <Segmented
-            label="排列方式"
+            label={tr('排列方式')}
             value={arrange}
             onChange={setArrange}
             options={[
-              { id: 'today', label: '按今天' },
-              { id: 'category', label: '按分类' },
+              { id: 'today', label: tr('按今天') },
+              { id: 'category', label: tr('按分类') },
             ]}
           />
         </div>
@@ -151,27 +151,27 @@ export function CheckInsPage() {
             // 分类内：今天要打卡的在前
             list.sort((a, b) => Number(dueToday(b, today)) - Number(dueToday(a, today)));
             return (
-              <Section key={key} title={c ? <CategoryLabel c={c} size={15} /> : '未分类'} extra={<span className="muted small">{list.length} 项</span>}>
+              <Section key={key} title={c ? <CategoryLabel c={c} size={15} /> : tr('未分类')} extra={<span className="muted small">{tr('{length} 项', { length: list.length })}</span>}>
                 <div className="habit-list">{list.map(row)}</div>
               </Section>
             );
           })}
-          {!recurring.length && <Empty title="这个分类下还没有重复任务" />}
+          {!recurring.length && <Empty title={tr('这个分类下还没有重复任务')} />}
         </>
       ) : (
         <>
       {running.length > 0 && (
-        <Section title={<><Timer size={15} /> 正在计时</>}>
+        <Section title={<><Timer size={15} /> {tr('正在计时')}</>}>
           <div className="habit-list">{running.map(row)}</div>
         </Section>
       )}
 
-      <Section title={<><Flame size={15} /> 今天要打卡</>}>
-        {dueNow.length ? <div className="habit-list">{dueNow.filter((t) => !running.includes(t)).map(row)}</div> : <Empty title="今天没有要打卡的" />}
+      <Section title={<><Flame size={15} /> {tr('今天要打卡')}</>}>
+        {dueNow.length ? <div className="habit-list">{dueNow.filter((t) => !running.includes(t)).map(row)}</div> : <Empty title={tr('今天没有要打卡的')} />}
       </Section>
 
       {others.length > 0 && (
-        <Section title="其他打卡">
+        <Section title={tr('其他打卡')}>
           <div className="habit-list">{others.map(row)}</div>
         </Section>
       )}
@@ -179,7 +179,7 @@ export function CheckInsPage() {
       )}
 
       {countdowns.length > 0 && (
-        <Section title={<><Hourglass size={15} /> 倒数日</>}>
+        <Section title={<><Hourglass size={15} /> {tr('倒数日')}</>}>
           <div className="countdown-grid">
             {countdowns.map((t) => {
               const p = store.progress(t.id, today);
@@ -193,9 +193,7 @@ export function CheckInsPage() {
                     {title(t)}
                   </span>
                   <span className="countdown-num">
-                    <span className="countdown-prefix">{n > 0 ? '还有' : n === 0 ? '' : '已过'}</span>
-                    <b>{n === 0 ? '今天' : Math.abs(n)}</b>
-                    {n !== 0 && <span className="countdown-unit">天</span>}
+                    {n === 0 ? <b>{tr('今天')}</b> : n > 0 ? trx('还有 {n} 天', { n: <b>{n}</b> }, { count: n }, { wrap: 'countdown-affix' }) : trx('已过 {n} 天', { n: <b>{-n}</b> }, { count: -n }, { wrap: 'countdown-affix' })}
                   </span>
                   <span className="countdown-date">{formatDateZh(t.target_date!)}</span>
                 </RacButton>

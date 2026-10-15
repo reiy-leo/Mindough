@@ -12,10 +12,15 @@ import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
+import { tr } from '../lib/i18n';
+import { useLocalePref } from '../lib/locale';
+import type { LocalePref } from '../lib/i18n';
+
 export function SettingsPage() {
   const { settings, set, platform, skin } = useSettings();
   const store = useStore();
   const sync = useSyncView();
+  const [localePref, setLocalePref] = useLocalePref();
   const [pending, setPending] = useState<number | null>(null);
   useEffect(() => {
     store.adapter.pendingOutbox(100000).then((o) => setPending(o.length));
@@ -23,23 +28,23 @@ export function SettingsPage() {
 
   return (
     <div className="page">
-      <PageHeader title="设置" icon={<SettingsIcon size={22} />} />
+      <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
       <AccountSection />
-      <Section title="外观">
+      <Section title={tr('外观')}>
         <div className="card settings-card">
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">皮肤</div>
+              <div className="setting-name">{tr('皮肤')}</div>
               <div className="setting-hint">
-                自动：检测到 {PLATFORM_LABEL[platform]}，使用 {SKIN_LABEL[skinForPlatform(platform)]}。当前：{SKIN_LABEL[skin]}
+                {tr('自动：检测到 {p}，使用 {p2}。当前：{p3}', { p: PLATFORM_LABEL[platform], p2: SKIN_LABEL[skinForPlatform(platform)], p3: SKIN_LABEL[skin] })}
               </div>
             </div>
             <Segmented<Settings['skin']>
-              label="皮肤"
+              label={tr('皮肤')}
               value={settings.skin}
               onChange={(v) => set('skin', v)}
               options={[
-                { id: 'auto', label: '自动' },
+                { id: 'auto', label: tr('自动') },
                 { id: 'apple', label: 'Apple' },
                 { id: 'winui', label: 'Windows' },
                 { id: 'material', label: 'Material' },
@@ -48,93 +53,112 @@ export function SettingsPage() {
           </div>
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">明暗</div>
-              <div className="setting-hint">默认跟随系统</div>
+              <div className="setting-name">{tr('语言')}</div>
+              <div className="setting-hint">{tr('跟随系统时，系统是中文就用中文，其他语言用英文；会同步到你的其他设备')}</div>
+            </div>
+            <Segmented<LocalePref>
+              label={tr('语言')}
+              value={localePref}
+              onChange={setLocalePref}
+              options={[
+                { id: 'system', label: tr('跟随系统') },
+                { id: 'zh', label: '中文' }, // i18n-ignore 语言名用它自己的写法
+                { id: 'en', label: 'English' },
+              ]}
+            />
+          </div>
+          <div className="setting">
+            <div className="setting-text">
+              <div className="setting-name">{tr('明暗')}</div>
+              <div className="setting-hint">{tr('默认跟随系统')}</div>
             </div>
             <Segmented<Settings['theme']>
-              label="明暗"
+              label={tr('明暗')}
               value={settings.theme}
               onChange={(v) => set('theme', v)}
               options={[
-                { id: 'system', label: '跟随系统' },
-                { id: 'light', label: '浅色' },
-                { id: 'dark', label: '深色' },
+                { id: 'system', label: tr('跟随系统') },
+                { id: 'light', label: tr('浅色') },
+                { id: 'dark', label: tr('深色') },
               ]}
             />
           </div>
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">布局</div>
-              <div className="setting-hint">自动：窗口变窄时改用底部标签栏</div>
+              <div className="setting-name">{tr('布局')}</div>
+              <div className="setting-hint">{tr('自动：窗口变窄时改用底部标签栏')}</div>
             </div>
             <Segmented<Settings['layout']>
-              label="布局"
+              label={tr('布局')}
               value={settings.layout}
               onChange={(v) => set('layout', v)}
               options={[
-                { id: 'auto', label: '自动' },
-                { id: 'desktop', label: '桌面' },
-                { id: 'mobile', label: '手机' },
+                { id: 'auto', label: tr('自动') },
+                { id: 'desktop', label: tr('桌面') },
+                { id: 'mobile', label: tr('手机') },
               ]}
             />
           </div>
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">热力图每月 1 号标记</div>
-              <div className="setting-hint">自动：格子够大显示月份数字，小格子显示圆点</div>
+              <div className="setting-name">{tr('热力图每月 1 号标记')}</div>
+              <div className="setting-hint">{tr('自动：格子够大显示月份数字，小格子显示圆点')}</div>
             </div>
             <Segmented<Settings['monthMarker']>
-              label="每月 1 号标记"
+              label={tr('每月 1 号标记')}
               value={settings.monthMarker}
               onChange={(v) => set('monthMarker', v)}
               options={[
-                { id: 'auto', label: '自动' },
-                { id: 'number', label: '数字' },
-                { id: 'dot', label: '圆点' },
-                { id: 'none', label: '不标' },
+                { id: 'auto', label: tr('自动') },
+                { id: 'number', label: tr('数字') },
+                { id: 'dot', label: tr('圆点') },
+                { id: 'none', label: tr('不标') },
               ]}
             />
           </div>
         </div>
       </Section>
-      <Section title="数据">
+      <Section title={tr('数据')}>
         <div className="card settings-card">
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">本地存储</div>
+              <div className="setting-name">{tr('本地存储')}</div>
               <div className="setting-hint">
                 {storageInfo.engine === 'sqlite'
-                  ? `SQLite（${storageInfo.detail === 'tauri-rusqlite' ? '本机文件' : '浏览器本地'}）`
-                  : `浏览器 localStorage${storageInfo.fallbackReason ? `（${storageInfo.fallbackReason}）` : ''}`}{' '}
-                · 设备 {store.deviceId}
-                {pending !== null && pending > 0 && ` · ${pending} 处改动还没同步`}
+                  ? storageInfo.detail === 'tauri-rusqlite'
+                    ? tr('SQLite（本机文件）')
+                    : tr('SQLite（浏览器本地）')
+                  : storageInfo.fallbackReason
+                    ? tr('浏览器 localStorage（{reason}）', { reason: storageInfo.fallbackReason })
+                    : tr('浏览器 localStorage')}
+                {tr(' · 设备 {id}', { id: store.deviceId })}
+                {pending !== null && pending > 0 && tr(' · {pending} 处改动还没同步', { pending })}
               </div>
             </div>
           </div>
           <div className="setting">
             <div className="setting-text">
-              <div className="setting-name">重置演示数据</div>
+              <div className="setting-name">{tr('重置演示数据')}</div>
               <div className="setting-hint">
-                {sync.enabled ? '登录同步时不能重置：会影响你的其他设备。先退出登录再重置。' : '清空本机所有任务，重新生成一份演示数据'}
+                {sync.enabled ? tr('登录同步时不能重置：会影响你的其他设备。先退出登录再重置。') : tr('清空本机所有任务，重新生成一份演示数据')}
               </div>
             </div>
             <Button
               variant="danger"
               isDisabled={sync.enabled}
               onPress={async () => {
-                if (!confirm('确定清空本机数据并重新生成演示数据？')) return;
+                if (!confirm(tr('确定清空本机数据并重新生成演示数据？'))) return;
                 await store.adapter.clear();
                 await store.adapter.setMeta('demo_seeded', ''); // 空值 = 未生成，刷新后重新生成
                 await resetSyncState(store.adapter); // 下次登录重新合并，云端数据会回来
                 location.reload();
               }}
             >
-              重置
-            </Button>
+              {tr('重置')}</Button>
           </div>
         </div>
       </Section>
-      <p className="muted small about">Mindough · 数据先存在这台设备上，离线也能用</p>
+      <p className="muted small about">{tr('Mindough · 数据先存在这台设备上，离线也能用')}</p>
     </div>
   );
 }
@@ -146,11 +170,11 @@ function AccountSection() {
   const { toast } = useUi();
   const native = isTauri();
   const login = () => {
-    if (native) void startNativeLogin().catch(() => toast({ message: '没能打开浏览器，请再试一次。', tone: 'error' }));
+    if (native) void startNativeLogin().catch(() => toast({ message: tr('没能打开浏览器，请再试一次。'), tone: 'error' }));
     else window.location.href = loginUrl();
   };
   return (
-    <Section title="账户">
+    <Section title={tr('账户')}>
       <div className="card settings-card">
         <div className="setting account-row">
           {acc.status === 'in' ? (
@@ -165,32 +189,30 @@ function AccountSection() {
                 onPress={async () => {
                   await logout();
                   refresh();
-                  toast({ message: '已退出登录。这台设备上的数据都还在，只是不再同步。' });
+                  toast({ message: tr('已退出登录。这台设备上的数据都还在，只是不再同步。') });
                 }}
               >
                 <LogOut size={15} />
-                退出登录
-              </Button>
+                {tr('退出登录')}</Button>
             </>
           ) : (
             <>
               <div className="setting-text">
-                <div className="setting-name">{acc.status === 'loading' ? '正在查看登录状态…' : '未登录'}</div>
+                <div className="setting-name">{acc.status === 'loading' ? tr('正在查看登录状态…') : tr('未登录')}</div>
                 <div className="setting-hint">
                   {acc.status === 'offline'
-                    ? '现在离线，联网后可以登录。'
+                    ? tr('现在离线，联网后可以登录。')
                     : acc.status === 'unavailable'
-                      ? `暂时不能登录：${acc.reason}。`
+                      ? tr('暂时不能登录：{reason}。', { reason: acc.reason })
                       : native
-                        ? '登录后，改动会在你的设备间自动同步。会在浏览器里打开 Google 登录，登好后自动回到这里。'
-                        : '登录后，改动会在你的设备间自动同步。'}
-                  不登录也能完整使用，数据都存在这台设备上。
+                        ? tr('登录后，改动会在你的设备间自动同步。会在浏览器里打开 Google 登录，登好后自动回到这里。')
+                        : tr('登录后，改动会在你的设备间自动同步。')}{' '}
+                  {tr('不登录也能完整使用，数据都存在这台设备上。')}
                 </div>
               </div>
               <Button variant="primary" isDisabled={acc.status !== 'out'} onPress={login}>
                 <LogIn size={15} />
-                用 Google 登录
-              </Button>
+                {tr('用 Google 登录')}</Button>
             </>
           )}
         </div>
@@ -206,20 +228,22 @@ function SyncRow({ sync, onLogin }: { sync: Extract<SyncView, { enabled: true }>
   const busy = sync.phase === 'syncing';
   const ago = syncedAgo(sync.lastSyncedAt, now);
   let icon = <CloudCheck size={18} />;
-  let title = ago ? `已同步 · ${ago}` : '已同步';
-  let hint = '改动会自动同步到你的其他设备。';
+  let title = ago ? tr('已同步 · {ago}', { ago }) : tr('已同步');
+  let hint = tr('改动会自动同步到你的其他设备。');
   if (busy) {
     icon = <RefreshCw size={18} className="spin" />;
-    title = '正在同步…';
-    hint = ago ? `上次同步 · ${ago}` : '第一次同步，会把这台设备上的数据和账户里的合在一起。';
+    title = tr('正在同步…');
+    hint = ago ? tr('上次同步 · {ago}', { ago }) : tr('第一次同步，会把这台设备上的数据和账户里的合在一起。');
   } else if (sync.phase === 'offline') {
     icon = <CloudOff size={18} />;
-    title = '离线，联网后自动同步';
-    hint = ago ? `上次同步 · ${ago}。离线时的改动都存在这台设备上。` : '离线时的改动都存在这台设备上。';
+    title = tr('离线，联网后自动同步');
+    hint = ago ? tr('上次同步 · {ago}。离线时的改动都存在这台设备上。', { ago }) : tr('离线时的改动都存在这台设备上。');
   } else if (sync.phase === 'error') {
     icon = <AlertCircle size={18} />;
-    title = '同步出错';
-    hint = `${(sync.error ?? '').replace(/[。.]$/, '')}${sync.error ? '。' : ''}${sync.needsLogin ? '' : '改动都还在这台设备上，稍后会自动再试。'}`;
+    title = tr('同步出错');
+    const err = (sync.error ?? '').replace(/[。.]$/, '');
+    const retry = sync.needsLogin ? '' : tr('改动都还在这台设备上，稍后会自动再试。');
+    hint = err ? tr('{error}。{retry}', { error: err, retry }).trim() : retry;
   }
   return (
     <div className={`setting sync-row sync-${sync.phase}`} aria-live="polite">
@@ -233,12 +257,11 @@ function SyncRow({ sync, onLogin }: { sync: Extract<SyncView, { enabled: true }>
       {sync.phase === 'error' && sync.needsLogin ? (
         <Button variant="primary" onPress={onLogin}>
           <LogIn size={15} />
-          重新登录
-        </Button>
+          {tr('重新登录')}</Button>
       ) : (
         <Button variant={sync.phase === 'error' ? 'primary' : 'secondary'} isDisabled={busy} onPress={() => void syncNow()}>
           <RefreshCw size={15} />
-          {sync.phase === 'error' ? '重试' : '立即同步'}
+          {sync.phase === 'error' ? tr('重试') : tr('立即同步')}
         </Button>
       )}
     </div>

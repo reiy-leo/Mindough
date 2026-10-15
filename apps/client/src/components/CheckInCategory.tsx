@@ -5,6 +5,7 @@ import type { CheckInCategory, Store } from '@mindough/core';
 import { typeIcon } from '../lib/icons';
 import { CategoryManager } from './CategoryManager';
 
+import { dataLabel, tr } from '../lib/i18n';
 export const NO_CATEGORY = '__none';
 
 /** 分类小标签：图标 + 名称，颜色跟随分类。 */
@@ -13,7 +14,7 @@ export function CategoryLabel({ c, size = 13 }: { c: CheckInCategory; size?: num
   return (
     <span className="cat-label" style={{ color: c.color }}>
       <Icon size={size} aria-hidden />
-      <span>{c.name}</span>
+      <span>{dataLabel(c.name)}</span>
     </span>
   );
 }
@@ -36,7 +37,7 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
   const [managing, setManaging] = useState(false);
   const term = q.trim().toLowerCase();
   const all = cur && cur.hidden ? [...cats, cur] : cats;
-  const matches = term ? all.filter((c) => c.name.toLowerCase().includes(term)) : null;
+  const matches = term ? all.filter((c) => (c.name + ' ' + dataLabel(c.name)).toLowerCase().includes(term)) : null;
   const pick = (id: string | null) => {
     onChange(id);
     if (compact) setOpen(false);
@@ -63,10 +64,10 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
   );
   return (
     <div className="field cat-picker">
-      <span className="field-label">打卡分类</span>
+      <span className="field-label">{tr('打卡分类')}</span>
       {compact && (
         <RacButton className="input select-btn cat-current" onPress={() => setOpen((o) => !o)} aria-expanded={open}>
-          {cur ? <CategoryLabel c={cur} /> : <span className="muted">未分类</span>}
+          {cur ? <CategoryLabel c={cur} /> : <span className="muted">{tr('未分类')}</span>}
           <ChevronDown size={16} aria-hidden />
         </RacButton>
       )}
@@ -76,17 +77,16 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
             <>
               <div className="cat-flow">
                 {group(
-                  '常用打卡分类',
+                  tr('常用打卡分类'),
                   <>
                     <ToggleButton id={NO_CATEGORY} className="cat-tile cat-none">
-                      未分类
-                    </ToggleButton>
+                      {tr('未分类')}</ToggleButton>
                     {first.map(tile)}
                   </>,
                 )}
                 {rest.length > 0 && (
                   <RacButton className="cat-more" aria-expanded={more} onPress={() => setMore((m) => !m)}>
-                    {more ? '收起' : `更多 · ${rest.length}`}
+                    {more ? tr('收起') : tr('更多 · {length}', { length: rest.length })}
                     <ChevronDown size={14} aria-hidden className={more ? 'flip' : undefined} />
                   </RacButton>
                 )}
@@ -94,16 +94,15 @@ export function CategoryPicker({ store, value, onChange, compact }: { store: Sto
             </>
           )}
           {(more || matches) && (
-            <SearchField aria-label="搜索打卡分类" value={q} onChange={setQ} className="cat-search" autoFocus={more && !compact}>
+            <SearchField aria-label={tr('搜索打卡分类')} value={q} onChange={setQ} className="cat-search" autoFocus={more && !compact}>
               <Search size={14} aria-hidden className="cat-search-icon" />
-              <Input className="input" placeholder="搜分类，比如“健康”“理财”" />
+              <Input className="input" placeholder={tr('搜分类，比如“健康”“理财”')} />
             </SearchField>
           )}
-          {matches ? (matches.length > 0 && group('搜到的打卡分类', matches.map(tile))) : more && group('更多打卡分类', rest.map(tile))}
-          {matches && !matches.length && <p className="muted small">没有叫“{q}”的分类，可以在「管理分类…」里添加。</p>}
+          {matches ? (matches.length > 0 && group(tr('搜到的打卡分类'), matches.map(tile))) : more && group(tr('更多打卡分类'), rest.map(tile))}
+          {matches && !matches.length && <p className="muted small">{tr('没有叫“{q}”的分类，可以在「管理分类…」里添加。', { q })}</p>}
           <RacButton className="cat-manage-link" onPress={() => setManaging(true)}>
-            管理分类…
-          </RacButton>
+            {tr('管理分类…')}</RacButton>
         </div>
       )}
       <CategoryManager isOpen={managing} onOpenChange={setManaging} />

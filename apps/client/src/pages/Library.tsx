@@ -33,6 +33,7 @@ import { LinkChips } from '../components/library/LinkFields';
 import { PersonDialog } from './People';
 import { imageUrl } from '../lib/view';
 
+import { dataLabel, tr } from '../lib/i18n';
 function useLibraries(): TaskType[] {
   const store = useStore();
   return store
@@ -51,7 +52,7 @@ function Tile({ entry, type, onPress }: { entry: LibraryEntry; type: TaskType; o
         <span className="lib-tile-name">{entry.name}</span>
         {(entry.subtitle || entry.uses > 0) && (
           <span className="lib-tile-sub">
-            {[entry.subtitle, entry.uses > 0 ? `${entry.uses} 件任务` : ''].filter(Boolean).join(' · ')}
+            {[entry.subtitle, entry.uses > 0 ? tr('{uses} 件任务', { uses: entry.uses }) : ''].filter(Boolean).join(' · ')}
           </span>
         )}
       </span>
@@ -81,8 +82,8 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
   return (
     <div className="page lib-page" style={{ '--chip-color': type.color } as CSSProperties}>
       <PageHeader
-        title="资料库"
-        {...(mobile ? {} : { subtitle: '看过的片、在读的书、想去的地方都留在这里，新建任务时直接选。' })}
+        title={tr('资料库')}
+        {...(mobile ? {} : { subtitle: tr('看过的片、在读的书、想去的地方都留在这里，新建任务时直接选。') })}
         icon={<LibraryIcon size={22} />}
         {...(mobile
           ? {}
@@ -90,12 +91,11 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
               actions: (
                 <Button variant="primary" onPress={() => add(query.trim())}>
                   <Plus size={16} />
-                  添加
-                </Button>
+                  {tr('添加')}</Button>
               ),
             })}
       />
-      <nav className="lib-tabs" aria-label="资料库">
+      <nav className="lib-tabs" aria-label={tr('资料库')}>
         {libs.map((t) => {
           const TIcon = typeIcon(t.icon);
           const active = t.id === type.id;
@@ -118,20 +118,20 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
         })}
       </nav>
       <div className="lib-toolbar">
-        <SearchField aria-label={`在${copy.name}里搜索`} className="lib-search" value={query} onChange={setQuery}>
+        <SearchField aria-label={tr('在{name}里搜索', { name: copy.name })} className="lib-search" value={query} onChange={setQuery}>
           <Search size={15} className="lib-search-icon" aria-hidden />
-          <Input className="input lib-search-input" placeholder={`在${copy.name}里搜索`} />
+          <Input className="input lib-search-input" placeholder={tr('在{name}里搜索', { name: copy.name })} />
           {query && (
-            <RacButton className="icon-btn lib-search-clear" aria-label="清除">
+            <RacButton className="icon-btn lib-search-clear" aria-label={tr('清除')}>
               <X size={14} />
             </RacButton>
           )}
         </SearchField>
         <span className="lib-toolbar-count">
-          {entries.length ? `${entries.length} ${copy.measure}` : ''}
+          {entries.length ? copy.count(entries.length) : ''}
         </span>
         {mobile && (
-          <RacButton className="icon-btn lib-add-mobile" aria-label={`添加到${copy.name}`} onPress={() => add(query.trim())}>
+          <RacButton className="icon-btn lib-add-mobile" aria-label={tr('添加到{name}', { name: copy.name })} onPress={() => add(query.trim())}>
             <Plus size={20} />
           </RacButton>
         )}
@@ -142,20 +142,19 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
           <span className={`lib-empty-art art art-${shape}`}>
             <Icon size={26} />
           </span>
-          <div className="lib-empty-title">{copy.name}还是空的</div>
-          <div className="lib-empty-hint">新建任务时选「{type.name}」，填过的会留在这里，下次直接选。</div>
+          <div className="lib-empty-title">{tr('{name}还是空的', { name: copy.name })}</div>
+          <div className="lib-empty-hint">{tr('新建任务时选「{name}」，填过的会留在这里，下次直接选。', { name: dataLabel(type.name) })}</div>
           <Button variant="secondary" onPress={() => add()}>
             <Plus size={16} />
-            添加第一{copy.measure}
+            {copy.addFirst}
           </Button>
         </div>
       ) : shown.length === 0 ? (
         <div className="lib-empty is-search">
-          <div className="lib-empty-title">没有找到「{query.trim()}」</div>
+          <div className="lib-empty-title">{tr('没有找到「{trim}」', { trim: query.trim() })}</div>
           <Button variant="secondary" onPress={() => add(query.trim())}>
             <Plus size={16} />
-            新建“{query.trim()}”
-          </Button>
+            {tr('新建“{trim}”', { trim: query.trim() })}</Button>
         </div>
       ) : (
         <div className={`lib-grid shape-${shape}`}>
@@ -186,10 +185,9 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
     return (
       <div className="page">
         <div className="lib-empty">
-          <div className="lib-empty-title">这条资料不在了</div>
+          <div className="lib-empty-title">{tr('这条资料不在了')}</div>
           <Button variant="secondary" onPress={() => navigate({ page: 'library', typeId })}>
-            回到资料库
-          </Button>
+            {tr('回到资料库')}</Button>
         </div>
       </div>
     );
@@ -211,13 +209,13 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
       <header className={`lib-hero shape-${shape}`}>
         <ItemArt src={imageUrl(store, item.image)} name={item.name} shape={shape} className="lib-hero-art" />
         <div className="lib-hero-text">
-          <div className="lib-hero-kicker">{type.name}</div>
+          <div className="lib-hero-kicker">{dataLabel(type.name)}</div>
           <h1 className="page-title lib-hero-title">{item.name}</h1>
           {facts.length > 0 && (
             <dl className="lib-facts">
               {facts.map(({ f, v }) => (
                 <div key={f.key} className="lib-fact">
-                  <dt>{f.label}</dt>
+                  <dt>{dataLabel(f.label)}</dt>
                   <dd>
                     {f.kind === 'link' && typeof v === 'string' ? (
                       <a href={v} target="_blank" rel="noreferrer" className="lib-link">
@@ -236,18 +234,16 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
           <div className="lib-hero-actions">
             <Button variant="primary" onPress={() => ui.openQuickCreate({ type_id: type.id, library_item_id: id })}>
               <Plus size={16} />
-              用它新建任务
-            </Button>
+              {tr('用它新建任务')}</Button>
             <Button variant="secondary" onPress={() => setEditing(true)}>
               <Pencil size={15} />
-              编辑资料
-            </Button>
-            <OverflowMenu items={[{ id: 'delete', label: '删除…', icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirm(true) }]} />
+              {tr('编辑资料')}</Button>
+            <OverflowMenu items={[{ id: 'delete', label: tr('删除…'), icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirm(true) }]} />
           </div>
         </div>
       </header>
       {item.note_md.trim() && <Markdown source={item.note_md} className="card note-card" />}
-      <Section title={`相关任务 ${tasks.length}`}>
+      <Section title={tr('相关任务 {length}', { length: tasks.length })}>
         {tasks.length ? (
           <div className="task-list plain">
             {[...open, ...done].map((t) => (
@@ -255,21 +251,21 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
             ))}
           </div>
         ) : (
-          <p className="lib-none">还没有任务用到它。</p>
+          <p className="lib-none">{tr('还没有任务用到它。')}</p>
         )}
       </Section>
       {editing && <ItemSheet store={store} type={type} itemId={id} onClose={() => setEditing(false)} />}
       <ConfirmDialog
         isOpen={confirm}
         onOpenChange={setConfirm}
-        title="删除这条资料？"
-        message={tasks.length ? <>用到「{item.name}」的 {tasks.length} 件任务会留着，只是不再和它连在一起。</> : <>「{item.name}」会从{copy.name}里删除，删除后不能恢复。</>}
-        confirmLabel="删除"
+        title={tr('删除这条资料？')}
+        message={tasks.length ? <>{tr('用到「{name}」的 {length} 件任务会留着，只是不再和它连在一起。', { name: item.name, length: tasks.length })}</> : <>{tr('「{name}」会从{name2}里删除，删除后不能恢复。', { name: item.name, name2: copy.name })}</>}
+        confirmLabel={tr('删除')}
         danger
         onConfirm={() => {
           store.deleteLibraryItem(id);
           navigate({ page: 'library', typeId: type.id });
-          ui.toast({ message: '已删除' }, 2500);
+          ui.toast({ message: tr('已删除') }, 2500);
         }}
       />
     </div>

@@ -1,8 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { autoMonthMarker, buildHeatmap, formatDateZh, type DateKey, type MonthMarker } from '@mindough/core';
+import { autoMonthMarker, buildHeatmap, formatDateZh, weekdayShort, type DateKey, type MonthMarker } from '@mindough/core';
 import { useSettings } from '../lib/settings';
 
-const WEEK_LABELS = ['一', '', '三', '', '五', '', '日'];
+import { tr } from '../lib/i18n';
+/** 左侧星期标签（周一开始，隔行显示）：按当前语言（weekdayShort）。 */
+const weekLabels = () => [weekdayShort(1), '', weekdayShort(3), '', weekdayShort(5), '', weekdayShort(0)];
 
 /**
  * GitHub 式热力图。格子严格正方形（固定像素，不随容器拉伸）；每月 1 号做标记。
@@ -41,7 +43,7 @@ export function Heatmap({
   const marker: MonthMarker = settings.monthMarker === 'auto' ? autoMonthMarker(cellPx) : settings.monthMarker;
   const style = { '--heat-color-local': color ?? 'var(--heat-color)', '--c': `${cellPx}px` } as CSSProperties;
   const text = (d: DateKey, r: number | null) =>
-    describe ? describe(d, r) : `${formatDateZh(d)}：${r === null ? '无需打卡' : `完成 ${Math.round(Math.min(1, r) * 100)}%`}`;
+    describe ? describe(d, r) : (r === null ? tr('{date}：无需打卡', { date: formatDateZh(d) }) : tr('{date}：完成 {pct}%', { date: formatDateZh(d), pct: Math.round(Math.min(1, r) * 100) }));
 
   return (
     <div className={`heatmap${mini ? ' heatmap-mini' : ''}`} style={style}>
@@ -59,7 +61,7 @@ export function Heatmap({
           <div className="heatmap-body">
             {!mini && (
               <div className="heatmap-weekdays" aria-hidden>
-                {WEEK_LABELS.map((w, i) => (
+                {weekLabels().map((w, i) => (
                   <span key={i}>{w}</span>
                 ))}
               </div>
@@ -86,11 +88,11 @@ export function Heatmap({
       </div>
       {!mini && (
         <div className="heatmap-legend" aria-hidden>
-          <span>少</span>
+          <span>{tr('少')}</span>
           {[0, 1, 2, 3].map((l) => (
             <span key={l} className={`heat-cell lv-${l}`} />
           ))}
-          <span>达标</span>
+          <span>{tr('达标')}</span>
         </div>
       )}
     </div>

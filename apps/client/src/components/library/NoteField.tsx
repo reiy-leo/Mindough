@@ -7,7 +7,8 @@ import { Button as RacButton } from 'react-aria-components';
 import { AutoTextarea, Tip } from '../../ui/primitives';
 import { MARKDOWN_HELP, Markdown } from '../Markdown';
 
-export function NoteField({ value, onChange, label = '备注', placeholder = '写点什么…', className }: { value: string; onChange: (v: string) => void; label?: string; placeholder?: string; className?: string }) {
+import { tr } from '../../lib/i18n';
+export function NoteField({ value, onChange, label = tr('备注'), placeholder = tr('写点什么…'), className }: { value: string; onChange: (v: string) => void; label?: string; placeholder?: string; className?: string }) {
   const [editing, setEditing] = useState(!value.trim());
   const [focus, setFocus] = useState(false);
   const open = (e: MouseEvent) => {
@@ -27,7 +28,7 @@ export function NoteField({ value, onChange, label = '备注', placeholder = '�
       <span className="field-label note-field-label">
         {label}
         <Tip content={MARKDOWN_HELP}>
-          <RacButton className="link-btn note-md-hint">支持 Markdown</RacButton>
+          <RacButton className="link-btn note-md-hint">{tr('支持 Markdown')}</RacButton>
         </Tip>
       </span>
       {editing ? (
@@ -49,7 +50,7 @@ export function NoteField({ value, onChange, label = '备注', placeholder = '�
           }}
         />
       ) : (
-        <div className="input note-preview" tabIndex={0} role="group" aria-label={`${label}，按回车编辑`} onClick={open} onKeyDown={onKey}>
+        <div className="input note-preview" tabIndex={0} role="group" aria-label={tr('{label}，按回车编辑', { label })} onClick={open} onKeyDown={onKey}>
           <Markdown source={value} />
         </div>
       )}

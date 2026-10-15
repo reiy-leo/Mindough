@@ -35,25 +35,25 @@ function EpisodeChip({ text, pending, onUndo }: { text: string; pending: boolean
     <div className="ep-chip" role="status">
       <Sparkles size={13} aria-hidden />
       <span>
-        已识别 <b>{text}</b>
-        {pending ? '，会填进「看到哪」' : ''}
+        {pending ? trx('已识别 {ep}，会填进「看到哪」', { ep: <b>{text}</b> }) : trx('已识别 {ep}', { ep: <b>{text}</b> })}
       </span>
       {pending ? (
-        <Tip content="不用识别">
-          <RacButton className="ep-chip-x" aria-label="不用识别" onPress={onUndo}>
+        <Tip content={tr('不用识别')}>
+          <RacButton className="ep-chip-x" aria-label={tr('不用识别')} onPress={onUndo}>
             <X size={13} />
           </RacButton>
         </Tip>
       ) : (
         <RacButton className="link-btn ep-chip-undo" onPress={onUndo}>
-          撤销
-        </RacButton>
+          {tr('撤销')}</RacButton>
       )}
     </div>
   );
 }
 import { MARKDOWN_HELP } from '../Markdown';
 
+import { dataLabel, tr } from '../../lib/i18n';
+import { trx } from '../../lib/trx';
 interface Draft extends CompletionValue {
   body: string;
   typeId: string;
@@ -154,7 +154,7 @@ function Composer() {
 
   const focusBody = () => setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer-body')?.focus(), 30);
 
-  const title = after ? '接下来做什么' : group && req.defaults.group_id ? `在「${group.name}」里新建` : req.defaults.recurrence ? '新建打卡' : '新建任务';
+  const title = after ? tr('接下来做什么') : group && req.defaults.group_id ? tr('在「{name}」里新建', { name: group.name }) : req.defaults.recurrence ? tr('新建打卡') : tr('新建任务');
 
   const submit = () => {
     if (!canAdd) return;
@@ -197,8 +197,8 @@ function Composer() {
     ui.toast(
       {
         tone: 'success',
-        message: recurring ? `已添加到打卡：「${name}」` : toMyDay ? `已添加到我的一天：「${name}」` : !d.date && t.completion_mode !== 'countdown' ? `已添加到待安排：「${name}」` : `已添加：「${name}」`,
-        actions: [{ label: '查看', onPress: () => ui.openEditor(t.id) }],
+        message: recurring ? tr('已添加到打卡：「{name}」', { name }) : toMyDay ? tr('已添加到我的一天：「{name}」', { name }) : !d.date && t.completion_mode !== 'countdown' ? tr('已添加到待安排：「{name}」', { name }) : tr('已添加：「{name}」', { name }),
+        actions: [{ label: tr('查看'), onPress: () => ui.openEditor(t.id) }],
       },
       4000,
     );
@@ -234,18 +234,16 @@ function Composer() {
       footer={
         <>
           <Tip content={MARKDOWN_HELP}>
-            <RacButton className="icon-btn composer-help" aria-label="写法提示">
+            <RacButton className="icon-btn composer-help" aria-label={tr('写法提示')}>
               <CircleHelp size={16} />
             </RacButton>
           </Tip>
           <span className="grow" />
           <Button variant="secondary" className="composer-cancel" onPress={() => ui.closeQuickCreate()}>
-            取消
-          </Button>
-          <Tip content={needsDate ? '先选好目标日期' : !hasContent ? (lib ? libraryCopy(lib).pick.replace('…', '') : '先写下要做什么') : `${mod} + Enter`}>
+            {tr('取消')}</Button>
+          <Tip content={needsDate ? tr('先选好目标日期') : !hasContent ? (lib ? libraryCopy(lib).pick.replace('…', '') : tr('先写下要做什么')) : `${mod} + Enter`}>
             <Button variant="primary" className="composer-add" isDisabled={!canAdd} onPress={submit}>
-              添加
-            </Button>
+              {tr('添加')}</Button>
           </Tip>
         </>
       }
@@ -254,7 +252,7 @@ function Composer() {
         {after && (
           <div className="composer-context">
             <CornerDownRight size={14} aria-hidden />
-            <span className="ellipsis">做完「{afterTitle}」之后</span>
+            <span className="ellipsis">{tr('做完「{afterTitle}」之后', { afterTitle })}</span>
           </div>
         )}
         {lib &&
@@ -265,19 +263,17 @@ function Composer() {
               entry={entry}
               actions={
                 <Button variant="quiet" className="item-card-swap" onPress={() => set({ entryId: null, query: '' })}>
-                  换一个
-                </Button>
+                  {tr('换一个')}</Button>
               }
             />
           ) : d.newItem ? (
-            <section className="composer-newitem" aria-label={`新的${libraryCopy(lib).short}`}>
+            <section className="composer-newitem" aria-label={tr('新的{short}', { short: libraryCopy(lib).short })}>
               <div className="composer-newitem-head">
                 <span>
-                  添加到{libraryCopy(lib).name}
+                  {tr('添加到{name}', { name: libraryCopy(lib).name })}
                 </span>
                 <RacButton className="link-btn" onPress={() => set({ newItem: null, query: d.newItem?.name ?? '' })}>
-                  换一个
-                </RacButton>
+                  {tr('换一个')}</RacButton>
               </div>
               <ItemEditor store={store} type={lib} value={d.newItem} onChange={(v) => set({ newItem: v })} />
             </section>
@@ -311,10 +307,10 @@ function Composer() {
             }}
           />
         )}
-        <AutoTextarea label="内容" className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={lib || typed ? '还想记点什么？（可以不填）' : '要做什么？'} minRows={1} />
+        <AutoTextarea label={tr('内容')} className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={lib || typed ? tr('还想记点什么？（可以不填）') : tr('要做什么？')} minRows={1} />
 
-        <div className="prop-chips" role="group" aria-label="更多属性">
-          <PopoverPanel label="类型" trigger={<PropChip icon={<TypeIcon size={14} />} label="类型" {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: type.name, color: type.color } : {})} />}>
+        <div className="prop-chips" role="group" aria-label={tr('更多属性')}>
+          <PopoverPanel label={tr('类型')} trigger={<PropChip icon={<TypeIcon size={14} />} label={tr('类型')} {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: dataLabel(type.name), color: type.color } : {})} />}>
             {(close) => (
               <div className="pop-section">
                 <TypeGrid
@@ -325,11 +321,11 @@ function Composer() {
                     close();
                   }}
                 />
-                <p className="pop-note">类型决定卡片的样子，并带上一组要填的信息。</p>
+                <p className="pop-note">{tr('类型决定卡片的样子，并带上一组要填的信息。')}</p>
               </div>
             )}
           </PopoverPanel>
-          <PopoverPanel label="日期" trigger={<PropChip icon={<CalendarDays size={14} />} label="日期" {...(d.date ? { value: friendlyDate(d.date, today) } : {})} />}>
+          <PopoverPanel label={tr('日期')} trigger={<PropChip icon={<CalendarDays size={14} />} label={tr('日期')} {...(d.date ? { value: friendlyDate(d.date, today) } : {})} />}>
             {(close) => (
               <DatePanel
                 value={d.date}
@@ -341,7 +337,7 @@ function Composer() {
               />
             )}
           </PopoverPanel>
-          <PopoverPanel label="组" trigger={<PropChip icon={<Shapes size={14} />} label="组" {...(group ? { value: `${group.icon} ${group.name}` } : {})} />}>
+          <PopoverPanel label={tr('组')} trigger={<PropChip icon={<Shapes size={14} />} label={tr('组')} {...(group ? { value: `${group.icon} ${group.name}` } : {})} />}>
             {(close) => (
               <GroupList
                 store={store}
@@ -354,24 +350,24 @@ function Composer() {
             )}
           </PopoverPanel>
           <PopoverPanel
-            label="和谁有关"
+            label={tr('和谁有关')}
             trigger={
               <PropChip
                 icon={people.length ? <AvatarStack store={store} people={people} size={16} /> : <Users size={14} />}
-                label="和谁有关"
-                {...(people.length ? { value: people.map((p) => p.name).join('、') } : {})}
+                label={tr('和谁有关')}
+                {...(people.length ? { value: people.map((p) => p.name).join(tr('、')) } : {})}
               />
             }
           >
             <PeopleList store={store} value={d.people} onChange={(ids) => set({ people: ids })} />
           </PopoverPanel>
           <PopoverPanel
-            label="相关任务"
+            label={tr('相关任务')}
             trigger={
               <PropChip
                 icon={<Link2 size={14} />}
-                label="相关任务"
-                {...(relatedTasks.length ? { value: relatedTasks.length === 1 ? `「${titleOf(store, relatedTasks[0]!)}」` : `${relatedTasks.length} 件相关` } : {})}
+                label={tr('相关任务')}
+                {...(relatedTasks.length ? { value: relatedTasks.length === 1 ? tr('「{titleOf}」', { titleOf: titleOf(store, relatedTasks[0]!) }) : tr('{length} 件相关', { length: relatedTasks.length }) } : {})}
               />
             }
           >
@@ -379,10 +375,10 @@ function Composer() {
               store={store}
               exclude={new Set(req.after ? [req.after] : [])}
               selected={new Set(d.related)}
-              label="搜索相关的任务"
+              label={tr('搜索相关的任务')}
               onPick={(id) => set({ related: d.related.includes(id) ? d.related.filter((x) => x !== id) : [...d.related, id] })}
             />
-            <p className="pop-note">只是有关系，不分先后。</p>
+            <p className="pop-note">{tr('只是有关系，不分先后。')}</p>
           </PopoverPanel>
         </div>
 
@@ -391,13 +387,13 @@ function Composer() {
           : typed && type && <TypeFields store={store} type={type} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />}
 
         <section className="composer-section">
-          <h3 className="composer-label">怎么算完成</h3>
+          <h3 className="composer-label">{tr('怎么算完成')}</h3>
           <CompletionChoice value={d.completion_mode} onChange={(m) => set({ ...modeDefaults(m, d), modeTouched: true })} />
           <CompletionSentence value={d} today={today} onChange={(p) => set(p)} />
         </section>
 
         <section className="composer-section">
-          <h3 className="composer-label">多久一次</h3>
+          <h3 className="composer-label">{tr('多久一次')}</h3>
           <RepeatEditor value={d.recurrence} today={today} onChange={(r) => set({ recurrence: r })}>
             <CategoryPicker store={store} value={d.categoryId} onChange={(id) => set({ categoryId: id })} />
           </RepeatEditor>

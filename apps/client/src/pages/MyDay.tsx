@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
 import { GripVertical, Lightbulb, Plus, RotateCcw, Search, Sun, X } from 'lucide-react';
-import { formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
+import { SUGGESTION_REASON_LABEL, formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { Button, Chip, Empty, Section } from '../ui/primitives';
@@ -9,6 +9,7 @@ import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings } from '../lib/settings';
 
+import { tr } from '../lib/i18n';
 const REASON_COLOR: Record<string, string> = {
   今天到期: 'var(--warning)',
   今天要打卡: 'var(--accent)',
@@ -63,8 +64,8 @@ export function MyDayPage() {
   return (
     <div className="page">
       <PageHeader
-        title="我的一天"
-        subtitle={`${formatDateZh(today)} · ${items.length ? `${doneCount}/${counted} 已完成${closedCount ? ` · ${closedCount} 个已关闭` : ''}` : '还没有安排'}`}
+        title={tr('我的一天')}
+        subtitle={`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
         icon={<Sun size={22} />}
       />
 
@@ -76,21 +77,21 @@ export function MyDayPage() {
         }}
       >
         <Plus size={18} className="add-bar-icon" aria-hidden />
-        <TextField aria-label="添加任务到今天" value={draft} onChange={setDraft} className="add-bar-field">
-          <Input className="add-bar-input" placeholder="今天要做什么？按回车添加" />
+        <TextField aria-label={tr('添加任务到今天')} value={draft} onChange={setDraft} className="add-bar-field">
+          <Input className="add-bar-input" placeholder={tr('今天要做什么？按回车添加')} />
         </TextField>
         <RacButton className="btn btn-secondary add-bar-search" onPress={() => ui.setPaletteOpen(true)}>
           <Search size={15} />
-          <span className="hide-mobile">从全部任务添加</span>
+          <span className="hide-mobile">{tr('从全部任务添加')}</span>
           <kbd className="kbd hide-mobile">⌘K</kbd>
         </RacButton>
       </Form>
 
       {items.length ? (
-        <GridList aria-label="今天的任务" className="task-list" dragAndDropHooks={dragAndDropHooks} items={items.map((i) => ({ ...i, id: i.task.id }))}>
+        <GridList aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} items={items.map((i) => ({ ...i, id: i.task.id }))}>
           {(item) => (
-            <GridListItem id={item.id} textValue={item.task.body_md.slice(0, 40) || '任务'} className="list-item">
-              <RacButton slot="drag" className="drag-handle" aria-label="拖动排序">
+            <GridListItem id={item.id} textValue={item.task.body_md.slice(0, 40) || tr('任务')} className="list-item">
+              <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
                 <GripVertical size={14} />
               </RacButton>
               <TaskRow
@@ -99,7 +100,7 @@ export function MyDayPage() {
                 showMyDay={false}
                 doneOverride={item.done}
                 trailing={
-                  <RacButton className="icon-btn" aria-label="移出我的一天" onPress={() => store.removeFromMyDay(item.task.id, today)}>
+                  <RacButton className="icon-btn" aria-label={tr('移出我的一天')} onPress={() => store.removeFromMyDay(item.task.id, today)}>
                     <X size={16} />
                   </RacButton>
                 }
@@ -108,20 +109,19 @@ export function MyDayPage() {
           )}
         </GridList>
       ) : (
-        <Empty icon={<Sun size={28} />} title="今天还是空的" hint="在上面直接写，或按 ⌘K / Ctrl+K 从全部任务里挑几件加进来" />
+        <Empty icon={<Sun size={28} />} title={tr('今天还是空的')} hint={tr('在上面直接写，或按 ⌘K / Ctrl+K 从全部任务里挑几件加进来')} />
       )}
 
       {yesterday.length > 0 && (
         <Section
           title={
             <>
-              <RotateCcw size={15} /> 昨天没做完 <span className="count">{yesterday.length}</span>
+              <RotateCcw size={15} /> {tr('昨天没做完')} <span className="count">{yesterday.length}</span>
             </>
           }
           extra={
             <Button variant="ghost" onPress={() => yesterday.forEach((t) => store.addToMyDay(t.id, today))}>
-              全部带回今天
-            </Button>
+              {tr('全部带回今天')}</Button>
           }
         >
           <div className="task-list plain">
@@ -134,8 +134,7 @@ export function MyDayPage() {
                 showCheckIn={inlineCheckIn}
                 trailing={
                   <Button variant="tonal" className="small" onPress={() => store.addToMyDay(t.id, today)}>
-                    带回今天
-                  </Button>
+                    {tr('带回今天')}</Button>
                 }
               />
             ))}
@@ -147,7 +146,7 @@ export function MyDayPage() {
         <Section
           title={
             <>
-              <Lightbulb size={15} /> 建议 <span className="count">{sugg.length}</span>
+              <Lightbulb size={15} /> {tr('建议')} <span className="count">{sugg.length}</span>
             </>
           }
         >
@@ -163,11 +162,11 @@ export function MyDayPage() {
                 trailing={
                   <>
                     <Chip color={REASON_COLOR[s.reason]} className="hide-mobile">
-                      {s.reason}
+                      {SUGGESTION_REASON_LABEL[s.reason]}
                     </Chip>
-                    <Button variant="tonal" className="small" onPress={() => store.addToMyDay(s.task.id, today)} aria-label="加入我的一天">
+                    <Button variant="tonal" className="small" onPress={() => store.addToMyDay(s.task.id, today)} aria-label={tr('加入我的一天')}>
                       <Plus size={14} />
-                      <span className="hide-mobile">加入</span>
+                      <span className="hide-mobile">{tr('加入')}</span>
                     </Button>
                   </>
                 }

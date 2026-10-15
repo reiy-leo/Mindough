@@ -38,8 +38,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType,
-} from '@mindough/core';
+  type TaskType, weekdayLabel } from '@mindough/core';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -49,12 +48,14 @@ import { typeIcon } from '../../lib/icons';
 import { imageUrl } from '../../lib/view';
 import { saveImageAsset } from '../../lib/upload';
 
+import { dataLabel, tr } from '../../lib/i18n';
+import { trx } from '../../lib/trx';
 export const MODE_ICON: Record<CompletionMode, typeof Timer> = { once: CircleCheck, timer: Timer, count: Hash, countdown: CalendarClock };
 
 /** 完成方式的选择：四张卡片（单选，方向键可切换）。 */
 export function CompletionChoice({ value, onChange, compact }: { value: CompletionMode; onChange: (m: CompletionMode) => void; compact?: boolean }) {
   return (
-    <RadioGroup aria-label="怎么算完成" className={`mode-choice${compact ? ' is-compact' : ''}`} value={value} onChange={(v) => onChange(v as CompletionMode)}>
+    <RadioGroup aria-label={tr('怎么算完成')} className={`mode-choice${compact ? ' is-compact' : ''}`} value={value} onChange={(v) => onChange(v as CompletionMode)}>
       {COMPLETION_MODES.map((m) => {
         const Icon = MODE_ICON[m];
         return (
@@ -107,36 +108,36 @@ export function CompletionSentence({ value, onChange, today }: { value: Completi
       const parts = durationParts(value.target_value) ?? { value: 10, unit: 'min' as DurationUnit };
       return (
         <div className="sentence">
-          <span>每次</span>
-          <InlineNumber label="时长" value={parts.value} onChange={(v) => onChange({ target_value: durationMs(v, parts.unit) })} width={3} />
+          <span>{tr('每次')}</span>
+          <InlineNumber label={tr('时长')} value={parts.value} onChange={(v) => onChange({ target_value: durationMs(v, parts.unit) })} width={3} />
           <InlineSelect<DurationUnit>
-            label="时长单位"
+            label={tr('时长单位')}
             value={parts.unit}
             onChange={(u) => onChange({ target_value: durationMs(parts.value, u) })}
             options={(Object.keys(DURATION_UNIT_LABEL) as DurationUnit[]).map((u) => ({ id: u, label: DURATION_UNIT_LABEL[u] }))}
           />
-          <span className="sentence-note">够了就算完成</span>
+          <span className="sentence-note">{tr('够了就算完成')}</span>
         </div>
       );
     }
     case 'count':
       return (
         <div className="sentence">
-          <span>目标</span>
-          <InlineNumber label="目标数量" value={value.target_value ?? 1} onChange={(v) => onChange({ target_value: Math.max(1, v) })} width={3} />
-          <InlineText label="单位" value={value.unit ?? ''} onChange={(u) => onChange({ unit: u.trim() ? u : null })} placeholder="次" width={3} />
-          <span className="sentence-note">每次 +1，加够就算完成</span>
+          <span>{tr('目标')}</span>
+          <InlineNumber label={tr('目标数量')} value={value.target_value ?? 1} onChange={(v) => onChange({ target_value: Math.max(1, v) })} width={3} />
+          <InlineText label={tr('单位')} value={value.unit ?? ''} onChange={(u) => onChange({ unit: u.trim() ? u : null })} placeholder={tr('次')} width={3} />
+          <span className="sentence-note">{tr('每次 +1，加够就算完成')}</span>
         </div>
       );
     case 'countdown':
       return (
         <div className="sentence">
-          <span>目标日期</span>
+          <span>{tr('目标日期')}</span>
           <PopoverPanel
-            label="目标日期"
+            label={tr('目标日期')}
             trigger={
               <RacButton className={`input inline-input inline-date${value.target_date ? '' : ' is-empty'}`}>
-                {value.target_date ? friendlyDate(value.target_date, today) : '选一天'}
+                {value.target_date ? friendlyDate(value.target_date, today) : tr('选一天')}
                 <ChevronDown size={14} aria-hidden />
               </RacButton>
             }
@@ -154,7 +155,7 @@ export function CompletionSentence({ value, onChange, today }: { value: Completi
               />
             )}
           </PopoverPanel>
-          {value.target_date && <span className="sentence-note">到时显示「{countdownPhrase(value.target_date, today)}」</span>}
+          {value.target_date && <span className="sentence-note">{tr('到时显示「{countdownPhrase}」', { countdownPhrase: countdownPhrase(value.target_date, today) })}</span>}
         </div>
       );
   }
@@ -169,13 +170,12 @@ export function modeDefaults(mode: CompletionMode, cur: CompletionValue): Partia
 }
 
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
-const WEEK_LABEL = ['日', '一', '二', '三', '四', '五', '六'];
 type Freq = Recurrence['kind'];
 const FREQ: Array<{ id: Freq; label: string }> = [
-  { id: 'daily', label: '每天' },
-  { id: 'weekly', label: '每周' },
-  { id: 'monthly', label: '每月' },
-  { id: 'every', label: '每隔几天' },
+  { id: 'daily', get label() { return tr('每天'); } },
+  { id: 'weekly', get label() { return tr('每周'); } },
+  { id: 'monthly', get label() { return tr('每月'); } },
+  { id: 'every', get label() { return tr('每隔几天'); } },
 ];
 
 function defaultRule(kind: Freq, today: DateKey): string {
@@ -191,23 +191,21 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
   return (
     <div className="repeat">
       <RadioGroup
-        aria-label="多久一次"
+        aria-label={tr('多久一次')}
         orientation="horizontal"
         className="choice-pills"
         value={r ? 'repeat' : 'once'}
         onChange={(v) => onChange(v === 'once' ? null : defaultRule('daily', today))}
       >
         <Radio value="once" className="choice-pill">
-          只做一次
-        </Radio>
+          {tr('只做一次')}</Radio>
         <Radio value="repeat" className="choice-pill">
-          定期打卡
-        </Radio>
+          {tr('定期打卡')}</Radio>
       </RadioGroup>
       {r && (
         <div className="repeat-body">
           <ToggleButtonGroup
-            aria-label="频率"
+            aria-label={tr('频率')}
             className="freq-chips"
             selectionMode="single"
             disallowEmptySelection
@@ -225,20 +223,20 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
           </ToggleButtonGroup>
           {r.kind === 'weekly' && (
             <div className="sentence">
-              <span>在每周的</span>
-              <div className="weekday-picker" role="group" aria-label="每周哪几天">
+              <span>{tr('在每周的')}</span>
+              <div className="weekday-picker" role="group" aria-label={tr('每周哪几天')}>
                 {WEEK.map((d) => (
                   <ToggleButton
                     key={d}
                     className="weekday"
-                    aria-label={`周${WEEK_LABEL[d]}`}
+                    aria-label={weekdayLabel(d, 'long')}
                     isSelected={r.weekdays.includes(d)}
                     onChange={(on) => {
                       const next = on ? [...r.weekdays, d] : r.weekdays.filter((x) => x !== d);
                       if (next.length) onChange(formatRecurrence({ kind: 'weekly', weekdays: next }));
                     }}
                   >
-                    {WEEK_LABEL[d]}
+                    {weekdayLabel(d, 'narrow')}
                   </ToggleButton>
                 ))}
               </div>
@@ -246,17 +244,13 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
           )}
           {r.kind === 'monthly' && (
             <div className="sentence">
-              <span>每月</span>
-              <InlineNumber label="每月几号" value={r.day} min={1} max={31} width={2} onChange={(v) => v >= 1 && v <= 31 && onChange(formatRecurrence({ kind: 'monthly', day: Math.round(v) }))} />
-              <span>号</span>
-              {r.day > 28 && <span className="sentence-note">小月取月末</span>}
+              {trx('在每月的 {day} 号', { day: <InlineNumber label={tr('每月几号')} value={r.day} min={1} max={31} width={2} onChange={(v) => v >= 1 && v <= 31 && onChange(formatRecurrence({ kind: 'monthly', day: Math.round(v) }))} /> }, {}, { wrap: '' })}
+              {r.day > 28 && <span className="sentence-note">{tr('小月取月末')}</span>}
             </div>
           )}
           {r.kind === 'every' && (
             <div className="sentence">
-              <span>每</span>
-              <InlineNumber label="间隔天数" value={r.days} min={2} width={2} onChange={(v) => v >= 2 && onChange(formatRecurrence({ kind: 'every', days: Math.round(v), anchor: r.anchor }))} />
-              <span>天一次，从今天算起</span>
+              {trx('每 {days} 天一次，从今天算起', { days: <InlineNumber label={tr('间隔天数')} value={r.days} min={2} width={2} onChange={(v) => v >= 2 && onChange(formatRecurrence({ kind: 'every', days: Math.round(v), anchor: r.anchor }))} /> }, { count: r.days }, { wrap: '' })}
             </div>
           )}
           {children}
@@ -270,7 +264,7 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
 export function TypeGrid({ types, value, onChange }: { types: TaskType[]; value: string; onChange: (id: string) => void }) {
   return (
     <ToggleButtonGroup
-      aria-label="类型"
+      aria-label={tr('类型')}
       className="type-pick-grid"
       selectionMode="single"
       disallowEmptySelection
@@ -287,7 +281,7 @@ export function TypeGrid({ types, value, onChange }: { types: TaskType[]; value:
             <span className="type-pick-icon">
               <Icon size={16} />
             </span>
-            <span>{t.name}</span>
+            <span>{dataLabel(t.name)}</span>
           </ToggleButton>
         );
       })}
@@ -302,7 +296,7 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
   const groups = store.list('group');
   return (
     <ListBox
-      aria-label="组"
+      aria-label={tr('组')}
       className="listbox pick-list"
       selectionMode="single"
       selectedKeys={[value ?? NO_GROUP]}
@@ -312,9 +306,9 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
         if (k !== undefined) onChange(String(k) === NO_GROUP ? null : String(k));
       }}
     >
-      <ListBoxItem id={NO_GROUP} className="listbox-item pick-item" textValue="不放进组">
+      <ListBoxItem id={NO_GROUP} className="listbox-item pick-item" textValue={tr('不放进组')}>
         <span className="pick-icon muted">—</span>
-        <span className="grow">不放进组</span>
+        <span className="grow">{tr('不放进组')}</span>
         <Check size={14} className="pick-check" />
       </ListBoxItem>
       {groups.map((g) => (
@@ -331,10 +325,10 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
 /** 人物多选（弹层里用）。 */
 export function PeopleList({ store, value, onChange }: { store: Store; value: string[]; onChange: (ids: string[]) => void }) {
   const people = store.list('person');
-  if (!people.length) return <p className="pick-empty">还没有人物，可以先去「人物」页添加。</p>;
+  if (!people.length) return <p className="pick-empty">{tr('还没有人物，可以先去「人物」页添加。')}</p>;
   return (
     <ListBox
-      aria-label="和谁有关"
+      aria-label={tr('和谁有关')}
       className="listbox pick-list"
       selectionMode="multiple"
       selectedKeys={value}
@@ -361,9 +355,9 @@ function EpisodeInput({ def, value, onChange }: { def: FieldDef; value: FieldVal
   }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Field
-      label={def.label}
+      label={dataLabel(def.label)}
       value={text}
-      placeholder={def.placeholder ?? '第 2 季第 3 集，或 S02E03'}
+      placeholder={def.placeholder ? dataLabel(def.placeholder) : tr('第 2 季第 3 集，或 S02E03')}
       onChange={(t) => {
         setText(t);
         onChange(normalizeEpisodeInput(t));
@@ -380,10 +374,10 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
     case 'multiselect':
       return (
         <MultiSelect
-          label={def.label}
+          label={dataLabel(def.label)}
           value={multiValuesOf(def, value)}
           onChange={(v) => onChange(v.length ? v : null)}
-          options={(def.options ?? []).map((o) => ({ id: o, label: o }))}
+          options={(def.options ?? []).map((o) => ({ id: o, label: dataLabel(o) }))}
         />
       );
     case 'money':
@@ -397,20 +391,20 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
     case 'select':
       return (
         <Select
-          label={def.label}
+          label={dataLabel(def.label)}
           value={str || '__none'}
           onChange={(v) => onChange(v === '__none' ? null : v)}
-          options={[{ id: '__none', label: '不选' }, ...(def.options ?? []).map((o) => ({ id: o, label: o }))]}
+          options={[{ id: '__none', label: tr('不选') }, ...(def.options ?? []).map((o) => ({ id: o, label: dataLabel(o) }))]}
         />
       );
     case 'person': {
       const people = store.list('person');
       return (
         <Select
-          label={def.label}
+          label={dataLabel(def.label)}
           value={str || '__none'}
           onChange={(v) => onChange(v === '__none' ? null : v)}
-          options={[{ id: '__none', label: '不选' }, ...people.map((p) => ({ id: p.id, label: p.name }))]}
+          options={[{ id: '__none', label: tr('不选') }, ...people.map((p) => ({ id: p.id, label: p.name }))]}
         />
       );
     }
@@ -418,27 +412,26 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
     case 'progress':
       return (
         <Field
-          label={def.unit && !def.label.includes(def.unit) ? `${def.label}（${def.unit}）` : def.label}
+          label={def.unit && !def.label.includes(def.unit) ? tr('{label}（{unit}）', { label: dataLabel(def.label), unit: dataLabel(def.unit) }) : dataLabel(def.label)}
           type="number"
           value={str}
           onChange={(v) => onChange(v === '' ? null : Number(v))}
-          {...(def.placeholder ? { placeholder: def.placeholder } : {})}
+          {...(def.placeholder ? { placeholder: dataLabel(def.placeholder) } : {})}
         />
       );
     case 'date':
-      return <Field label={def.label} type="date" value={str} onChange={(v) => onChange(v || null)} />;
+      return <Field label={dataLabel(def.label)} type="date" value={str} onChange={(v) => onChange(v || null)} />;
     case 'list':
-      return <Field label={def.label} multiline rows={3} value={str} onChange={(v) => onChange(v.split('\n'))} placeholder="一行写一项" />;
+      return <Field label={dataLabel(def.label)} multiline rows={3} value={str} onChange={(v) => onChange(v.split('\n'))} placeholder={tr('一行写一项')} />;
     case 'image': {
       const url = imageUrl(store, value);
       return (
         <div className="field image-field">
-          <span className="field-label">{def.label}</span>
+          <span className="field-label">{dataLabel(def.label)}</span>
           <div className="image-row">
             {url ? <img className="image-preview" src={url} alt="" /> : <span className="image-preview is-empty"><ImagePlus size={18} /></span>}
             <label className="btn btn-secondary file-btn">
-              上传图片
-              <input
+              {tr('上传图片')}<input
                 type="file"
                 accept="image/*"
                 hidden
@@ -451,10 +444,10 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
             </label>
             <Field
               className="grow image-link"
-              label={`${def.label}链接`}
+              label={tr('{label}链接', { label: dataLabel(def.label) })}
               value={typeof value === 'string' && /^https?:/.test(value) ? value : ''}
               onChange={(v) => onChange(v || null)}
-              placeholder="或粘贴图片链接"
+              placeholder={tr('或粘贴图片链接')}
             />
           </div>
         </div>
@@ -463,11 +456,11 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
     default:
       return (
         <Field
-          label={def.label}
+          label={dataLabel(def.label)}
           type={def.kind === 'link' ? 'url' : 'text'}
           value={str}
           onChange={(v) => onChange(v || null)}
-          {...(def.placeholder ? { placeholder: def.placeholder } : def.kind === 'link' ? { placeholder: 'https://' } : {})}
+          {...(def.placeholder ? { placeholder: dataLabel(def.placeholder) } : def.kind === 'link' ? { placeholder: 'https://' } : {})}
         />
       );
   }
@@ -478,11 +471,11 @@ export function TypeFields({ store, type, data, onChange, bare }: { store: Store
   const Icon = typeIcon(type.icon);
   const fields = [...type.fields].sort((a, b) => Number(!!b.primary) - Number(!!a.primary));
   return (
-    <section className={`type-fields${bare ? ' is-bare' : ''}`} style={{ '--chip-color': type.color } as CSSProperties} aria-label={`${type.name}信息`}>
+    <section className={`type-fields${bare ? ' is-bare' : ''}`} style={{ '--chip-color': type.color } as CSSProperties} aria-label={tr('{name}信息', { name: dataLabel(type.name) })}>
       {!bare && (
         <div className="type-fields-head">
           <Icon size={14} />
-          <span>{type.name}信息</span>
+          <span>{tr('{name}信息', { name: dataLabel(type.name) })}</span>
         </div>
       )}
       <div className="type-fields-grid">

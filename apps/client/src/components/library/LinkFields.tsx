@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, ExternalLink, Plus, X } from 'lucide-react';
 import { SITES, detectLinkLabel, linksOf, normalizeUrl, type FieldDef, type FieldValue, type LinkChip, type LinkValue } from '@mindough/core';
 import { Field, Tip } from '../../ui/primitives';
 
+import { dataLabel, tr } from '../../lib/i18n';
 /**
  * 链接打开方式：新标签页（App 里由 lib/external.ts 交给系统浏览器）。
  * 放在卡片、弹层这类自己能点的东西里面：按下和点击都不往外传，免得点链接同时触发外层（打开详情、关弹层）。
@@ -46,7 +47,7 @@ export function SiteIdInput({ def, value, onChange }: { def: FieldDef; value: Fi
     if (!site) return;
     if (stored !== text && (site.parse(text) ?? (text.trim() || '')) !== stored) setText(stored);
   }, [stored]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!site) return <Field label={def.label} value={text} onChange={(v) => (setText(v), onChange(v || null))} />;
+  if (!site) return <Field label={dataLabel(def.label)} value={text} onChange={(v) => (setText(v), onChange(v || null))} />;
   const id = site.parse(text);
   const commit = (t: string) => {
     setText(t);
@@ -57,7 +58,7 @@ export function SiteIdInput({ def, value, onChange }: { def: FieldDef; value: Fi
   const bad = blurred && text.trim() !== '' && !id;
   return (
     <Field
-      label={def.label}
+      label={dataLabel(def.label)}
       value={text}
       onChange={(v) => {
         commit(v);
@@ -75,12 +76,12 @@ export function SiteIdInput({ def, value, onChange }: { def: FieldDef; value: Fi
         setBlurred(true);
         if (id && text !== id) setText(id);
       }}
-      placeholder={def.placeholder ?? site.placeholder}
+      placeholder={def.placeholder ? dataLabel(def.placeholder) : site.placeholder}
       inputClassName="mono-id"
       isInvalid={bad}
       adornment={
         id ? (
-          <ExtLink href={site.url(id)} className="input-open" label={`在 ${site.label} 打开`} title="打开">
+          <ExtLink href={site.url(id)} className="input-open" label={tr('在 {label} 打开', { label: site.label })} title={tr('打开')}>
             <ExternalLink size={15} aria-hidden />
           </ExtLink>
         ) : null
@@ -142,7 +143,7 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
   return (
     <div className="field links-field" role="group" aria-labelledby={labelId}>
       <span className="field-label" id={labelId}>
-        {def.label}
+        {dataLabel(def.label)}
       </span>
       {links.length > 0 && (
         <ul className="links-list">
@@ -150,14 +151,14 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
             <li key={`${i}-${l.url}`} className="links-row">
               <input
                 className="input links-label"
-                aria-label="链接名字"
+                aria-label={tr('链接名字')}
                 value={l.label ?? ''}
                 placeholder={detectLinkLabel(l.url)}
                 onChange={(e) => patch(i, { label: e.target.value })}
               />
               <input
                 className="input links-url"
-                aria-label="链接"
+                aria-label={tr('链接')}
                 type="url"
                 value={l.url}
                 onChange={(e) => patch(i, { url: e.target.value })}
@@ -169,20 +170,20 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
               <span className="links-row-actions">
                 {links.length > 1 && (
                   <>
-                    <Tip content="上移">
-                      <RacButton className="icon-btn links-move" aria-label="上移" isDisabled={i === 0} onPress={() => move(i, -1)}>
+                    <Tip content={tr('上移')}>
+                      <RacButton className="icon-btn links-move" aria-label={tr('上移')} isDisabled={i === 0} onPress={() => move(i, -1)}>
                         <ArrowUp size={14} />
                       </RacButton>
                     </Tip>
-                    <Tip content="下移">
-                      <RacButton className="icon-btn links-move" aria-label="下移" isDisabled={i === links.length - 1} onPress={() => move(i, 1)}>
+                    <Tip content={tr('下移')}>
+                      <RacButton className="icon-btn links-move" aria-label={tr('下移')} isDisabled={i === links.length - 1} onPress={() => move(i, 1)}>
                         <ArrowDown size={14} />
                       </RacButton>
                     </Tip>
                   </>
                 )}
-                <Tip content="去掉">
-                  <RacButton className="icon-btn" aria-label={`去掉 ${l.label || detectLinkLabel(l.url)}`} onPress={() => set(links.filter((_, j) => j !== i))}>
+                <Tip content={tr('去掉')}>
+                  <RacButton className="icon-btn" aria-label={tr('去掉 {p}', { p: l.label || detectLinkLabel(l.url) })} onPress={() => set(links.filter((_, j) => j !== i))}>
                     <X size={15} />
                   </RacButton>
                 </Tip>
@@ -195,10 +196,10 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
         <Plus size={15} className="links-add-icon" aria-hidden />
         <input
           className={`input links-add-input${bad ? ' is-invalid' : ''}`}
-          aria-label="添加链接"
+          aria-label={tr('添加链接')}
           aria-invalid={bad || undefined}
           value={draft}
-          placeholder={links.length ? '再粘贴一条链接' : '粘贴链接，比如烂番茄、EXT、TMDB'}
+          placeholder={links.length ? tr('再粘贴一条链接') : tr('粘贴链接，比如烂番茄、EXT、TMDB')}
           onChange={(e) => {
             setDraft(e.target.value);
             if (bad) setBad(false);
@@ -214,7 +215,7 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
           onBlur={() => draft.trim() && add(draft)}
         />
       </div>
-      {bad && <span className="field-hint is-invalid">这不像链接，以 https:// 开头试试</span>}
+      {bad && <span className="field-hint is-invalid">{tr('这不像链接，以 https:// 开头试试')}</span>}
     </div>
   );
 }
@@ -223,10 +224,10 @@ export function LinksInput({ def, value, onChange }: { def: FieldDef; value: Fie
 export function LinkChips({ links, className }: { links: readonly LinkChip[] | undefined; className?: string }) {
   if (!links?.length) return null;
   return (
-    <ul className={`link-chips${className ? ` ${className}` : ''}`} aria-label="链接">
+    <ul className={`link-chips${className ? ` ${className}` : ''}`} aria-label={tr('链接')}>
       {links.map((l) => (
         <li key={l.key}>
-          <ExtLink href={l.url} className="link-chip" label={`在 ${l.label} 打开`}>
+          <ExtLink href={l.url} className="link-chip" label={tr('在 {label} 打开', { label: l.label })}>
             {l.label}
             <ExternalLink size={11} aria-hidden />
           </ExtLink>

@@ -1,4 +1,5 @@
-/**
+
+import { tr } from '../lib/i18n';/**
  * 平台检测与皮肤选择。Web 端按 userAgent 推断；Tauri 端以后改用 @tauri-apps/plugin-os 的 platform()。
  */
 export type Platform = 'macos' | 'ios' | 'windows' | 'android' | 'linux' | 'unknown';
@@ -8,9 +9,9 @@ export type ThemePref = 'system' | 'light' | 'dark';
 export type LayoutKind = 'desktop' | 'mobile';
 
 export const SKIN_LABEL: Record<Skin, string> = {
-  apple: 'Apple（macOS / iOS）',
-  winui: 'Windows 11（WinUI 3）',
-  material: 'Material 3（Android）',
+  get apple() { return tr('Apple（macOS / iOS）'); },
+  get winui() { return tr('Windows 11（WinUI 3）'); },
+  get material() { return tr('Material 3（Android）'); },
 };
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
@@ -19,7 +20,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
   windows: 'Windows',
   android: 'Android',
   linux: 'Linux',
-  unknown: '未知系统',
+  get unknown() { return tr('未知系统'); },
 };
 
 export interface NavigatorLike {

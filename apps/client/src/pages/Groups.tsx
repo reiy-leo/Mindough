@@ -11,8 +11,9 @@ import { TaskCard } from '../components/TaskCard';
 import { PageHeader } from '../components/PageHeader';
 import { LazyGraph as DependencyGraph } from '../components/LazyGraph';
 
+import { dataLabel, tr, trc } from '../lib/i18n';
 function range(g: Group) {
-  if (!g.start_at && !g.end_at) return '不限时间';
+  if (!g.start_at && !g.end_at) return tr('不限时间');
   return `${g.start_at ? formatDateZh(g.start_at, false) : '…'} – ${g.end_at ? formatDateZh(g.end_at, false) : '…'}`;
 }
 
@@ -28,7 +29,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
     <Sheet
       isOpen
       onOpenChange={(o) => !o && onClose()}
-      title="新建组"
+      title={tr('新建组')}
       footer={
         <Button
           variant="primary"
@@ -46,21 +47,20 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
             navigate({ page: 'group', id: g.id });
           }}
         >
-          创建
-        </Button>
+          {tr('创建')}</Button>
       }
     >
       <div className="editor-grid">
-        <Field label="名称" value={name} onChange={setName} autoFocus />
-        <Field label="图标（emoji）" value={icon} onChange={setIcon} />
-        <Field label="开始" type="date" value={start} onChange={setStart} />
-        <Field label="结束" type="date" value={end} onChange={setEnd} />
-        <Select label="分类" value={cat} onChange={setCat} options={[{ id: '__none', label: '无' }, ...store.list('category').map((c) => ({ id: c.id, label: c.name }))]} />
+        <Field label={tr('名称')} value={name} onChange={setName} autoFocus />
+        <Field label={tr('图标（emoji）')} value={icon} onChange={setIcon} />
+        <Field label={tr('开始')} type="date" value={start} onChange={setStart} />
+        <Field label={tr('结束')} type="date" value={end} onChange={setEnd} />
+        <Select label={tr('分类')} value={cat} onChange={setCat} options={[{ id: '__none', label: tr('无') }, ...store.list('category').map((c) => ({ id: c.id, label: c.name }))]} />
         <Select
-          label="默认类型"
+          label={tr('默认类型')}
           value={type}
           onChange={setType}
-          options={[{ id: '__none', label: '普通' }, ...store.list('task_type').filter((t) => t.layout !== 'text').map((t) => ({ id: t.id, label: t.name }))]}
+          options={[{ id: '__none', label: tr('普通') }, ...store.list('task_type').filter((t) => t.layout !== 'text').map((t) => ({ id: t.id, label: dataLabel(t.name) }))]}
         />
       </div>
     </Sheet>
@@ -76,21 +76,20 @@ export function GroupsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="组"
-        subtitle="一组相关的任务，有起止时间和分类"
+        title={trc('导航', '组')}
+        subtitle={tr('一组相关的任务，有起止时间和分类')}
         icon={<Shapes size={22} />}
         actions={
           <Button variant="primary" onPress={() => setCreating(true)}>
             <Plus size={16} />
-            新建组
-          </Button>
+            {tr('新建组')}</Button>
         }
       />
       <div className="filter-row">
-        <Segmented label="按分类筛选" value={cat} onChange={setCat} options={[{ id: 'all', label: '全部' }, ...categories.map((c) => ({ id: c.id, label: c.name }))]} />
+        <Segmented label={tr('按分类筛选')} value={cat} onChange={setCat} options={[{ id: 'all', label: tr('全部') }, ...categories.map((c) => ({ id: c.id, label: c.name }))]} />
       </div>
       {groups.length === 0 ? (
-        <Empty title="还没有组" hint="组用来装一批相关任务，比如“搬家”“开发某个功能”" />
+        <Empty title={tr('还没有组')} hint={tr('组用来装一批相关任务，比如“搬家”“开发某个功能”')} />
       ) : (
         <div className="card-grid">
           {groups.map((g) => {
@@ -114,9 +113,8 @@ export function GroupsPage() {
                 <ProgressBar value={counted.length ? done / counted.length : 0} color={c?.color} />
                 <div className="group-stats">
                   <span>
-                    {done}/{counted.length} 完成
-                  </span>
-                  {blocked > 0 && <span className="state-blocked">{blocked} 件还不能开始</span>}
+                    {tr('{done}/{length} 完成', { done, length: counted.length })}</span>
+                  {blocked > 0 && <span className="state-blocked">{tr('{blocked} 件还不能开始', { blocked })}</span>}
                 </div>
               </RacButton>
             );
@@ -133,7 +131,7 @@ export function GroupDetailPage({ id }: { id: string }) {
   const ui = useUi();
   const [view, setView] = useState<'list' | 'cards' | 'graph'>('list');
   const g = store.get('group', id);
-  if (!g) return <Empty title="找不到这个组" hint="可能已经删除了" />;
+  if (!g) return <Empty title={tr('找不到这个组')} hint={tr('可能已经删除了')} />;
   const tasks: Task[] = store.tasks().filter((t) => t.group_id === id);
   const c = store.get('category', g.category_id);
   const open = tasks.filter((t) => !isFinished(t.status));
@@ -148,25 +146,24 @@ export function GroupDetailPage({ id }: { id: string }) {
           <>
             {range(g)}
             {c && <> · {c.name}</>}
-            {defType && <> · 默认类型：{defType.name}</>}
+            {defType && <> {tr(' · 默认类型：{name}', { name: dataLabel(defType.name) })}</>}
           </>
         }
         actions={
           <Button variant="primary" onPress={() => ui.openQuickCreate({ group_id: g.id })}>
             <Plus size={16} />
-            新建任务
-          </Button>
+            {tr('新建任务')}</Button>
         }
       />
       <div className="filter-row">
         <Segmented
-          label="视图"
+          label={tr('视图')}
           value={view}
           onChange={setView}
           options={[
-            { id: 'list', label: <><List size={14} /> 列表</> },
-            { id: 'cards', label: <><LayoutGrid size={14} /> 卡片</> },
-            { id: 'graph', label: <><Network size={14} /> 关系图</> },
+            { id: 'list', label: <><List size={14} /> {tr('列表')}</> },
+            { id: 'cards', label: <><LayoutGrid size={14} /> {tr('卡片')}</> },
+            { id: 'graph', label: <><Network size={14} /> {tr('关系图')}</> },
           ]}
         />
       </div>
@@ -184,10 +181,10 @@ export function GroupDetailPage({ id }: { id: string }) {
             {open.map((t) => (
               <TaskRow key={t.id} store={store} task={t} showGroup={false} showDate />
             ))}
-            {!open.length && <Empty title="组里的任务都做完了" />}
+            {!open.length && <Empty title={tr('组里的任务都做完了')} />}
           </div>
           {ended.length > 0 && (
-            <Section title={`已结束 ${ended.length}`}>
+            <Section title={tr('已结束 {length}', { length: ended.length })}>
               <div className="task-list plain">
                 {ended.map((t) => (
                   <TaskRow key={t.id} store={store} task={t} showGroup={false} showDate />

@@ -22,6 +22,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
 
+import { tr, trc } from './lib/i18n';
 interface NavItem {
   page: Route['page'];
   label: string;
@@ -42,34 +43,34 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     id: 'today',
-    title: '今天',
+    get title() { return tr('今天'); },
     items: [
-      { page: 'myday', label: '我的一天', icon: Sun, match: ['myday'] },
-      { page: 'backlog', label: '待安排', icon: Inbox, match: ['backlog'] },
-      { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
-      { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
+      { page: 'myday', get label() { return tr('我的一天'); }, icon: Sun, match: ['myday'] },
+      { page: 'backlog', get label() { return tr('待安排'); }, icon: Inbox, match: ['backlog'] },
+      { page: 'checkin', get label() { return trc('导航', '打卡'); }, icon: CalendarCheck2, match: ['checkin'] },
+      { page: 'doable', get label() { return tr('可做'); }, icon: ListChecks, match: ['doable'] },
     ],
   },
   {
     id: 'plan',
-    title: '计划',
+    get title() { return tr('计划'); },
     items: [
-      { page: 'agenda', label: '列表', icon: CalendarDays, match: ['agenda'] },
-      { page: 'groups', label: '组', icon: Shapes, match: ['groups', 'group'] },
-      { page: 'graph', label: '关系图', icon: Network, match: ['graph'] },
+      { page: 'agenda', get label() { return trc('导航', '列表'); }, icon: CalendarDays, match: ['agenda'] },
+      { page: 'groups', get label() { return trc('导航', '组'); }, icon: Shapes, match: ['groups', 'group'] },
+      { page: 'graph', get label() { return tr('关系图'); }, icon: Network, match: ['graph'] },
     ],
   },
   {
     id: 'library',
-    title: '资料',
+    get title() { return tr('资料'); },
     items: [
-      { page: 'library', label: '资料库', icon: Library, match: ['library', 'libitem'] },
-      { page: 'people', label: '人物', icon: Users, match: ['people', 'person'] },
+      { page: 'library', get label() { return tr('资料库'); }, icon: Library, match: ['library', 'libitem'] },
+      { page: 'people', get label() { return tr('人物'); }, icon: Users, match: ['people', 'person'] },
     ],
   },
 ];
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
-const SETTINGS: NavItem = { page: 'settings', label: '设置', icon: Settings, match: ['settings'] };
+const SETTINGS: NavItem = { page: 'settings', get label() { return tr('设置'); }, icon: Settings, match: ['settings'] };
 const MOBILE_TABS: Route['page'][] = ['myday', 'backlog', 'checkin', 'agenda'];
 const COLLAPSED_KEY = 'mindough:nav_collapsed';
 
@@ -145,7 +146,7 @@ function MorePage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1 className="page-title">更多</h1>
+        <h1 className="page-title">{tr('更多')}</h1>
       </header>
       {sections.map((sec) => (
         <section key={sec.id} className="more-section" aria-label={sec.title || SETTINGS.label}>
@@ -189,7 +190,7 @@ function Toasts() {
               {a.label}
             </RacButton>
           ))}
-          <RacButton className="toast-close" aria-label="关闭" onPress={() => ui.dismiss(t.id)}>
+          <RacButton className="toast-close" aria-label={tr('关闭')} onPress={() => ui.dismiss(t.id)}>
             <X size={14} />
           </RacButton>
         </div>
@@ -242,10 +243,10 @@ export function App() {
           </div>
           <RacButton className="sidebar-search" onPress={() => ui.setPaletteOpen(true)}>
             <Search size={15} />
-            <span className="grow">搜索</span>
+            <span className="grow">{tr('搜索')}</span>
             <kbd className="kbd">{skin === 'apple' ? '⌘K' : 'Ctrl K'}</kbd>
           </RacButton>
-          <nav className="nav" aria-label="主导航">
+          <nav className="nav" aria-label={tr('主导航')}>
             {NAV_SECTIONS.map((sec) => {
               const isCollapsed = collapsed.includes(sec.id) && !sec.items.some(isActive);
               return (
@@ -264,8 +265,7 @@ export function App() {
             <NavLink item={SETTINGS} active={isActive(SETTINGS)} />
             <RacButton className="btn btn-primary sidebar-new" onPress={newTask}>
               <Plus size={16} />
-              新建任务
-              <kbd className="kbd kbd-on-accent">N</kbd>
+              {tr('新建任务')}<kbd className="kbd kbd-on-accent">N</kbd>
             </RacButton>
           </div>
         </aside>
@@ -282,11 +282,11 @@ export function App() {
       <div className="app app-mobile">
         <div className="topbar">
           <span className="topbar-title">{current?.label ?? 'Mindough'}</span>
-          <RacButton className="icon-btn" aria-label="搜索" onPress={() => ui.setPaletteOpen(true)}>
+          <RacButton className="icon-btn" aria-label={tr('搜索')} onPress={() => ui.setPaletteOpen(true)}>
             <Search size={20} />
           </RacButton>
           {skin !== 'material' && (
-            <RacButton className="icon-btn topbar-add" aria-label="新建任务" onPress={newTask}>
+            <RacButton className="icon-btn topbar-add" aria-label={tr('新建任务')} onPress={newTask}>
               <Plus size={22} />
             </RacButton>
           )}
@@ -296,11 +296,11 @@ export function App() {
           <Page route={route} />
         </main>
         {skin === 'material' && (
-          <RacButton className="fab" aria-label="新建任务" onPress={newTask}>
+          <RacButton className="fab" aria-label={tr('新建任务')} onPress={newTask}>
             <Plus size={24} />
           </RacButton>
         )}
-        <nav className="tabbar" aria-label="主导航">
+        <nav className="tabbar" aria-label={tr('主导航')}>
           {tabs.map((n) => {
             const Icon = n.icon;
             return (
@@ -316,7 +316,7 @@ export function App() {
             <span className="tab-icon">
               <Menu size={20} />
             </span>
-            <span className="tab-label">更多</span>
+            <span className="tab-label">{tr('更多')}</span>
           </a>
         </nav>
       </div>

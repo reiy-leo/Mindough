@@ -34,6 +34,7 @@ import {
 import { Check, ChevronDown, MoreHorizontal, X } from 'lucide-react';
 import { useSettings } from '../lib/settings';
 
+import { tr } from '../lib/i18n';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid' | 'tonal' | 'quiet';
 
 export function Button({ variant = 'secondary', className, ...props }: ButtonProps & { variant?: Variant }) {
@@ -88,7 +89,7 @@ export function Sheet({
                 </Heading>
                 {titleHidden && <span className="grow" />}
                 {headerEnd}
-                <IconButton label="关闭" className="dialog-close" onPress={close}>
+                <IconButton label={tr('关闭')} className="dialog-close" onPress={close}>
                   <X size={18} />
                 </IconButton>
               </div>
@@ -148,7 +149,7 @@ export interface MenuAction {
 }
 
 /** ··· 更多菜单。 */
-export function OverflowMenu({ label = '更多', items, icon, className }: { label?: string; items: MenuAction[]; icon?: ReactNode; className?: string }) {
+export function OverflowMenu({ label = tr('更多'), items, icon, className }: { label?: string; items: MenuAction[]; icon?: ReactNode; className?: string }) {
   return (
     <MenuTrigger>
       <RacButton aria-label={label} className={`icon-btn${className ? ` ${className}` : ''}`}>
@@ -198,8 +199,7 @@ export function ConfirmDialog({
               <div className="alert-message">{message}</div>
               <div className="alert-actions">
                 <Button variant="secondary" onPress={close} autoFocus>
-                  取消
-                </Button>
+                  {tr('取消')}</Button>
                 <Button
                   variant={danger ? 'danger-solid' : 'primary'}
                   onPress={() => {
@@ -378,7 +378,7 @@ export function MultiSelect({
   onChange,
   options,
   className,
-  emptyLabel = '不选',
+  emptyLabel = tr('不选'),
 }: {
   label: string;
   value: string[];
@@ -387,7 +387,7 @@ export function MultiSelect({
   className?: string;
   emptyLabel?: string;
 }) {
-  const text = options.filter((o) => value.includes(o.id)).map((o) => o.label).join('、');
+  const text = options.filter((o) => value.includes(o.id)).map((o) => o.label).join(tr('、'));
   return (
     <RacSelect
       className={`field multi-select${className ? ` ${className}` : ''}`}

@@ -8,11 +8,12 @@
  */
 import type { SqlDriver, SqlValue } from '@mindough/core';
 
+import { tr } from '../lib/i18n';
 export const WEB_DB_FILE = 'mindough.db';
 
 export function webSqliteSupported(): { ok: boolean; reason?: string } {
-  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return { ok: false, reason: '浏览器不支持 OPFS' };
-  if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) return { ok: false, reason: '页面未跨源隔离（缺 COOP / COEP 响应头）' };
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return { ok: false, reason: tr('浏览器不支持 OPFS') };
+  if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) return { ok: false, reason: tr('页面未跨源隔离（缺 COOP / COEP 响应头）') };
   return { ok: true };
 }
 

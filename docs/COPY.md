@@ -91,3 +91,35 @@
 - 站点编号（IMDb / 豆瓣）的占位与提示、常见网站的显示名在 `packages/core/src/links.ts`（`SITES`、`detectLinkLabel`）；币种中文名与符号在 `money.ts`（`CURRENCIES`）；季集的显示在 `episode.ts`（`formatEpisode`）。
 - 资料库的叫法（库名、短名、选择框占位、量词）在 `packages/core/src/library.ts` 的 `LIBRARY_COPY` / `libraryCopy()`，界面从这里取。
 - 内部枚举值（`once` / `timer` / `count` / `countdown`，状态 `待办` / `进行中` / `完成` / `关闭`，派生状态 `可开始` / `被阻塞`）不随文案改。
+- 界面语言：代码里一律写 `tr('中文原文')`（`trx` 带元素的整句，`trc('语境', '中文')` 同一个词在不同位置英文不同时用）；英文在 `packages/core/src/i18n-en.ts`（core 的说法）与 `apps/client/src/i18n/en.ts`（界面）。内置数据（类型名、字段名、选项、单位、正文模板、27 个打卡分类、网站名）存中文原样，显示时 `dataLabel()` 换成英文（`i18n-data-en.ts`），用户改过的名字照用户写的。`apps/client/src/i18n/i18n.test.ts` 检查：没有漏翻的中文、每个 key 有英文、每个内置名字有英文。
+
+## English
+
+界面英文的写法（Rei 2026-10-16「添加中英文支持」；设置 → 语言：跟随系统 / 中文 / English，跟随系统时系统是中文就中文、其余英文，存进同步的偏好）。参照 Things 3 / Apple：短、具体、不客套。
+
+- **大小写**：导航、页面标题、按钮、菜单项、分段控件用 Title Case（My Day、New Task、Bring All to Today、Sign In with Google）；说明、提示、toast、占位用 sentence case（“Changes sync to your other devices automatically.”）。
+- **标点**：弯引号 “ ” 与撇号 ’；省略号用一个字符 …（Manage Categories…）；破折号 — 两边空格；句末句号只给完整句子，标签、按钮不加。英文的引号、撇号、省略号用拉丁字体字形（`app.css` 的 `Mindough Latin Punct`），不用中文字体的全角字形。
+- **数字与复数**：一律阿拉伯数字；单复数用 `Intl.PluralRules`（1 task / 3 tasks、1 day to go / 12 days to go）；序数 1st 2nd 3rd（Monthly on the 15th）。
+- **日期**：Intl（en-US）：Fri, Oct 16；不在今年带年份 Mon, Mar 1, 2027；一周仍从周一开始；星期选择钮用 M T W T F S S（读屏读全名）。
+- **语序**：整句翻，不拼接。中文「还有 12 天」→ “12 days to go”，「已过 3 天」→ “3 days ago”，元素（粗体数字、输入框）用 `trx` 插在英文语序里。
+
+| 中文 | English | 备注 |
+|---|---|---|
+| 我的一天 | My Day | |
+| 待安排 | Inbox | 新建默认进这里（同 Things 的 Inbox） |
+| 打卡（导航 / 页面） | Check-ins | 按钮上的「打卡」是 Check In |
+| 可做 | Available | 前置都做完、现在就能开始 |
+| 列表（导航 / 页面） | Timeline | 组里的视图「列表」是 List |
+| 组 | Groups / Group | 导航复数，属性单数 |
+| 关系图 | Graph | |
+| 资料库 · 资料（小节） | Library · Collections | |
+| 先做完这些 / 做完后解锁 / 相关任务 | Do These First / Unlocks Next / Related Tasks | 详情「关系」= Relationships |
+| 可开始 / 还不能开始 / 还在等 N 件事 | Ready / Not ready yet / Waiting on N tasks | |
+| 完成 / 关闭（状态） | Completed / Closed | 按钮「完成」是 Done，「关闭」是 Close |
+| 勾选完成 / 计时 / 计数 / 倒数日 | Checkbox / Timer / Count / Countdown | |
+| 只做一次 / 定期打卡 | Once / Repeating | |
+| 昨天没做完 · 带回今天 · 建议 | Left from Yesterday · Bring to Today · Suggestions | |
+| 没有待安排的事 | Inbox Zero | |
+| 影视库 / 书库 / 游戏库 … / 好物清单 / 菜谱 | Movies & TV / Books / Games … / Wish List / Recipes | 条数 7 titles / 5 books / 3 items |
+| 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
+| HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |

@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Form, Input, TextField, Button as RacButton } from 'react-aria-components';
 import { CalendarDays, ChevronsUp, Plus } from 'lucide-react';
-import { WEEKDAY_LABEL, addDays, compareDateKey, diffDays, formatDateZh, relativeDayZh, toDateKey, weekday } from '@mindough/core';
+import { weekdayLabel, addDays, compareDateKey, diffDays, formatDateZh, relativeDayZh, toDateKey, weekday } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { Button } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 
+import { tr, trc } from '../lib/i18n';
 /** Agenda 式时间线：按日期往下流，今天居中；过去在上、将来在下。 */
 export function AgendaPage() {
   const store = useStore();
@@ -41,12 +42,11 @@ export function AgendaPage() {
 
   return (
     <div className="page">
-      <PageHeader title="列表" subtitle="随手记下的琐事，按日期排开" icon={<CalendarDays size={22} />} />
+      <PageHeader title={trc('导航', '列表')} subtitle={tr('随手记下的琐事，按日期排开')} icon={<CalendarDays size={22} />} />
       {hiddenPast > 0 && (
         <Button variant="ghost" className="load-past" onPress={() => setPastDays((d) => d + 30)}>
           <ChevronsUp size={16} />
-          更早的 {hiddenPast} 条
-        </Button>
+          {tr('更早的 {hiddenPast} 条', { hiddenPast })}</Button>
       )}
       <ol className="agenda">
         {dates.map((d) => {
@@ -63,7 +63,7 @@ export function AgendaPage() {
                 ) : (
                   <>
                     <span className="agenda-rel">{formatDateZh(d, false)}</span>
-                    <span className="agenda-full">周{WEEKDAY_LABEL[weekday(d)]}</span>
+                    <span className="agenda-full">{weekdayLabel(weekday(d), 'short')}</span>
                   </>
                 )}
               </div>
@@ -79,14 +79,13 @@ export function AgendaPage() {
                       submit(d);
                     }}
                   >
-                    <TextField aria-label={`添加到${formatDateZh(d)}`} value={draft} onChange={setDraft} className="add-bar-field" autoFocus onBlur={() => submit(d)}>
-                      <Input className="add-bar-input" placeholder="写下一件事，按回车添加" />
+                    <TextField aria-label={tr('添加到{formatDateZh}', { formatDateZh: formatDateZh(d) })} value={draft} onChange={setDraft} className="add-bar-field" autoFocus onBlur={() => submit(d)}>
+                      <Input className="add-bar-input" placeholder={tr('写下一件事，按回车添加')} />
                     </TextField>
                   </Form>
                 ) : (
                   <RacButton className="agenda-add" onPress={() => setAdding(d)}>
-                    <Plus size={14} /> 添加
-                  </RacButton>
+                    <Plus size={14} /> {tr('添加')}</RacButton>
                 )}
               </div>
             </li>

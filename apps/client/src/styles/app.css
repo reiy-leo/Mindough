@@ -1467,8 +1467,8 @@ button {
   mask-image: linear-gradient(to right, transparent 0, #000 28px);
 }
 .heatmap:not(.heatmap-mini) .heatmap-scroll.is-scrolled {
-  -webkit-mask-image: linear-gradient(to right, #000 22px, transparent 22px, #000 48px);
-  mask-image: linear-gradient(to right, #000 22px, transparent 22px, #000 48px);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(var(--wd, 18px) + 4px), transparent calc(var(--wd, 18px) + 4px), #000 calc(var(--wd, 18px) + 30px));
+  mask-image: linear-gradient(to right, #000 calc(var(--wd, 18px) + 4px), transparent calc(var(--wd, 18px) + 4px), #000 calc(var(--wd, 18px) + 30px));
 }
 .heatmap-inner {
   display: inline-flex;
@@ -1478,7 +1478,7 @@ button {
 .heatmap-months {
   display: grid;
   column-gap: var(--g);
-  margin-left: calc(18px + var(--g));
+  margin-left: calc(var(--wd, 18px) + var(--g));
   font-size: 11px;
   color: var(--text-2);
   height: 15px;
@@ -1500,7 +1500,7 @@ button {
   display: grid;
   grid-template-rows: repeat(7, var(--c));
   row-gap: var(--g);
-  width: 18px;
+  width: var(--wd, 18px);
   font-size: 10px;
   color: var(--text-2);
   line-height: var(--c);
@@ -2750,4 +2750,37 @@ button {
 }
 .empty-backlog .btn {
   margin-top: 10px;
+}
+
+/* ───────── 英文界面 ─────────
+ * 英文的弯引号、撇号、省略号用拉丁字体的字形（中文字体里它们是全角，「What’s」会空出一大块）；
+ * 只覆盖这几个码位，其余字照旧走各皮肤的字体。中文界面不受影响（中文引号本来就该是全角）。 */
+@font-face {
+  font-family: 'Mindough Latin Punct';
+  src: local('SF Pro Text'), local('.SF NS'), local('Helvetica Neue'), local('Segoe UI'), local('Roboto'), local('Arial'), local('Liberation Sans'), local('DejaVu Sans');
+  unicode-range: U+2018-201F, U+2026;
+}
+html[lang='en'] body,
+html[lang='en'] .kbd {
+  font-family: 'Mindough Latin Punct', var(--font);
+}
+html[lang='en'] .page-title {
+  font-family: 'Mindough Latin Punct', var(--font-title);
+}
+/* 英文单位和数字之间要空一格（「3/8 glasses」）；中文「3/8杯」不空 */
+html[lang='en'] .ci-unit:not(:empty),
+html[lang='en'] .progress-unit {
+  margin-left: 0.25em;
+}
+/* 排列方式不被分类胶囊挤成两行（英文「Category」比「按分类」长） */
+[data-layout='desktop'] .checkin-filters > .segmented {
+  flex: none;
+  flex-wrap: nowrap;
+}
+.segmented-item {
+  white-space: nowrap;
+}
+/* 英文星期（Mon / Wed / Fri）比「一 三 五」宽 */
+html[lang='en'] .heatmap {
+  --wd: 26px;
 }

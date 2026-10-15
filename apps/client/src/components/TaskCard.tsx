@@ -1,13 +1,14 @@
 import type { CSSProperties } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Lock } from 'lucide-react';
-import { fieldText, isLinkField, type Store, type Task } from '@mindough/core';
+import { TASK_STATUS_LABEL, fieldText, isLinkField, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 import { AvatarStack } from './Avatar';
 import { ItemArt } from './library/Library';
 
+import { dataLabel, tr } from '../lib/i18n';
 /** 按类型版式显示的卡片：海报 / 图标+名称 / 横幅 / 纯文字。 */
 export function TaskCard({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
@@ -18,7 +19,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
     .filter((f) => !f.primary && !f.media && f.kind !== 'image' && f.kind !== 'link' && f.kind !== 'person' && !isLinkField(f))
     .map((f) => {
       const val = fieldText(v.data[f.key]);
-      return val ? (f.kind === 'progress' ? `${f.label} ${val}${f.unit ?? ''}` : val) : '';
+      return val ? (f.kind === 'progress' ? `${dataLabel(f.label)} ${val}${dataLabel(f.unit ?? '')}` : val) : '';
     })
     .filter(Boolean)
     .slice(0, 3);
@@ -35,10 +36,9 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
         <div className="task-card-foot">
           {v.derived?.state === '被阻塞' ? (
             <span className="meta-state state-blocked">
-              <Lock size={11} /> 还不能开始
-            </span>
+              <Lock size={11} /> {tr('还不能开始')}</span>
           ) : (
-            <span className="meta-state">{task.status}</span>
+            <span className="meta-state">{TASK_STATUS_LABEL[task.status]}</span>
           )}
           <AvatarStack store={store} people={v.people} size={18} />
         </div>

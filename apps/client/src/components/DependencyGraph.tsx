@@ -24,6 +24,7 @@ import { useSettings } from '../lib/settings';
 import { TaskThumb } from './TaskRow';
 import { relatedClusters } from '../lib/graph-layout';
 
+import { tr } from '../lib/i18n';
 const elk = new ELK();
 const NODE_W = 220;
 const NODE_H = 64;
@@ -42,7 +43,7 @@ interface NodeData extends Record<string, unknown> {
   relSide: 'h' | 'v';
 }
 
-const STATE_LABEL: Record<string, string> = { 完成: '完成', 关闭: '已关闭', 可开始: '可开始', 被阻塞: '还不能开始' };
+const STATE_LABEL: Record<string, string> = { 完成: '完成', get 关闭() { return tr('已关闭'); }, 可开始: '可开始', get 被阻塞() { return tr('还不能开始'); } };
 
 const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }: NodeProps<Node<NodeData>>) {
   const Icon = data.state === '完成' ? Check : data.state === '关闭' ? CircleSlash : data.state === '被阻塞' ? Lock : Play;
@@ -173,7 +174,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
       data: {
         title: v.title,
         state,
-        sub: state === '被阻塞' ? `还在等 ${v.derived!.missing.length} 件事` : (v.group?.name ?? ''),
+        sub: state === '被阻塞' ? tr('还在等 {length} 件事', { length: v.derived!.missing.length }) : (v.group?.name ?? ''),
         media: v.media,
         layout: v.type?.layout ?? 'text',
         isAvatar: v.mediaIsAvatar,
@@ -215,7 +216,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
       ...(side ? { sourceHandle: 'rel-out', targetHandle: 'rel-in' } : {}),
       type: side ? 'straight' : 'smoothstep',
       className: 'edge-related',
-      ariaLabel: '相关（不分先后）',
+      ariaLabel: tr('相关（不分先后）'),
     });
   }
 
@@ -223,7 +224,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
     if (c.source && c.target) tryAddDependency(store, ui, c.source, c.target);
   }, [store, ui]);
 
-  if (!positions) return <div className="graph graph-loading" style={{ height }}>正在排布…</div>;
+  if (!positions) return <div className="graph graph-loading" style={{ height }}>{tr('正在排布…')}</div>;
   return (
     <div className="graph" style={{ height }}>
       <ReactFlow

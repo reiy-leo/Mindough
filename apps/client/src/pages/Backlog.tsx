@@ -13,6 +13,7 @@ import { PageHeader } from '../components/PageHeader';
 import { DatePanel } from '../components/task/DatePanel';
 import { titleOf } from '../lib/view';
 
+import { tr } from '../lib/i18n';
 export function BacklogPage() {
   const store = useStore();
   const ui = useUi();
@@ -34,21 +35,20 @@ export function BacklogPage() {
   return (
     <div className="page">
       <PageHeader
-        title="待安排"
-        subtitle={list.length ? `${list.length} 件还没定哪天做` : '都安排好了'}
+        title={tr('待安排')}
+        subtitle={list.length ? tr('{length} 件还没定哪天做', { length: list.length }) : tr('都安排好了')}
         icon={<Inbox size={22} />}
         actions={
           <Button variant="primary" className="hide-mobile" onPress={() => ui.openQuickCreate()}>
             <Plus size={16} />
-            新建任务
-          </Button>
+            {tr('新建任务')}</Button>
         }
       />
       {list.length ? (
-        <GridList aria-label="待安排的任务" className="task-list" dragAndDropHooks={dragAndDropHooks} items={list}>
+        <GridList aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} items={list}>
           {(t) => (
-            <GridListItem id={t.id} textValue={titleOf(store, t) || '任务'} className="list-item">
-              <RacButton slot="drag" className="drag-handle" aria-label="拖动排序">
+            <GridListItem id={t.id} textValue={titleOf(store, t) || tr('任务')} className="list-item">
+              <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
                 <GripVertical size={14} />
               </RacButton>
               <TaskRow
@@ -56,9 +56,9 @@ export function BacklogPage() {
                 task={t}
                 trailing={
                   <PopoverPanel
-                    label="安排日期"
+                    label={tr('安排日期')}
                     trigger={
-                      <RacButton className="icon-btn" aria-label="安排日期">
+                      <RacButton className="icon-btn" aria-label={tr('安排日期')}>
                         <CalendarPlus size={17} />
                       </RacButton>
                     }
@@ -71,7 +71,7 @@ export function BacklogPage() {
                         onChange={(d) => {
                           store.updateTask(t.id, { scheduled_date: d });
                           close();
-                          if (d) ui.toast({ message: `已安排到列表：「${titleOf(store, t)}」` }, 2500);
+                          if (d) ui.toast({ message: tr('已安排到列表：「{titleOf}」', { titleOf: titleOf(store, t) }) }, 2500);
                         }}
                       />
                     )}
@@ -86,12 +86,11 @@ export function BacklogPage() {
           <div className="empty-icon">
             <Inbox size={28} />
           </div>
-          <div className="empty-title">没有待安排的事</div>
-          <div className="empty-hint">想到什么先记下来，有空再决定哪天做。</div>
+          <div className="empty-title">{tr('没有待安排的事')}</div>
+          <div className="empty-hint">{tr('想到什么先记下来，有空再决定哪天做。')}</div>
           <Button variant="secondary" onPress={() => ui.openQuickCreate()}>
             <Plus size={15} />
-            记一件事
-          </Button>
+            {tr('记一件事')}</Button>
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { NewTaskInput } from '@mindough/core';
 
+import { tr } from './i18n';
 export interface ToastAction {
   label: string;
   onPress: () => void;
@@ -74,6 +75,6 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
 export function useUi(): UiCtx {
   const v = useContext(Ctx);
-  if (!v) throw new Error('UiProvider 缺失');
+  if (!v) throw new Error(tr('UiProvider 缺失'));
   return v;
 }

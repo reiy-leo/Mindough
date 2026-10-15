@@ -5,13 +5,14 @@
 import { useEffect, useState } from 'react';
 import { Autocomplete, Button as RacButton, Input, ListBox, ListBoxItem, Popover, SearchField, Select, SelectValue, type Key } from 'react-aria-components';
 import { Check, ChevronDown, Search } from 'lucide-react';
-import { CURRENCIES, currencyOf, formatMoney, moneyOf, parseMoney, recentCurrency, type FieldDef, type FieldValue, type Store } from '@mindough/core';
+import { CURRENCIES, currencyName, currencySearchText, currencyOf, formatMoney, moneyOf, parseMoney, recentCurrency, type FieldDef, type FieldValue, type Store } from '@mindough/core';
 import { Field } from '../../ui/primitives';
 
-const textOf = (c: (typeof CURRENCIES)[number]) => [c.name, c.code, c.symbol, ...(c.aliases ?? [])].join(' ').toLowerCase();
+import { dataLabel, tr } from '../../lib/i18n';
+
 
 /** 币种选择：按钮显示「¥ CNY」，弹出可搜索的列表（中文名、代码、符号都能搜）。 */
-export function CurrencySelect({ value, onChange, label = '币种' }: { value: string; onChange: (code: string) => void; label?: string }) {
+export function CurrencySelect({ value, onChange, label = tr('币种') }: { value: string; onChange: (code: string) => void; label?: string }) {
   const cur = currencyOf(value);
   return (
     <Select aria-label={label} className="currency-select" value={value} onChange={(k: Key | null) => k !== null && onChange(String(k))}>
@@ -21,15 +22,15 @@ export function CurrencySelect({ value, onChange, label = '币种' }: { value: s
       </RacButton>
       <Popover className="popover currency-popover" placement="bottom end">
         <Autocomplete filter={(text, input) => text.includes(input.trim().toLowerCase())}>
-          <SearchField aria-label="搜币种" className="currency-search" autoFocus>
+          <SearchField aria-label={tr('搜币种')} className="currency-search" autoFocus>
             <Search size={14} aria-hidden className="currency-search-icon" />
-            <Input className="input currency-search-input" placeholder="搜币种：美元、USD、$" />
+            <Input className="input currency-search-input" placeholder={tr('搜币种：美元、USD、$')} />
           </SearchField>
-          <ListBox className="listbox currency-list" items={CURRENCIES} renderEmptyState={() => <div className="pick-empty">没有这个币种</div>}>
+          <ListBox className="listbox currency-list" items={CURRENCIES} renderEmptyState={() => <div className="pick-empty">{tr('没有这个币种')}</div>}>
             {(c) => (
-              <ListBoxItem id={c.code} className="listbox-item pick-item" textValue={textOf(c)}>
+              <ListBoxItem id={c.code} className="listbox-item pick-item" textValue={currencySearchText(c)}>
                 <span className="currency-symbol">{c.symbol}</span>
-                <span className="grow">{c.name}</span>
+                <span className="grow">{currencyName(c)}</span>
                 <span className="pick-meta">{c.code}</span>
                 <Check size={14} className="pick-check" aria-hidden />
               </ListBoxItem>
@@ -64,12 +65,12 @@ export function MoneyInput({ store, def, value, onChange }: { store: Store; def:
     <div className="money-field">
       <Field
         className="grow"
-        label={def.label}
+        label={dataLabel(def.label)}
         value={text}
         inputMode="decimal"
-        placeholder={def.placeholder ?? '0'}
+        placeholder={def.placeholder ? dataLabel(def.placeholder) : '0'}
         isInvalid={bad}
-        {...(bad ? { description: '金额只写数字就好' } : amount !== null && !bad && amount >= 1000 ? { description: formatMoney({ amount, currency }) } : {})}
+        {...(bad ? { description: tr('金额只写数字就好') } : amount !== null && !bad && amount >= 1000 ? { description: formatMoney({ amount, currency }) } : {})}
         onChange={(t) => {
           setText(t);
           emit(t, currency);

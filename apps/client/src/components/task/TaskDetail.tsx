@@ -44,6 +44,7 @@ import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList,
 import { DatePanel } from './DatePanel';
 import { MARKDOWN_HELP } from './TaskComposer';
 
+import { dataLabel, tr, trc } from '../../lib/i18n';
 export function TaskDetail() {
   const ui = useUi();
   const store = useStore();
@@ -82,10 +83,10 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
         store.updateTask(task.id, { type_data: { ...cur.type_data, [ep.key]: m.value } });
         ui.toast(
           {
-            message: `已识别 ${formatEpisode(m.value)}，填进了「${ep.label}」`,
+            message: tr('已识别 {formatEpisode}，填进了「{label}」', { formatEpisode: formatEpisode(m.value), label: dataLabel(ep.label) }),
             actions: [
               {
-                label: '撤销',
+                label: tr('撤销'),
                 onPress: () => {
                   const t = store.get('task', task.id);
                   if (!t) return;
@@ -106,7 +107,7 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
     return (
       <div className="detail-body is-editing">
         <AutoTextarea
-          label="内容"
+          label={tr('内容')}
           className="detail-textarea"
           value={body}
           onChange={setBody}
@@ -123,9 +124,9 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
         />
         <div className="detail-body-help">
           <Tip content={MARKDOWN_HELP}>
-            <RacButton className="link-btn">写法提示</RacButton>
+            <RacButton className="link-btn">{tr('写法提示')}</RacButton>
           </Tip>
-          <span>按 Esc 收起</span>
+          <span>{tr('按 Esc 收起')}</span>
         </div>
       </div>
     );
@@ -140,7 +141,7 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
     }
   };
   return (
-    <div className="detail-body" tabIndex={0} role="group" aria-label="内容，按回车编辑" onClick={open} onKeyDown={onKey}>
+    <div className="detail-body" tabIndex={0} role="group" aria-label={tr('内容，按回车编辑')} onClick={open} onKeyDown={onKey}>
       {task.body_md.trim() ? <Markdown source={task.body_md} className="detail-md" /> : <div className="detail-placeholder">{placeholder}</div>}
     </div>
   );
@@ -167,7 +168,7 @@ function useActions(store: Store, task: Task, done: () => void) {
     if (r.completed) {
       announceComplete(store, ui, r.completed, prev);
       done();
-    } else if (r.progress.met && recurring && (kind === 'add' || kind === 'stop')) ui.toast({ tone: 'success', message: '今天的打卡完成了' }, 2500);
+    } else if (r.progress.met && recurring && (kind === 'add' || kind === 'stop')) ui.toast({ tone: 'success', message: tr('今天的打卡完成了') }, 2500);
   };
   const complete = () => {
     const prev = task.status;
@@ -181,25 +182,25 @@ function useActions(store: Store, task: Task, done: () => void) {
       case 'once':
         primary = recurring
           ? p.met
-            ? { label: '今天已打卡', icon: <Check size={16} />, onPress: () => {}, disabled: true }
-            : { label: '打卡', icon: <Check size={16} />, onPress: () => record('add', 1) }
-          : { label: '完成', icon: <Check size={16} />, onPress: complete };
+            ? { label: tr('今天已打卡'), icon: <Check size={16} />, onPress: () => {}, disabled: true }
+            : { label: tr('打卡'), icon: <Check size={16} />, onPress: () => record('add', 1) }
+          : { label: tr('完成'), icon: <Check size={16} />, onPress: complete };
         break;
       case 'timer':
         if (p.running) {
-          secondary = { label: '暂停', icon: <Pause size={16} />, onPress: () => record('pause') };
-          primary = { label: '结束', icon: <Square size={14} />, onPress: () => record('stop') };
+          secondary = { label: tr('暂停'), icon: <Pause size={16} />, onPress: () => record('pause') };
+          primary = { label: tr('结束'), icon: <Square size={14} />, onPress: () => record('stop') };
         } else if (p.paused) {
-          secondary = { label: '结束', icon: <Square size={14} />, onPress: () => record('stop') };
-          primary = { label: '继续计时', icon: <Play size={16} />, onPress: () => record('resume') };
-        } else if (p.met) primary = { label: recurring ? '今天已达标' : '已达标', icon: <Check size={16} />, onPress: () => {}, disabled: true };
-        else primary = { label: '开始计时', icon: <Play size={16} />, onPress: () => record('start') };
+          secondary = { label: tr('结束'), icon: <Square size={14} />, onPress: () => record('stop') };
+          primary = { label: tr('继续计时'), icon: <Play size={16} />, onPress: () => record('resume') };
+        } else if (p.met) primary = { label: recurring ? tr('今天已达标') : tr('已达标'), icon: <Check size={16} />, onPress: () => {}, disabled: true };
+        else primary = { label: tr('开始计时'), icon: <Play size={16} />, onPress: () => record('start') };
         break;
       case 'count':
         primary = { label: `+1${task.unit ? ` ${task.unit}` : ''}`, icon: <Plus size={16} />, onPress: () => record('add', 1) };
         break;
       case 'countdown':
-        primary = recurring ? { label: '打卡', icon: <Check size={16} />, onPress: () => record('stop'), disabled: p.met } : { label: '完成', icon: <Check size={16} />, onPress: complete };
+        primary = recurring ? { label: tr('打卡'), icon: <Check size={16} />, onPress: () => record('stop'), disabled: p.met } : { label: tr('完成'), icon: <Check size={16} />, onPress: complete };
         break;
     }
   }
@@ -215,11 +216,11 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
   let sub: ReactNode = null;
   switch (task.completion_mode) {
     case 'once':
-      main = p.met ? '今天已打卡' : '今天还没打卡';
+      main = p.met ? tr('今天已打卡') : tr('今天还没打卡');
       break;
     case 'timer':
-      main = p.value > 0 || p.running ? formatDuration(p.value) : '还没开始';
-      sub = p.target ? `目标 ${formatTarget(p.target)}` : '不限时长';
+      main = p.value > 0 || p.running ? formatDuration(p.value) : tr('还没开始');
+      sub = p.target ? tr('目标 {formatTarget}', { formatTarget: formatTarget(p.target) }) : tr('不限时长');
       break;
     case 'count':
       main = (
@@ -229,7 +230,7 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
           {task.unit && <span className="progress-unit"> {task.unit}</span>}
         </>
       );
-      sub = p.met ? '已达标' : `还差 ${Math.max(0, (p.target ?? 1) - p.value)} ${task.unit ?? '次'}`;
+      sub = p.met ? tr('已达标') : (task.unit ? tr('还差 {max} {p}', { max: Math.max(0, (p.target ?? 1) - p.value), p: task.unit }) : tr('还差 {max} 次', { max: Math.max(0, (p.target ?? 1) - p.value) }));
       break;
     case 'countdown':
       main = countdownPhrase(task.target_date, today);
@@ -243,9 +244,9 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
         <div className="progress-main">{main}</div>
         {(sub || recurring) && (
           <div className="progress-sub">
-            {recurring && task.completion_mode !== 'once' && <span>今天</span>}
+            {recurring && task.completion_mode !== 'once' && <span>{tr('今天')}</span>}
             {sub && <span>{sub}</span>}
-            {recurring && streak > 0 && <span>已连续 {streak} 次</span>}
+            {recurring && streak > 0 && <span>{tr('已连续 {streak} 次', { streak })}</span>}
           </div>
         )}
       </div>
@@ -266,7 +267,7 @@ function PropRow({ icon, label, value, empty, children, wide }: { icon: ReactNod
         placement="bottom end"
         {...(wide ? { className: 'is-wide' } : {})}
         trigger={
-          <RacButton className={`prop-value${empty ? ' is-empty' : ''}`} {...(typeof value === 'string' ? { 'aria-label': `${label}：${value}` } : {})}>
+          <RacButton className={`prop-value${empty ? ' is-empty' : ''}`} {...(typeof value === 'string' ? { 'aria-label': tr('{label}：{value}', { label, value }) } : {})}>
             <span className="prop-value-text">{value}</span>
             <ChevronDown size={14} aria-hidden className="prop-caret" />
           </RacButton>
@@ -281,7 +282,7 @@ function PropRow({ icon, label, value, empty, children, wide }: { icon: ReactNod
 type RelKind = 'pred' | 'succ' | 'related';
 
 /** 三种关系的叫法（菜单、分组标题、挑任务的弹层标题共用，见 COPY.md）。 */
-const REL_LABEL: Record<RelKind, string> = { pred: '先做完这些', succ: '做完后解锁', related: '相关任务' };
+const REL_LABEL: Record<RelKind, string> = { get pred() { return tr('先做完这些'); }, get succ() { return tr('做完后解锁'); }, get related() { return tr('相关任务'); } };
 
 /** 「添加关系」菜单：三种关系各一项，选了打开挑任务的弹层。 */
 function RelationMenu({ onPick, className }: { onPick: (k: RelKind) => void; className?: string }) {
@@ -290,7 +291,7 @@ function RelationMenu({ onPick, className }: { onPick: (k: RelKind) => void; cla
     { id: 'succ', label: `${REL_LABEL.succ}…`, icon: <CornerRightDown size={16} />, onAction: () => onPick('succ') },
     { id: 'related', label: `${REL_LABEL.related}…`, icon: <Link2 size={16} />, onAction: () => onPick('related') },
   ];
-  return <OverflowMenu label="添加关系" icon={<Network size={17} />} items={items} {...(className ? { className } : {})} />;
+  return <OverflowMenu label={tr('添加关系')} icon={<Network size={17} />} items={items} {...(className ? { className } : {})} />;
 }
 
 /** 挑一件任务连上这种关系；搜不到就「新建“xxx”」，新建的任务直接连好（合并了以前的「添加」和「新建下一步」）。 */
@@ -304,14 +305,14 @@ function RelationPicker({ store, task, kind, onClose }: { store: Store; task: Ta
     else if (kind === 'succ') tryAddDependency(store, ui, task.id, id);
     else tryLinkTasks(store, ui, task.id, id);
   };
-  const hint = kind === 'pred' ? '这些做完了，才能开始这件。' : kind === 'succ' ? '这件做完了，它们就能开始。' : '只是有关系，不分先后：不用等它，也不会解锁它。';
+  const hint = kind === 'pred' ? tr('这些做完了，才能开始这件。') : kind === 'succ' ? tr('这件做完了，它们就能开始。') : tr('只是有关系，不分先后：不用等它，也不会解锁它。');
   return (
     <Sheet isOpen onOpenChange={(o) => !o && onClose()} title={REL_LABEL[kind]} className="modal-relpick">
       <p className="rel-pick-hint">{hint}</p>
       <TaskSearch
         store={store}
         exclude={exclude}
-        label="搜索任务，或写下新的一件"
+        label={tr('搜索任务，或写下新的一件')}
         onPick={(id) => {
           connect(id);
           onClose();
@@ -319,7 +320,7 @@ function RelationPicker({ store, task, kind, onClose }: { store: Store; task: Ta
         onCreate={(text) => {
           const created = store.createTask({ body_md: text, group_id: task.group_id });
           connect(created.id);
-          ui.toast({ message: `已新建「${text}」`, actions: [{ label: '查看', onPress: () => ui.openEditor(created.id) }] });
+          ui.toast({ message: tr('已新建「{text}」', { text }), actions: [{ label: tr('查看'), onPress: () => ui.openEditor(created.id) }] });
           onClose();
         }}
       />
@@ -348,14 +349,14 @@ function Relations({ store, task }: { store: Store; task: Task }) {
     const remove = () => (dir === 'pred' ? store.removeDependency(t.id, task.id) : dir === 'succ' ? store.removeDependency(task.id, t.id) : store.unlinkTasks(task.id, t.id));
     return (
       <li key={t.id} className={`rel-item is-${state}${dir === 'related' ? ' is-related' : ''}`}>
-        <span className="rel-dot" aria-label={state === 'done' ? '已完成' : state === 'closed' ? '已关闭' : '未完成'}>
+        <span className="rel-dot" aria-label={state === 'done' ? tr('已完成') : state === 'closed' ? tr('已关闭') : tr('未完成')}>
           {state === 'done' ? <Check size={11} strokeWidth={3} /> : state === 'closed' ? <X size={11} strokeWidth={3} /> : dir === 'related' ? <Link2 size={10} strokeWidth={2.5} /> : null}
         </span>
         <RacButton className="rel-title" onPress={() => ui.openEditor(t.id)}>
           {title(t)}
         </RacButton>
         {meta && state === 'open' && <span className="rel-meta">{meta}</span>}
-        <RacButton className="icon-btn rel-remove" aria-label={dir === 'related' ? `不再和「${title(t)}」相关` : `去掉和「${title(t)}」的关系`} onPress={remove}>
+        <RacButton className="icon-btn rel-remove" aria-label={dir === 'related' ? tr('不再和「{title}」相关', { title: title(t) }) : tr('去掉和「{title}」的关系', { title: title(t) })} onPress={remove}>
           <X size={14} />
         </RacButton>
       </li>
@@ -372,8 +373,8 @@ function Relations({ store, task }: { store: Store; task: Task }) {
       </div>
     ) : null;
   return (
-    <section className="relations" aria-label="关系">
-      <h3 className="detail-section-title">关系</h3>
+    <section className="relations" aria-label={trc('任务', '关系')}>
+      <h3 className="detail-section-title">{trc('任务', '关系')}</h3>
       {conflicts.map((e) => {
         const a = store.get('task', e.pred_id);
         const b = store.get('task', e.succ_id);
@@ -382,24 +383,22 @@ function Relations({ store, task }: { store: Store; task: Task }) {
           <div key={`${e.pred_id}>${e.succ_id}`} className="rel-conflict" role="alert">
             <AlertTriangle size={16} aria-hidden />
             <div className="grow">
-              <div className="rel-conflict-title">先后关系绕成了圈</div>
+              <div className="rel-conflict-title">{tr('先后关系绕成了圈')}</div>
               <div className="rel-conflict-text">
-                在两台设备上分别连的前后关系合在一起，绕成了圈：「{title(a)}」做完才能开始「{title(b)}」这一条暂时不生效。去掉其中一条就好。
-              </div>
+                {tr('在两台设备上分别连的前后关系合在一起，绕成了圈：「{title}」做完才能开始「{title2}」这一条暂时不生效。去掉其中一条就好。', { title: title(a), title2: title(b) })}</div>
             </div>
             <RacButton className="link-btn" onPress={() => store.removeDependency(e.pred_id, e.succ_id)}>
-              去掉这条
-            </RacButton>
+              {tr('去掉这条')}</RacButton>
           </div>
         );
       })}
-      {group('pred', preds, derived?.state === '被阻塞' ? <span className="rel-count">还差 {derived.missing.length} 件</span> : null)}
+      {group('pred', preds, derived?.state === '被阻塞' ? <span className="rel-count">{tr('还差 {length} 件', { length: derived.missing.length })}</span> : null)}
       {group('succ', succs)}
       {group(
         'related',
         related,
-        <Tip content="只是有关系，不分先后：不用等它，也不会解锁它">
-          <RacButton className="icon-btn rel-hint" aria-label="相关任务是什么">
+        <Tip content={tr('只是有关系，不分先后：不用等它，也不会解锁它')}>
+          <RacButton className="icon-btn rel-hint" aria-label={tr('相关任务是什么')}>
             <CircleHelp size={13} aria-hidden />
           </RacButton>
         </Tip>,
@@ -462,19 +461,18 @@ function LibraryHero({ store, type, task }: { store: Store; type: TaskType; task
           actions={
             <>
               <PopoverPanel
-                label="换一个"
+                label={tr('换一个')}
                 placement="bottom end"
                 className="is-wide"
-                trigger={<RacButton className="btn btn-secondary btn-sm">换一个</RacButton>}
+                trigger={<RacButton className="btn btn-secondary btn-sm">{tr('换一个')}</RacButton>}
               >
                 {picker}
               </PopoverPanel>
               <Button variant="secondary" className="btn-sm" onPress={() => setSheet({ edit: true })}>
-                编辑资料
-              </Button>
+                {tr('编辑资料')}</Button>
               <RacButton className="link-btn item-card-open" onPress={open}>
-                在{copy.name}里看
-                {entry.uses > 1 ? ` · ${entry.uses} 件任务` : ''}
+                {tr('在{name}里看', { name: copy.name })}
+                {entry.uses > 1 ? tr(' · {uses} 件任务', { uses: entry.uses }) : ''}
                 <ChevronRight size={13} aria-hidden />
               </RacButton>
             </>
@@ -544,28 +542,26 @@ function Detail({ task }: { task: Task }) {
     badge = (
       <span className="status-badge is-done">
         <Check size={12} strokeWidth={3} />
-        已完成
-      </span>
+        {tr('已完成')}</span>
     );
   else if (task.status === '关闭')
     badge = (
       <span className="status-badge is-closed">
         <CircleSlash size={12} />
-        已关闭
-      </span>
+        {tr('已关闭')}</span>
     );
-  else if (derived?.state === '被阻塞') badge = <span className="status-badge is-blocked">还在等 {derived.missing.length} 件事</span>;
-  else if (task.status === '进行中') badge = <span className="status-badge is-active">进行中</span>;
+  else if (derived?.state === '被阻塞') badge = <span className="status-badge is-blocked">{tr('还在等 {length} 件事', { length: derived.missing.length })}</span>;
+  else if (task.status === '进行中') badge = <span className="status-badge is-active">{tr('进行中')}</span>;
 
   const menu: MenuAction[] = [
-    { id: 'myday', label: inDay ? '移出我的一天' : '加入我的一天', icon: inDay ? <SunDim size={16} /> : <Sun size={16} />, onAction: () => toggleMyDay(store, ui, task.id) },
-    ...(!finished && !recurring && task.completion_mode !== 'once' ? [{ id: 'done', label: '直接标为完成', icon: <Check size={16} />, onAction: complete }] : []),
-    { id: 'delete', label: '删除…', icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirmDelete(true) },
+    { id: 'myday', label: inDay ? tr('移出我的一天') : tr('加入我的一天'), icon: inDay ? <SunDim size={16} /> : <Sun size={16} />, onAction: () => toggleMyDay(store, ui, task.id) },
+    ...(!finished && !recurring && task.completion_mode !== 'once' ? [{ id: 'done', label: tr('直接标为完成'), icon: <Check size={16} />, onAction: complete }] : []),
+    { id: 'delete', label: tr('删除…'), icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirmDelete(true) },
   ];
 
   const props = (
-    <div className="prop-list" role="group" aria-label="属性">
-      <PropRow icon={<TypeIcon size={15} />} label="类型" value={type && type.id !== PLAIN_TYPE_ID ? type.name : '普通'}>
+    <div className="prop-list" role="group" aria-label={tr('属性')}>
+      <PropRow icon={<TypeIcon size={15} />} label={tr('类型')} value={type && type.id !== PLAIN_TYPE_ID ? dataLabel(type.name) : tr('普通')}>
         {(c) => (
           <div className="pop-section">
             <TypeGrid
@@ -580,19 +576,19 @@ function Detail({ task }: { task: Task }) {
           </div>
         )}
       </PropRow>
-      <PropRow icon={<ModeIcon size={15} />} label="完成方式" value={describeCompletion(task, today)} wide>
+      <PropRow icon={<ModeIcon size={15} />} label={tr('完成方式')} value={describeCompletion(task, today)} wide>
         <div className="pop-section">
           <CompletionChoice compact value={task.completion_mode} onChange={(m) => patch(modeDefaults(m, task))} />
           <CompletionSentence value={task} today={today} onChange={(p) => patch(p)} />
         </div>
       </PropRow>
-      <PropRow icon={<Repeat size={15} />} label="重复" value={describeRecurrence(parseRecurrence(task.recurrence))} empty={!recurring} wide>
+      <PropRow icon={<Repeat size={15} />} label={tr('重复')} value={describeRecurrence(parseRecurrence(task.recurrence))} empty={!recurring} wide>
         <div className="pop-section">
           <RepeatEditor value={task.recurrence} today={today} onChange={(r) => patch({ recurrence: r })} />
         </div>
       </PropRow>
       {recurring && (
-        <PropRow icon={<Tag size={15} />} label="打卡分类" value={cat ? <CategoryLabel c={cat} /> : '未分类'} empty={!cat} wide>
+        <PropRow icon={<Tag size={15} />} label={tr('打卡分类')} value={cat ? <CategoryLabel c={cat} /> : tr('未分类')} empty={!cat} wide>
           {(c) => (
             <div className="pop-section">
               <CategoryPicker
@@ -609,7 +605,7 @@ function Detail({ task }: { task: Task }) {
       )}
       {/* 定期打卡的任务按重复规则出现，不需要单独的日期 */}
       {!recurring && (
-        <PropRow icon={<CalendarDays size={15} />} label="日期" value={task.scheduled_date ? friendlyDate(task.scheduled_date, today) : '未安排'} empty={!task.scheduled_date}>
+        <PropRow icon={<CalendarDays size={15} />} label={tr('日期')} value={task.scheduled_date ? friendlyDate(task.scheduled_date, today) : tr('未安排')} empty={!task.scheduled_date}>
           {(c) => (
             <DatePanel
               value={task.scheduled_date}
@@ -622,7 +618,7 @@ function Detail({ task }: { task: Task }) {
           )}
         </PropRow>
       )}
-      <PropRow icon={<Shapes size={15} />} label="组" value={group ? `${group.icon} ${group.name}` : '不放进组'} empty={!group}>
+      <PropRow icon={<Shapes size={15} />} label={tr('组')} value={group ? `${group.icon} ${group.name}` : tr('不放进组')} empty={!group}>
         {(c) => (
           <GroupList
             store={store}
@@ -636,15 +632,15 @@ function Detail({ task }: { task: Task }) {
       </PropRow>
       <PropRow
         icon={<Users size={15} />}
-        label="和谁有关"
+        label={tr('和谁有关')}
         value={
           people.length ? (
             <span className="prop-people">
               <AvatarStack store={store} people={people} size={18} />
-              {people.map((p) => p.name).join('、')}
+              {people.map((p) => p.name).join(tr('、'))}
             </span>
           ) : (
-            '没有'
+            tr('没有')
           )
         }
         empty={!people.length}
@@ -674,8 +670,8 @@ function Detail({ task }: { task: Task }) {
         headerStart={badge}
         headerEnd={
           <>
-            <Tip content={inDay ? '移出我的一天' : '加入我的一天'}>
-              <RacButton className={`icon-btn myday-toggle${inDay ? ' is-on' : ''}`} aria-label={inDay ? '移出我的一天' : '加入我的一天'} aria-pressed={inDay} onPress={() => toggleMyDay(store, ui, task.id)}>
+            <Tip content={inDay ? tr('移出我的一天') : tr('加入我的一天')}>
+              <RacButton className={`icon-btn myday-toggle${inDay ? ' is-on' : ''}`} aria-label={inDay ? tr('移出我的一天') : tr('加入我的一天')} aria-pressed={inDay} onPress={() => toggleMyDay(store, ui, task.id)}>
                 <Sun size={18} />
               </RacButton>
             </Tip>
@@ -686,17 +682,17 @@ function Detail({ task }: { task: Task }) {
         footer={
           finished ? (
             <>
-              <span className="foot-note">{task.status === '完成' ? '这件事已经做完了。' : '这件事已关闭，不用再做了。'}</span>
+              <span className="foot-note">{task.status === '完成' ? tr('这件事已经做完了。') : tr('这件事已关闭，不用再做了。')}</span>
               <span className="grow" />
               <Button
                 variant="secondary"
                 onPress={() => {
                   store.reopenTask(task.id);
-                  ui.toast({ message: '已重新打开' }, 2500);
+                  ui.toast({ message: tr('已重新打开') }, 2500);
                 }}
               >
                 <RotateCcw size={16} />
-                {recurring ? '恢复打卡' : '重新打开'}
+                {recurring ? tr('恢复打卡') : tr('重新打开')}
               </Button>
             </>
           ) : (
@@ -710,7 +706,7 @@ function Detail({ task }: { task: Task }) {
                 }}
               >
                 <CircleSlash size={16} />
-                {recurring ? '不再打卡' : '关闭'}
+                {recurring ? tr('不再打卡') : tr('关闭')}
               </Button>
               <span className="grow" />
               {secondary && (
@@ -743,13 +739,13 @@ function Detail({ task }: { task: Task }) {
                 )}
                 <div className="hero-text">
                   <Heading level={2} className="hero-title">
-                    {hasPrimary ? title : <span className="muted">还没填{primaryDef?.label}</span>}
+                    {hasPrimary ? title : <span className="muted">{tr('还没填{label}', { label: dataLabel(primaryDef?.label) })}</span>}
                   </Heading>
-                  <div className="hero-sub">{type.name}</div>
+                  <div className="hero-sub">{dataLabel(type.name)}</div>
                 </div>
               </div>
             )}
-            <Body store={store} task={task} placeholder={typed ? '添加笔记…' : '写点什么…'} />
+            <Body store={store} task={task} placeholder={typed ? tr('添加笔记…') : tr('写点什么…')} />
             <Progress store={store} task={task} today={today} />
             {lib && taskFields.length > 0 && (
               <div className="detail-taskfields">
@@ -761,8 +757,7 @@ function Detail({ task }: { task: Task }) {
                 <Heading level={3} className="disclosure-head">
                   <RacButton slot="trigger" className="disclosure-trigger">
                     <ChevronRight size={14} className="disclosure-chevron" aria-hidden />
-                    {type.name}信息
-                  </RacButton>
+                    {tr('{name}信息', { name: dataLabel(type.name) })}</RacButton>
                 </Heading>
                 <DisclosurePanel>
                   <TypeFields bare store={store} type={type} data={task.type_data} onChange={(k, v) => patch({ type_data: { ...task.type_data, [k]: v } })} />
@@ -779,14 +774,14 @@ function Detail({ task }: { task: Task }) {
       <ConfirmDialog
         isOpen={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="删除这件任务？"
-        message={<>「{title}」会被删除，它和别的任务之间的关系也一起去掉。删除后不能恢复。</>}
-        confirmLabel="删除"
+        title={tr('删除这件任务？')}
+        message={<>{tr('「{title}」会被删除，它和别的任务之间的关系也一起去掉。删除后不能恢复。', { title })}</>}
+        confirmLabel={tr('删除')}
         danger
         onConfirm={() => {
           store.deleteTask(task.id);
           close();
-          ui.toast({ message: '已删除' }, 2500);
+          ui.toast({ message: tr('已删除') }, 2500);
         }}
       />
     </>

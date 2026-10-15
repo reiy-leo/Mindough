@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } from 'react-aria-components';
 import { CornerDownLeft, FolderOpen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
-import { isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
+import { TASK_STATUS_LABEL, isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -12,6 +12,7 @@ import { Avatar } from './Avatar';
 import { ItemArt, artShape } from './library/Library';
 import { imageUrl } from '../lib/view';
 
+import { dataLabel, tr } from '../lib/i18n';
 /** ⌘K / Ctrl+K 全局搜索：搜正文、类型字段、人物、组；结果直接“加入我的一天”。 */
 export function CommandPalette() {
   const ui = useUi();
@@ -40,7 +41,7 @@ export function CommandPalette() {
   const createFromQuery = () => {
     const t = store.createTask({ body_md: q.trim() });
     store.addToMyDay(t.id);
-    ui.toast({ tone: 'success', message: `已新建并加入我的一天：「${q.trim()}」` }, 3000);
+    ui.toast({ tone: 'success', message: tr('已新建并加入我的一天：「{trim}」', { trim: q.trim() }) }, 3000);
     close();
   };
   const openHit = (h: SearchHit) => {
@@ -64,15 +65,15 @@ export function CommandPalette() {
           <span className="palette-text">
             <span className="palette-title">{title}</span>
             <span className="palette-snippet">
-              {v.type && v.type.layout !== 'text' ? `${v.type.name} · ` : ''}
-              {t.status}
+              {v.type && v.type.layout !== 'text' ? `${dataLabel(v.type.name)} · ` : ''}
+              {TASK_STATUS_LABEL[t.status]}
               {snippet ? ` · ${snippet}` : ''}
             </span>
           </span>
         </RacButton>
-        <RacButton className={`btn btn-tonal palette-add${inDay ? ' is-on' : ''}`} onPress={() => toggleMyDay(store, ui, id)} aria-label={inDay ? '移出我的一天' : '加入我的一天'}>
+        <RacButton className={`btn btn-tonal palette-add${inDay ? ' is-on' : ''}`} onPress={() => toggleMyDay(store, ui, id)} aria-label={inDay ? tr('移出我的一天') : tr('加入我的一天')}>
           {inDay ? <Sun size={15} /> : <SunDim size={15} />}
-          {inDay ? '已在今天' : '加入我的一天'}
+          {inDay ? tr('已在今天') : tr('加入我的一天')}
         </RacButton>
       </li>
     );
@@ -81,9 +82,9 @@ export function CommandPalette() {
   return (
     <ModalOverlay isOpen={ui.paletteOpen} onOpenChange={ui.setPaletteOpen} isDismissable className="overlay overlay-top">
       <Modal className="modal palette">
-        <Dialog aria-label="搜索" className="dialog">
+        <Dialog aria-label={tr('搜索')} className="dialog">
           <SearchField
-            aria-label="搜索任务、资料库、人物、组"
+            aria-label={tr('搜索任务、资料库、人物、组')}
             className="palette-search"
             value={q}
             onChange={(v) => {
@@ -109,7 +110,7 @@ export function CommandPalette() {
             }}
           >
             <Search size={18} className="palette-icon" aria-hidden />
-            <Input className="palette-input" placeholder="搜索任务、资料库、人物、组…" />
+            <Input className="palette-input" placeholder={tr('搜索任务、资料库、人物、组…')} />
             <kbd className="kbd">Esc</kbd>
           </SearchField>
           <ul className="palette-list">
@@ -118,13 +119,13 @@ export function CommandPalette() {
                 <RacButton className="palette-main" onPress={createFromQuery}>
                   <span className="thumb thumb-icon"><Plus size={16} /></span>
                   <span className="palette-text">
-                    <span className="palette-title">新建「{q.trim()}」并加入我的一天</span>
+                    <span className="palette-title">{tr('新建「{trim}」并加入我的一天', { trim: q.trim() })}</span>
                   </span>
                   <CornerDownLeft size={14} className="muted" />
                 </RacButton>
               </li>
             )}
-            {!q && <li className="palette-group">最近的任务</li>}
+            {!q && <li className="palette-group">{tr('最近的任务')}</li>}
             {recent.map((t, i) => taskItem(t.id, viewOf(store, t).title, '', i))}
             {hits.map((h, i) => {
               const index = i + (q.trim() ? 1 : 0);
@@ -137,7 +138,7 @@ export function CommandPalette() {
                       <span className="palette-text">
                         <span className="palette-title">{h.title}</span>
                         <span className="palette-snippet">
-                          {h.type ? libraryCopy(h.type).name : '资料库'}
+                          {h.type ? libraryCopy(h.type).name : tr('资料库')}
                           {h.snippet ? ` · ${h.snippet}` : ''}
                         </span>
                       </span>
@@ -150,8 +151,7 @@ export function CommandPalette() {
                       }}
                     >
                       <Plus size={15} />
-                      用它新建任务
-                    </RacButton>
+                      {tr('用它新建任务')}</RacButton>
                   </li>
                 );
               return (
@@ -161,14 +161,14 @@ export function CommandPalette() {
                     <span className="palette-text">
                       <span className="palette-title">{h.title}</span>
                       <span className="palette-snippet">
-                        {h.kind === 'person' ? <><UserRound size={11} /> 人物{h.snippet ? ` · ${h.snippet}` : ''}</> : '组'}
+                        {h.kind === 'person' ? <><UserRound size={11} /> {tr('人物')}{h.snippet ? ` · ${h.snippet}` : ''}</> : tr('组')}
                       </span>
                     </span>
                   </RacButton>
                 </li>
               );
             })}
-            {q.trim() && hits.length === 0 && <li className="palette-empty">没找到「{q}」，按回车直接新建</li>}
+            {q.trim() && hits.length === 0 && <li className="palette-empty">{tr('没找到「{q}」，按回车直接新建', { q })}</li>}
           </ul>
         </Dialog>
       </Modal>

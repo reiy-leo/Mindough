@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader';
 import { LazyGraph as DependencyGraph } from '../components/LazyGraph';
 import { useSettings } from '../lib/settings';
 
+import { tr } from '../lib/i18n';
 export function GraphPage() {
   const store = useStore();
   const { layout } = useSettings();
@@ -21,28 +22,28 @@ export function GraphPage() {
   return (
     <div className="page page-fill">
       <PageHeader
-        title="关系图"
-        subtitle={layout === 'mobile' ? '拖动任务边上的圆点，连到下一件事' : '从任务右边的圆点拖到另一件任务上，表示“做完这件才能开始那件”。选中连线按 Delete 删除，双击任务查看详情'}
+        title={tr('关系图')}
+        subtitle={layout === 'mobile' ? tr('拖动任务边上的圆点，连到下一件事') : tr('从任务右边的圆点拖到另一件任务上，表示“做完这件才能开始那件”。选中连线按 Delete 删除，双击任务查看详情')}
         icon={<Network size={22} />}
       />
       <div className="filter-row graph-toolbar">
         <Select
-          label="范围"
+          label={tr('范围')}
           value={scope}
           onChange={setScope}
           options={[
-            { id: 'linked', label: '有关系的' },
-            { id: 'all', label: '全部任务' },
+            { id: 'linked', label: tr('有关系的') },
+            { id: 'all', label: tr('全部任务') },
             ...store.list('group').map((g) => ({ id: g.id, label: `${g.icon} ${g.name}` })),
           ]}
         />
-        <Select label="显示" value={hideDone} onChange={setHideDone} options={[{ id: 'all', label: '含已完成' }, { id: 'open', label: '只看未完成' }]} />
-        <div className="graph-legend" aria-label="图例">
-          <span className="legend state-done">完成</span>
-          <span className="legend state-ready">可开始</span>
-          <span className="legend state-blocked">还不能开始</span>
-          <span className="legend state-closed">关闭</span>
-          <span className="legend legend-related">相关（不分先后）</span>
+        <Select label={tr('显示')} value={hideDone} onChange={setHideDone} options={[{ id: 'all', label: tr('含已完成') }, { id: 'open', label: tr('只看未完成') }]} />
+        <div className="graph-legend" aria-label={tr('图例')}>
+          <span className="legend state-done">{tr('完成')}</span>
+          <span className="legend state-ready">{tr('可开始')}</span>
+          <span className="legend state-blocked">{tr('还不能开始')}</span>
+          <span className="legend state-closed">{tr('关闭')}</span>
+          <span className="legend legend-related">{tr('相关（不分先后）')}</span>
         </div>
       </div>
       <DependencyGraph store={store} tasks={tasks} height="100%" />

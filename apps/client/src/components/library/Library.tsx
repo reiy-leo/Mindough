@@ -26,6 +26,7 @@ import { FieldInput } from '../task/pickers';
 import { LinkChips } from './LinkFields';
 import { NoteField } from './NoteField';
 
+import { dataLabel, tr } from '../../lib/i18n';
 export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
 
 /** 类型版式 → 图片形状：海报竖版、图标方形、横幅、人物圆形。 */
@@ -148,8 +149,7 @@ export function LibraryPicker({
       <ul ref={listRef} id={listId} role="listbox" aria-label={copy.name} className="lib-picker-list">
         {!q && !empty && (
           <li role="presentation" className="lib-picker-group">
-            最近
-          </li>
+            {tr('最近')}</li>
         )}
         {results.map((e, i) => (
           <li
@@ -168,7 +168,7 @@ export function LibraryPicker({
               <span className="lib-option-name">{e.name}</span>
               {e.subtitle && <span className="lib-option-sub">{e.subtitle}</span>}
             </span>
-            {e.uses > 0 && <span className="lib-option-meta">{e.uses} 件任务</span>}
+            {e.uses > 0 && <span className="lib-option-meta">{tr('{uses} 件任务', { uses: e.uses })}</span>}
           </li>
         ))}
         {canCreate && (
@@ -186,13 +186,13 @@ export function LibraryPicker({
               <Plus size={16} />
             </span>
             <span className="lib-option-text">
-              <span className="lib-option-name">新建“{q}”</span>
-              <span className="lib-option-sub">加到{copy.name}，下次直接选</span>
+              <span className="lib-option-name">{tr('新建“{q}”', { q })}</span>
+              <span className="lib-option-sub">{tr('加到{name}，下次直接选', { name: copy.name })}</span>
             </span>
           </li>
         )}
-        {empty && !q && <li className="lib-picker-empty">{copy.name}还是空的，输入名字就能新建。</li>}
-        {!empty && q && results.length === 0 && !canCreate && <li className="lib-picker-empty">没有找到</li>}
+        {empty && !q && <li className="lib-picker-empty">{tr('{name}还是空的，输入名字就能新建。', { name: copy.name })}</li>}
+        {!empty && q && results.length === 0 && !canCreate && <li className="lib-picker-empty">{tr('没有找到')}</li>}
       </ul>
     </div>
   );
@@ -240,11 +240,11 @@ function ArtUpload({ store, value, name, shape, label, onChange }: { store: Stor
   const url = imageUrl(store, value);
   return (
     <div className={`art-upload art-upload-${shape}`} onPaste={onPaste}>
-      <RacButton className="art-upload-btn" aria-label={url ? `换${label}` : `添加${label}`} onPress={() => fileRef.current?.click()}>
+      <RacButton className="art-upload-btn" aria-label={url ? tr('换{label}', { label }) : tr('添加{label}', { label })} onPress={() => fileRef.current?.click()}>
         <ItemArt src={url} name={name} shape={shape} />
         <span className="art-upload-hint">
           <ImagePlus size={15} />
-          {url ? '换一张' : label}
+          {url ? tr('换一张') : label}
         </span>
       </RacButton>
       <input
@@ -260,8 +260,7 @@ function ArtUpload({ store, value, name, shape, label, onChange }: { store: Stor
       />
       {url && (
         <RacButton className="link-btn art-upload-clear" onPress={() => onChange(null)}>
-          去掉图片
-        </RacButton>
+          {tr('去掉图片')}</RacButton>
       )}
     </div>
   );
@@ -278,11 +277,11 @@ export function ItemEditor({ store, type, value, onChange, autoFocusName, showNo
   const linkVal = typeof value.image === 'string' && /^https?:/.test(value.image) ? value.image : '';
   return (
     <div className={`item-editor shape-${shape}`} style={{ '--chip-color': type.color } as CSSProperties}>
-      <ArtUpload store={store} value={value.image} name={value.name} shape={shape} label={person ? '头像' : (media?.label ?? '图片')} onChange={(v) => set({ image: v })} />
+      <ArtUpload store={store} value={value.image} name={value.name} shape={shape} label={person ? tr('头像') : (media ? dataLabel(media.label) : tr('图片'))} onChange={(v) => set({ image: v })} />
       <div className="item-editor-fields">
-        <Field label={person ? '名字' : (primary?.label ?? '名称')} value={value.name} onChange={(v) => set({ name: v })} autoFocus={!!autoFocusName} />
+        <Field label={person ? tr('名字') : (primary ? dataLabel(primary.label) : tr('名称'))} value={value.name} onChange={(v) => set({ name: v })} autoFocus={!!autoFocusName} />
         {person ? (
-          <Field label="关系" value={String(value.fields.relation ?? '')} onChange={(v) => set({ fields: { ...value.fields, relation: v || null } })} placeholder="家人 / 朋友 / 同事" />
+          <Field label={tr('关系')} value={String(value.fields.relation ?? '')} onChange={(v) => set({ fields: { ...value.fields, relation: v || null } })} placeholder={tr('家人 / 朋友 / 同事')} />
         ) : (
           <>
             {extras.map((f) => (
@@ -290,7 +289,7 @@ export function ItemEditor({ store, type, value, onChange, autoFocusName, showNo
                 <FieldInput store={store} def={f} value={value.fields[f.key]} onChange={(v) => set({ fields: { ...value.fields, [f.key]: v } })} />
               </div>
             ))}
-            {media && <Field className="span-2" label={`${media.label}链接`} value={linkVal} onChange={(v) => set({ image: v.trim() || null })} placeholder="可以直接粘贴图片链接" />}
+            {media && <Field className="span-2" label={tr('{label}链接', { label: media.label })} value={linkVal} onChange={(v) => set({ image: v.trim() || null })} placeholder={tr('可以直接粘贴图片链接')} />}
           </>
         )}
         {showNote && <NoteField className="span-2" value={value.note_md} onChange={(v) => set({ note_md: v })} />}
@@ -374,7 +373,7 @@ export function ItemSheet({
     <Sheet
       isOpen
       onOpenChange={(o) => !o && onClose()}
-      title={itemId ? '编辑资料' : `添加到${copy.name}`}
+      title={itemId ? tr('编辑资料') : tr('添加到{name}', { name: copy.name })}
       className="modal-item"
       onKeyDown={(e) => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -384,13 +383,12 @@ export function ItemSheet({
       }}
       footer={
         <>
-          {uses > 1 && <span className="foot-note">改动会同步到用到它的 {uses} 件任务</span>}
+          {uses > 1 && <span className="foot-note">{tr('改动会同步到用到它的 {uses} 件任务', { uses })}</span>}
           <span className="grow" />
           <Button variant="secondary" onPress={onClose}>
-            取消
-          </Button>
+            {tr('取消')}</Button>
           <Button variant="primary" isDisabled={!ok} onPress={save}>
-            {itemId ? '保存' : '添加'}
+            {itemId ? tr('保存') : tr('添加')}
           </Button>
         </>
       }

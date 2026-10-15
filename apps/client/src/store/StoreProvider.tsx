@@ -4,6 +4,7 @@ import { bindSync } from '../lib/sync';
 import { openWebSqlite, webSqliteSupported } from './sqlite-web';
 import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
+import { tr } from '../lib/i18n';
 const Ctx = createContext<Store | null>(null);
 
 /** 记在 localStorage 里：这台设备已经用上 SQLite。之后 SQLite 打不开就报错，而不是悄悄退回 localStorage（会分叉数据）。 */
@@ -40,9 +41,9 @@ async function openAdapter(): Promise<StorageAdapter> {
     reason = webSqliteSupported().reason;
   } catch (e) {
     if (localStorage.getItem(ENGINE_KEY) === 'sqlite') {
-      throw new Error(`本地数据库打不开（可能在另一个标签页里开着，关掉它再刷新）：${String(e)}`);
+      throw new Error(tr('本地数据库打不开（可能在另一个标签页里开着，关掉它再刷新）：{String}', { String: String(e) }));
     }
-    reason = `SQLite 启动失败：${String(e)}`;
+    reason = tr('SQLite 启动失败：{String}', { String: String(e) });
     console.warn(reason);
   }
   storageInfo = { engine: 'localStorage', detail: 'localStorage', ...(reason ? { fallbackReason: reason } : {}) };
@@ -72,7 +73,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
   // 登录后多设备同步；退出登录就停（本机数据不动）
   useEffect(() => (store ? bindSync(store) : undefined), [store]);
-  if (error) return <div className="boot-error">打不开本地数据：{error}</div>;
+  if (error) return <div className="boot-error">{tr('打不开本地数据：{error}', { error })}</div>;
   if (!store) return <div className="boot">Mindough</div>;
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
@@ -80,7 +81,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 /** 取 Store，并在任何数据变化时重渲染。 */
 export function useStore(): Store {
   const store = useContext(Ctx);
-  if (!store) throw new Error('StoreProvider 缺失');
+  if (!store) throw new Error(tr('StoreProvider 缺失'));
   useSyncExternalStore(
     (fn) => store.subscribe(fn),
     () => store.version,
