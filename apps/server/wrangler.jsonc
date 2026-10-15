@@ -1,0 +1,11 @@
+// Mindough Worker（M0 占位，尚未部署）。
+// 以后负责：Google OAuth 登录、Web 静态资源、签发同步凭据（Turso）或同步 API（自建 D1 方案）、R2 图片。
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mindough",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
+  "observability": { "enabled": true }
+}
