@@ -3,6 +3,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import {
+  Switch as RacSwitch,
   Button as RacButton,
   Dialog,
   DialogTrigger,
@@ -582,5 +583,19 @@ export function ChipPicker<T extends string>({
         </ToggleButton>
       ))}
     </ToggleButtonGroup>
+  );
+}
+
+/**
+ * 开关：Apple 是 51×31 的胶囊（开 = 绿）、WinUI 是 40×20 的描边胶囊（开 = 强调色实心）、Material 3 是 52×32 的轨道 + 圆点（开 = 强调色，圆点变大）。
+ * 形状在 skins.css，这里只管结构。
+ */
+export function Switch({ label, isSelected, onChange, isDisabled }: { label: string; isSelected: boolean; onChange: (v: boolean) => void; isDisabled?: boolean }) {
+  return (
+    <RacSwitch aria-label={label} isSelected={isSelected} onChange={onChange} className="switch" {...(isDisabled ? { isDisabled } : {})}>
+      <span className="switch-track" aria-hidden>
+        <span className="switch-thumb" />
+      </span>
+    </RacSwitch>
   );
 }

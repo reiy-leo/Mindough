@@ -6,7 +6,8 @@ import { startNativeLogin } from '../lib/native-login';
 import { isTauri } from '../store/sqlite-tauri';
 import { useUi } from '../lib/ui';
 import { resetSyncState, syncedAgo } from '@mindough/core';
-import { Button, Section, Segmented } from '../ui/primitives';
+import { Button, Section, Segmented, Switch } from '../ui/primitives';
+import { notifyPermission, onReminderSettings, remindersEnabled, requestNotifyPermission, setRemindersEnabled, type NotifyPermission } from '../lib/reminders';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
@@ -30,6 +31,7 @@ export function SettingsPage() {
     <div className="page">
       <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
       <AccountSection />
+      <ReminderSection />
       <Section title={tr('外观')}>
         <div className="card settings-card">
           <div className="setting">
@@ -265,5 +267,69 @@ function SyncRow({ sync, onLogin }: { sync: Extract<SyncView, { enabled: true }>
         </Button>
       )}
     </div>
+  );
+}
+
+/** 提醒：总开关（这台设备）+ 通知权限。权限没给时到点只在 app 里提示。 */
+function ReminderSection() {
+  const [on, setOn] = useState(remindersEnabled);
+  const [perm, setPerm] = useState<NotifyPermission | null>(null);
+  useEffect(() => {
+    const refresh = () => {
+      setOn(remindersEnabled());
+      void notifyPermission().then(setPerm);
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    const off = onReminderSettings(refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      off();
+    };
+  }, []);
+  const toggle = async (v: boolean) => {
+    setRemindersEnabled(v);
+    // 第一次打开时顺便问通知权限（浏览器只允许在点击里问）
+    if (v && perm === 'default') setPerm(await requestNotifyPermission());
+  };
+  const web = !isTauri();
+  const hint = !on
+    ? tr('关着：到点不提醒。只影响这台设备。')
+    : perm === 'granted'
+      ? web
+        ? tr('到点发系统通知；Mindough 开着（标签页可以在后台）才会提醒。')
+        : tr('到点发系统通知。')
+      : perm === 'denied'
+        ? web
+          ? tr('通知被浏览器关掉了：到点只在 Mindough 里提示。要系统通知，到浏览器的网站设置里允许通知。')
+          : tr('通知被系统关掉了：到点只在 Mindough 里提示。要系统通知，到系统设置里允许 Mindough 发通知。')
+        : perm === 'unsupported'
+          ? tr('这里发不了系统通知：到点只在 Mindough 里提示。')
+          : tr('还没允许通知：到点只在 Mindough 里提示。');
+  return (
+    <Section title={tr('提醒')}>
+      <div className="card settings-card">
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-name">{tr('提醒通知')}</div>
+            <div className="setting-hint">{hint}</div>
+          </div>
+          <div className="setting-actions">
+            {on && perm === 'default' && (
+              <Button variant="secondary" onPress={async () => setPerm(await requestNotifyPermission())}>
+                {tr('允许通知')}
+              </Button>
+            )}
+            <Switch label={tr('提醒通知')} isSelected={on} onChange={(v) => void toggle(v)} />
+          </div>
+        </div>
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-name">{tr('什么时候提醒')}</div>
+            <div className="setting-hint">{tr('在任务上设「提醒」时间：有日期的那天、倒数日的目标日、定期打卡的每个要打卡的日子。计时有目标时长的，到点总会提醒。')}</div>
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }

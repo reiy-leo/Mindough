@@ -3,6 +3,7 @@
 //! - db：本地 SQLite 命令层（schema / 迁移在前端 core，与 Web 端同一份）
 //! - 登录：opener 用系统浏览器打开 Google 登录，deep-link 接住 mindough://auth?code=… 回调（前端 lib/native-login.ts）
 //! - 桌面端 single-instance：已经开着时，deep link 交给原来的窗口
+//! - notification：提醒（前端 lib/reminders.ts 排程）
 //! - 以后：窗口毛玻璃等。
 
 mod db;
@@ -30,6 +31,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|_app| {
             // Windows / Linux 开发时也注册 mindough:// （安装包会自己注册；macOS / 移动端靠 Info.plist / Manifest）
             #[cfg(any(windows, target_os = "linux"))]

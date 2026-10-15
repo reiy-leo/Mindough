@@ -2795,3 +2795,22 @@ html[lang='en'] .progress-unit {
 html[lang='en'] .heatmap {
   --wd: 26px;
 }
+
+/* 设置行右侧：按钮 + 开关 */
+.setting-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+/* 到点的提示（ReminderHost） */
+.reminder-toast {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.reminder-toast-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}

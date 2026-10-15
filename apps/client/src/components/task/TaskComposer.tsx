@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
+import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
 import { Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
+import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { CategoryPicker } from '../CheckInCategory';
 import { AvatarStack } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
@@ -62,6 +63,8 @@ interface Draft extends CompletionValue {
   recurrence: string | null;
   categoryId: string | null;
   date: string | null;
+  /** 提醒时间「HH:MM」（有日期 / 倒数日 / 定期打卡时才出现）。 */
+  remindTime: string | null;
   groupId: string | null;
   people: string[];
   /** 相关任务：建好后连成「相关」（只是有关系，不分先后）。 */
@@ -93,6 +96,7 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     recurrence: d.recurrence ?? null,
     categoryId: d.checkin_category_id ?? null,
     date: d.scheduled_date ?? null,
+    remindTime: d.remind_time ?? null,
     groupId: d.group_id ?? null,
     people: [],
     related: [],
@@ -156,6 +160,8 @@ function Composer() {
 
   const title = after ? tr('接下来做什么') : group && req.defaults.group_id ? tr('在「{name}」里新建', { name: group.name }) : req.defaults.recurrence ? tr('新建打卡') : tr('新建任务');
 
+  const remindable = canRemind({ recurrence: d.recurrence, completion_mode: d.completion_mode, scheduled_date: d.date, target_date: d.target_date });
+
   const submit = () => {
     if (!canAdd) return;
     const recurring = !!d.recurrence;
@@ -184,6 +190,7 @@ function Composer() {
       target_date: d.completion_mode === 'countdown' ? d.target_date : null,
       recurrence: d.recurrence,
       checkin_category_id: recurring ? d.categoryId : null,
+      remind_time: remindable ? d.remindTime : null,
     };
     const t = req.after ? store.createSuccessor(req.after, input) : store.createTask(input);
     for (const pid of d.people) store.linkPerson(t.id, pid);
@@ -346,6 +353,20 @@ function Composer() {
               />
             )}
           </PopoverPanel>
+          {remindable && (
+            <PopoverPanel label={tr('提醒')} trigger={<PropChip icon={<Bell size={14} />} label={tr('提醒')} {...(d.remindTime ? { value: formatRemindTime(d.remindTime) } : {})} />}>
+              {(close) => (
+                <RemindPanel
+                  value={d.remindTime}
+                  task={{ recurrence: d.recurrence, completion_mode: d.completion_mode, target_value: d.target_value }}
+                  onChange={(v) => {
+                    set({ remindTime: v });
+                    close();
+                  }}
+                />
+              )}
+            </PopoverPanel>
+          )}
           <PopoverPanel label={tr('组')} trigger={<PropChip icon={<Shapes size={14} />} label={tr('组')} {...(group ? { value: `${group.icon} ${group.name}` } : {})} />}>
             {(close) => (
               <GroupList

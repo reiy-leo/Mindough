@@ -84,6 +84,7 @@
 | N 处改动还没同步 | 待同步 N 条 / outbox | 设置 → 数据 → 本地存储那一行（0 时不显示） |
 | 登录同步时不能重置：会影响你的其他设备。先退出登录再重置。 | — | 「重置演示数据」在登录同步时的说明（按钮不可点） |
 | 备注 | Markdown 备注 / 富文本 / 支持 Markdown | 资料、人物的备注；所见即所得，标签旁不再写「支持 Markdown」；空的时候占位「写点什么…」 |
+| 提醒 | 通知时间 / 闹钟 / 到期提醒 | 任务属性（新建面板胶囊、详情一行）：值「09:00」（英文 9:00 AM），没设「不提醒」；只在有日期、倒数日、定期打卡时出现。弹层：常用时间、「其他时间」、说明「那天这个时间提醒你。」/「目标日那天，这个时间提醒你。」/「每个要打卡的日子，这个时间提醒你；那天已经打过卡就不提醒。」、「不提醒」；总开关关着时「提醒通知关着。」+「去设置里打开」。到点的提示：标题 · 「今天要做」/「就是今天」/「该打卡了」/「计时到了：10 分钟」，按钮「查看」「10 分钟后」。设置 → 提醒：「提醒通知」开关，说明按状态：「到点发系统通知。」（网页版加「Mindough 开着（标签页可以在后台）才会提醒」）/「还没允许通知：到点只在 Mindough 里提示。」+「允许通知」/ 被拦了时说去浏览器网站设置或系统设置里允许 /「关着：到点不提醒。只影响这台设备。」；「什么时候提醒」一行说明规则 |
 | 格式工具栏 | 富文本工具栏 / Markdown 工具栏 | 详情内容和备注编辑时出现在下方，读屏名「格式」；按钮（悬停提示带快捷键）：标题、粗体、斜体、删除线、清单、列表、编号列表、引用、代码、链接、表格；链接输入框读屏「链接地址」，占位 https://，按钮「添加」「取消」。新建面板的内容框不带工具栏 |
 
 ## 写在代码里的约定
@@ -124,4 +125,5 @@
 | 影视库 / 书库 / 游戏库 … / 好物清单 / 菜谱 | Movies & TV / Books / Games … / Wish List / Recipes | 条数 7 titles / 5 books / 3 items |
 | 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
 | 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Link URL，Add / Cancel；? 提示 “Type these and they format as you go:” |
+| 提醒 | Reminder / Reminders | 值 None / 9:00 AM；到点 Due today · It’s today · Time to check in · Time’s up — 10 min；按钮 View · In 10 Min；设置 Reminders、Allow Notifications、When You’re Reminded |
 | HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |

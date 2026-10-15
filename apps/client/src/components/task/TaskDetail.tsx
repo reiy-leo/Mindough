@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { AlertTriangle, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -26,7 +26,9 @@ import {
   type Store,
   type Task,
   type TaskType,
+  canRemind,
 } from '@mindough/core';
+import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { navigate } from '../../lib/router';
 import { ItemCard, ItemSheet, LibraryPicker } from '../library/Library';
 import { useNow, useStore } from '../../store/StoreProvider';
@@ -594,6 +596,20 @@ function Detail({ task }: { task: Task }) {
               today={today}
               onChange={(v) => {
                 patch({ scheduled_date: v });
+                c();
+              }}
+            />
+          )}
+        </PropRow>
+      )}
+      {(canRemind(task) || task.remind_time) && (
+        <PropRow icon={<Bell size={15} />} label={tr('提醒')} value={formatRemindTime(task.remind_time)} empty={!task.remind_time}>
+          {(c) => (
+            <RemindPanel
+              value={task.remind_time}
+              task={task}
+              onChange={(v) => {
+                patch({ remind_time: v });
                 c();
               }}
             />

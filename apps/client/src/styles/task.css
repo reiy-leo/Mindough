@@ -1326,3 +1326,30 @@
   font-size: 18px;
   font-weight: 600;
 }
+
+/* 提醒时间（RemindPanel） */
+.remind-panel {
+  width: min(300px, calc(100vw - 48px));
+}
+.remind-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.remind-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 13px;
+}
+.remind-custom-label {
+  color: var(--text-2);
+}
+.remind-time-input {
+  width: auto;
+  min-width: 110px;
+  font-variant-numeric: tabular-nums;
+}
+.remind-off .link-btn {
+  font-size: inherit;
+}

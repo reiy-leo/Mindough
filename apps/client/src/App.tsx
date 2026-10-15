@@ -21,6 +21,7 @@ import { TaskComposer } from './components/task/TaskComposer';
 import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
+import { ReminderHost } from './components/ReminderHost';
 
 import { tr, trc } from './lib/i18n';
 interface NavItem {
@@ -328,6 +329,7 @@ export function App() {
       {shell}
       <TaskDetail />
       <TaskComposer />
+      <ReminderHost />
       <CommandPalette />
       <Toasts />
     </>

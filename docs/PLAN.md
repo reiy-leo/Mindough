@@ -261,7 +261,13 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 要 Rei 验证：两个浏览器（或电脑 + 手机）都登录同一个 Google 账户，一边新建 / 改 / 打卡，另一边回到前台或点「立即同步」看到。
 
 ### M3 天天好用（Rei 2026-10-16 批准路线图：“做完之后就按顺序，开工M3，直到做完为止”；动工顺序 4 → 6 → 2 → 1 → 3 → 5）
-1. ⬜ 提醒通知：计时到点、倒数日、周期打卡（每天 X 点提醒）；任务上设「到期提醒时间」；设置页总开关。Web 用 Notification API（app 开着时排程，能用 service worker 就用），Tauri 用 tauri-plugin-notification（桌面 + 移动端）。提醒设置存进任务 / 打卡的数据模型（迁移 + 同步行）。
+1. ✅ 提醒通知（2026-10-16）：
+   - core `reminders.ts`（纯函数 + 测试）：`upcomingReminders(tasks, checkIns, { now, horizonMs, graceMs, timeZone, fired, snoozed })` 算出接下来要响的——只做一次（有日期，那天 `remind_time`）、倒数日（目标日那天）、定期打卡（每个要打卡的日子；那个周期已经达标就不响）、计时到点（正在走且有目标时长，不用设时间；暂停再继续按新的一段重算）。完成 / 关闭 / 不再打卡 / 删除的不响；建任务之前的打卡日不响。时间是本机（或指定 IANA 时区）的墙上时间，夏令时跳过的时刻顺延（纽约 02:30 → 03:30）、重复的取第一次。id 稳定（任务 + 种类 + 那天 / 那段计时），用来去重、记「已响过」、稍后再提醒（10 分钟）；app 刚打开时错过 15 分钟以内的补响。
+   - 模型不用改：v4 已有 `task.remind_time`（同步）；总开关、已响过、稍后再提醒存本机（每台设备自己响，通知权限本来就按设备）。
+   - 客户端 `lib/reminders.ts` + `components/ReminderHost.tsx`：每分钟、数据一变、回到前台时重算，最近的一个 setTimeout 到点。前台：app 里弹一条提示（铃铛 + 标题 · 说明，「查看」「10 分钟后」）；后台：系统通知（Web 经 `public/sw.js` 的 service worker 发——Android Chrome 只认这种，点通知回到 app 打开那件任务；没有 service worker 就用 `new Notification`）。
+   - Tauri：`tauri-plugin-notification`（Cargo + `notification:default` 权限 + `@tauri-apps/plugin-notification`）。桌面同 Web（app 开着时排程）；手机把接下来 48 小时的提醒交给系统排好（`Schedule.at`，allowWhileIdle），app 关着也会响，重算时取消变了的、补上新的；点通知打开那件任务（`onAction`）。
+   - 界面：新建面板多一颗「提醒」胶囊（只在有日期 / 倒数日 / 定期打卡时出现）；详情属性列表「提醒」一行（同样条件，或已经设了）；弹层 = 常用时间 9:00 / 12:00 / 18:00 / 21:00 + 系统的时间输入「其他时间」+ 一句什么时候响 +「不提醒」；总开关关着时弹层里提示「提醒通知关着。去设置里打开」。设置 → 提醒：「提醒通知」开关（Apple / WinUI / Material 各自的开关样子，`ui/primitives` Switch）+ 权限状态说明 +「允许通知」；第一次打开开关时顺便问权限。
+   - 没做：通知上的「稍后」按钮（系统通知的 action 各平台不一样；app 里的提示有）；Web 端 app 关着时不会响（要推送服务器，不做）；桌面端 app 关着不会响（以后可以加托盘常驻）。真机待验：macOS / Windows 通知权限、Android 13+ 的 POST_NOTIFICATIONS 与精确闹钟、iOS。
 2. ✅ 正经的 Markdown 编辑器（2026-10-16）：所见即所得，取代「输入框 + 排好版的预览」，入库仍是 markdown 文本。
    - 选 **Milkdown 7**（不选 TipTap）：它本身就是 markdown 原生的——remark 解析 ↔ ProseMirror 文档 ↔ remark 序列化，存进去、读出来就是 markdown，往返保真（`milkdown.test.ts` 覆盖标题 / 清单 / 表格 / 删除线 / 链接 / 代码 / 引用 / 空清单项）；TipTap 的 markdown 要靠社区扩展转换，往返会丢东西。GFM 预设直接带表格、清单（`- [ ]`）、删除线、自动链接。headless、不带样式，排版沿用 `.md`，三种皮肤只改令牌（清单勾 Apple 圆形 / WinUI · Material 圆角方形）。
    - 用在：任务详情的内容（点进去就能改，Esc 收起）、资料 / 人物备注、**新建面板的内容框**（不带工具栏的轻量版 `toolbar="none"`：只靠写法变样子，`# `、`- [ ] `、`**粗体**` 打出来就排好；字号同以前 18px；Esc 关面板、⌘/Ctrl+Enter 添加照旧）。编辑器约 140 KB（gzip）按需加载，启动后空闲时预加载，新建面板一打开就能写。
