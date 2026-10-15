@@ -52,6 +52,16 @@
 - 图片：本地上传或粘贴链接；原生端存本地文件，同步时上传到 Cloudflare R2，D1 只存引用。
 - 以后再做：按名称自动找图和资料（影视 TMDB、游戏 Steam/IGDB、书籍 Open Library），展示时附来源。
 
+## 完成方式（打卡）
+完成方式与类型独立：任何任务都可选一种，类型可以给默认值。
+- 点一下：点勾即完成（默认）。
+- 计时：先点“开始”，过一段时间再点“结束”；可设目标时长（如 16 小时），未到时长卡片显示进度环与已用时间，到点发提醒，结束时满足目标才算完成。中途可暂停 / 继续。
+- 计量：设目标数量和单位（8 杯水、30 页、5 公里），每次点 +1 或输入数量，累计达标即完成。
+- 倒数日：设目标日期，卡片大字显示“还有 N 天”，过期后可切成“已过 N 天”（正数日）；到那天自动标完成，或手动完成。
+- 重复：每天 / 每周几 / 每月几号 / 每 N 天，每个周期一份独立进度；记录连续天数与历史打卡日历。
+- 打卡类任务完成时同样解锁 FS 后续任务。
+- 同步：每次开始、结束、+1 都记一条 check_in 事件，多端合并时按事件累加，不会因两台设备同时点而丢次数。
+
 ## 数据模型
 - task：id、body_md（无标题，列表里显示首行作预览）、status（待办/进行中/完成/取消）、group_id（可空）、scheduled_date（可空，用于列表视图）、done_at、sort、created_at
 - dependency：pred_id、succ_id、type=FS、lag=0
@@ -60,6 +70,9 @@
 - task_type：id、name、icon、color、layout（poster / icon_name / banner / text）、fields（JSON 字段定义）、body_template（markdown）、builtin、hidden
 - task 增加 type_id（可空=普通）、type_data（JSON，按字段定义填写，图片存 asset_id）
 - group 增加 default_type_id（可空）
+- task 增加 completion_mode（once / timer / count / countdown）、target_value、unit、target_date、recurrence（RRULE，可空）
+- check_in：id、task_id、period_key（重复任务的周期）、kind（start / pause / resume / stop / add）、amount、at
+- task_type 增加 default_completion_mode
 - person：id、name、avatar_asset_id、relation、birthday、note_md
 - task_person：task_id、person_id
 - asset：id、sha256、mime、width、height、r2_key（同步后）
@@ -71,6 +84,7 @@
 3. 人物：人物列表（头像 + 姓名），点开看相关任务
 4. 依赖图：全局或按组看 DAG，拖线连依赖，颜色区分 完成 / 可开始 / 被阻塞。
 5. 可做清单：所有“可开始”的任务，按组和日期排。
+6. 打卡：今天要打卡的任务、正在计时的任务、倒数日，一屏看完。
 - 全局：快速新建（快捷键）、搜索、按分类筛选。
 
 ## 以后再做
