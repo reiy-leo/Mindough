@@ -37,13 +37,24 @@ export function normalizeStatus(status: unknown): TaskStatus {
   return (TASK_STATUSES as readonly unknown[]).includes(status) ? (status as TaskStatus) : '待办';
 }
 
-/** 完成方式：点一下 / 计时 / 计量 / 倒数日。 */
+/**
+ * 完成方式（内部枚举值不变；界面叫法见 docs/COPY.md）：
+ * once 勾选完成 / timer 计时 / count 计数 / countdown 倒数日。
+ */
 export type CompletionMode = 'once' | 'timer' | 'count' | 'countdown';
+export const COMPLETION_MODES: readonly CompletionMode[] = ['once', 'timer', 'count', 'countdown'];
 export const COMPLETION_MODE_LABEL: Record<CompletionMode, string> = {
-  once: '点一下',
+  once: '勾选完成',
   timer: '计时',
-  count: '计量',
+  count: '计数',
   countdown: '倒数日',
+};
+/** 每种完成方式的一句话说明（新建时给用户挑）。 */
+export const COMPLETION_MODE_HINT: Record<CompletionMode, string> = {
+  once: '做完就打勾',
+  timer: '做够一段时间，如冥想 10 分钟',
+  count: '做够一定数量，如喝 8 杯水',
+  countdown: '等到某一天，如考试、纪念日',
 };
 
 /** type_data 中的值：按字段定义填写；图片存 asset_id 或链接，人物存 person_id。 */

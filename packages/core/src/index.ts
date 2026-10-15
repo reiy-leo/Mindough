@@ -8,6 +8,7 @@ export * from './checkin';
 export * from './heatmap';
 export * from './myday';
 export * from './preview';
+export * from './describe';
 export * from './search';
 export * from './store';
 export * from './storage/adapter';

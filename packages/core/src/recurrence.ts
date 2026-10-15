@@ -67,7 +67,7 @@ export function parseRecurrence(rule: string | null | undefined): Recurrence | n
 }
 
 export function describeRecurrence(r: Recurrence | null): string {
-  if (!r) return '不重复';
+  if (!r) return '只做一次';
   switch (r.kind) {
     case 'daily':
       return '每天';

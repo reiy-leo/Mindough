@@ -16,21 +16,21 @@ export interface DerivedStatus {
 
 export class CycleError extends Error {
   constructor(readonly path: string[]) {
-    super('不能添加这条依赖：会形成环');
+    super('不能这样连：会绕成一个圈');
     this.name = 'CycleError';
   }
 }
 
 export class SelfLoopError extends Error {
   constructor() {
-    super('任务不能依赖自己');
+    super('一件任务不能排在自己前面');
     this.name = 'SelfLoopError';
   }
 }
 
 export class DuplicateEdgeError extends Error {
   constructor() {
-    super('这条依赖已经存在');
+    super('这两件任务已经连上了');
     this.name = 'DuplicateEdgeError';
   }
 }

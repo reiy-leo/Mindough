@@ -32,7 +32,7 @@ describe('RRULE 子集', () => {
     expect(describeRecurrence({ kind: 'weekly', weekdays: [5, 1, 3] })).toBe('每周一、三、五');
     expect(describeRecurrence({ kind: 'weekly', weekdays: [1, 2, 3, 4, 5] })).toBe('工作日');
     expect(describeRecurrence({ kind: 'every', days: 2, anchor: '2026-01-01' })).toBe('每 2 天');
-    expect(describeRecurrence(null)).toBe('不重复');
+    expect(describeRecurrence(null)).toBe('只做一次');
   });
 });
 
