@@ -29,7 +29,7 @@
   - Web：默认跟随访问者的系统，也可固定一种。
 - 移动端可用 Konsta UI（同一组件出 iOS 和 Material 两种外观）加速。
 - 原生部分直接用系统：菜单栏、右键菜单、托盘、通知、文件选择走 Tauri 原生 API，不用网页模拟。
-- 代价：界面工作量约 1.5 倍，每次改界面要在四种皮肤下截图检查；导航结构（侧边栏 vs 底部标签栏）按“桌面 / 手机”两种布局写，不按五个平台写。
+- 代价：界面工作量约 1.5 倍，每次改界面要在三种皮肤（Web 跟随访问者系统，复用其一）× 桌面 / 手机下截图检查；导航结构（侧边栏 vs 底部标签栏）按“桌面 / 手机”两种布局写，不按五个平台写。
 - 因此本项目不用 Kumo（Kumo 是 Cloudflare 自己的统一风格，与“各端原生”冲突）。
 
 ## 前导图（PDM）怎么实现
@@ -132,6 +132,52 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
    - 格子严格正方形（宽高相等，不随容器拉伸），直角或极小圆角。
    - 每月 1 号那一格做标记：格子够大（桌面）时在格内显示月份数字（如“3”），格子小（手机）时显示一个小圆点；设置里可固定选“数字 / 圆点 / 不标”。
 - 全局：快速新建（快捷键）、⌘K 搜索（可直接加入我的一天）、按分类筛选。
+
+## 里程碑
+
+### M0 ✅（2026-10-15）：核心逻辑 + Web 客户端 + 外壳骨架
+- pnpm workspace：`packages/core`、`apps/client`、`apps/server`（占位）；TypeScript strict。
+- `packages/core`（纯 TS、无 DOM，Vitest 90 个用例；客户端另有 4 个平台检测用例）：
+  - 全部表的类型（task、dependency、group、category、task_type、person、task_person、my_day、check_in、asset），每行 UUIDv7 id + HLC updated_at + deleted 墓碑。
+  - DAG：加边前环检测（拒绝时给出成环路径）、自环 / 重复边拒绝、合并后找冲突边、拓扑排序；派生状态 可开始 / 被阻塞（列出缺哪些前置）；完成后算出解锁的后续。
+  - 打卡：进度只由 check_in 事件折叠（计时含暂停 / 继续、计量累加、点一下、倒数日剩余 / 已过）；重复规则（每天、每周几、每月几号、每 N 天）与周期键、连续天数 / 最长。
+  - 热力图：一年 53 列 × 7 行（周一开始），4 档（0、<50%、<100%、达标），每月 1 号标记；每日总比例与单任务比例索引。
+  - 我的一天：按本地日期的清单、完成沉底、昨天没做完、建议（今天到期 / 倒数日到了 / 今天要打卡 / 刚解锁）。
+  - 内置 11 种类型（普通 + 10 种，固定 id）与演示数据；⌘K 搜索（正文、类型字段、人物、组）。
+  - 存储：异步 `StorageAdapter` 接口（以后 SQLite / Turso 适配器实现它）+ 内存适配器 + localStorage 适配器；写入同时进 outbox（同步引擎以后从这里 push）。`Store` 持有内存快照，UI 同步读、永不等待存储。
+- `apps/client`：Vite + React + React Aria Components；皮肤层 = CSS 变量令牌（Apple / WinUI 3 / Material 3 × 明暗）+ 平台形状；自动按 UA 检测平台（Tauri 端用 os 插件），设置里可手动切；桌面侧边栏 / 手机底部标签栏按宽度切换。
+  - 页面：我的一天（首页，拖动排序、昨天没做完、建议）、列表（Agenda，今天居中）、组（卡片 + 组详情：列表 / 按类型版式的卡片 / 组内依赖图）、人物（头像列表 + 详情）、依赖图（xyflow + elkjs 分层布局，拖线连依赖，成环弹提示，颜色区分状态）、可做、打卡（总热力图 + 每任务迷你热力图 + 连续天数 + 今日操作 + 倒数日）、设置。
+  - 全局：⌘K / Ctrl+K 搜索并直接“加入我的一天”；N 快速新建（先选类型，预填字段与正文模板）；完成时提示解锁了哪些后续，可一键“然后呢？”新建后续。
+  - Markdown：M0 用 textarea + 预览（marked + DOMPurify）。
+- `apps/client/src-tauri`：手写 Tauri 2 配置（identifier `dev.rei8t.mindough`，productName Mindough，os 插件），图标已生成；本机无 Rust，未编译。
+- `apps/server`：Worker `mindough` 占位（`/api/health`），wrangler.jsonc 已按 custom domain 配好，未部署。
+
+M0 实现时定下的细节（可改）：
+- 皮肤映射：macOS / iOS → Apple，Windows → WinUI，Android 与 Linux / 未知 → Material。
+- 重复规则以 RRULE 子集字符串入库；每次“应打卡日”开一个周期，持续到下一次应打卡日前一天，周期键 = 该日。创建日之前的周期只在已达标时计入连续天数。
+- 计时：有目标时长时，须点“结束”且时长达标才算完成；运行中进度环可到 100%。
+- 取消的前置不再阻塞后续。
+- 非重复的打卡任务达标后自动标“完成”并解锁后续；重复任务只记周期进度，不改状态。
+- 内置类型用固定 id（UUIDv7 格式、时间戳 0），各设备一致；`updated_at` 最小，用户修改总会胜出。
+- 热力图一周从周一开始；无需打卡的日子显示为浅格。
+- 列表（Agenda）只放有日期的非重复任务；重复任务在打卡页。
+- 从侧边栏 / 快捷键新建（不在组内、未指定日期）的任务自动加入我的一天。
+
+### M1：真存储 + 原生包 + 登录
+- SQLite 适配器：原生端 tauri-plugin-sql 或 Turso 本地库；Web 端 SQLite WASM（OPFS）。同一 schema，实现 `StorageAdapter`；从 localStorage 迁移。
+- GitHub Actions 打 macOS / Windows / Android 包发布到 Releases（iOS 待签名方案）；`tauri android/ios init`。
+- Google 登录：Worker `mindough` 上线（OAuth、静态资源托管 Web 端、ADMIN_EMAILS 白名单待定）；原生端系统浏览器 + deep link 回调。
+- Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
+
+### M2：多端同步
+- 定同步引擎（A Turso Sync 推荐 / B 自建 Worker + D1）；从 outbox push、按游标 pull；字段级 / 行级 LWW；check_in 只追加；合并后重跑环检测并标冲突边。
+- 图片上传 R2，asset 只存引用。
+
+### 以后
+- 自定义类型编辑器（版式、字段、模板、图标、颜色）；类型隐藏 / 排序。
+- 提醒通知（计时到点、倒数日）、桌面 / 主屏小组件。
+- 按名称自动找图（TMDB / Steam / Open Library）。
+- 下面“以后再做”里的 SS/FF/SF、关键路径、甘特图等。
 
 ## 以后再做
 SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、body_md 逐字合并（CRDT）、导入导出 Markdown 文件夹。

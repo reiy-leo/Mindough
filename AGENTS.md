@@ -11,8 +11,10 @@
 - SS/FF/SF、lag、关键路径、甘特图（数据模型先留字段）
 - 任务正文逐字合并（同步按整段后写赢）
 
-## 技术栈（计划，开工时落定版本）
-- Tauri 2（桌面 + iOS/Android）+ TypeScript（strict）+ React + Vite
+## 技术栈（M0 已落定的版本标 ✅）
+- ✅ TypeScript 5.9（strict + noUncheckedIndexedAccess）、React 19、Vite 8、Vitest 4、pnpm workspace
+- ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（编辑先用 textarea）
+- Tauri 2（桌面 + iOS/Android；src-tauri 已写好，未在 CI 编译）
 - UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
@@ -20,15 +22,45 @@
 - 同步：引擎待定（Turso Sync 推荐 / 自建 Worker + D1），见 PLAN“同步引擎选型”；Worker `mindough`（域名 `mindough.rei8t.dev`）负责 Google OAuth、Web 静态资源与签发同步凭据；图片放 R2
 - 包管理：pnpm；测试 Vitest
 
-## 目录（计划）
+## 目录（M0 实际）
 ```
-apps/client/        React 前端（Tauri 与 Web 共用）
-apps/client/src-tauri/  Tauri 外壳
-apps/server/        Cloudflare Worker（同步 API + Web 静态资源）
-packages/core/      纯逻辑：数据模型、DAG/环检测、状态派生、同步合并（必须有单测）
-docs/               PLAN.md、PRODUCT.md
-.agents/            skills / rules / prompts / memory
+packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts）
+  types.ts              全部表的行类型（UUIDv7 id + HLC updated_at + deleted）
+  uuid.ts hlc.ts        UUIDv7 生成、混合逻辑时钟
+  dag.ts                环检测、派生状态（可开始/被阻塞+缺哪些）、解锁后续
+  recurrence.ts         RRULE 子集、周期键、连续天数
+  checkin.ts            check_in 事件折叠出进度（计时/计量/点一下/倒数日）、热力图比例索引
+  heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
+  preview.ts search.ts  无标题任务的预览、⌘K 搜索
+  store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）
+  storage/              StorageAdapter 接口；memory、localStorage（web）适配器
+  seed/                 内置 11 种类型（固定 id）、演示数据
+apps/client/src/
+  skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
+  styles/app.css        结构样式（只用令牌变量）
+  ui/primitives.tsx     React Aria 包装（Button、Sheet、Field、Select、Segmented…）
+  components/ pages/    业务组件与页面（不写死平台样式）
+  lib/ store/           设置、路由、提示、Store 上下文
+apps/client/src-tauri/  Tauri 2 外壳
+apps/server/            Cloudflare Worker 占位（wrangler.jsonc；未部署）
+docs/                   PLAN.md、PRODUCT.md
+.agents/                skills / rules / prompts / memory
 ```
+
+## 命令
+| 用途 | 命令 |
+|---|---|
+| 安装 | `pnpm install` |
+| Web 开发 | `pnpm dev`（:1420） |
+| 单测 | `pnpm test`（= `pnpm -r test`） |
+| 类型检查 | `pnpm typecheck`（= `pnpm -r typecheck`） |
+| 构建 | `pnpm build`；只构建客户端 `pnpm --filter client build` |
+| 预览构建 | `pnpm --filter client preview`（:4173） |
+| 桌面 | `pnpm tauri dev` / `pnpm tauri build`（需 Rust） |
+| 重新生成图标 | `pnpm --filter client tauri icon src-tauri/icons/source.svg -o src-tauri/icons` |
+| Worker 本地 | `pnpm --filter server dev`（需 `.dev.vars`） |
+
+截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍。
 
 ## 代码规范
 - 界面文案中文；HTTP 状态码出现时附中文说明（如「408 请求超时」）。
@@ -38,7 +70,7 @@ docs/               PLAN.md、PRODUCT.md
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
-- 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在四种皮肤下截图检查。
+- 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在三种皮肤（Apple / WinUI / Material）× 桌面 / 手机下截图检查。
 
 ## 禁止事项
 - 不提交密钥、OAuth secret、`.keys/`、`.env`、`.dev.vars`。
