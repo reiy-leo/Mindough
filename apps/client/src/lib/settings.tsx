@@ -66,7 +66,17 @@ function useWidth(): number {
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [stored, setStored] = useState<Settings>(load);
   const settings = useMemo(() => ({ ...stored, ...urlOverrides() }), [stored]);
-  const platform = useMemo(() => detectPlatform(navigator as Navigator & { userAgentData?: { platform?: string } }), []);
+  const [platform, setPlatform] = useState<Platform>(() => detectPlatform(navigator as Navigator & { userAgentData?: { platform?: string } }));
+  // Tauri 端用 os 插件拿准确的平台（iPadOS 等 UA 不可靠的情况）
+  useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    import('@tauri-apps/plugin-os')
+      .then(({ platform: p }) => {
+        const v = p();
+        if (v === 'macos' || v === 'ios' || v === 'windows' || v === 'android' || v === 'linux') setPlatform(v);
+      })
+      .catch(() => {});
+  }, []);
   const prefersDark = useMedia('(prefers-color-scheme: dark)');
   const width = useWidth();
   const skin = resolveSkin(settings.skin, platform);
