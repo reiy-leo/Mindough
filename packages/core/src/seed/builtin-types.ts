@@ -21,7 +21,13 @@ export const BUILTIN_TYPE_IDS = {
   person: tid(10),
 } as const;
 
-const BASE = { updated_at: '0000000000000-0000-builtin', deleted: false, builtin: true, hidden: false } as const;
+/**
+ * 内置定义的版本戳。改了内置类型的定义（如资料库拆分 资料字段 / 任务字段）就把序号加一：
+ * 打开时，存着的内置类型若仍是更早的内置版本（用户没改过），自动换成新定义；用户改过的（真实 HLC）不动。
+ * r1 = 资料库（2026-10-15）。
+ */
+export const BUILTIN_TYPES_REVISION = '0000000000000-0001-builtin';
+const BASE = { updated_at: BUILTIN_TYPES_REVISION, deleted: false, builtin: true, hidden: false } as const;
 
 export const BUILTIN_TASK_TYPES: TaskType[] = [
   {
@@ -48,8 +54,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'poster', label: '海报', kind: 'image', media: true },
       { key: 'year', label: '年份', kind: 'number' },
       { key: 'kind', label: '电影/剧集', kind: 'select', options: ['电影', '剧集'] },
-      { key: 'episode', label: '季集进度', kind: 'text', placeholder: 'S1E3' },
-      { key: 'platform', label: '平台', kind: 'text' },
+      { key: 'platform', label: '平台', kind: 'text', placeholder: '影院 / Netflix / B 站' },
+      { key: 'episode', label: '看到哪', kind: 'text', placeholder: '第 2 季第 3 集', scope: 'task' },
     ],
     body_template: '## 想看理由\n\n\n## 观后感\n',
     default_completion_mode: 'once',
@@ -66,7 +72,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'name', label: '游戏名', kind: 'text', primary: true },
       { key: 'icon', label: '图标', kind: 'image', media: true },
       { key: 'platform', label: '平台', kind: 'text', placeholder: 'Switch / PC / PS5' },
-      { key: 'progress', label: '进度', kind: 'progress', unit: '%' },
+      { key: 'progress', label: '进度', kind: 'progress', unit: '%', scope: 'task' },
     ],
     body_template: '## 目标\n\n\n## 心得\n',
     default_completion_mode: 'once',
@@ -83,7 +89,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'title', label: '书名', kind: 'text', primary: true },
       { key: 'cover', label: '封面', kind: 'image', media: true },
       { key: 'author', label: '作者', kind: 'text' },
-      { key: 'pages', label: '页数进度', kind: 'progress', unit: '页' },
+      { key: 'total_pages', label: '页数', kind: 'number' },
+      { key: 'pages', label: '读到第几页', kind: 'progress', unit: '页', scope: 'task' },
     ],
     body_template: '## 摘录\n\n\n## 笔记\n',
     default_completion_mode: 'once',
@@ -114,9 +121,10 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     layout: 'icon_name',
     fields: [
       { key: 'name', label: '课程名', kind: 'text', primary: true },
+      { key: 'icon', label: '图标', kind: 'image', media: true },
       { key: 'platform', label: '平台', kind: 'text' },
       { key: 'link', label: '链接', kind: 'link' },
-      { key: 'lessons', label: '课时进度', kind: 'progress', unit: '课时' },
+      { key: 'lessons', label: '学到第几课', kind: 'progress', unit: '课', scope: 'task' },
     ],
     body_template: '## 笔记\n',
     default_completion_mode: 'once',
@@ -132,8 +140,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     fields: [
       { key: 'destination', label: '目的地', kind: 'text', primary: true },
       { key: 'photo', label: '照片', kind: 'image', media: true },
-      { key: 'depart', label: '出发日期', kind: 'date' },
-      { key: 'return', label: '返回日期', kind: 'date' },
+      { key: 'depart', label: '出发日期', kind: 'date', scope: 'task' },
+      { key: 'return', label: '返回日期', kind: 'date', scope: 'task' },
     ],
     body_template: '## 行程\n\n\n## 待办\n- [ ] \n',
     default_completion_mode: 'countdown',
@@ -151,6 +159,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'image', label: '图片', kind: 'image', media: true },
       { key: 'price', label: '价格', kind: 'number' },
       { key: 'link', label: '链接', kind: 'link' },
+      { key: 'quantity', label: '买几件', kind: 'number', scope: 'task' },
     ],
     body_template: '## 备注\n',
     default_completion_mode: 'once',
@@ -183,8 +192,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     fields: [
       { key: 'dish', label: '菜名', kind: 'text', primary: true },
       { key: 'photo', label: '照片', kind: 'image', media: true },
-      { key: 'meal', label: '餐次', kind: 'select', options: ['早餐', '午餐', '晚餐', '加餐'] },
       { key: 'ingredients', label: '食材清单', kind: 'list' },
+      { key: 'meal', label: '餐次', kind: 'select', options: ['早餐', '午餐', '晚餐', '加餐'], scope: 'task' },
     ],
     body_template: '## 做法\n\n\n## 感受\n',
     default_completion_mode: 'once',
@@ -199,7 +208,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     layout: 'icon_name',
     fields: [
       { key: 'person', label: '人物', kind: 'person', primary: true, media: true },
-      { key: 'reason', label: '事由', kind: 'text' },
+      { key: 'reason', label: '事由', kind: 'text', scope: 'task' },
     ],
     body_template: '## 要聊什么\n\n\n## 备注\n',
     default_completion_mode: 'once',

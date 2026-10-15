@@ -78,6 +78,12 @@ export interface Task extends BaseRow {
   recurrence: string | null;
   /** 打卡分类（给重复任务用，见 checkin_category）；可空。 */
   checkin_category_id: string | null;
+  /**
+   * 资料库里的一条资料（片名、海报、作者…都在资料上）；可空。
+   * 多件任务可以指向同一条资料（重看、再去一次）。type_data 只放这件任务自己的字段（看到第几集…）。
+   * 人物类型不走这里，仍用 type_data.person 指向 person 表。
+   */
+  library_item_id: string | null;
   done_at: Timestamp | null;
   sort: number;
   created_at: Timestamp;
@@ -131,6 +137,12 @@ export interface FieldDef {
   /** progress 字段的单位提示，如 "%"、"页"、"集"。 */
   unit?: string;
   placeholder?: string;
+  /**
+   * 字段属于谁：'item' 资料字段（属于这部片 / 这本书本身，存在 library_item 上，多件任务共用），
+   * 'task' 任务字段（属于这一次：看到第几集、读到第几页、这次的预算）。
+   * 省略视作 'item'；主字段（primary）与图片字段（media）总是资料字段。
+   */
+  scope?: 'item' | 'task';
 }
 
 export interface TaskType extends BaseRow {
@@ -164,6 +176,20 @@ export interface Person extends BaseRow {
   relation: string | null;
   birthday: DateKey | null;
   note_md: string;
+}
+
+/**
+ * 资料库里的一条资料：每种非“普通”的类型各有一个库（影视库、书库…），自定义类型自动有库。
+ * name = 主字段（片名、书名…），image = 图片字段（asset id 或外链），fields = 其余资料字段。
+ */
+export interface LibraryItem extends BaseRow {
+  type_id: string;
+  name: string;
+  /** asset id、外链或 data URL（与 type_data 里的图片字段同一种写法）。 */
+  image: string | null;
+  fields: Record<string, FieldValue>;
+  note_md: string;
+  created_at: Timestamp;
 }
 
 export interface TaskPerson extends BaseRow {
@@ -214,6 +240,7 @@ export interface TableMap {
   check_in: CheckIn;
   checkin_category: CheckInCategory;
   asset: Asset;
+  library_item: LibraryItem;
 }
 
 export type TableName = keyof TableMap;
@@ -229,6 +256,7 @@ export const TABLES: readonly TableName[] = [
   'check_in',
   'checkin_category',
   'asset',
+  'library_item',
 ];
 
 /** 写入时调用方提供的部分：id / updated_at / deleted 由存储层补齐。 */

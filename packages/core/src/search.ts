@@ -1,11 +1,13 @@
-/** 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、人物、组。 */
+/** 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、资料库、人物、组。 */
 import { fieldText, taskTitle } from './preview';
-import { isFinished, type Group, type Person, type Task, type TaskPerson, type TaskType } from './types';
+import { itemSubtitle, mergedData } from './library';
+import { isFinished, type Group, type LibraryItem, type Person, type Task, type TaskPerson, type TaskType } from './types';
 
 export type SearchHit =
   | { kind: 'task'; id: string; title: string; snippet: string; score: number; task: Task }
   | { kind: 'person'; id: string; title: string; snippet: string; score: number; person: Person }
-  | { kind: 'group'; id: string; title: string; snippet: string; score: number; group: Group };
+  | { kind: 'group'; id: string; title: string; snippet: string; score: number; group: Group }
+  | { kind: 'item'; id: string; title: string; snippet: string; score: number; item: LibraryItem; type: TaskType | undefined };
 
 export interface SearchIndexInput {
   tasks: readonly Task[];
@@ -13,6 +15,8 @@ export interface SearchIndexInput {
   people: readonly Person[];
   groups: readonly Group[];
   taskPeople: readonly TaskPerson[];
+  /** 资料库条目：任务按它补全片名等字段，条目本身也能搜到。 */
+  items?: readonly LibraryItem[];
 }
 
 const norm = (s: string) => s.toLowerCase().normalize('NFKC');
@@ -53,10 +57,19 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     const name = personById.get(tp.person_id)?.name;
     if (name) peopleOfTask.set(tp.task_id, [...(peopleOfTask.get(tp.task_id) ?? []), name]);
   }
+  const itemById = new Map((input.items ?? []).filter((i) => !i.deleted).map((i) => [i.id, i]));
   const hits: SearchHit[] = [];
-  for (const t of input.tasks) {
-    if (t.deleted) continue;
-    const type = t.type_id ? typeById.get(t.type_id) : undefined;
+  for (const it of itemById.values()) {
+    const type = typeById.get(it.type_id);
+    const sub = itemSubtitle(type, it.fields);
+    const s = scoreText(`${it.name} ${Object.values(it.fields).map(fieldText).join(' ')} ${it.note_md}`, terms);
+    if (s > 0) hits.push({ kind: 'item', id: it.id, title: it.name, snippet: sub, score: s + (scoreText(it.name, terms) > 0 ? 4 : 0), item: it, type });
+  }
+  for (const t0 of input.tasks) {
+    if (t0.deleted) continue;
+    const type = t0.type_id ? typeById.get(t0.type_id) : undefined;
+    const item = t0.library_item_id ? itemById.get(t0.library_item_id) : undefined;
+    const t = item ? { ...t0, type_data: mergedData(type, t0, item) } : t0;
     const fields = Object.entries(t.type_data)
       .map(([k, v]) => {
         const def = type?.fields.find((f) => f.key === k);
@@ -71,7 +84,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     if (s > 0) {
       const titleBoost = scoreText(title, terms) > 0 ? 5 : 0;
       const done = isFinished(t.status) ? -2 : 0;
-      hits.push({ kind: 'task', id: t.id, title, snippet: snippetAround(`${t.body_md} ${extra}`, terms[0]!), score: s + titleBoost + done, task: t });
+      hits.push({ kind: 'task', id: t.id, title, snippet: snippetAround(`${t.body_md} ${extra}`, terms[0]!), score: s + titleBoost + done, task: t0 });
     }
   }
   for (const p of personById.values()) {

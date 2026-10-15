@@ -10,6 +10,7 @@ export * from './myday';
 export * from './preview';
 export * from './describe';
 export * from './search';
+export * from './library';
 export * from './store';
 export * from './storage/adapter';
 export * from './storage/memory';

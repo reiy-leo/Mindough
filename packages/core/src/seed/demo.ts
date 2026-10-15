@@ -144,23 +144,23 @@ export function seedDemo(store: Store): void {
     task('## 想看理由\n大银幕看沙漠和沙虫\n\n## 观后感\n', {
       group_id: watch.id,
       type_id: T.movie,
-      type_data: { title: '沙丘 2', poster: asset(svgArt('沙丘 2', '#e0a458', '#7a3b1d', 200, 300), 200, 300), year: 2024, kind: '电影', platform: '影院' },
+      type_data: { title: '沙丘 2', year: 2024, kind: '电影', platform: '影院' },
       scheduled_date: d(3),
     });
     task('## 想看理由\n听说上海话版本很好\n', {
       group_id: watch.id,
       type_id: T.movie,
-      type_data: { title: '繁花', poster: asset(svgArt('繁花', '#5f2c82', '#49a09d', 200, 300), 200, 300), kind: '剧集', episode: 'S1E12', platform: '腾讯视频' },
+      type_data: { title: '繁花', year: 2023, kind: '剧集', episode: '第 12 集', platform: '腾讯视频' },
       status: '进行中',
     });
     task('## 摘录\n> 给岁月以文明，而不是给文明以岁月。\n', {
       type_id: T.book,
-      type_data: { title: '三体', cover: asset(svgArt('三体', '#0f2027', '#2c5364', 200, 300), 200, 300), author: '刘慈欣', pages: 230 },
+      type_data: { title: '三体', author: '刘慈欣', total_pages: 302, pages: 230 },
       status: '进行中',
     });
     task('## 目标\n通关主线，收集 120 个神庙', {
       type_id: T.game,
-      type_data: { name: '塞尔达传说 王国之泪', icon: asset(svgArt('塞', '#56ab2f', '#a8e063', 96, 96), 96, 96), platform: 'Switch', progress: 60 },
+      type_data: { name: '塞尔达传说 王国之泪', platform: 'Switch', progress: 60 },
     });
 
     // 琐事（时间线）
@@ -179,17 +179,53 @@ export function seedDemo(store: Store): void {
     task('预约年度体检', { scheduled_date: d(5) });
     task('## 想吃什么\n炸酱面 + 卤煮', {
       type_id: T.restaurant,
-      type_data: { name: '胡同里的炸酱面', photo: asset(svgArt('炸酱面', '#f7971e', '#ffd200', 480, 200), 480, 200), address: '东城区某胡同 12 号' },
+      type_data: { name: '胡同里的炸酱面', address: '东城区某胡同 12 号' },
       scheduled_date: d(4),
     });
     const trip = task('## 行程\n- 岚山\n- 东福寺\n\n## 待办\n- [ ] 订酒店\n- [ ] 换日元', {
       type_id: T.travel,
-      type_data: { destination: '京都赏枫', photo: asset(svgArt('京都赏枫', '#ee0979', '#ff6a00', 480, 200), 480, 200), depart: d(24), return: d(29) },
+      type_data: { destination: '京都', depart: d(24), return: d(29) },
       completion_mode: 'countdown',
       target_date: d(24),
     });
     store.linkPerson(trip.id, lin.id);
     task('年底述职', { completion_mode: 'countdown', target_date: d(62) });
+
+    // 资料库：每个库放几条（没有图片，界面用按名字生成的渐变占位）；同一部片可以有好几件任务
+    const lib = (typeId: string, name: string, fields: Record<string, string | number | string[]> = {}) => store.createLibraryItem(typeId, { name, fields });
+    const interstellar = lib(T.movie, '星际穿越', { year: 2014, kind: '电影', platform: '影院' });
+    done('', 400, { type_id: T.movie, library_item_id: interstellar.id, body_md: '第一次在 IMAX 看' });
+    task('## 想看理由\n过年和家人一起重看一遍\n', { type_id: T.movie, library_item_id: interstellar.id, scheduled_date: d(9) });
+    lib(T.movie, '漫长的季节', { year: 2023, kind: '剧集', platform: '腾讯视频' });
+    lib(T.movie, '请回答 1988', { year: 2015, kind: '剧集' });
+    lib(T.movie, '奥本海默', { year: 2023, kind: '电影' });
+    lib(T.movie, '千与千寻', { year: 2001, kind: '电影' });
+    lib(T.book, '置身事内', { author: '兰小欢', total_pages: 320 });
+    lib(T.book, '长安的荔枝', { author: '马伯庸', total_pages: 220 });
+    lib(T.book, '人类简史', { author: '尤瓦尔·赫拉利', total_pages: 440 });
+    lib(T.book, '原则', { author: '瑞·达利欧' });
+    lib(T.game, '星露谷物语', { platform: 'PC' });
+    lib(T.game, '哈迪斯 2', { platform: 'Switch' });
+    lib(T.game, '双人成行', { platform: 'PS5' });
+    lib(T.game, '集合啦！动物森友会', { platform: 'Switch' });
+    lib(T.project, '个人主页', { link: 'https://rei8t.dev' });
+    lib(T.project, '家庭相册备份');
+    const guitar = lib(T.course, '吉他入门', { platform: 'B 站' });
+    task('练会 C、G、Am、F 四个和弦', { type_id: T.course, library_item_id: guitar.id, type_data: { lessons: 4 }, status: '进行中' });
+    lib(T.course, 'CS50', { platform: 'edX', link: 'https://cs50.harvard.edu' });
+    lib(T.course, '日语 N3 冲刺', { platform: '沪江' });
+    lib(T.travel, '大理');
+    lib(T.travel, '成都');
+    lib(T.travel, '冰岛');
+    lib(T.shopping, '降噪耳机', { price: 1299 });
+    lib(T.shopping, '空气炸锅', { price: 399 });
+    lib(T.shopping, '跑鞋', { price: 699 });
+    lib(T.restaurant, '巷口的老火锅', { address: '朝阳区某路 8 号' });
+    lib(T.restaurant, '楼下的咖啡馆');
+    const tomato = lib(T.meal, '番茄炒蛋', { ingredients: ['番茄 2 个', '鸡蛋 3 个', '葱', '糖'] });
+    task('## 做法\n先炒蛋盛出，再炒番茄出汁\n', { type_id: T.meal, library_item_id: tomato.id, type_data: { meal: '晚餐' }, scheduled_date: d(1) });
+    lib(T.meal, '红烧肉', { ingredients: ['五花肉', '冰糖', '生抽', '老抽'] });
+    lib(T.meal, '牛油果吐司');
 
     // 打卡任务（重复）+ 历史
     const daily = formatRecurrence({ kind: 'daily' });

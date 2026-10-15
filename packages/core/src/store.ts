@@ -7,9 +7,21 @@ import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
-import { BUILTIN_TASK_TYPES, PLAIN_TYPE_ID } from './seed/builtin-types';
+import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID } from './seed/builtin-types';
+import {
+  entryOfItem,
+  entryOfPerson,
+  findSameName,
+  hasLibrary,
+  isPersonLibrary,
+  itemData,
+  mergedData,
+  planLibraryMigration,
+  splitTypeData,
+  type LibraryEntry,
+} from './library';
 import { BUILTIN_CHECKIN_CATEGORIES } from './seed/builtin-checkin-categories';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 export interface StoreOptions {
@@ -68,6 +80,8 @@ export class Store {
       for (const row of snap[t] as BaseRow[]) {
         // M0 旧任务没有 checkin_category_id：只在内存补 null，不改写（无语义变化，不必同步）
         if (t === 'task' && (row as Task).checkin_category_id === undefined) (row as Task).checkin_category_id = null;
+        // 资料库之前的任务没有 library_item_id：同上，只在内存补 null
+        if (t === 'task' && (row as Task).library_item_id === undefined) (row as Task).library_item_id = null;
         map.set(row.id, row);
         // 本地时钟不落后于已存数据
         if (row.updated_at && /^\d{13}-/.test(row.updated_at)) store.clock.receive(row.updated_at);
@@ -76,6 +90,7 @@ export class Store {
     store.ensureBuiltinTypes();
     store.ensureBuiltinCheckInCategories();
     store.migrateLegacyStatuses();
+    store.migrateToLibrary();
     await store.flush();
     return store;
   }
@@ -222,12 +237,158 @@ export class Store {
     this.pending = this.pending.then(() => this.adapter.applyChanges(missing.map((row) => ({ table: 'checkin_category', row }))));
   }
 
+  /**
+   * 补齐内置类型；存着的内置类型若是更早的内置版本（用户没改过，updated_at 仍是内置戳），换成新定义。
+   * 用户改过的（真实 HLC）不覆盖，只在内存里补上新定义里各字段的 scope（资料 / 任务），不改写。
+   */
   private ensureBuiltinTypes() {
-    const missing = BUILTIN_TASK_TYPES.filter((t) => !this.tables.task_type.has(t.id));
+    const missing = BUILTIN_TASK_TYPES.filter((t) => {
+      const cur = this.tables.task_type.get(t.id);
+      if (!cur) return true;
+      if (cur.updated_at < BUILTIN_TYPES_REVISION) return true;
+      for (const f of cur.fields) {
+        const def = t.fields.find((x) => x.key === f.key);
+        if (def?.scope && f.scope === undefined) f.scope = def.scope;
+      }
+      return false;
+    });
     if (!missing.length) return;
     for (const t of missing) this.tables.task_type.set(t.id, t);
     this._version++;
     this.pending = this.pending.then(() => this.adapter.applyChanges(missing.map((row) => ({ table: 'task_type', row }))));
+  }
+
+  /**
+   * 资料库迁移：资料直接写在 type_data 里的旧任务 → 资料库条目（按类型 + 规范化名字去重）+ library_item_id。
+   * 资料用确定的 id，两台设备各自迁移会得到同一条。见 library.ts 的 planLibraryMigration。
+   */
+  migrateToLibrary(): number {
+    const plan = planLibraryMigration(this.list('task'), this.list('task_type'), this.list('library_item'));
+    if (!plan.tasks.length) return 0;
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const it of plan.items) rows.push({ table: 'library_item', row: { ...it, deleted: false, updated_at: '' } as BaseRow });
+    for (const p of plan.tasks) {
+      const t = this.tables.task.get(p.id)!;
+      rows.push({ table: 'task', row: { ...t, library_item_id: p.library_item_id, type_data: p.type_data } as BaseRow });
+    }
+    this.write(rows);
+    return plan.tasks.length;
+  }
+
+  // ───────────── 资料库 ─────────────
+
+  /** 任务挂着的资料（未删除）。 */
+  itemOf(task: Pick<Task, 'library_item_id'> | null | undefined): LibraryItem | undefined {
+    return this.get('library_item', task?.library_item_id ?? null);
+  }
+
+  /** 任务显示用的完整字段：资料 + 任务自己的字段。 */
+  taskData(task: Task): Record<string, FieldValue> {
+    return mergedData(this.get('task_type', task.type_id), task, this.itemOf(task));
+  }
+
+  libraryItems(typeId?: string): LibraryItem[] {
+    return this.list('library_item').filter((i) => !typeId || i.type_id === typeId);
+  }
+
+  /** 用到这条资料的任务（人物库：和这个人有关的任务）。 */
+  tasksOfItem(itemId: string): Task[] {
+    return this.tasks().filter((t) => t.library_item_id === itemId);
+  }
+
+  /** 一个库的全部条目（人物类型就是人物列表），带“最近用到”和用到次数，给选择框 / 资料库页用。 */
+  libraryEntries(typeId: string): LibraryEntry[] {
+    const type = this.get('task_type', typeId);
+    if (!hasLibrary(type)) return [];
+    const ms = (iso: string) => Date.parse(iso) || 0;
+    if (isPersonLibrary(type)) {
+      const last = new Map<string, number>();
+      const uses = new Map<string, number>();
+      const key = type.fields.find((f) => f.primary)!.key;
+      for (const t of this.list('task')) {
+        const ids = new Set(this.list('task_person').filter((x) => x.task_id === t.id).map((x) => x.person_id));
+        const v = t.type_data[key];
+        if (typeof v === 'string') ids.add(v);
+        for (const id of ids) {
+          last.set(id, Math.max(last.get(id) ?? 0, ms(t.created_at)));
+          uses.set(id, (uses.get(id) ?? 0) + 1);
+        }
+      }
+      return this.list('person').map((p) => entryOfPerson(typeId, p, last.get(p.id) ?? 0, uses.get(p.id) ?? 0));
+    }
+    const last = new Map<string, number>();
+    const uses = new Map<string, number>();
+    for (const t of this.list('task')) {
+      if (!t.library_item_id) continue;
+      last.set(t.library_item_id, Math.max(last.get(t.library_item_id) ?? 0, ms(t.created_at)));
+      uses.set(t.library_item_id, (uses.get(t.library_item_id) ?? 0) + 1);
+    }
+    return this.libraryItems(typeId).map((i) => entryOfItem(type, i, Math.max(last.get(i.id) ?? 0, ms(i.created_at)), uses.get(i.id) ?? 0));
+  }
+
+  createLibraryItem(typeId: string, data: { name: string; image?: string | null; fields?: Record<string, FieldValue>; note_md?: string }): LibraryItem {
+    return this.insert('library_item', {
+      type_id: typeId,
+      name: data.name.trim(),
+      image: data.image ?? null,
+      fields: data.fields ?? {},
+      note_md: data.note_md ?? '',
+      created_at: this.now().toISOString(),
+    });
+  }
+
+  /** 找同名资料（规范化后），没有就新建。 */
+  findOrCreateLibraryItem(typeId: string, data: { name: string; image?: string | null; fields?: Record<string, FieldValue> }): LibraryItem {
+    const hit = findSameName(this.libraryEntries(typeId), data.name);
+    return (hit && this.get('library_item', hit.id)) || this.createLibraryItem(typeId, data);
+  }
+
+  /** 改资料：所有用到它的任务一起变。 */
+  updateLibraryItem(id: string, patch: Partial<Pick<LibraryItem, 'name' | 'image' | 'fields' | 'note_md'>>): LibraryItem {
+    return this.update('library_item', id, patch);
+  }
+
+  /**
+   * 删一条资料：用到它的任务不跟着删，把资料抄回各自的 type_data 再解开引用，卡片照样显示。
+   */
+  deleteLibraryItem(id: string): void {
+    const item = this.tables.library_item.get(id);
+    if (!item || item.deleted) return;
+    const type = this.get('task_type', item.type_id);
+    const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'library_item', row: { ...item, deleted: true } }];
+    for (const t of this.list('task'))
+      if (t.library_item_id === id) rows.push({ table: 'task', row: { ...t, library_item_id: null, type_data: { ...itemData(type, item), ...t.type_data } } as BaseRow });
+    this.write(rows);
+  }
+
+  /** 给任务换一条资料（或解开：null）。 */
+  setTaskItem(taskId: string, itemId: string | null): Task {
+    return this.updateTask(taskId, { library_item_id: itemId });
+  }
+
+  /**
+   * 改任务类型：原来的资料抄回 type_data（“改类型时保留已填字段”），再按新类型重新挂资料。
+   */
+  changeTaskType(taskId: string, typeId: string | null): Task {
+    const t = this.get('task', taskId);
+    if (!t) throw new Error('任务不存在');
+    const next = typeId === PLAIN_TYPE_ID ? null : typeId;
+    if (next === t.type_id) return t;
+    const nt = this.get('task_type', next);
+    const data = this.taskData(t);
+    const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: nt.body_template } : {};
+    const patched = this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
+    return this.attachLibrary(patched);
+  }
+
+  /** 任务的 type_data 里写着资料（有主字段名字）却没挂资料：找同名或新建一条挂上，type_data 只留任务字段。 */
+  private attachLibrary(t: Task): Task {
+    const type = this.get('task_type', t.type_id);
+    if (t.library_item_id || !hasLibrary(type) || isPersonLibrary(type)) return t;
+    const split = splitTypeData(type, t.type_data);
+    if (!split.name) return t;
+    const item = this.findOrCreateLibraryItem(type.id, { name: split.name, image: split.image, fields: split.fields });
+    return this.updateTask(t.id, { library_item_id: item.id, type_data: split.task });
   }
 
   // ───────────── 任务 ─────────────
@@ -239,7 +400,7 @@ export class Store {
     const typeId = input.type_id !== undefined ? input.type_id : (group?.default_type_id ?? null);
     const resolvedType = type ?? this.get('task_type', typeId);
     const maxSort = this.list('task').reduce((m, t) => Math.max(m, t.sort), 0);
-    return this.insert('task', {
+    const created = this.insert('task', {
       body_md: input.body_md ?? resolvedType?.body_template ?? '',
       status: input.status ?? '待办',
       group_id: input.group_id ?? null,
@@ -252,11 +413,14 @@ export class Store {
       target_date: input.target_date ?? null,
       recurrence: input.recurrence ?? null,
       checkin_category_id: input.checkin_category_id ?? null,
+      library_item_id: input.library_item_id ?? null,
       done_at: input.done_at ?? null,
       sort: input.sort ?? maxSort + 1,
       created_at: input.created_at ?? now.toISOString(),
       ...(input.id ? { id: input.id } : {}),
     });
+    // type_data 里直接写了资料（片名…）：挂到资料库（同名复用）
+    return this.attachLibrary(created);
   }
 
   updateTask(id: string, patch: Partial<Omit<Task, 'id' | 'updated_at'>>): Task {

@@ -30,6 +30,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     target_date: 'text?',
     recurrence: 'text?',
     checkin_category_id: 'text?',
+    library_item_id: 'text?',
     done_at: 'text?',
     sort: 'real',
     created_at: 'text',
@@ -55,6 +56,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   check_in: { task_id: 'text', period_key: 'text', kind: 'text', amount: 'real', at: 'text' },
   checkin_category: { name: 'text', icon: 'text', color: 'text', builtin: 'bool', hidden: 'bool', sort: 'real' },
   asset: { sha256: 'text', mime: 'text', width: 'int?', height: 'int?', r2_key: 'text?', url: 'text?' },
+  library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text' },
 };
 
 /** SQL 标识符加引号（"group" 是关键字）。 */
@@ -136,6 +138,20 @@ CREATE TABLE IF NOT EXISTS "outbox" (
   "seq" INTEGER PRIMARY KEY AUTOINCREMENT, "tbl" TEXT NOT NULL, "row_id" TEXT NOT NULL, "updated_at" TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS "meta" ("key" TEXT PRIMARY KEY NOT NULL, "value" TEXT NOT NULL);
+`,
+  },
+  {
+    version: 2,
+    name: '资料库（library_item + task.library_item_id）',
+    sql: `
+CREATE TABLE IF NOT EXISTS "library_item" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "type_id" TEXT NOT NULL, "name" TEXT NOT NULL DEFAULT '', "image" TEXT, "fields" TEXT NOT NULL DEFAULT '{}',
+  "note_md" TEXT NOT NULL DEFAULT '', "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "library_item_type" ON "library_item" ("type_id");
+ALTER TABLE "task" ADD COLUMN "library_item_id" TEXT;
+CREATE INDEX IF NOT EXISTS "task_library_item" ON "task" ("library_item_id");
 `,
   },
 ];

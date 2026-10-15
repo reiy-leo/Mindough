@@ -52,6 +52,7 @@ export function emptySnapshot(): Snapshot {
     check_in: [],
     checkin_category: [],
     asset: [],
+    library_item: [],
   };
 }
 
