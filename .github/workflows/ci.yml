@@ -1,0 +1,30 @@
+# 每次推送 / PR：类型检查、单测、构建（不打原生包）
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 类型检查
+        run: pnpm -r typecheck
+      - name: 单测
+        run: pnpm -r test
+      - name: 构建 Web 客户端
+        run: pnpm --filter client build

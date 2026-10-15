@@ -1,0 +1,140 @@
+# 打原生安装包（未签名）：macOS（universal）、Windows（msi / nsis）、Linux（AppImage / deb）、Android（debug APK）。
+# 手动触发，或推 v* 标签；产物上传为 Actions artifacts，推标签时另建 Release 草稿。
+name: Build apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    name: 桌面 ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS（universal）
+            os: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            artifact: mindough-macos
+            bundle: apps/client/src-tauri/target/universal-apple-darwin/release/bundle
+          - name: Windows
+            os: windows-latest
+            args: ''
+            rust-targets: ''
+            artifact: mindough-windows
+            bundle: apps/client/src-tauri/target/release/bundle
+          - name: Linux
+            os: ubuntu-22.04
+            args: ''
+            rust-targets: ''
+            artifact: mindough-linux
+            bundle: apps/client/src-tauri/target/release/bundle
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux 依赖（WebKitGTK 等）
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/client/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 打包
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/client
+          tauriScript: pnpm tauri
+          args: ${{ matrix.args }}
+          # 只有推标签时才建 Release 草稿；手动触发只出 artifacts
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: Mindough ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          path: |
+            ${{ matrix.bundle }}/dmg/*.dmg
+            ${{ matrix.bundle }}/macos/*.app.tar.gz
+            ${{ matrix.bundle }}/msi/*.msi
+            ${{ matrix.bundle }}/nsis/*.exe
+            ${{ matrix.bundle }}/appimage/*.AppImage
+            ${{ matrix.bundle }}/deb/*.deb
+
+  android:
+    name: Android（debug APK）
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: 安装 NDK
+        run: |
+          sdkmanager --install "ndk;${NDK_VERSION}" "platforms;android-34" "build-tools;34.0.0"
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/client/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      # gen/ 不进仓库（.gitignore），CI 里现生成 Android 工程
+      - name: tauri android init
+        working-directory: apps/client
+        run: |
+          if [ ! -d src-tauri/gen/android ]; then pnpm tauri android init --ci; fi
+
+      - name: 打 debug APK（arm64）
+        working-directory: apps/client
+        run: pnpm tauri android build --apk --debug --target aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mindough-android-debug
+          if-no-files-found: error
+          path: apps/client/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
