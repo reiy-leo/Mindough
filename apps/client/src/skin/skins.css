@@ -788,3 +788,57 @@
   padding: 0;
   border-radius: 0;
 }
+
+/* ───────── 侧边栏分区：各平台的写法 ───────── */
+/* macOS 侧边栏：11pt 粗体、次要灰，悬停出现折叠箭头 */
+[data-skin='apple'] .nav-section-title {
+  padding-left: 10px;
+}
+/* WinUI NavigationViewItemHeader：14px Body Strong、主文字色、无折叠箭头常显；分区之间留 8px */
+[data-skin='winui'] .nav-section-title {
+  height: 36px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
+  padding: 0 12px;
+}
+[data-skin='winui'] .nav-section + .nav-section {
+  margin-top: 4px;
+}
+/* Material 3 navigation drawer：Title small 14sp medium、次要文字，分区之间一条分隔线 */
+[data-skin='material'] .nav-section-title {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-2);
+}
+[data-skin='material'] .nav-section + .nav-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+/* iOS 分组列表：小节标题小写灰字；Material：分组标题用强调色 */
+[data-skin='apple'] .more-section-title {
+  text-transform: uppercase;
+  font-size: 12px;
+}
+[data-skin='material'] .more-section-title {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+[data-skin='winui'] .more-section-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+/* 分区以后项目多了：桌面抽屉用紧凑一档（M3 dense 44dp），标题 40dp */
+[data-skin='material'] .app-desktop .nav-item {
+  height: 44px;
+}
+[data-skin='material'] .app-desktop .nav-section-title {
+  height: 40px;
+}

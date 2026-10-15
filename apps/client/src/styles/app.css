@@ -2585,3 +2585,64 @@ button {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ───────────── 侧边栏分区 ───────────── */
+.nav {
+  gap: 0;
+}
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-section + .nav-section {
+  margin-top: 14px;
+}
+.nav-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: default;
+  outline: none;
+  border-radius: var(--radius-xs);
+}
+.nav-section-title[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.nav-section-chevron {
+  opacity: 0;
+  transition: transform 0.15s var(--ease), opacity 0.12s var(--ease);
+}
+.nav-section-chevron.is-open {
+  transform: rotate(90deg);
+}
+.nav-section-title[data-hovered] .nav-section-chevron,
+.nav-section-title[data-focus-visible] .nav-section-chevron,
+.nav-section-title[aria-expanded='false'] .nav-section-chevron {
+  opacity: 1;
+}
+
+/* 更多（手机）：同样分组 */
+.more-section + .more-section {
+  margin-top: var(--space-5);
+}
+.more-section-title {
+  margin: 0 0 6px var(--space-4);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+.more-icon {
+  display: inline-flex;
+  color: var(--accent);
+}

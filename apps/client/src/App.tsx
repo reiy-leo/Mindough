@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Shapes, Sun, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
@@ -28,17 +28,65 @@ interface NavItem {
   match: Route['page'][];
 }
 
-const NAV: NavItem[] = [
-  { page: 'myday', label: '我的一天', icon: Sun, match: ['myday'] },
-  { page: 'agenda', label: '列表', icon: CalendarDays, match: ['agenda'] },
-  { page: 'groups', label: '组', icon: Shapes, match: ['groups', 'group'] },
-  { page: 'library', label: '资料库', icon: Library, match: ['library', 'libitem', 'people', 'person'] },
-  { page: 'graph', label: '关系图', icon: Network, match: ['graph'] },
-  { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
-  { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
+/**
+ * 导航分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：
+ * 今天（要动手的）· 计划（怎么安排）· 资料（记下的东西）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ */
+interface NavSection {
+  id: 'today' | 'plan' | 'library';
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'today',
+    title: '今天',
+    items: [
+      { page: 'myday', label: '我的一天', icon: Sun, match: ['myday'] },
+      { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
+      { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
+    ],
+  },
+  {
+    id: 'plan',
+    title: '计划',
+    items: [
+      { page: 'agenda', label: '列表', icon: CalendarDays, match: ['agenda'] },
+      { page: 'groups', label: '组', icon: Shapes, match: ['groups', 'group'] },
+      { page: 'graph', label: '关系图', icon: Network, match: ['graph'] },
+    ],
+  },
+  {
+    id: 'library',
+    title: '资料',
+    items: [
+      { page: 'library', label: '资料库', icon: Library, match: ['library', 'libitem'] },
+      { page: 'people', label: '人物', icon: Users, match: ['people', 'person'] },
+    ],
+  },
 ];
+const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 const SETTINGS: NavItem = { page: 'settings', label: '设置', icon: Settings, match: ['settings'] };
-const MOBILE_TABS: Route['page'][] = ['myday', 'agenda', 'checkin', 'graph'];
+const MOBILE_TABS: Route['page'][] = ['myday', 'checkin', 'agenda', 'graph'];
+const COLLAPSED_KEY = 'mindough:nav_collapsed';
+
+function useCollapsed() {
+  const [collapsed, setCollapsed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const toggle = (id: string) =>
+    setCollapsed((c) => {
+      const next = c.includes(id) ? c.filter((x) => x !== id) : [...c, id];
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next));
+      return next;
+    });
+  return [collapsed, toggle] as const;
+}
 
 function NavLink({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
   const Icon = item.icon;
@@ -86,24 +134,34 @@ function Page({ route }: { route: Route }) {
 }
 
 function MorePage() {
-  const items = [...NAV.filter((n) => !MOBILE_TABS.includes(n.page)), SETTINGS];
+  const sections = [
+    ...NAV_SECTIONS.map((sec) => ({ id: sec.id, title: sec.title, items: sec.items.filter((n) => !MOBILE_TABS.includes(n.page)) })),
+    { id: 'settings', title: '', items: [SETTINGS] },
+  ].filter((sec) => sec.items.length > 0);
   return (
     <div className="page">
       <header className="page-header">
         <h1 className="page-title">更多</h1>
       </header>
-      <div className="card more-list">
-        {items.map((n) => {
-          const Icon = n.icon;
-          return (
-            <a key={n.page} className="more-item" href={href({ page: n.page } as Route)}>
-              <Icon size={20} />
-              <span className="grow">{n.label}</span>
-              <ChevronRight size={16} className="muted" />
-            </a>
-          );
-        })}
-      </div>
+      {sections.map((sec) => (
+        <section key={sec.id} className="more-section" aria-label={sec.title || SETTINGS.label}>
+          {sec.title && <h2 className="more-section-title">{sec.title}</h2>}
+          <div className="card more-list">
+            {sec.items.map((n) => {
+              const Icon = n.icon;
+              return (
+                <a key={n.page} className="more-item" href={href({ page: n.page } as Route)}>
+                  <span className="more-icon">
+                    <Icon size={20} />
+                  </span>
+                  <span className="grow">{n.label}</span>
+                  <ChevronRight size={16} className="muted" />
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -147,6 +205,7 @@ export function App() {
   const store = useStore();
   const { layout, skin } = useSettings();
   const isActive = (n: NavItem) => n.match.includes(route.page);
+  const [collapsed, toggleSection] = useCollapsed();
   const todayCount = store.list('my_day').filter((e) => e.date === toDateKey(store.now()) && store.get('task', e.task_id)).length;
 
   // 快捷键：⌘K / Ctrl+K 搜索；N 快速新建（不在输入框时）
@@ -182,9 +241,19 @@ export function App() {
             <kbd className="kbd">{skin === 'apple' ? '⌘K' : 'Ctrl K'}</kbd>
           </RacButton>
           <nav className="nav" aria-label="主导航">
-            {NAV.map((n) => (
-              <NavLink key={n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : undefined} />
-            ))}
+            {NAV_SECTIONS.map((sec) => {
+              const isCollapsed = collapsed.includes(sec.id) && !sec.items.some(isActive);
+              return (
+                <div key={sec.id} className="nav-section" role="group" aria-labelledby={`nav-sec-${sec.id}`}>
+                  <RacButton id={`nav-sec-${sec.id}`} className="nav-section-title" aria-expanded={!isCollapsed} onPress={() => toggleSection(sec.id)}>
+                    <span>{sec.title}</span>
+                    <ChevronRight size={12} aria-hidden className={`nav-section-chevron${isCollapsed ? '' : ' is-open'}`} />
+                  </RacButton>
+                  {!isCollapsed &&
+                    sec.items.map((n) => <NavLink key={n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : undefined} />)}
+                </div>
+              );
+            })}
           </nav>
           <div className="sidebar-foot">
             <NavLink item={SETTINGS} active={isActive(SETTINGS)} />
