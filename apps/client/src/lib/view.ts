@@ -15,12 +15,26 @@ export function resolver(store: Store) {
   return (def: FieldDef, v: FieldValue) => (def.kind === 'person' && typeof v === 'string' ? (store.get('person', v)?.name ?? '') : fieldText(v));
 }
 
+/** 任务显示用的数据（资料库里的资料 + 任务自己的字段）。 */
+export function dataOf(store: Store, task: Task) {
+  return store.taskData(task);
+}
+
+/** 任务标题：资料名（片名…）→ 内容首行。所有界面都从这里取，别直接用 task.type_data。 */
+export function titleOf(store: Store, task: Task): string {
+  return taskTitle({ body_md: task.body_md, type_data: store.taskData(task) }, store.get('task_type', task.type_id), resolver(store));
+}
+
 export interface TaskView {
   task: Task;
   title: string;
   subtitle: string;
   type: TaskType | undefined;
+  /** 资料 + 任务字段合并后的数据。 */
+  data: Record<string, FieldValue>;
   media: string | null;
+  /** 挂着资料却没图时，占位图用的名字（按名字生成渐变 + 缩写）。 */
+  artName: string | null;
   /** 人物类型：主图是对方头像。 */
   mediaIsAvatar: boolean;
   group: Group | undefined;
@@ -30,18 +44,22 @@ export interface TaskView {
 
 export function viewOf(store: Store, task: Task): TaskView {
   const type = store.get('task_type', task.type_id);
+  const data = store.taskData(task);
+  const shaped = { body_md: task.body_md, type_data: data };
   const key = mediaFieldKey(type);
   const def = type?.fields.find((f) => f.key === key);
   let media: string | null = null;
   let mediaIsAvatar = false;
   if (def?.kind === 'person') {
-    media = personAvatar(store, store.get('person', task.type_data[def.key] as string));
+    media = personAvatar(store, store.get('person', data[def.key] as string));
     mediaIsAvatar = true;
-  } else if (key) media = imageUrl(store, task.type_data[key]);
+  } else if (key) media = imageUrl(store, data[key]);
   return {
     task,
-    title: taskTitle(task, type, resolver(store)),
-    subtitle: taskSubtitle(task, type),
+    title: taskTitle(shaped, type, resolver(store)),
+    subtitle: taskSubtitle(shaped, type),
+    data,
+    artName: store.itemOf(task)?.name ?? null,
     type,
     media,
     mediaIsAvatar,

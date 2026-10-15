@@ -1,12 +1,12 @@
-import { CycleError, DuplicateEdgeError, SelfLoopError, isFinished, taskTitle, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
+import { CycleError, DuplicateEdgeError, SelfLoopError, isFinished, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
 import type { useUi } from './ui';
-import { resolver } from './view';
+import { titleOf as taskTitleOf } from './view';
 
 type Ui = ReturnType<typeof useUi>;
 
 function titleOf(store: Store, id: string) {
   const t = store.get('task', id);
-  return t ? taskTitle(t, store.get('task_type', t.type_id), resolver(store)) : '任务';
+  return t ? taskTitleOf(store, t) : '任务';
 }
 
 /** 结束（完成 / 关闭）后的提示：解锁了哪些后续 + “然后呢？”一键新建后续 + 撤销。 */

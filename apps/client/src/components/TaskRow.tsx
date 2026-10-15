@@ -8,6 +8,7 @@ import { STATE_CLASS, viewOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
+import { ItemArt } from './library/Library';
 
 export interface TaskRowProps {
   store: Store;
@@ -22,10 +23,12 @@ export interface TaskRowProps {
   showCheckIn?: boolean;
 }
 
-export function TaskThumb({ media, layout, isAvatar, color, icon }: { media: string | null; layout: string; isAvatar: boolean; color?: string; icon?: string }) {
+export function TaskThumb({ media, layout, isAvatar, color, icon, name }: { media: string | null; layout: string; isAvatar: boolean; color?: string; icon?: string; name?: string | null }) {
   const Icon = typeIcon(icon);
   if (media) return <img className={`thumb thumb-${isAvatar ? 'avatar' : layout}`} src={media} alt="" />;
   if (layout === 'text') return null;
+  // 资料没有图：按名字生成的渐变占位
+  if (name) return <ItemArt src={null} name={name} shape={layout === 'poster' ? 'poster' : layout === 'banner' ? 'banner' : 'square'} className={`thumb thumb-${layout}`} />;
   return (
     <span className="thumb thumb-icon" style={{ color }}>
       <Icon size={16} />
@@ -64,7 +67,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           </span>
         </Checkbox>
       )}
-      <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} />
+      <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} name={v.artName} />
       <RacButton className="row-main" onPress={() => ui.openEditor(task.id)}>
         <span className="row-title">{v.title}</span>
         <span className="row-meta">
@@ -98,7 +101,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}
         </span>
       </RacButton>
-      <AvatarStack store={store} people={v.people.filter((p) => !(v.mediaIsAvatar && task.type_data.person === p.id))} />
+      <AvatarStack store={store} people={v.people.filter((p) => !(v.mediaIsAvatar && v.data.person === p.id))} />
       {isCheckInRow && showCheckIn && <CheckInControl store={store} task={task} compact />}
       {trailing}
       {showMyDay && (

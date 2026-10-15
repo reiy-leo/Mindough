@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, ListChecks, Menu, Network, Plus, Search, Settings, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Shapes, Sun, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
@@ -8,7 +8,9 @@ import { useStore } from './store/StoreProvider';
 import { MyDayPage } from './pages/MyDay';
 import { AgendaPage } from './pages/Agenda';
 import { GroupDetailPage, GroupsPage } from './pages/Groups';
-import { PeoplePage, PersonDetailPage } from './pages/People';
+import { PersonDetailPage } from './pages/People';
+import { LibraryItemPage, LibraryPage } from './pages/Library';
+import { BUILTIN_TYPE_IDS } from '@mindough/core';
 import { GraphPage } from './pages/Graph';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
@@ -30,7 +32,7 @@ const NAV: NavItem[] = [
   { page: 'myday', label: '我的一天', icon: Sun, match: ['myday'] },
   { page: 'agenda', label: '列表', icon: CalendarDays, match: ['agenda'] },
   { page: 'groups', label: '组', icon: Shapes, match: ['groups', 'group'] },
-  { page: 'people', label: '人物', icon: Users, match: ['people', 'person'] },
+  { page: 'library', label: '资料库', icon: Library, match: ['library', 'libitem', 'people', 'person'] },
   { page: 'graph', label: '关系图', icon: Network, match: ['graph'] },
   { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
   { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
@@ -62,7 +64,12 @@ function Page({ route }: { route: Route }) {
     case 'group':
       return <GroupDetailPage id={route.id} />;
     case 'people':
-      return <PeoplePage />;
+      // 人物库：资料库里的「人物」
+      return <LibraryPage typeId={BUILTIN_TYPE_IDS.person} />;
+    case 'library':
+      return <LibraryPage {...(route.typeId ? { typeId: route.typeId } : {})} />;
+    case 'libitem':
+      return <LibraryItemPage typeId={route.typeId} id={route.id} />;
     case 'person':
       return <PersonDetailPage id={route.id} />;
     case 'graph':

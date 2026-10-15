@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarDays, CircleHelp, CornerDownRight, Shapes, Users } from 'lucide-react';
-import { PLAIN_TYPE_ID, friendlyDate, taskTitle, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store } from '@mindough/core';
+import { PLAIN_TYPE_ID, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -9,7 +9,8 @@ import { AutoTextarea, Button, PopoverPanel, Sheet, Tip } from '../../ui/primiti
 import { CategoryPicker } from '../CheckInCategory';
 import { AvatarStack } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
-import { resolver } from '../../lib/view';
+import { titleOf } from '../../lib/view';
+import { ItemCard, ItemEditor, LibraryPicker, draftEntry, emptyDraft, saveDraft, type ItemDraft } from '../library/Library';
 import { CompletionChoice, CompletionSentence, GroupList, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults, type CompletionValue } from './pickers';
 import { DatePanel } from './DatePanel';
 
@@ -43,6 +44,10 @@ interface Draft extends CompletionValue {
   date: string | null;
   groupId: string | null;
   people: string[];
+  /** 资料库：选中的条目（资料或人物 id）、正在新建的资料、搜索词。 */
+  entryId: string | null;
+  newItem: ItemDraft | null;
+  query: string;
 }
 
 function initialDraft(store: Store, d: NewTaskInput): Draft {
@@ -64,6 +69,9 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     date: d.scheduled_date ?? null,
     groupId: d.group_id ?? null,
     people: [],
+    entryId: d.library_item_id ?? (type && isPersonLibrary(type) && typeof d.type_data?.person === 'string' ? d.type_data.person : null),
+    newItem: null,
+    query: '',
   };
 }
 
@@ -84,31 +92,52 @@ function Composer() {
   const today = toDateKey(store.now());
   const types = useMemo(() => store.list('task_type').filter((t) => !t.hidden).sort((a, b) => a.sort - b.sort), [store]);
   const type = store.get('task_type', d.typeId);
+  const lib = hasLibrary(type) ? type : null;
+  const person = !!lib && isPersonLibrary(lib);
+  const taskFields = lib ? taskFieldsOf(lib) : [];
   const typed = !!type && type.id !== PLAIN_TYPE_ID && type.fields.length > 0;
+  const entry = lib && d.entryId ? store.libraryEntries(lib.id).find((e) => e.id === d.entryId) : undefined;
   const group = store.get('group', d.groupId);
   const people = d.people.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
   const after = req.after ? store.get('task', req.after) : undefined;
-  const afterTitle = after ? taskTitle(after, store.get('task_type', after.type_id), resolver(store)) : '';
+  const afterTitle = after ? titleOf(store, after) : '';
   const primaryKey = type?.fields.find((f) => f.primary)?.key;
-  const hasContent = d.body.trim() !== '' || (!!primaryKey && !!d.typeData[primaryKey]);
+  const hasItem = !!entry || !!d.newItem?.name.trim();
+  const hasContent = d.body.trim() !== '' || hasItem || (!lib && !!primaryKey && !!d.typeData[primaryKey]);
   const needsDate = d.completion_mode === 'countdown' && !d.target_date;
   const canAdd = hasContent && !needsDate;
 
   useEffect(() => {
     // 打开即可输入：React Aria 的 Dialog 会先把焦点放在自己身上，晚一帧再聚焦正文
+    // 资料库类型由选择框自己聚焦
+    if (lib && !entry) return;
     const t = setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer-body')?.focus(), 30);
     return () => clearTimeout(t);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const focusBody = () => setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer-body')?.focus(), 30);
 
   const title = after ? '接下来做什么' : group && req.defaults.group_id ? `在「${group.name}」里新建` : req.defaults.recurrence ? '新建打卡' : '新建任务';
 
   const submit = () => {
     if (!canAdd) return;
     const recurring = !!d.recurrence;
+    // 资料库类型：资料存进库（新建的先存），任务只留任务字段
+    let typeData = d.typeData;
+    let itemId: string | null = null;
+    if (lib) {
+      const own = new Set(taskFields.map((f) => f.key));
+      typeData = Object.fromEntries(Object.entries(d.typeData).filter(([k]) => own.has(k)));
+      const id = d.newItem?.name.trim() ? saveDraft(store, lib, d.newItem) : d.entryId;
+      if (person) {
+        if (id) typeData = { ...typeData, [primaryKey!]: id };
+      } else itemId = id;
+    }
     const input: NewTaskInput = {
       ...(d.body.trim() ? { body_md: d.body.trim() } : {}),
       type_id: d.typeId === PLAIN_TYPE_ID ? null : d.typeId,
-      type_data: d.typeData,
+      type_data: typeData,
+      library_item_id: itemId,
       group_id: d.groupId,
       scheduled_date: d.date,
       completion_mode: d.completion_mode,
@@ -124,7 +153,7 @@ function Composer() {
     const toMyDay = !req.after && req.defaults.scheduled_date === undefined && !d.groupId && !d.date && !recurring;
     if (toMyDay) store.addToMyDay(t.id);
     ui.closeQuickCreate();
-    const name = taskTitle(t, type, resolver(store));
+    const name = titleOf(store, store.get('task', t.id) ?? t);
     ui.toast(
       {
         tone: 'success',
@@ -144,7 +173,9 @@ function Composer() {
 
   const pickType = (id: string) => {
     const nt = store.get('task_type', id);
-    const p: Partial<Draft> = { typeId: id };
+    const p: Partial<Draft> = { typeId: id, entryId: null, newItem: null, query: '' };
+    // 已经写了一行字再选类型：把它当作要找的名字（「沙丘」→ 选影视 → 直接搜到）
+    if (hasLibrary(nt) && d.body.trim() && !d.body.includes('\n') && d.body.trim().length <= 40) Object.assign(p, { query: d.body.trim(), body: '' });
     // 类型可以带默认的完成方式（如旅行 → 倒数日）；用户自己挑过就不动
     if (nt && !d.modeTouched) Object.assign(p, modeDefaults(nt.default_completion_mode, d));
     set(p);
@@ -171,7 +202,7 @@ function Composer() {
           <Button variant="secondary" className="composer-cancel" onPress={() => ui.closeQuickCreate()}>
             取消
           </Button>
-          <Tip content={needsDate ? '先选好目标日期' : !hasContent ? '先写下要做什么' : `${mod} + Enter`}>
+          <Tip content={needsDate ? '先选好目标日期' : !hasContent ? (lib ? libraryCopy(lib).pick.replace('…', '') : '先写下要做什么') : `${mod} + Enter`}>
             <Button variant="primary" className="composer-add" isDisabled={!canAdd} onPress={submit}>
               添加
             </Button>
@@ -186,7 +217,48 @@ function Composer() {
             <span className="ellipsis">做完「{afterTitle}」之后</span>
           </div>
         )}
-        <AutoTextarea label="内容" className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={typed ? '还想记点什么？（可以不填）' : '要做什么？'} minRows={1} />
+        {lib &&
+          (entry ? (
+            <ItemCard
+              store={store}
+              type={lib}
+              entry={entry}
+              actions={
+                <Button variant="quiet" className="item-card-swap" onPress={() => set({ entryId: null, query: '' })}>
+                  换一个
+                </Button>
+              }
+            />
+          ) : d.newItem ? (
+            <section className="composer-newitem" aria-label={`新的${libraryCopy(lib).short}`}>
+              <div className="composer-newitem-head">
+                <span>
+                  添加到{libraryCopy(lib).name}
+                </span>
+                <RacButton className="link-btn" onPress={() => set({ newItem: null, query: d.newItem?.name ?? '' })}>
+                  换一个
+                </RacButton>
+              </div>
+              <ItemEditor store={store} type={lib} value={d.newItem} onChange={(v) => set({ newItem: v })} />
+            </section>
+          ) : (
+            <LibraryPicker
+              store={store}
+              type={lib}
+              query={d.query}
+              onQueryChange={(q) => set({ query: q })}
+              autoFocus
+              onPick={(e) => {
+                set({ entryId: e.id, query: '' });
+                focusBody();
+              }}
+              onCreate={(name) => {
+                set({ newItem: emptyDraft(name) });
+                setTimeout(() => document.querySelector<HTMLInputElement>('.composer-newitem .item-editor-fields input')?.focus(), 40);
+              }}
+            />
+          ))}
+        <AutoTextarea label="内容" className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={lib || typed ? '还想记点什么？（可以不填）' : '要做什么？'} minRows={1} />
 
         <div className="prop-chips" role="group" aria-label="更多属性">
           <PopoverPanel label="类型" trigger={<PropChip icon={<TypeIcon size={14} />} label="类型" {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: type.name, color: type.color } : {})} />}>
@@ -242,7 +314,9 @@ function Composer() {
           </PopoverPanel>
         </div>
 
-        {typed && type && <TypeFields store={store} type={type} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />}
+        {lib
+          ? taskFields.length > 0 && <TypeFields bare store={store} type={{ ...lib, fields: taskFields }} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />
+          : typed && type && <TypeFields store={store} type={type} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />}
 
         <section className="composer-section">
           <h3 className="composer-label">怎么算完成</h3>

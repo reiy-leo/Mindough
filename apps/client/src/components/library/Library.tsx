@@ -1,0 +1,404 @@
+/**
+ * 资料库共用件：占位图 / 图片（ItemArt）、选择框（LibraryPicker）、资料编辑（ItemEditor）、
+ * 选中的资料卡（ItemCard）、编辑资料弹层（ItemSheet）。文案见 docs/COPY.md「资料库」。
+ */
+import { useEffect, useId, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { Button as RacButton } from 'react-aria-components';
+import { ImagePlus, Plus, Search } from 'lucide-react';
+import {
+  extraItemFieldsOf,
+  findSameName,
+  isPersonLibrary,
+  itemSubtitle,
+  libraryCopy,
+  placeholderArt,
+  searchLibrary,
+  type FieldValue,
+  type LibraryEntry,
+  type Store,
+  type TaskType,
+} from '@mindough/core';
+import { imageUrl } from '../../lib/view';
+import { Button, Field, Sheet } from '../../ui/primitives';
+import { FieldInput } from '../task/pickers';
+
+export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
+
+/** 类型版式 → 图片形状：海报竖版、图标方形、横幅、人物圆形。 */
+export function artShape(type: Pick<TaskType, 'layout' | 'fields'> | null | undefined): ArtShape {
+  if (!type) return 'square';
+  if (isPersonLibrary(type)) return 'round';
+  if (type.layout === 'poster') return 'poster';
+  if (type.layout === 'banner') return 'banner';
+  return 'square';
+}
+
+/** 资料的图：有图显示图，没有就是按名字生成的渐变 + 缩写。宽度由外层给，高度按形状比例。 */
+export function ItemArt({ src, name, shape, className, style }: { src: string | null; name: string; shape: ArtShape; className?: string; style?: CSSProperties }) {
+  const art = placeholderArt(name || '?');
+  return (
+    <span className={`art art-${shape}${src ? ' has-image' : ''}${className ? ` ${className}` : ''}`} style={{ '--art-from': art.from, '--art-to': art.to, ...style } as CSSProperties} aria-hidden>
+      {src ? <img src={src} alt="" loading="lazy" draggable={false} /> : <span className="art-initials">{art.initials}</span>}
+    </span>
+  );
+}
+
+export function entryArt(store: Store, e: Pick<LibraryEntry, 'image' | 'name'>, shape: ArtShape, className?: string) {
+  return <ItemArt src={imageUrl(store, e.image)} name={e.name} shape={shape} {...(className ? { className } : {})} />;
+}
+
+// ───────────── 选择框 ─────────────
+
+/**
+ * 在一个库里挑一条：边打字边搜（模糊、最近用到在前），带缩略图；最后一行「新建“xxx”」。
+ * ↑↓ 移动，Enter 选中。
+ */
+export function LibraryPicker({
+  store,
+  type,
+  query,
+  onQueryChange,
+  onPick,
+  onCreate,
+  autoFocus,
+  exclude,
+  className,
+}: {
+  store: Store;
+  type: TaskType;
+  query: string;
+  onQueryChange: (q: string) => void;
+  onPick: (e: LibraryEntry) => void;
+  onCreate: (name: string) => void;
+  autoFocus?: boolean;
+  /** 不列出（详情里“换一个”时排除当前这条）。 */
+  exclude?: string | null;
+  className?: string;
+}) {
+  const copy = libraryCopy(type);
+  const shape = artShape(type);
+  const all = useMemo(() => store.libraryEntries(type.id).filter((e) => e.id !== exclude), [store, store.version, type.id, exclude]); // eslint-disable-line react-hooks/exhaustive-deps
+  const q = query.trim();
+  const results = useMemo(() => searchLibrary(all, q, 40), [all, q]);
+  const same = q ? findSameName(all, q) : undefined;
+  const canCreate = !!q && !same;
+  const count = results.length + (canCreate ? 1 : 0);
+  const [active, setActive] = useState(0);
+  const listId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => setActive(0), [q]);
+  useEffect(() => {
+    if (!autoFocus) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 40);
+    return () => clearTimeout(t);
+  }, [autoFocus]);
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
+
+  const choose = (i: number) => {
+    if (i < results.length) onPick(results[i]!);
+    else if (canCreate) onCreate(q);
+  };
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive((a) => (count ? (a + 1) % count : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((a) => (count ? (a - 1 + count) % count : 0));
+    } else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
+      if (!count) return;
+      e.preventDefault();
+      choose(active);
+    }
+  };
+  const optId = (i: number) => `${listId}-${i}`;
+  const empty = all.length === 0;
+
+  return (
+    <div className={`lib-picker${className ? ` ${className}` : ''}`} style={{ '--chip-color': type.color } as CSSProperties}>
+      <div className="lib-picker-field">
+        <Search size={17} className="lib-picker-icon" aria-hidden />
+        <input
+          ref={inputRef}
+          className="lib-picker-input"
+          role="combobox"
+          aria-expanded
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={count ? optId(active) : undefined}
+          aria-label={copy.pick}
+          placeholder={copy.pick}
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          onKeyDown={onKey}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </div>
+      <ul ref={listRef} id={listId} role="listbox" aria-label={copy.name} className="lib-picker-list">
+        {!q && !empty && (
+          <li role="presentation" className="lib-picker-group">
+            最近
+          </li>
+        )}
+        {results.map((e, i) => (
+          <li
+            key={e.id}
+            id={optId(i)}
+            data-index={i}
+            role="option"
+            aria-selected={i === active}
+            className={`lib-option${i === active ? ' is-active' : ''}`}
+            onMouseMove={() => setActive(i)}
+            onMouseDown={(ev) => ev.preventDefault()}
+            onClick={() => choose(i)}
+          >
+            {entryArt(store, e, shape, 'lib-option-art')}
+            <span className="lib-option-text">
+              <span className="lib-option-name">{e.name}</span>
+              {e.subtitle && <span className="lib-option-sub">{e.subtitle}</span>}
+            </span>
+            {e.uses > 0 && <span className="lib-option-meta">{e.uses} 件任务</span>}
+          </li>
+        ))}
+        {canCreate && (
+          <li
+            id={optId(results.length)}
+            data-index={results.length}
+            role="option"
+            aria-selected={active === results.length}
+            className={`lib-option lib-option-create${active === results.length ? ' is-active' : ''}`}
+            onMouseMove={() => setActive(results.length)}
+            onMouseDown={(ev) => ev.preventDefault()}
+            onClick={() => choose(results.length)}
+          >
+            <span className={`lib-option-art lib-create-icon art art-${shape}`}>
+              <Plus size={16} />
+            </span>
+            <span className="lib-option-text">
+              <span className="lib-option-name">新建“{q}”</span>
+              <span className="lib-option-sub">加到{copy.name}，下次直接选</span>
+            </span>
+          </li>
+        )}
+        {empty && !q && <li className="lib-picker-empty">{copy.name}还是空的，输入名字就能新建。</li>}
+        {!empty && q && results.length === 0 && !canCreate && <li className="lib-picker-empty">没有找到</li>}
+      </ul>
+    </div>
+  );
+}
+
+// ───────────── 编辑资料 ─────────────
+
+export interface ItemDraft {
+  name: string;
+  image: string | null;
+  fields: Record<string, FieldValue>;
+  note_md: string;
+}
+
+export const emptyDraft = (name = ''): ItemDraft => ({ name, image: null, fields: {}, note_md: '' });
+
+export function draftOfEntry(store: Store, e: Pick<LibraryEntry, 'kind' | 'id'>): ItemDraft {
+  if (e.kind === 'person') {
+    const p = store.get('person', e.id);
+    return { name: p?.name ?? '', image: p?.avatar_asset_id ?? null, fields: { relation: p?.relation ?? null }, note_md: p?.note_md ?? '' };
+  }
+  const it = store.get('library_item', e.id);
+  return { name: it?.name ?? '', image: it?.image ?? null, fields: { ...(it?.fields ?? {}) }, note_md: it?.note_md ?? '' };
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+async function saveImage(store: Store, file: File): Promise<string> {
+  const data = await readFile(file);
+  return store.insert('asset', { sha256: '', mime: file.type, width: null, height: null, r2_key: null, url: data }).id;
+}
+
+/** 图片：点一下上传，也能直接粘贴图片或图片链接。 */
+function ArtUpload({ store, value, name, shape, label, onChange }: { store: Store; value: string | null; name: string; shape: ArtShape; label: string; onChange: (v: string | null) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const onPaste = async (e: ClipboardEvent) => {
+    const f = [...e.clipboardData.files].find((x) => x.type.startsWith('image/'));
+    if (f) {
+      e.preventDefault();
+      onChange(await saveImage(store, f));
+      return;
+    }
+    const text = e.clipboardData.getData('text').trim();
+    if (/^https?:\/\/\S+$/.test(text)) {
+      e.preventDefault();
+      onChange(text);
+    }
+  };
+  const url = imageUrl(store, value);
+  return (
+    <div className={`art-upload art-upload-${shape}`} onPaste={onPaste}>
+      <RacButton className="art-upload-btn" aria-label={url ? `换${label}` : `添加${label}`} onPress={() => fileRef.current?.click()}>
+        <ItemArt src={url} name={name} shape={shape} />
+        <span className="art-upload-hint">
+          <ImagePlus size={15} />
+          {url ? '换一张' : label}
+        </span>
+      </RacButton>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (f) onChange(await saveImage(store, f));
+          e.target.value = '';
+        }}
+      />
+      {url && (
+        <RacButton className="link-btn art-upload-clear" onPress={() => onChange(null)}>
+          去掉图片
+        </RacButton>
+      )}
+    </div>
+  );
+}
+
+/** 一条资料的编辑：左边图片（上传 / 粘贴），右边名字和其余资料字段。 */
+export function ItemEditor({ store, type, value, onChange, autoFocusName, showNote }: { store: Store; type: TaskType; value: ItemDraft; onChange: (d: ItemDraft) => void; autoFocusName?: boolean; showNote?: boolean }) {
+  const person = isPersonLibrary(type);
+  const shape = artShape(type);
+  const primary = type.fields.find((f) => f.primary);
+  const media = type.fields.find((f) => f.media && !f.primary);
+  const extras = person ? [] : extraItemFieldsOf(type);
+  const set = (p: Partial<ItemDraft>) => onChange({ ...value, ...p });
+  const linkVal = typeof value.image === 'string' && /^https?:/.test(value.image) ? value.image : '';
+  return (
+    <div className={`item-editor shape-${shape}`} style={{ '--chip-color': type.color } as CSSProperties}>
+      <ArtUpload store={store} value={value.image} name={value.name} shape={shape} label={person ? '头像' : (media?.label ?? '图片')} onChange={(v) => set({ image: v })} />
+      <div className="item-editor-fields">
+        <Field label={person ? '名字' : (primary?.label ?? '名称')} value={value.name} onChange={(v) => set({ name: v })} autoFocus={!!autoFocusName} />
+        {person ? (
+          <Field label="关系" value={String(value.fields.relation ?? '')} onChange={(v) => set({ fields: { ...value.fields, relation: v || null } })} placeholder="家人 / 朋友 / 同事" />
+        ) : (
+          <>
+            {extras.map((f) => (
+              <div key={f.key} className={f.kind === 'list' || f.kind === 'link' ? 'span-2' : undefined}>
+                <FieldInput store={store} def={f} value={value.fields[f.key]} onChange={(v) => set({ fields: { ...value.fields, [f.key]: v } })} />
+              </div>
+            ))}
+            {media && <Field className="span-2" label={`${media.label}链接`} value={linkVal} onChange={(v) => set({ image: v.trim() || null })} placeholder="可以直接粘贴图片链接" />}
+          </>
+        )}
+        {showNote && <Field className="span-2" label="备注" multiline rows={3} value={value.note_md} onChange={(v) => set({ note_md: v })} />}
+      </div>
+    </div>
+  );
+}
+
+/** 存下草稿：人物库 → person 表，其余 → library_item；返回条目 id。 */
+export function saveDraft(store: Store, type: TaskType, d: ItemDraft, existingId?: string | null): string {
+  const name = d.name.trim();
+  if (isPersonLibrary(type)) {
+    const data = { name, avatar_asset_id: d.image, relation: (d.fields.relation as string | null) || null, note_md: d.note_md };
+    if (existingId) {
+      store.update('person', existingId, data);
+      return existingId;
+    }
+    return store.insert('person', { ...data, birthday: null }).id;
+  }
+  const fields = Object.fromEntries(Object.entries(d.fields).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.every((x) => !x))));
+  if (existingId) {
+    store.updateLibraryItem(existingId, { name, image: d.image, fields, note_md: d.note_md });
+    return existingId;
+  }
+  return store.findOrCreateLibraryItem(type.id, { name, image: d.image, fields }).id;
+}
+
+/** 选中的资料：缩略图 + 名字 + 一行简介，右边放操作。 */
+export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: Store; type: TaskType; entry: Pick<LibraryEntry, 'name' | 'image' | 'subtitle'>; actions?: ReactNode; size?: 'md' | 'lg' }) {
+  const shape = artShape(type);
+  return (
+    <div className={`item-card shape-${shape} size-${size}`} style={{ '--chip-color': type.color } as CSSProperties}>
+      {entryArt(store, entry, shape, 'item-card-art')}
+      <div className="item-card-text">
+        <div className="item-card-name">{entry.name}</div>
+        {entry.subtitle && <div className="item-card-sub">{entry.subtitle}</div>}
+        {size === 'lg' && actions && <div className="item-card-actions">{actions}</div>}
+      </div>
+      {size !== 'lg' && actions && <div className="item-card-actions">{actions}</div>}
+    </div>
+  );
+}
+
+/** 草稿 → 卡片显示用的条目。 */
+export function draftEntry(type: TaskType, d: ItemDraft) {
+  return { name: d.name, image: d.image, subtitle: isPersonLibrary(type) ? String(d.fields.relation ?? '') : itemSubtitle(type, d.fields) };
+}
+
+/**
+ * 添加 / 编辑资料的弹层。uses > 1 时轻轻提一句：改动会同步到用到它的几件任务。
+ */
+export function ItemSheet({
+  store,
+  type,
+  itemId,
+  initialName,
+  onClose,
+  onSaved,
+}: {
+  store: Store;
+  type: TaskType;
+  /** 有 = 编辑；无 = 添加到库。 */
+  itemId?: string | null;
+  initialName?: string;
+  onClose: () => void;
+  onSaved?: (id: string) => void;
+}) {
+  const person = isPersonLibrary(type);
+  const [d, setD] = useState<ItemDraft>(() => (itemId ? draftOfEntry(store, { kind: person ? 'person' : 'item', id: itemId }) : emptyDraft(initialName)));
+  const copy = libraryCopy(type);
+  const uses = itemId ? (person ? store.tasksOfPerson(itemId).length : store.tasksOfItem(itemId).length) : 0;
+  const ok = d.name.trim() !== '';
+  const save = () => {
+    if (!ok) return;
+    const id = saveDraft(store, type, d, itemId);
+    onSaved?.(id);
+    onClose();
+  };
+  return (
+    <Sheet
+      isOpen
+      onOpenChange={(o) => !o && onClose()}
+      title={itemId ? '编辑资料' : `添加到${copy.name}`}
+      className="modal-item"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          save();
+        }
+      }}
+      footer={
+        <>
+          {uses > 1 && <span className="foot-note">改动会同步到用到它的 {uses} 件任务</span>}
+          <span className="grow" />
+          <Button variant="secondary" onPress={onClose}>
+            取消
+          </Button>
+          <Button variant="primary" isDisabled={!ok} onPress={save}>
+            {itemId ? '保存' : '添加'}
+          </Button>
+        </>
+      }
+    >
+      <ItemEditor store={store} type={type} value={d} onChange={setD} autoFocusName showNote />
+    </Sheet>
+  );
+}

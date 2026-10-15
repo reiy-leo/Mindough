@@ -1,21 +1,19 @@
 import { useState } from 'react';
-import { Button as RacButton } from 'react-aria-components';
-import { Cake, ImagePlus, Plus, Users } from 'lucide-react';
-import { formatDateZh, isFinished } from '@mindough/core';
+import { Cake, ChevronLeft, ImagePlus, Plus } from 'lucide-react';
+import { formatDateZh } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
-import { navigate } from '../lib/router';
+import { href, navigate } from '../lib/router';
 import { Button, Empty, Field, Section, Sheet } from '../ui/primitives';
 import { Avatar } from '../components/Avatar';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
-import { PageHeader } from '../components/PageHeader';
 import { BUILTIN_TYPE_IDS } from '@mindough/core';
 
-function PersonDialog({ id, onClose }: { id?: string; onClose: () => void }) {
+export function PersonDialog({ id, initialName, onClose }: { id?: string; initialName?: string; onClose: () => void }) {
   const store = useStore();
   const p = store.get('person', id);
-  const [name, setName] = useState(p?.name ?? '');
+  const [name, setName] = useState(p?.name ?? initialName ?? '');
   const [relation, setRelation] = useState(p?.relation ?? '');
   const [birthday, setBirthday] = useState(p?.birthday ?? '');
   const [note, setNote] = useState(p?.note_md ?? '');
@@ -69,48 +67,6 @@ function PersonDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   );
 }
 
-export function PeoplePage() {
-  const store = useStore();
-  const [adding, setAdding] = useState(false);
-  const people = store.list('person');
-  return (
-    <div className="page">
-      <PageHeader
-        title="人物"
-        subtitle="把事情和人连起来，点开一个人就能看到和 TA 有关的所有事"
-        icon={<Users size={22} />}
-        actions={
-          <Button variant="primary" onPress={() => setAdding(true)}>
-            <Plus size={16} />
-            添加人物
-          </Button>
-        }
-      />
-      {people.length === 0 ? (
-        <Empty title="还没有人物" />
-      ) : (
-        <div className="people-list">
-          {people.map((p) => {
-            const n = store.tasksOfPerson(p.id).filter((t) => !isFinished(t.status)).length;
-            return (
-              <RacButton key={p.id} className="card person-card" onPress={() => navigate({ page: 'person', id: p.id })}>
-                <Avatar store={store} person={p} size={48} />
-                <span className="person-text">
-                  <span className="person-name">{p.name}</span>
-                  <span className="person-meta">
-                    {p.relation ?? '—'} · {n} 件待办
-                  </span>
-                </span>
-              </RacButton>
-            );
-          })}
-        </div>
-      )}
-      {adding && <PersonDialog onClose={() => setAdding(false)} />}
-    </div>
-  );
-}
-
 export function PersonDetailPage({ id }: { id: string }) {
   const store = useStore();
   const ui = useUi();
@@ -120,6 +76,10 @@ export function PersonDetailPage({ id }: { id: string }) {
   const tasks = store.tasksOfPerson(id);
   return (
     <div className="page">
+      <a className="back-link" href={href({ page: 'people' })}>
+        <ChevronLeft size={16} aria-hidden />
+        人物
+      </a>
       <header className="person-hero">
         <Avatar store={store} person={p} size={72} />
         <div className="grow">
@@ -140,10 +100,7 @@ export function PersonDetailPage({ id }: { id: string }) {
           </Button>
           <Button
             variant="primary"
-            onPress={() => {
-              const t = store.createTask({ type_id: BUILTIN_TYPE_IDS.person, type_data: { person: id } });
-              ui.openEditor(t.id);
-            }}
+            onPress={() => ui.openQuickCreate({ type_id: BUILTIN_TYPE_IDS.person, type_data: { person: id } })}
           >
             <Plus size={16} />
             新建相关任务

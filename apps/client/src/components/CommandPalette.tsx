@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } from 'react-aria-components';
 import { CornerDownLeft, FolderOpen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
-import { isFinished, search, type SearchHit } from '@mindough/core';
+import { isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -9,6 +9,8 @@ import { toggleMyDay } from '../lib/actions';
 import { viewOf } from '../lib/view';
 import { TaskThumb } from './TaskRow';
 import { Avatar } from './Avatar';
+import { ItemArt, artShape } from './library/Library';
+import { imageUrl } from '../lib/view';
 
 /** ⌘K / Ctrl+K 全局搜索：搜正文、类型字段、人物、组；结果直接“加入我的一天”。 */
 export function CommandPalette() {
@@ -26,7 +28,7 @@ export function CommandPalette() {
   const hits = useMemo<SearchHit[]>(
     () =>
       search(
-        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person') },
+        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item') },
         q,
         20,
       ),
@@ -45,6 +47,7 @@ export function CommandPalette() {
     close();
     if (h.kind === 'task') ui.openEditor(h.id);
     else if (h.kind === 'person') navigate({ page: 'person', id: h.id });
+    else if (h.kind === 'item') navigate({ page: 'libitem', typeId: h.item.type_id, id: h.id });
     else navigate({ page: 'group', id: h.id });
   };
   const count = (q.trim() ? 1 : 0) + hits.length;
@@ -57,7 +60,7 @@ export function CommandPalette() {
     return (
       <li key={id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>
         <RacButton className="palette-main" onPress={() => { close(); ui.openEditor(id); }}>
-          <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} />
+          <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} name={v.artName} />
           <span className="palette-text">
             <span className="palette-title">{title}</span>
             <span className="palette-snippet">
@@ -80,7 +83,7 @@ export function CommandPalette() {
       <Modal className="modal palette">
         <Dialog aria-label="搜索" className="dialog">
           <SearchField
-            aria-label="搜索任务、人物、组"
+            aria-label="搜索任务、资料库、人物、组"
             className="palette-search"
             value={q}
             onChange={(v) => {
@@ -106,7 +109,7 @@ export function CommandPalette() {
             }}
           >
             <Search size={18} className="palette-icon" aria-hidden />
-            <Input className="palette-input" placeholder="搜索任务、片名、店名、人物、组…" />
+            <Input className="palette-input" placeholder="搜索任务、资料库、人物、组…" />
             <kbd className="kbd">Esc</kbd>
           </SearchField>
           <ul className="palette-list">
@@ -126,10 +129,35 @@ export function CommandPalette() {
             {hits.map((h, i) => {
               const index = i + (q.trim() ? 1 : 0);
               if (h.kind === 'task') return taskItem(h.id, h.title, h.snippet, index);
+              if (h.kind === 'item')
+                return (
+                  <li key={h.id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>
+                    <RacButton className="palette-main" onPress={() => openHit(h)}>
+                      <ItemArt src={imageUrl(store, h.item.image)} name={h.title} shape={artShape(h.type)} className="palette-art" />
+                      <span className="palette-text">
+                        <span className="palette-title">{h.title}</span>
+                        <span className="palette-snippet">
+                          {h.type ? libraryCopy(h.type).name : '资料库'}
+                          {h.snippet ? ` · ${h.snippet}` : ''}
+                        </span>
+                      </span>
+                    </RacButton>
+                    <RacButton
+                      className="btn btn-tonal palette-add"
+                      onPress={() => {
+                        close();
+                        ui.openQuickCreate({ type_id: h.item.type_id, library_item_id: h.id });
+                      }}
+                    >
+                      <Plus size={15} />
+                      用它新建任务
+                    </RacButton>
+                  </li>
+                );
               return (
                 <li key={h.id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>
                   <RacButton className="palette-main" onPress={() => openHit(h)}>
-                    {h.kind === 'person' ? <Avatar store={store} person={h.person} size={32} /> : <span className="thumb thumb-icon">{h.group.icon || <FolderOpen size={16} />}</span>}
+                    {h.kind === 'person' ? <Avatar store={store} person={h.person} size={32} /> : h.kind === 'group' ? <span className="thumb thumb-icon">{h.group.icon || <FolderOpen size={16} />}</span> : null}
                     <span className="palette-text">
                       <span className="palette-title">{h.title}</span>
                       <span className="palette-snippet">

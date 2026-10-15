@@ -14,16 +14,23 @@ import {
   predecessorsOf,
   successorsOf,
   taskStreak,
-  taskTitle,
+  hasLibrary,
+  isPersonLibrary,
+  libraryCopy,
+  taskFieldsOf,
   toDateKey,
+  type LibraryEntry,
   type Store,
   type Task,
+  type TaskType,
 } from '@mindough/core';
+import { navigate } from '../../lib/router';
+import { ItemCard, ItemSheet, LibraryPicker } from '../library/Library';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
 import { announceComplete, closeTask, toggleMyDay, tryAddDependency } from '../../lib/actions';
-import { imageUrl, resolver } from '../../lib/view';
+import { imageUrl, titleOf } from '../../lib/view';
 import { typeIcon } from '../../lib/icons';
 import { AutoTextarea, Button, ConfirmDialog, OverflowMenu, PopoverPanel, ProgressRing, Sheet, Tip, type MenuAction } from '../../ui/primitives';
 import { Markdown } from '../Markdown';
@@ -244,7 +251,7 @@ function TaskSearch({ store, exclude, onPick }: { store: Store; exclude: Set<str
   const items = store
     .tasks()
     .filter((t) => !exclude.has(t.id))
-    .map((t) => ({ id: t.id, title: taskTitle(t, store.get('task_type', t.type_id), resolver(store)), finished: isFinished(t.status) }))
+    .map((t) => ({ id: t.id, title: titleOf(store, t), finished: isFinished(t.status) }))
     .sort((a, b) => Number(a.finished) - Number(b.finished));
   return (
     <div className="task-search">
@@ -271,7 +278,7 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   const edges = store.edges();
   const preds = predecessorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const succs = successorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
-  const title = (t: Task) => taskTitle(t, store.get('task_type', t.type_id), resolver(store));
+  const title = (t: Task) => titleOf(store, t);
   const exclude = new Set([task.id, ...preds.map((t) => t.id), ...succs.map((t) => t.id)]);
   const derived = store.derived().get(task.id);
   const row = (t: Task, dir: 'pred' | 'succ') => {
@@ -344,6 +351,107 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   );
 }
 
+/**
+ * 资料卡：这件任务用的是库里的哪一条（海报 + 名字 + 简介），可以「换一个」或「编辑资料」。
+ * 资料改了，用到它的任务都会变（编辑弹层里会轻轻提一句）。
+ */
+function LibraryHero({ store, type, task }: { store: Store; type: TaskType; task: Task }) {
+  const ui = useUi();
+  const person = isPersonLibrary(type);
+  const key = type.fields.find((f) => f.primary)!.key;
+  const entryId = person ? (typeof task.type_data[key] === 'string' ? (task.type_data[key] as string) : null) : task.library_item_id;
+  const entry = entryId ? store.libraryEntries(type.id).find((e) => e.id === entryId) : undefined;
+  const copy = libraryCopy(type);
+  const [query, setQuery] = useState('');
+  const [sheet, setSheet] = useState<null | { edit: true } | { create: string }>(null);
+  const attach = (id: string) => {
+    if (person) store.updateTask(task.id, { type_data: { ...task.type_data, [key]: id } });
+    else store.setTaskItem(task.id, id);
+  };
+  const picker = (close: () => void) => (
+    <LibraryPicker
+      store={store}
+      type={type}
+      query={query}
+      onQueryChange={setQuery}
+      exclude={entryId}
+      autoFocus
+      className="in-popover"
+      onPick={(e: LibraryEntry) => {
+        attach(e.id);
+        setQuery('');
+        close();
+      }}
+      onCreate={(name) => {
+        close();
+        setQuery('');
+        setSheet({ create: name });
+      }}
+    />
+  );
+  const open = () => {
+    if (!entryId) return;
+    ui.openEditor(null);
+    navigate(person ? { page: 'person', id: entryId } : { page: 'libitem', typeId: type.id, id: entryId });
+  };
+  return (
+    <>
+      {entry ? (
+        <ItemCard
+          store={store}
+          type={type}
+          size="lg"
+          entry={entry}
+          actions={
+            <>
+              <PopoverPanel
+                label="换一个"
+                placement="bottom end"
+                className="is-wide"
+                trigger={<RacButton className="btn btn-secondary btn-sm">换一个</RacButton>}
+              >
+                {picker}
+              </PopoverPanel>
+              <Button variant="secondary" className="btn-sm" onPress={() => setSheet({ edit: true })}>
+                编辑资料
+              </Button>
+              <RacButton className="link-btn item-card-open" onPress={open}>
+                在{copy.name}里看
+                {entry.uses > 1 ? ` · ${entry.uses} 件任务` : ''}
+                <ChevronRight size={13} aria-hidden />
+              </RacButton>
+            </>
+          }
+        />
+      ) : (
+        <PopoverPanel
+          label={copy.pick}
+          className="is-wide"
+          trigger={
+            <RacButton className="item-card-empty" style={{ '--chip-color': type.color } as CSSProperties}>
+              <Search size={16} aria-hidden />
+              {copy.pick}
+            </RacButton>
+          }
+        >
+          {picker}
+        </PopoverPanel>
+      )}
+      {sheet && (
+        <ItemSheet
+          store={store}
+          type={type}
+          {...('edit' in sheet ? { itemId: entryId } : { initialName: sheet.create })}
+          onClose={() => setSheet(null)}
+          onSaved={(id) => {
+            if (!('edit' in sheet)) attach(id);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function Detail({ task }: { task: Task }) {
   const ui = useUi();
   const store = useStore();
@@ -353,7 +461,9 @@ function Detail({ task }: { task: Task }) {
   const { primary, secondary, today, complete } = useActions(store, task, close);
   const type = store.get('task_type', task.type_id);
   const typed = !!type && type.id !== PLAIN_TYPE_ID && type.fields.length > 0;
-  const title = taskTitle(task, type, resolver(store));
+  const title = titleOf(store, task);
+  const lib = hasLibrary(type) ? type : null;
+  const taskFields = lib ? taskFieldsOf(lib) : [];
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
   const types = store.list('task_type').filter((t) => !t.hidden).sort((a, b) => a.sort - b.sort);
   const group = store.get('group', task.group_id);
@@ -405,9 +515,8 @@ function Detail({ task }: { task: Task }) {
               types={types}
               value={task.type_id ?? PLAIN_TYPE_ID}
               onChange={(id) => {
-                const nt = store.get('task_type', id);
-                // 改类型时保留已填字段（新类型没有的先藏起来不删）；正文为空时套用模板
-                patch({ type_id: id === PLAIN_TYPE_ID ? null : id, ...(task.body_md.trim() === '' && nt?.body_template ? { body_md: nt.body_template } : {}) });
+                // 改类型时保留已填字段（资料抄回任务，新类型没有的先藏起来不删）；正文为空时套用模板
+                store.changeTaskType(task.id, id);
                 c();
               }}
             />
@@ -564,7 +673,8 @@ function Detail({ task }: { task: Task }) {
       >
         <div className={`detail${layout === 'mobile' ? ' is-mobile' : ''}`}>
           <div className="detail-main">
-            {typed && type && (
+            {lib && <LibraryHero store={store} type={lib} task={task} />}
+            {!lib && typed && type && (
               <div className="detail-hero" style={{ '--chip-color': type.color } as CSSProperties}>
                 {media ? (
                   <img className={`hero-media layout-${type.layout}`} src={media} alt="" />
@@ -583,7 +693,12 @@ function Detail({ task }: { task: Task }) {
             )}
             <Body store={store} task={task} placeholder={typed ? '添加笔记…' : '写点什么…'} />
             <Progress store={store} task={task} today={today} />
-            {typed && type && (
+            {lib && taskFields.length > 0 && (
+              <div className="detail-taskfields">
+                <TypeFields bare store={store} type={{ ...lib, fields: taskFields }} data={task.type_data} onChange={(k, v) => patch({ type_data: { ...task.type_data, [k]: v } })} />
+              </div>
+            )}
+            {!lib && typed && type && (
               <Disclosure className="type-disclosure" defaultExpanded={!hasPrimary}>
                 <Heading level={3} className="disclosure-head">
                   <RacButton slot="trigger" className="disclosure-trigger">

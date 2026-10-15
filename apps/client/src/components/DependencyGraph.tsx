@@ -34,6 +34,7 @@ interface NodeData extends Record<string, unknown> {
   media: string | null;
   layout: string;
   isAvatar: boolean;
+  artName: string | null;
   color?: string;
   icon?: string;
 }
@@ -45,7 +46,7 @@ const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }
   return (
     <div className={`graph-node ${STATE_CLASS[data.state] ?? ''}`}>
       <Handle type="target" position={targetPosition ?? Position.Left} className="graph-handle" />
-      <TaskThumb media={data.media} layout={data.layout} isAvatar={data.isAvatar} color={data.color} icon={data.icon} />
+      <TaskThumb media={data.media} layout={data.layout} isAvatar={data.isAvatar} color={data.color} icon={data.icon} name={data.artName} />
       <div className="graph-node-text">
         <div className="graph-node-title">{data.title}</div>
         <div className="graph-node-sub">
@@ -121,6 +122,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
         media: v.media,
         layout: v.type?.layout ?? 'text',
         isAvatar: v.mediaIsAvatar,
+        artName: v.artName,
         color: v.type?.color,
         icon: v.type?.icon,
       },

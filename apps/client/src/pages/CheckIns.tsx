@@ -10,7 +10,6 @@ import {
   isFinished,
   parseRecurrence,
   taskStreak,
-  taskTitle,
   toDateKey,
   type DateKey,
   type Task,
@@ -23,7 +22,7 @@ import { Button, ChipPicker, Empty, Section, Segmented } from '../ui/primitives'
 import { Heatmap } from '../components/Heatmap';
 import { CheckInControl } from '../components/CheckInControl';
 import { PageHeader } from '../components/PageHeader';
-import { resolver } from '../lib/view';
+import { titleOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 
 export function CheckInsPage() {
@@ -52,7 +51,7 @@ export function CheckInsPage() {
   const countdowns = tasks.filter((t) => t.completion_mode === 'countdown' && t.target_date && t.status !== '关闭');
   const streaks = recurring.map((t) => taskStreak(t, store.checkInsOf(t.id), now)?.current ?? 0);
   const best = Math.max(0, ...streaks);
-  const title = (t: Task) => taskTitle(t, store.get('task_type', t.type_id), resolver(store));
+  const title = (t: Task) => titleOf(store, t);
 
   const row = (t: Task) => {
     const s = taskStreak(t, store.checkInsOf(t.id), now);
