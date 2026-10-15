@@ -17,7 +17,7 @@
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
 - 本地存储：原生 SQLite（tauri-plugin-sql）/ Web SQLite WASM（OPFS），同一 schema
-- 同步服务端：Cloudflare Worker `mindough` + D1，域名 `mindough.rei8t.dev`；Google OAuth 登录
+- 同步：引擎待定（Turso Sync 推荐 / 自建 Worker + D1），见 PLAN“同步引擎选型”；Worker `mindough`（域名 `mindough.rei8t.dev`）负责 Google OAuth、Web 静态资源与签发同步凭据；图片放 R2
 - 包管理：pnpm；测试 Vitest
 
 ## 目录（计划）

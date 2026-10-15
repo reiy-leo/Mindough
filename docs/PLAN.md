@@ -1,16 +1,23 @@
 # Mindough 计划（v1，2026-10-15）
 
 ## 一句话
-跨平台桌面任务管理：任务不靠层层分类，而靠“完成后接什么”（FS 依赖）串起来；琐事用流水式列表记。
+多端任务管理：任务不靠层层分类，而靠“完成后接什么”（FS 依赖）串起来；琐事用流水式列表记。
 
 ## 技术方案
 - 平台（MVP 全部要可用）：macOS、Windows、iOS、Android、Web。
 - 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
 - 前端：TypeScript + React + Vite，UI 用 Kumo（与 vector-wallpapers 等一致），lucide 图标，浅/深色。
-- 存储：本地优先、离线可用。原生端 SQLite（tauri-plugin-sql）；Web 端 SQLite WASM（OPFS 持久化）。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
+- 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）；同步引擎见“同步引擎选型”。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
 - 同步：Cloudflare Worker + D1（结构化数据）+ R2（海报、图标等图片）作服务端（同域 `mindough.rei8t.dev/api`）。登录用 Google OAuth（Rei 的 Worker 默认）；原生端走系统浏览器 + deep link 回调。
 - Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
+
+### 为什么用 Tauri 2（含移动端）
+- Tauri 2 正式支持 iOS / Android，五端一套 React 前端 + Rust 后端；移动端界面跑在系统 WebView（iOS WKWebView、Android System WebView）。
+- 适合本项目：列表、依赖图、热力图都是 Web 界面强项；Rust 后端能直接用 Turso。
+- 短板与对策：移动端插件生态比桌面小，原生能力（通知、分享、相机选图）用官方插件，没有的写 Swift / Kotlin 小插件；桌面小组件 / iOS 主屏小组件 / 灵动岛计时需要原生扩展，放到以后；后台同步受系统限制，改为回到前台时同步 + 推送唤醒（以后）。
+- 退路：`packages/core`（数据模型、DAG、打卡、同步）保持纯 TS，界面层若移动端体验不达标，可换 Expo / React Native（Turso 有 `@tursodatabase/sync-react-native`）只重写外壳。
+- 已看过 MyGo（mygo.egoist.dev）：Go 写桌面 app，体积小，但只支持 macOS / Windows / Linux，没有 iOS / Android，不采用。
 
 ## 前导图（PDM）怎么实现
 - 依赖是一张有向无环图（DAG）：表 `dependency(pred_id, succ_id, type, lag)`。
@@ -26,6 +33,19 @@
 - 冲突：字段级“后写赢”（LWW，比 HLC）。任务正文 body_md 也按整段 LWW，MVP 不做逐字合并。
 - 依赖边合并后两端都重跑环检测；若两台设备各加一条边恰好成环，后到的那条标“冲突”，在界面上提示用户删掉其一。
 - 服务端按 user_id 隔离数据；Web 端与原生端共用一个账号。
+
+### 同步引擎选型（待 Rei 定）
+Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其他设备”。同步已进 MVP，待定的是用哪种引擎。存储层无论选哪种都按下面三条设计，便于接入 Turso Sync 或以后换引擎：主键 UUIDv7、删除用 tombstone（`deleted`）、每行记 `updated_at`。
+- A. Turso Sync（推荐）：Turso 是 Rust 重写的 SQLite，兼容 SQLite。本地文件读写、离线可用；基于逻辑 CDC，本地改动按行 `push()` 到 Turso Cloud，其他设备 `pull()` 拿到。Turso 官方建议新项目用 Turso Sync 而不是 libSQL Embedded Replicas。
+  - 各端：Tauri 原生端（macOS / Windows / iOS / Android）用 Rust `turso` crate 的 sync 模块；Web 端用 `@tursodatabase/sync-wasm`（OPFS 持久化）。
+  - 冲突：默认行级“后推送者赢”（Last-Push-Wins）；可用 transform 钩子改写变更。打卡 check_in 只追加不改，天然不冲突；需要字段级合并的表在钩子里处理。
+  - 鉴权：每个用户一个 Turso 数据库；Worker 用 Google 登录后经 Turso Platform API 签发该库的限权 token（Turso 原生 JWKS 只支持 Clerk / Auth0 / WorkOS）。
+  - 风险：SDK 还在 0.x，移动端交叉编译需实测；数据在 Turso Cloud（有免费档）；不支持点对点，一切经云端中转。2026 年 Turso 宣布加入 Supabase，留意产品走向。
+  - 文档：https://turso.tech/blog/building-local-first-apps-the-complete-guide-to-offline-first-database-sync ，https://docs.turso.tech/features/embedded-replicas/introduction
+- B. 自建：Cloudflare Worker + D1，按上面 outbox + HLC 字段级 LWW 自己实现。完全可控、和 Rei 其他项目同栈，但同步逻辑要自己写和测。
+- 备选 cr-sqlite：SQLite 的 CRDT 扩展，无中心自动合并；项目活跃度需核实。
+- 其他：PowerSync（需要 Postgres 后端）。
+- 图片无论选哪种都放 Cloudflare R2。
 
 ## 任务类型（显示变体 + 创建模板）
 任务可选一个“类型”。类型决定两件事：在列表、组、依赖图节点里怎么显示（显示变体），以及新建时给出什么模板（要填的字段 + 预填的 markdown 正文）。正文仍是 markdown、仍无标题。
@@ -114,6 +134,7 @@ SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、b
 - 每轮完成后 commit + push
 
 ## 待确认
+- 同步引擎：A Turso Sync（推荐）还是 B 自建 Worker + D1？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - 谁能登录：只 Rei 自己（ADMIN_EMAILS 白名单），还是开放注册？
 - iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？
