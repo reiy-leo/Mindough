@@ -9,6 +9,7 @@
  */
 import { API_BASE, refreshAccount, setNativeSession, showLoginError } from './account';
 import { isTauri } from '../store/sqlite-tauri';
+import { openExternal } from './external';
 
 const VERIFIER_KEY = 'mindough:login_verifier';
 
@@ -27,8 +28,7 @@ export async function startNativeLogin(): Promise<void> {
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
   localStorage.setItem(VERIFIER_KEY, verifier);
   const url = `${API_BASE}/auth/login?native=1&challenge=${await challengeOf(verifier)}`;
-  const { openUrl } = await import('@tauri-apps/plugin-opener');
-  await openUrl(url);
+  await openExternal(url);
 }
 
 /** 处理一个 deep link；不是登录回调就返回 false。 */

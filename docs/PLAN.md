@@ -264,7 +264,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 1. ⬜ 提醒通知：计时到点、倒数日、周期打卡（每天 X 点提醒）；任务上设「到期提醒时间」；设置页总开关。Web 用 Notification API（app 开着时排程，能用 service worker 就用），Tauri 用 tauri-plugin-notification（桌面 + 移动端）。提醒设置存进任务 / 打卡的数据模型（迁移 + 同步行）。
 2. ⬜ 正经的 Markdown 编辑器：所见即所得，取代「输入框 + 排好版的预览」；Milkdown 或 TipTap（选型与理由写在下面）；入库仍是 markdown 文本；资料备注也用它。
 3. ⬜ 小组件：我的一天、今天要打卡。桌面 = 置顶的「小窗」（Tauri 第二个窗口，可直接勾掉）；手机主屏 = Android AppWidget（读 app 写出的 JSON 快照），iOS WidgetKit 能做就搭架子，否则写明。
-4. ⬜ 桌面 app 外链用系统浏览器打开（Tauri opener）。
+4. ✅ 桌面 app 外链用系统浏览器打开（Tauri opener）：`lib/external.ts` 在 document 上捕获 click / auxclick，指向别的源的 http(s) 和 mailto / tel 链接一律交给 `openUrl`（Markdown 渲染的链接、资料卡小标签、编辑器里的链接都不用各自处理）；Web 端照常新标签页；权限沿用 `opener:default`（只放行 http / https / mailto / tel）。真机待验。
 5. ⬜ 各平台安装包跑通（macOS / Windows / Android）；iOS 分发方式待 Rei 定。
 6. ⬜ 界面收尾：27 个打卡分类改「常用 6 个 + 更多」可搜索；手机端细节（编辑资料保存按钮换行、链接列表拥挤）；暗色模式检查；Material 补截图；关系图里相关任务并排放；SGD / TRY 等币种显示成 S$ / ₺ 这样的本地符号。
 

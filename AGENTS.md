@@ -92,6 +92,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
 - 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
+- 外链：在 Tauri 里一律经 `lib/external.ts`（全局拦截 + `openExternal`）交给系统浏览器；不要自己 `window.open` 或另装 opener 调用。
 - 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。
 - 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在三种皮肤（Apple / WinUI / Material）× 桌面 / 手机下截图检查。
 

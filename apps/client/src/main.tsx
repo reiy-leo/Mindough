@@ -7,6 +7,7 @@ import { UiProvider } from './lib/ui';
 import { App } from './App';
 import { initLoginError, startAccountWatch } from './lib/account';
 import { initNativeLogin } from './lib/native-login';
+import { installExternalLinks } from './lib/external';
 import './skin/tokens.css';
 import './styles/app.css';
 import './styles/task.css';
@@ -18,6 +19,8 @@ initLoginError();
 // 账户状态（同步跟着它开 / 停）；原生端监听登录回调的 deep link
 startAccountWatch();
 void initNativeLogin();
+// App 里的外链交给系统浏览器
+installExternalLinks();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
