@@ -55,11 +55,10 @@ export function CheckInsPage() {
           <span className="habit-meta">
             {describeRecurrence(parseRecurrence(t.recurrence))}
             {s && (
-              <>
-                {' · '}
+              <span className="habit-streak">
                 <Flame size={12} className={s.current > 0 ? 'flame-on' : ''} />
                 连续 {s.current} · 最长 {s.best}
-              </>
+              </span>
             )}
           </span>
         </RacButton>

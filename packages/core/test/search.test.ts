@@ -21,6 +21,7 @@ describe('全局搜索', () => {
     const hits = search(input, '沙丘');
     expect(hits.map((h) => h.id)).toEqual(['t2']);
     expect(hits[0]!.title).toBe('沙丘 2');
+    expect(hits[0]!.snippet).not.toContain('#');
   });
 
   it('搜人物：命中人物本身和关联的任务', () => {

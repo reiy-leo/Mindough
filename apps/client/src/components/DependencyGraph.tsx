@@ -8,7 +8,6 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
-  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -41,11 +40,11 @@ interface NodeData extends Record<string, unknown> {
 
 const STATE_LABEL: Record<string, string> = { 完成: '完成', 取消: '已取消', 可开始: '可开始', 被阻塞: '被阻塞' };
 
-const TaskNode = memo(function TaskNode({ data }: NodeProps<Node<NodeData>>) {
+const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }: NodeProps<Node<NodeData>>) {
   const Icon = data.state === '完成' ? Check : data.state === '被阻塞' ? Lock : Play;
   return (
     <div className={`graph-node ${STATE_CLASS[data.state] ?? ''}`}>
-      <Handle type="target" position={Position.Left} className="graph-handle" />
+      <Handle type="target" position={targetPosition ?? Position.Left} className="graph-handle" />
       <TaskThumb media={data.media} layout={data.layout} isAvatar={data.isAvatar} color={data.color} icon={data.icon} />
       <div className="graph-node-text">
         <div className="graph-node-title">{data.title}</div>
@@ -55,7 +54,7 @@ const TaskNode = memo(function TaskNode({ data }: NodeProps<Node<NodeData>>) {
           {data.sub && ` · ${data.sub}`}
         </div>
       </div>
-      <Handle type="source" position={Position.Right} className="graph-handle" />
+      <Handle type="source" position={sourcePosition ?? Position.Right} className="graph-handle" />
     </div>
   );
 });
@@ -83,22 +82,23 @@ async function layoutPositions(tasks: Task[], edges: { pred_id: string; succ_id:
 function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; height: number | string }) {
   const ui = useUi();
   const { layout } = useSettings();
-  const flow = useReactFlow();
   const allEdges = store.edges();
   const ids = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
   const edges = useMemo(() => allEdges.filter((e) => ids.has(e.pred_id) && ids.has(e.succ_id)), [allEdges, ids]);
-  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [positions, setPositions] = useState<{ key: string; map: Map<string, { x: number; y: number }> } | null>(null);
   const [dragged, setDragged] = useState<Map<string, { x: number; y: number }>>(new Map());
   const direction = layout === 'mobile' ? 'DOWN' : 'RIGHT';
   const structureKey = `${direction}|${tasks.map((t) => t.id).join(',')}|${edges.map((e) => `${e.pred_id}>${e.succ_id}`).join(',')}`;
 
   useEffect(() => {
     let alive = true;
-    layoutPositions(tasks, edges, direction).then((p) => {
+    layoutPositions(tasks, edges, direction).then((map) => {
       if (!alive) return;
-      setPositions(p);
-      setDragged(new Map());
-      requestAnimationFrame(() => flow.fitView({ padding: 0.15, maxZoom: 1.1, duration: 0 }));
+      setPositions((prev) => {
+        // 结构变了（加/删节点或边）才重新铺排；只是状态变化时保留拖动后的位置
+        if (prev && prev.key !== structureKey) setDragged(new Map());
+        return { key: structureKey, map };
+      });
     });
     return () => {
       alive = false;
@@ -111,7 +111,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
     return {
       id: t.id,
       type: 'task',
-      position: dragged.get(t.id) ?? positions.get(t.id) ?? { x: 0, y: 0 },
+      position: dragged.get(t.id) ?? positions?.map.get(t.id) ?? { x: 0, y: 0 },
       targetPosition: direction === 'RIGHT' ? Position.Left : Position.Top,
       sourcePosition: direction === 'RIGHT' ? Position.Right : Position.Bottom,
       data: {
@@ -146,9 +146,11 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
     if (c.source && c.target) tryAddDependency(store, ui, c.source, c.target);
   }, [store, ui]);
 
+  if (!positions) return <div className="graph graph-loading" style={{ height }}>正在排布…</div>;
   return (
     <div className="graph" style={{ height }}>
       <ReactFlow
+        key={`${direction}-${tasks.length}`}
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
@@ -163,6 +165,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
         onNodeClick={(_, n) => layout === 'mobile' && ui.openEditor(n.id)}
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
+        fitViewOptions={{ padding: 0.12, maxZoom: layout === 'mobile' ? 0.9 : 1.1 }}
         minZoom={0.2}
         maxZoom={1.6}
         proOptions={{ hideAttribution: true }}

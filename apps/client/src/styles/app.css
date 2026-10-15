@@ -192,7 +192,9 @@ button {
   gap: var(--space-1);
   height: 48px;
   padding: env(safe-area-inset-top) var(--space-2) 0 var(--space-4);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -1372,6 +1374,15 @@ button {
   scrollbar-width: thin;
   padding-bottom: 4px;
 }
+/* 滑到右端时左边渐隐，提示还能往左滑看更早的 */
+.heatmap-scroll.is-scrolled {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+.heatmap:not(.heatmap-mini) .heatmap-scroll.is-scrolled {
+  -webkit-mask-image: linear-gradient(to right, #000 22px, transparent 22px, #000 48px);
+  mask-image: linear-gradient(to right, #000 22px, transparent 22px, #000 48px);
+}
 .heatmap-inner {
   display: inline-flex;
   flex-direction: column;
@@ -1394,6 +1405,11 @@ button {
   gap: var(--g);
 }
 .heatmap-weekdays {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  background-color: color-mix(in srgb, var(--surface) 100%, var(--bg));
   display: grid;
   grid-template-rows: repeat(7, var(--c));
   row-gap: var(--g);
@@ -1511,6 +1527,16 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.habit-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.habit-streak::before {
+  content: '·';
+  margin: 0 3px;
 }
 .habit-meta {
   display: inline-flex;
@@ -1945,6 +1971,11 @@ button {
   font-size: 16px;
   color: var(--text);
 }
+.palette-input[data-focus-visible],
+.palette-input:focus {
+  box-shadow: none;
+  outline: none;
+}
 .palette-input::-webkit-search-cancel-button {
   display: none;
 }
@@ -2139,7 +2170,8 @@ button {
 [data-layout='mobile'] .row-meta .meta-group {
   display: none;
 }
-[data-layout='mobile'] .ci-target {
+[data-layout='mobile'] .ci-unit,
+[data-layout='mobile'] .ci-value .ci-target:empty {
   display: none;
 }
 .graph-loading {

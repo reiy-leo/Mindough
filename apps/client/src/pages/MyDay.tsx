@@ -7,6 +7,7 @@ import { useUi } from '../lib/ui';
 import { Button, Chip, Empty, Section } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
+import { useSettings } from '../lib/settings';
 
 const REASON_COLOR: Record<string, string> = {
   今天到期: 'var(--warning)',
@@ -21,6 +22,8 @@ export function MyDayPage() {
   const now = useNow();
   const today = toDateKey(now);
   const [draft, setDraft] = useState('');
+  const { layout } = useSettings();
+  const inlineCheckIn = layout !== 'mobile';
   const tasks = store.list('task');
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const entries = store.list('my_day');
@@ -125,6 +128,7 @@ export function MyDayPage() {
                 store={store}
                 task={t}
                 showMyDay={false}
+                showCheckIn={inlineCheckIn}
                 trailing={
                   <Button variant="tonal" className="small" onPress={() => store.addToMyDay(t.id, today)}>
                     带回今天
@@ -152,6 +156,7 @@ export function MyDayPage() {
                 task={s.task}
                 showMyDay={false}
                 showDate
+                showCheckIn={inlineCheckIn}
                 trailing={
                   <>
                     <Chip color={REASON_COLOR[s.reason]} className="hide-mobile">

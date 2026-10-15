@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { autoMonthMarker, buildHeatmap, formatDateZh, type DateKey, type MonthMarker } from '@mindough/core';
 import { useSettings } from '../lib/settings';
 
@@ -28,9 +28,13 @@ export function Heatmap({
   const { settings, layout } = useSettings();
   const data = useMemo(() => buildHeatmap({ end, weeks, ratioFor }), [end, weeks, ratioFor]);
   const scroller = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollLeft = el.scrollWidth;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+      setScrolled(el.scrollLeft > 0);
+    }
   }, [data, layout]);
 
   const cellPx = mini ? 10 : layout === 'mobile' ? 11 : 14;
@@ -41,7 +45,7 @@ export function Heatmap({
 
   return (
     <div className={`heatmap${mini ? ' heatmap-mini' : ''}`} style={style}>
-      <div className="heatmap-scroll" ref={scroller}>
+      <div className={`heatmap-scroll${scrolled ? ' is-scrolled' : ''}`} ref={scroller} onScroll={(e) => setScrolled(e.currentTarget.scrollLeft > 0)}>
         <div className="heatmap-inner">
           {!mini && (
             <div className="heatmap-months" aria-hidden style={{ gridTemplateColumns: `repeat(${weeks}, var(--c))` }}>

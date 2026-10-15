@@ -18,6 +18,8 @@ export interface TaskRowProps {
   /** 我的一天里：重复任务按“今天达标”显示勾。 */
   doneOverride?: boolean;
   trailing?: ReactNode;
+  /** 打卡任务是否显示行内打卡按钮。 */
+  showCheckIn?: boolean;
 }
 
 export function TaskThumb({ media, layout, isAvatar, color, icon }: { media: string | null; layout: string; isAvatar: boolean; color?: string; icon?: string }) {
@@ -31,7 +33,7 @@ export function TaskThumb({ media, layout, isAvatar, color, icon }: { media: str
   );
 }
 
-export function TaskRow({ store, task, showGroup = true, showDate = false, showMyDay = true, doneOverride, trailing }: TaskRowProps) {
+export function TaskRow({ store, task, showGroup = true, showDate = false, showMyDay = true, doneOverride, trailing, showCheckIn = true }: TaskRowProps) {
   const ui = useUi();
   const v = viewOf(store, task);
   const today = toDateKey(store.now());
@@ -95,7 +97,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
         </span>
       </RacButton>
       <AvatarStack store={store} people={v.people.filter((p) => !(v.mediaIsAvatar && task.type_data.person === p.id))} />
-      {isCheckInRow && <CheckInControl store={store} task={task} compact />}
+      {isCheckInRow && showCheckIn && <CheckInControl store={store} task={task} compact />}
       {trailing}
       {showMyDay && (
         <RacButton

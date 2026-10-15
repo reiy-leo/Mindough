@@ -29,7 +29,12 @@ function scoreText(hay: string, terms: string[]): number {
 }
 
 function snippetAround(text: string, term: string, radius = 24): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
+  // 去掉 markdown 标记（# 标题、> 引用、- [ ] 清单、**粗体**）再取片段
+  const flat = text
+    .replace(/(^|\n)\s*(#{1,6}|>|[-*+](\s+\[[ xX]\])?|\d+[.)])\s+/g, '$1')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const i = norm(flat).indexOf(term);
   if (i < 0) return flat.slice(0, radius * 2);
   const start = Math.max(0, i - radius);

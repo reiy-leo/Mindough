@@ -38,7 +38,7 @@ export function CheckInControl({ store, task, compact }: { store: Store; task: T
             {p.value}
             <span className="ci-target">
               /{p.target}
-              {unit}
+              <span className="ci-unit">{unit}</span>
             </span>
           </span>
           <Button variant="tonal" className="ci-btn" onPress={() => record('add', 1)} aria-label={`加 1${unit}`}>
