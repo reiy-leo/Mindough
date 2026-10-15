@@ -57,7 +57,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           className={`check${closed ? ' is-closed' : ''}`}
           isSelected={done || closed}
           onChange={() => toggleDone(store, ui, task.id)}
-          aria-label={closed ? '已关闭，点一下重新打开' : done ? '标为未完成' : '标为完成'}
+          aria-label={closed ? '已关闭，轻点可重新打开' : done ? '标为未完成' : '标为完成'}
         >
           <span className="check-box" aria-hidden>
             {closed ? <X size={13} strokeWidth={3} /> : <Check size={13} strokeWidth={3} />}
@@ -77,12 +77,12 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           {state === '被阻塞' && (
             <span className="meta-state state-blocked">
               <Lock size={11} />
-              还差 {v.derived!.missing.length} 个前置
+              还在等 {v.derived!.missing.length} 件事
             </span>
           )}
           {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">可开始</span>}
           {task.status === '进行中' && <span className="meta-state state-doing">进行中</span>}
-          {closed && <span className="meta-state state-closed">关闭</span>}
+          {closed && <span className="meta-state state-closed">已关闭</span>}
           {showGroup && v.group && (
             <span className="meta-group">
               {v.group.icon} {v.group.name}

@@ -19,11 +19,17 @@ interface UiCtx {
   dismiss: (id: number) => void;
   editingId: string | null;
   openEditor: (taskId: string | null) => void;
-  quickCreate: NewTaskInput | null;
-  openQuickCreate: (defaults?: NewTaskInput) => void;
+  /** 新建任务面板：defaults 是预填值；after 表示“接在某个任务之后”（建好后连上前后关系）。 */
+  quickCreate: ComposerRequest | null;
+  openQuickCreate: (defaults?: NewTaskInput, opts?: { after?: string }) => void;
   closeQuickCreate: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
+}
+
+export interface ComposerRequest {
+  defaults: NewTaskInput;
+  after?: string;
 }
 
 const Ctx = createContext<UiCtx | null>(null);
@@ -31,7 +37,7 @@ const Ctx = createContext<UiCtx | null>(null);
 export function UiProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [quickCreate, setQuickCreate] = useState<NewTaskInput | null>(null);
+  const [quickCreate, setQuickCreate] = useState<ComposerRequest | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const seq = useRef(0);
 
@@ -53,7 +59,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       editingId,
       openEditor: setEditingId,
       quickCreate,
-      openQuickCreate: (d = {}) => setQuickCreate(d),
+      openQuickCreate: (d = {}, opts = {}) => setQuickCreate({ defaults: d, ...(opts.after ? { after: opts.after } : {}) }),
       closeQuickCreate: () => setQuickCreate(null),
       paletteOpen,
       setPaletteOpen,

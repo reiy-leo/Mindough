@@ -1,17 +1,22 @@
 /**
  * Headless React Aria 组件 + 语义类名。外观全部来自皮肤层（tokens.css / app.css / skins.css）。
  */
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import {
   Button as RacButton,
   Dialog,
+  DialogTrigger,
   Heading,
   Input,
   Label,
   ListBox,
   ListBoxItem,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  NumberField,
   Popover,
   Select as RacSelect,
   SelectValue,
@@ -19,13 +24,16 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
+  TooltipTrigger,
   type ButtonProps,
+  type PopoverProps,
   type Key,
 } from 'react-aria-components';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, X } from 'lucide-react';
 import { useSettings } from '../lib/settings';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'tonal';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid' | 'tonal' | 'quiet';
 
 export function Button({ variant = 'secondary', className, ...props }: ButtonProps & { variant?: Variant }) {
   return <RacButton {...props} className={`btn btn-${variant}${className ? ` ${String(className)}` : ''}`} />;
@@ -42,6 +50,11 @@ export function Sheet({
   children,
   footer,
   wide,
+  className,
+  headerStart,
+  headerEnd,
+  titleHidden,
+  onKeyDown,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,29 +62,235 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  /** 额外的 modal 类名（composer / detail 等，皮肤按它调形状）。 */
+  className?: string;
+  /** 标题前（状态徽章等）。 */
+  headerStart?: ReactNode;
+  /** 关闭按钮前（更多菜单等）。 */
+  headerEnd?: ReactNode;
+  /** 标题只给读屏用，不显示。 */
+  titleHidden?: boolean;
+  onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 }) {
   const { layout } = useSettings();
   return (
     <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable className="overlay">
-      <Modal className={`modal ${layout === 'mobile' ? 'modal-sheet' : 'modal-center'}${wide ? ' modal-wide' : ''}`}>
+      <Modal className={`modal ${layout === 'mobile' ? 'modal-sheet' : 'modal-center'}${wide ? ' modal-wide' : ''}${className ? ` ${className}` : ''}`}>
         <Dialog className="dialog" aria-label={title}>
           {({ close }) => (
-            <>
+            <div className="dialog-inner" onKeyDown={onKeyDown}>
+              <div className="sheet-grabber" aria-hidden />
               <div className="dialog-head">
-                <Heading slot="title" className="dialog-title">
+                {headerStart}
+                <Heading slot="title" className={`dialog-title${titleHidden ? ' sr-only' : ''}`}>
                   {title}
                 </Heading>
-                <IconButton label="关闭" onPress={close}>
+                {titleHidden && <span className="grow" />}
+                {headerEnd}
+                <IconButton label="关闭" className="dialog-close" onPress={close}>
                   <X size={18} />
                 </IconButton>
               </div>
               <div className="dialog-body">{children}</div>
               {footer && <div className="dialog-foot">{footer}</div>}
+            </div>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+/** 点一下弹出的小面板（属性编辑用）。trigger 是一个 React Aria Button。 */
+export function PopoverPanel({
+  trigger,
+  children,
+  label,
+  placement = 'bottom start',
+  className,
+}: {
+  trigger: ReactNode;
+  children: ReactNode | ((close: () => void) => ReactNode);
+  label: string;
+  placement?: PopoverProps['placement'];
+  className?: string;
+}) {
+  return (
+    <DialogTrigger>
+      {trigger}
+      <Popover className={`popover popover-panel${className ? ` ${className}` : ''}`} placement={placement} offset={6}>
+        <Dialog className="popover-dialog" aria-label={label}>
+          {({ close }) => (typeof children === 'function' ? children(close) : children)}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
+
+export function Tip({ content, children, delay = 400 }: { content: ReactNode; children: ReactNode; delay?: number }) {
+  return (
+    <TooltipTrigger delay={delay}>
+      {children}
+      <Tooltip className="tooltip" offset={6}>
+        {content}
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
+
+export interface MenuAction {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  danger?: boolean;
+  onAction: () => void;
+}
+
+/** ··· 更多菜单。 */
+export function OverflowMenu({ label = '更多', items }: { label?: string; items: MenuAction[] }) {
+  return (
+    <MenuTrigger>
+      <RacButton aria-label={label} className="icon-btn">
+        <MoreHorizontal size={18} />
+      </RacButton>
+      <Popover className="popover menu-popover" placement="bottom end" offset={4}>
+        <Menu className="menu" onAction={(k) => items.find((i) => i.id === k)?.onAction()}>
+          {items.map((i) => (
+            <MenuItem key={i.id} id={i.id} className={`menu-item${i.danger ? ' is-danger' : ''}`} textValue={i.label}>
+              {i.icon}
+              <span>{i.label}</span>
+            </MenuItem>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+/** 确认框（删除等不可撤销的操作）。 */
+export function ConfirmDialog({
+  isOpen,
+  onOpenChange,
+  title,
+  message,
+  confirmLabel,
+  danger,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  message: ReactNode;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable className="overlay overlay-alert">
+      <Modal className="modal modal-alert">
+        <Dialog role="alertdialog" className="dialog alert" aria-label={title}>
+          {({ close }) => (
+            <>
+              <Heading slot="title" className="alert-title">
+                {title}
+              </Heading>
+              <div className="alert-message">{message}</div>
+              <div className="alert-actions">
+                <Button variant="secondary" onPress={close} autoFocus>
+                  取消
+                </Button>
+                <Button
+                  variant={danger ? 'danger-solid' : 'primary'}
+                  onPress={() => {
+                    onConfirm();
+                    close();
+                  }}
+                >
+                  {confirmLabel}
+                </Button>
+              </div>
             </>
           )}
         </Dialog>
       </Modal>
     </ModalOverlay>
+  );
+}
+
+/** 句子里的小数字框：「每次 [10] 分钟」。 */
+export function InlineNumber({ label, value, onChange, min = 1, max, width = 4 }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; width?: number }) {
+  return (
+    <NumberField
+      aria-label={label}
+      className="inline-field"
+      value={value}
+      minValue={min}
+      {...(max !== undefined ? { maxValue: max } : {})}
+      onChange={(v) => Number.isFinite(v) && onChange(v)}
+      formatOptions={{ maximumFractionDigits: 2, useGrouping: false }}
+    >
+      <Input className="input inline-input" style={{ width: `calc(${width}ch + 22px)` }} />
+    </NumberField>
+  );
+}
+
+/** 句子里的小文本框：「目标 8 [杯]」。 */
+export function InlineText({ label, value, onChange, placeholder, width = 5 }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; width?: number }) {
+  return (
+    <TextField aria-label={label} className="inline-field" value={value} onChange={onChange}>
+      <Input className="input inline-input" placeholder={placeholder} style={{ width: `calc(${width}ch + 22px)` }} />
+    </TextField>
+  );
+}
+
+/** 跟着内容长高的无边框文本框（正文用）。 */
+export function AutoTextarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+  className,
+  minRows = 2,
+  onBlur,
+  onKeyDown,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  className?: string;
+  minRows?: number;
+  onBlur?: () => void;
+  onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  useEffect(() => {
+    if (!autoFocus) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [autoFocus]);
+  return (
+    <textarea
+      ref={ref}
+      aria-label={label}
+      className={`bare-textarea${className ? ` ${className}` : ''}`}
+      value={value}
+      rows={minRows}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+    />
   );
 }
 

@@ -34,7 +34,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
         <div className="task-card-foot">
           {v.derived?.state === '被阻塞' ? (
             <span className="meta-state state-blocked">
-              <Lock size={11} /> 被阻塞
+              <Lock size={11} /> 还不能开始
             </span>
           ) : (
             <span className="meta-state">{task.status}</span>

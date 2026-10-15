@@ -71,7 +71,7 @@ export function useLoginError(): string | null {
 
 // ───── 账户状态 ─────
 export async function fetchAccount(fetcher: typeof fetch = fetch): Promise<AccountState> {
-  if (isTauri()) return { status: 'unavailable', reason: '原生端的登录（系统浏览器 + deep link 回调）在 M2 接入' };
+  if (isTauri()) return { status: 'unavailable', reason: '桌面和手机 App 暂时还不能登录，很快就好' };
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return { status: 'offline' };
   try {
     const res = await fetcher(`${API_BASE}/api/me`, { credentials: 'include', headers: { accept: 'application/json' } });

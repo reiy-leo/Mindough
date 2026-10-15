@@ -116,7 +116,7 @@ export function GroupsPage() {
                   <span>
                     {done}/{counted.length} 完成
                   </span>
-                  {blocked > 0 && <span className="state-blocked">{blocked} 个被阻塞</span>}
+                  {blocked > 0 && <span className="state-blocked">{blocked} 件还不能开始</span>}
                 </div>
               </RacButton>
             );
@@ -166,7 +166,7 @@ export function GroupDetailPage({ id }: { id: string }) {
           options={[
             { id: 'list', label: <><List size={14} /> 列表</> },
             { id: 'cards', label: <><LayoutGrid size={14} /> 卡片</> },
-            { id: 'graph', label: <><Network size={14} /> 依赖图</> },
+            { id: 'graph', label: <><Network size={14} /> 关系图</> },
           ]}
         />
       </div>

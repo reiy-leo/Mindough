@@ -77,7 +77,7 @@ export function MyDayPage() {
       >
         <Plus size={18} className="add-bar-icon" aria-hidden />
         <TextField aria-label="添加任务到今天" value={draft} onChange={setDraft} className="add-bar-field">
-          <Input className="add-bar-input" placeholder="添加任务到今天，回车保存" />
+          <Input className="add-bar-input" placeholder="今天要做什么？按回车添加" />
         </TextField>
         <RacButton className="btn btn-secondary add-bar-search" onPress={() => ui.setPaletteOpen(true)}>
           <Search size={15} />

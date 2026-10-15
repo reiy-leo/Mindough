@@ -110,7 +110,7 @@ export function CheckInsPage() {
       <section className="card heatmap-card">
         <div className="heatmap-card-head">
           <span className="section-title">过去一年</span>
-          <span className="muted small">每格一天，颜色越深当天完成比例越高</span>
+          <span className="muted small">每格是一天，颜色越深，那天完成得越多</span>
         </div>
         <Heatmap end={today} ratioFor={dayRatio} label="过去一年的打卡热力图" />
       </section>
@@ -167,7 +167,7 @@ export function CheckInsPage() {
       </Section>
 
       {others.length > 0 && (
-        <Section title="其他重复任务">
+        <Section title="其他打卡">
           <div className="habit-list">{others.map(row)}</div>
         </Section>
       )}

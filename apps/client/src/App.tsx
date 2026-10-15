@@ -13,8 +13,8 @@ import { GraphPage } from './pages/Graph';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { SettingsPage } from './pages/Settings';
-import { TaskEditor } from './components/TaskEditor';
-import { QuickCreate } from './components/QuickCreate';
+import { TaskDetail } from './components/task/TaskDetail';
+import { TaskComposer } from './components/task/TaskComposer';
 import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
@@ -31,7 +31,7 @@ const NAV: NavItem[] = [
   { page: 'agenda', label: '列表', icon: CalendarDays, match: ['agenda'] },
   { page: 'groups', label: '组', icon: Shapes, match: ['groups', 'group'] },
   { page: 'people', label: '人物', icon: Users, match: ['people', 'person'] },
-  { page: 'graph', label: '依赖图', icon: Network, match: ['graph'] },
+  { page: 'graph', label: '关系图', icon: Network, match: ['graph'] },
   { page: 'doable', label: '可做', icon: ListChecks, match: ['doable'] },
   { page: 'checkin', label: '打卡', icon: CalendarCheck2, match: ['checkin'] },
 ];
@@ -245,8 +245,8 @@ export function App() {
   return (
     <>
       {shell}
-      <TaskEditor />
-      <QuickCreate />
+      <TaskDetail />
+      <TaskComposer />
       <CommandPalette />
       <Toasts />
     </>

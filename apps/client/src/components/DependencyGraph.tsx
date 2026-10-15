@@ -38,7 +38,7 @@ interface NodeData extends Record<string, unknown> {
   icon?: string;
 }
 
-const STATE_LABEL: Record<string, string> = { 完成: '完成', 关闭: '已关闭', 可开始: '可开始', 被阻塞: '被阻塞' };
+const STATE_LABEL: Record<string, string> = { 完成: '完成', 关闭: '已关闭', 可开始: '可开始', 被阻塞: '还不能开始' };
 
 const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }: NodeProps<Node<NodeData>>) {
   const Icon = data.state === '完成' ? Check : data.state === '关闭' ? CircleSlash : data.state === '被阻塞' ? Lock : Play;
@@ -117,7 +117,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
       data: {
         title: v.title,
         state,
-        sub: state === '被阻塞' ? `还差 ${v.derived!.missing.length} 个` : (v.group?.name ?? ''),
+        sub: state === '被阻塞' ? `还在等 ${v.derived!.missing.length} 件事` : (v.group?.name ?? ''),
         media: v.media,
         layout: v.type?.layout ?? 'text',
         isAvatar: v.mediaIsAvatar,

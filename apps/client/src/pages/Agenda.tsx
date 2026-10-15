@@ -41,7 +41,7 @@ export function AgendaPage() {
 
   return (
     <div className="page">
-      <PageHeader title="列表" subtitle="琐事随手记，按日期往下流" icon={<CalendarDays size={22} />} />
+      <PageHeader title="列表" subtitle="随手记下的琐事，按日期排开" icon={<CalendarDays size={22} />} />
       {hiddenPast > 0 && (
         <Button variant="ghost" className="load-past" onPress={() => setPastDays((d) => d + 30)}>
           <ChevronsUp size={16} />
@@ -80,7 +80,7 @@ export function AgendaPage() {
                     }}
                   >
                     <TextField aria-label={`添加到${formatDateZh(d)}`} value={draft} onChange={setDraft} className="add-bar-field" autoFocus onBlur={() => submit(d)}>
-                      <Input className="add-bar-input" placeholder="写一件事，回车保存" />
+                      <Input className="add-bar-input" placeholder="写下一件事，按回车添加" />
                     </TextField>
                   </Form>
                 ) : (

@@ -64,7 +64,7 @@ function PersonDialog({ id, onClose }: { id?: string; onClose: () => void }) {
           <Field label="生日" type="date" value={birthday} onChange={setBirthday} />
         </div>
       </div>
-      <Field label="备注（Markdown）" multiline rows={4} value={note} onChange={setNote} />
+      <Field label="备注" multiline rows={4} value={note} onChange={setNote} />
     </Sheet>
   );
 }
@@ -77,7 +77,7 @@ export function PeoplePage() {
     <div className="page">
       <PageHeader
         title="人物"
-        subtitle="任务可以关联人物；人物详情列出与 TA 相关的所有任务"
+        subtitle="把事情和人连起来，点开一个人就能看到和 TA 有关的所有事"
         icon={<Users size={22} />}
         actions={
           <Button variant="primary" onPress={() => setAdding(true)}>

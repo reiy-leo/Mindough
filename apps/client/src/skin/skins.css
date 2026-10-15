@@ -395,3 +395,305 @@
 [data-skin='material'][data-layout='mobile'] .page-title {
   font-size: 28px;
 }
+
+/* ═════════════ 新建面板 / 任务详情：各平台的对话框形状 ═════════════ */
+/* Apple：macOS sheet——无分隔带的底部按钮；iOS 底部弹层带拖拽条 */
+[data-skin='apple'] .modal-composer .dialog-foot,
+[data-skin='apple'] .modal-detail .dialog-foot {
+  border-top: 0;
+  background: transparent;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+[data-skin='apple'] .modal-detail .dialog-foot {
+  border-top: 0.5px solid var(--border);
+  padding-top: var(--space-3);
+}
+[data-skin='apple'] .modal-composer .dialog-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+[data-skin='apple'] .modal-center.modal-composer,
+[data-skin='apple'] .modal-center.modal-detail {
+  border-radius: 12px;
+}
+[data-skin='apple'] .modal-sheet .sheet-grabber {
+  display: block;
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  margin: 6px auto 0;
+  background: var(--border-strong);
+}
+[data-skin='apple'] .modal-sheet .dialog-head {
+  padding-top: var(--space-2);
+}
+[data-skin='apple'] .mode-card[data-selected] {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+[data-skin='apple'] .prop-chip {
+  height: 26px;
+}
+
+/* WinUI：ContentDialog——标题 20px 半粗、底部按钮带等宽、圆角 8 */
+[data-skin='winui'] .modal-center.modal-composer,
+[data-skin='winui'] .modal-center.modal-detail,
+[data-skin='winui'] .modal-alert {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.19), 0 2px 21px rgba(0, 0, 0, 0.15);
+}
+[data-skin='winui'][data-theme='dark'] .modal-center.modal-composer,
+[data-skin='winui'][data-theme='dark'] .modal-center.modal-detail,
+[data-skin='winui'][data-theme='dark'] .modal-alert {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5);
+}
+[data-skin='winui'] .modal-composer .dialog-title,
+[data-skin='winui'] .alert-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+[data-skin='winui'] .modal-composer .dialog-head {
+  padding: var(--space-6) var(--space-4) var(--space-3) var(--space-6);
+}
+[data-skin='winui'] .modal-composer .dialog-foot,
+[data-skin='winui'] .modal-detail .dialog-foot {
+  padding: var(--space-6);
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.03);
+}
+[data-skin='winui'][data-theme='dark'] .modal-composer .dialog-foot,
+[data-skin='winui'][data-theme='dark'] .modal-detail .dialog-foot {
+  background: rgba(0, 0, 0, 0.18);
+}
+[data-skin='winui'] .modal-composer .composer-add,
+[data-skin='winui'] .modal-composer .composer-cancel {
+  min-width: 120px;
+}
+[data-skin='winui'] .mode-card,
+[data-skin='winui'] .type-fields,
+[data-skin='winui'] .sentence,
+[data-skin='winui'] .progress-panel {
+  border-radius: 6px;
+}
+[data-skin='winui'] .mode-card {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.0578);
+  border-bottom-color: rgba(0, 0, 0, 0.1622);
+}
+[data-skin='winui'][data-theme='dark'] .mode-card {
+  background: rgba(255, 255, 255, 0.0605);
+  border-color: rgba(255, 255, 255, 0.093);
+}
+[data-skin='winui'] .mode-card[data-selected] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--popup-bg, #fff));
+}
+[data-skin='winui'] .mode-icon {
+  border-radius: 4px;
+}
+[data-skin='winui'] .mode-check {
+  border-radius: 4px;
+}
+[data-skin='winui'] .prop-chip,
+[data-skin='winui'] .freq-chip {
+  border-radius: 4px;
+}
+[data-skin='winui'] .choice-pills {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+}
+[data-skin='winui'] .choice-pill {
+  border-radius: 4px;
+  font-weight: 400;
+}
+[data-skin='winui'] .choice-pill[data-selected] {
+  background: var(--popup-bg, #fff);
+  box-shadow: 0 0 0 1px var(--border), inset 0 -2px 0 var(--accent);
+  font-weight: 400;
+}
+[data-skin='winui'] .type-pick-icon,
+[data-skin='winui'] .hero-icon {
+  border-radius: 6px;
+}
+[data-skin='winui'] .tooltip {
+  background: var(--popup-bg, #f9f9f9);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+[data-skin='winui'] .md-help code {
+  background: var(--surface-3);
+}
+
+/* Material 3：28dp 圆角对话框、无分隔线；手机上新建和详情都是全屏对话框 */
+[data-skin='material'] .modal-composer .dialog-title,
+[data-skin='material'] .alert-title {
+  font-size: 22px;
+  font-weight: 400;
+}
+[data-skin='material'] .modal-composer .dialog-head {
+  padding: var(--space-6) var(--space-4) var(--space-3) var(--space-6);
+}
+[data-skin='material'] .modal-composer .dialog-foot,
+[data-skin='material'] .modal-detail .dialog-foot {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+[data-skin='material'] .modal-detail .dialog-foot {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  padding-top: var(--space-4);
+}
+[data-skin='material'] .mode-card {
+  border-radius: 16px;
+  background: var(--surface);
+  border-color: transparent;
+}
+[data-skin='material'] .mode-card[data-selected] {
+  background: var(--accent-soft);
+  box-shadow: none;
+  border-color: transparent;
+}
+[data-skin='material'] .mode-card[data-selected] .mode-label {
+  color: var(--accent-soft-text);
+}
+[data-skin='material'] .sentence,
+[data-skin='material'] .type-fields,
+[data-skin='material'] .progress-panel {
+  border-radius: 16px;
+  background: var(--surface);
+}
+[data-skin='material'] .prop-chip {
+  height: 32px;
+  border-radius: 8px;
+  border-color: var(--border-strong);
+}
+[data-skin='material'] .prop-chip.is-set {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+[data-skin='material'] .freq-chip {
+  height: 32px;
+  border-radius: 8px;
+}
+[data-skin='material'] .choice-pills {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+[data-skin='material'] .choice-pill {
+  height: 38px;
+  border-radius: 0;
+  padding: 0 20px;
+  color: var(--text);
+}
+[data-skin='material'] .choice-pill + .choice-pill {
+  border-left: 1px solid var(--border-strong);
+}
+[data-skin='material'] .choice-pill[data-selected] {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  box-shadow: none;
+}
+[data-skin='material'] .detail.is-mobile .prop-list {
+  background: var(--surface);
+}
+[data-skin='material'] .modal-alert {
+  border-radius: 28px;
+}
+/* 全屏对话框：左上角关闭，标题，右上角“添加” */
+[data-skin='material'] .modal-sheet.modal-composer,
+[data-skin='material'] .modal-sheet.modal-detail {
+  top: 0;
+  max-height: none;
+  height: 100%;
+  border-radius: 0;
+}
+[data-skin='material'] .modal-sheet.modal-composer .dialog-head,
+[data-skin='material'] .modal-sheet.modal-detail .dialog-head {
+  height: 64px;
+  padding: 0 var(--space-2) 0 var(--space-1);
+}
+[data-skin='material'] .modal-sheet .dialog-close {
+  order: -1;
+  width: 48px;
+  height: 48px;
+}
+[data-skin='material'] .modal-sheet.modal-composer .dialog-title {
+  font-size: 22px;
+  padding-right: 96px;
+}
+[data-skin='material'] .modal-sheet.modal-composer .dialog-foot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+[data-skin='material'] .modal-sheet.modal-composer .composer-cancel,
+[data-skin='material'] .modal-sheet.modal-composer .composer-help,
+[data-skin='material'] .modal-sheet.modal-composer .dialog-foot .grow {
+  display: none;
+}
+[data-skin='material'] .modal-sheet.modal-composer .composer-add {
+  height: 40px;
+  border-radius: 20px;
+  padding: 0 20px;
+}
+
+/* iOS：新建面板像系统的“新建提醒事项”——顶栏左“取消”、中间标题、右“添加” */
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-head {
+  justify-content: center;
+  min-height: 52px;
+  padding: var(--space-2) 88px var(--space-3);
+}
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-title {
+  flex: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-close,
+[data-skin='apple'] .modal-sheet.modal-composer .composer-help {
+  display: none;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-foot {
+  position: absolute;
+  top: 16px;
+  left: var(--space-2);
+  right: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  justify-content: space-between;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-foot .grow {
+  display: none;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .dialog-foot .btn {
+  pointer-events: auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 16px;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .composer-cancel {
+  font-weight: 400;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .composer-add {
+  font-weight: 600;
+}
+[data-skin='apple'] .modal-sheet.modal-composer .composer-add[data-disabled] {
+  color: var(--text-3);
+  opacity: 1;
+}

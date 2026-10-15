@@ -17,14 +17,11 @@ export function announceComplete(store: Store, ui: Ui, result: CompleteResult, p
   ui.toast(
     {
       tone: result.task.status === '关闭' ? 'info' : 'success',
-      message: n ? `${verb}，解锁了 ${n} 个后续：${names}${n > 3 ? ' 等' : ''}` : `${verb}「${titleOf(store, result.task.id)}」`,
+      message: n ? `${verb}，接下来可以做 ${names}${n > 3 ? ` 等 ${n} 件事` : ''}` : `${verb}「${titleOf(store, result.task.id)}」`,
       actions: [
         {
           label: '然后呢？',
-          onPress: () => {
-            const next = store.createSuccessor(result.task.id);
-            ui.openEditor(next.id);
-          },
+          onPress: () => ui.openQuickCreate({ group_id: result.task.group_id }, { after: result.task.id }),
         },
         { label: '撤销', onPress: () => store.setStatus(result.task.id, prev) },
       ],
@@ -63,12 +60,12 @@ export function changeStatus(store: Store, ui: Ui, taskId: string, status: TaskS
 export function tryAddDependency(store: Store, ui: Ui, predId: string, succId: string): boolean {
   try {
     store.addDependency(predId, succId);
-    ui.toast({ tone: 'info', message: `已连接：「${titleOf(store, predId)}」完成后 →「${titleOf(store, succId)}」` }, 3500);
+    ui.toast({ tone: 'info', message: `已连上：做完「${titleOf(store, predId)}」，就能开始「${titleOf(store, succId)}」` }, 3500);
     return true;
   } catch (e) {
     if (e instanceof CycleError) {
       const path = e.path.map((id) => titleOf(store, id)).join(' → ');
-      ui.toast({ tone: 'error', message: `不能连这条线：会形成环（${path}）` });
+      ui.toast({ tone: 'error', message: `没有连上：这样会绕成一个圈（${path}）` });
     } else if (e instanceof SelfLoopError || e instanceof DuplicateEdgeError) {
       ui.toast({ tone: 'error', message: e.message });
     } else throw e;

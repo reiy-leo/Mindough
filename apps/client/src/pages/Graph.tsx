@@ -21,8 +21,8 @@ export function GraphPage() {
   return (
     <div className="page page-fill">
       <PageHeader
-        title="依赖图"
-        subtitle={layout === 'mobile' ? '拖动节点边缘的圆点连线' : '从节点右侧圆点拖到另一个任务，即“完成后才能开始”；选中连线按 Delete 删除；双击节点编辑'}
+        title="关系图"
+        subtitle={layout === 'mobile' ? '拖动任务边上的圆点，连到下一件事' : '从任务右边的圆点拖到另一件任务上，表示“做完这件才能开始那件”。选中连线按 Delete 删除，双击任务查看详情'}
         icon={<Network size={22} />}
       />
       <div className="filter-row graph-toolbar">
@@ -31,7 +31,7 @@ export function GraphPage() {
           value={scope}
           onChange={setScope}
           options={[
-            { id: 'linked', label: '有依赖的任务' },
+            { id: 'linked', label: '有前后关系的' },
             { id: 'all', label: '全部任务' },
             ...store.list('group').map((g) => ({ id: g.id, label: `${g.icon} ${g.name}` })),
           ]}
@@ -40,7 +40,7 @@ export function GraphPage() {
         <div className="graph-legend" aria-label="图例">
           <span className="legend state-done">完成</span>
           <span className="legend state-ready">可开始</span>
-          <span className="legend state-blocked">被阻塞</span>
+          <span className="legend state-blocked">还不能开始</span>
           <span className="legend state-closed">关闭</span>
         </div>
       </div>

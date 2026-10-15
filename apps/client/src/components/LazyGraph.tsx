@@ -6,7 +6,7 @@ const Graph = lazy(() => import('./DependencyGraph').then((m) => ({ default: m.D
 
 export function LazyGraph(props: { store: Store; tasks: Task[]; height: number | string }) {
   return (
-    <Suspense fallback={<div className="graph graph-loading" style={{ height: props.height }}>正在加载依赖图…</div>}>
+    <Suspense fallback={<div className="graph graph-loading" style={{ height: props.height }}>正在加载关系图…</div>}>
       <Graph {...props} />
     </Suspense>
   );

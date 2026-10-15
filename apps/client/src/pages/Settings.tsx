@@ -62,7 +62,7 @@ export function SettingsPage() {
           <div className="setting">
             <div className="setting-text">
               <div className="setting-name">布局</div>
-              <div className="setting-hint">自动：窄于 760px 用底部标签栏</div>
+              <div className="setting-hint">自动：窗口变窄时改用底部标签栏</div>
             </div>
             <Segmented<Settings['layout']>
               label="布局"
@@ -102,7 +102,7 @@ export function SettingsPage() {
               <div className="setting-name">本地存储</div>
               <div className="setting-hint">
                 {storageInfo.engine === 'sqlite'
-                  ? `SQLite（${storageInfo.detail === 'tauri-rusqlite' ? '本机文件' : 'Turso wasm · 浏览器 OPFS'}）`
+                  ? `SQLite（${storageInfo.detail === 'tauri-rusqlite' ? '本机文件' : '浏览器本地'}）`
                   : `浏览器 localStorage${storageInfo.fallbackReason ? `（${storageInfo.fallbackReason}）` : ''}`}{' '}
                 · 设备 {store.deviceId}
                 {pending !== null && ` · 待同步 ${pending} 条（同步尚未开通）`}
@@ -128,7 +128,7 @@ export function SettingsPage() {
           </div>
         </div>
       </Section>
-      <p className="muted small about">Mindough M1 · 本地优先，界面永不等待网络</p>
+      <p className="muted small about">Mindough · 数据先存在这台设备上，离线也能用</p>
     </div>
   );
 }
@@ -206,7 +206,7 @@ function AccountSection() {
               {acc.user.picture ? <img className="account-avatar" src={acc.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="account-avatar" />}
               <div className="setting-text">
                 <div className="setting-name">{acc.user.name}</div>
-                <div className="setting-hint">{acc.user.email} · 已登录 Google（同步在 M2 开通）</div>
+                <div className="setting-hint">{acc.user.email} · 已登录 Google（多设备同步即将开放）</div>
               </div>
               <Button
                 variant="secondary"
@@ -228,7 +228,7 @@ function AccountSection() {
                     ? '现在离线，联网后可以登录。'
                     : acc.status === 'unavailable'
                       ? `暂时不能登录：${acc.reason}。`
-                      : '登录后可在多台设备间同步（M2 开通）。'}
+                      : '登录后可以在多台设备间同步（即将开放）。'}
                   不登录也能完整使用，数据都存在本机。
                 </div>
               </div>
