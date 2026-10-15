@@ -1,6 +1,6 @@
 [package]
 name = "mindough"
-version = "0.0.0"
+version = "0.1.0"
 description = "Mindough：用 FS 依赖把任务串起来的多端任务管理"
 authors = ["Rei Leo"]
 license = "MIT"

@@ -13,7 +13,7 @@ import { tr } from '../../lib/i18n';
 export function taskStateText(store: Store, t: Task): string | null {
   if (t.status === '完成') return tr('已完成');
   if (t.status === '关闭') return tr('已关闭');
-  if (t.status === '进行中') return '进行中';
+  if (t.status === '进行中') return tr('进行中');
   if (store.derived().get(t.id)?.state === '被阻塞') return tr('还不能开始');
   return null;
 }

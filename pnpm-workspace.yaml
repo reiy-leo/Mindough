@@ -5,3 +5,6 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+
+minimumReleaseAgeExclude:
+  - "@tauri-apps/plugin-notification@2.7.0"
