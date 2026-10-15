@@ -19,7 +19,7 @@
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
 - ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），同一 schema 与迁移（packages/core/src/storage/schema.ts）
-- 同步：引擎待定（Turso Sync 推荐 / 自建 Worker + D1），见 PLAN“同步引擎选型”；Worker `mindough`（域名 `mindough.rei8t.dev`）负责 Google OAuth、Web 静态资源与签发同步凭据；图片放 R2
+- ✅ 同步：云端是 Turso Cloud 库 `mindough`（东京），客户端经 Worker `/api/sync/*` 用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）；Worker `mindough`（`mindough.rei8t.dev`）负责 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
 - 包管理：pnpm；测试 Vitest
 
 ## 目录（M1 实际）
@@ -35,7 +35,8 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
   links.ts money.ts episode.ts  字段种类的逻辑：站点编号（IMDb / 豆瓣）与更多链接、金额 + 币种、看到第几季第几集
-  store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）
+  store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）；applyRemote 合并拉下来的行（不进 outbox）；edges() / conflictEdges()
+  sync/                 同步：protocol.ts（WireRow、SyncTransport、SyncHttpError）、engine.ts（SyncEngine：推、拉、第一次合并、状态）、memory-remote.ts（假云端 / 协议参考实现）
   storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
   seed/                 内置 11 种类型、27 个打卡分类（固定 id）、演示数据
 apps/client/src/
@@ -49,9 +50,10 @@ apps/client/src/
   components/ pages/    业务组件与页面（不写死平台样式）
   styles/task.css       新建面板与详情的结构样式
   styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
-  lib/ store/           设置、路由、提示、账户（account.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
-apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层）
-apps/server/            Cloudflare Worker：Google 登录、/api、静态资源（未部署）
+  lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
+apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；opener + deep-link（mindough://）+ 桌面 single-instance）
+apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、turso.ts（Hrana HTTP）、assets.ts（R2 图片）、static-r2.ts
+  test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
 .github/workflows/      ci.yml、build.yml
 docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 .agents/                skills / rules / prompts / memory
@@ -70,6 +72,8 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 | 重新生成图标 | `pnpm --filter client tauri icon src-tauri/icons/source.svg -o src-tauri/icons` |
 | Worker 本地 | `pnpm --filter server dev`（:8787，需 `apps/server/.dev.vars`，见 `.dev.vars.example`） |
 | Worker 单测 | `pnpm --filter server test` |
+| 同步端到端（真实 Turso） | `cd apps/server && E2E_TURSO_URL=https://mindough-rei8.aws-ap-northeast-1.turso.io E2E_TURSO_TOKEN_FILE=<放数据库 token 的文件> npx vitest run e2e/real-turso.test.ts`（测试账户 e2e@mindough.test，跑完自动删行） |
+| 部署 | `cd apps/server && CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… pnpm deploy`（`keep_vars` 保留控制台里的 Google 变量） |
 | Rust 检查 | `cd apps/client/src-tauri && cargo check`（Linux 需 libwebkit2gtk-4.1-dev 等） |
 | Android | `pnpm tauri android init` → `pnpm tauri android build --apk --debug` |
 | 打包 CI | GitHub Actions `build.yml`（手动 / 推 `v*` 标签）；`ci.yml` 每次推送跑检查 |
@@ -87,6 +91,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
+- 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
 - 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。
 - 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在三种皮肤（Apple / WinUI / Material）× 桌面 / 手机下截图检查。
 

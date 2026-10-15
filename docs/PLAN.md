@@ -7,8 +7,8 @@
 - 平台（MVP 全部要可用）：macOS、Windows、iOS、Android、Web。
 - 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
 - 前端：TypeScript + React + Vite；UI 为 headless 组件 + 每端原生风格皮肤（见“设计风格”）；浅/深色跟随系统。
-- 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）；同步引擎见“同步引擎选型”。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
-- 同步：Cloudflare Worker + D1（结构化数据）+ R2（海报、图标等图片）作服务端（同域 `mindough.rei8t.dev/api`）。登录用 Google OAuth（Rei 的 Worker 默认）；原生端走系统浏览器 + deep link 回调。
+- 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
+- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；客户端只和 Worker（同域 `mindough.rei8t.dev/api/sync`）说话，Worker 经 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端走系统浏览器 + deep link 回调。见“多端同步怎么做”。
 - Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
 
@@ -45,25 +45,52 @@
 - 相关任务（Rei 2026-10-15：“任务只是有关系，但没有FS关系”）：表 `task_link(a_task_id, b_task_id, note, created_at)`，无方向、不阻塞——不解锁、不进环检测、不影响可开始 / 被阻塞。去重：规范顺序 a < b，id 由这一对算出（`related.ts` 的 `taskLinkId`，UUID 形状），两台设备各自连同一对得到同一行；去掉再连上 = 同一行墓碑翻回来。不能连自己；两件已有前后关系时不让再连相关（前后关系已经说明有关系），先相关后加了前后关系时只按前后关系显示（相关行不删，去掉前后关系后又出现）。删任务时它的相关行一起打墓碑。note 先留着，界面暂不编辑。
 - 有组的起止时间时，可沿依赖链推算最早开始，超出组结束时间就标红（后期做，关键路径同理）。
 
-## 多端同步怎么做
-- 每条记录用 UUIDv7 作 id，带 `updated_at`（混合逻辑时钟 HLC）、`device_id`、`deleted` 墓碑，不物理删除。
-- 客户端所有写操作先落本地，并进 outbox；联网后批量 push，再按服务端游标 pull 增量。UI 从不等网络。
-- 冲突：字段级“后写赢”（LWW，比 HLC）。任务正文 body_md 也按整段 LWW，MVP 不做逐字合并。
-- 依赖边合并后两端都重跑环检测；若两台设备各加一条边恰好成环，后到的那条标“冲突”，在界面上提示用户删掉其一。
-- 服务端按 user_id 隔离数据；Web 端与原生端共用一个账号。
+## 多端同步怎么做（M2 ✅ 2026-10-15）
+Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其他设备”。现在的样子：每台设备都是完整的本地 SQLite（Web 是 OPFS 里的 Turso wasm，退回 localStorage 时也一样能同步；原生端是 rusqlite），写入先落本地；登录后后台自动推拉，云端是 Turso Cloud 里的一个库。
 
-### 同步引擎选型（待 Rei 定）
-Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其他设备”。同步已进 MVP，待定的是用哪种引擎。存储层无论选哪种都按下面三条设计，便于接入 Turso Sync 或以后换引擎：主键 UUIDv7、删除用 tombstone（`deleted`）、每行记 `updated_at`。
-- A. Turso Sync（推荐）：Turso 是 Rust 重写的 SQLite，兼容 SQLite。本地文件读写、离线可用；基于逻辑 CDC，本地改动按行 `push()` 到 Turso Cloud，其他设备 `pull()` 拿到。Turso 官方建议新项目用 Turso Sync 而不是 libSQL Embedded Replicas。
-  - 各端：Tauri 原生端（macOS / Windows / iOS / Android）用 Rust `turso` crate 的 sync 模块；Web 端用 `@tursodatabase/sync-wasm`（OPFS 持久化）。
-  - 冲突：默认行级“后推送者赢”（Last-Push-Wins）；可用 transform 钩子改写变更。打卡 check_in 只追加不改，天然不冲突；需要字段级合并的表在钩子里处理。
-  - 鉴权：每个用户一个 Turso 数据库；Worker 用 Google 登录后经 Turso Platform API 签发该库的限权 token（Turso 原生 JWKS 只支持 Clerk / Auth0 / WorkOS）。
-  - 风险：SDK 还在 0.x，移动端交叉编译需实测；数据在 Turso Cloud（有免费档）；不支持点对点，一切经云端中转。2026 年 Turso 宣布加入 Supabase，留意产品走向。
-  - 文档：https://turso.tech/blog/building-local-first-apps-the-complete-guide-to-offline-first-database-sync ，https://docs.turso.tech/features/embedded-replicas/introduction
-- B. 自建：Cloudflare Worker + D1，按上面 outbox + HLC 字段级 LWW 自己实现。完全可控、和 Rei 其他项目同栈，但同步逻辑要自己写和测。
-- 备选 cr-sqlite：SQLite 的 CRDT 扩展，无中心自动合并；项目活跃度需核实。
-- 其他：PowerSync（需要 Postgres 后端）。
-- 图片无论选哪种都放 Cloudflare R2。
+- 每条记录 UUIDv7 id、`updated_at`（HLC：`13 位毫秒-4 位计数-设备 id`，字典序即全序）、`deleted` 墓碑，不物理删除。
+- 推：本机写入进 outbox；写入后防抖 1.5 秒推送（同一行多次改动只推当前值），成功才 ack。
+- 拉：云端每采纳一行就给它一个新的 seq（每个用户各自递增），客户端记住拉到的最大 seq（游标），只拉更大的，每页 500 行。拉下来的行经 `Store.applyRemote` 合并，落盘但不进 outbox（不会回推）。
+- 冲突：**行级 LWW**，比 `updated_at`；HLC 末尾是设备 id，同毫秒同计数时按设备 id 定先后，各端结果一致。云端用同样的规则（`ON CONFLICT … WHERE excluded.updated_at > updated_at`），所以晚推上来的旧改动不会覆盖新的。墓碑也只是一次写入，按同样规则比：删除晚于编辑就删，编辑晚于删除就留（行级，不是“删除永远赢”）。任务正文 body_md 整段 LWW，MVP 不做逐字合并。
+- 打卡 check_in 只追加（每次一行新 id），两台设备离线各打一次卡，合并后进度是两次之和。
+- 前后关系：`Store.edges()` 把依赖行按 updated_at 依次加入、同一对只算一条；加入后会成环的那条（后到的）进 `Store.conflictEdges()`，不生效（不阻塞、不进排布）。详情的「关系」顶上提示「先后关系绕成了圈」+「去掉这条」。两台设备连了同一对 → 两行算一条，去掉时一起去掉。
+- 第一次在一台设备上登录（bootstrap）：先把云端全部拉下来；云端已有数据、而这台设备只有没动过的演示数据时，演示数据打墓碑不带上去（判断：`demo_stamp` 之后没有写入；M2 前播的演示数据用“全部在 10 秒内写入”判断）；再按 LWW 合并云端，把本机比云端新的行全部推上去——本机数据不丢。之后只做增量。
+- 什么时候同步：登录后立刻、本机写入后（防抖）、窗口获得焦点 / 回到前台、联网、前台每 60 秒。全部在后台，界面永不等待；离线时照常用，联网后自动补上。
+- 退出登录：只停同步，本机数据原样保留。登录同步时不能「重置演示数据」（会影响其他设备）；退出后重置会清掉同步游标，下次登录重新合并，云端数据会回来。
+- 状态（设置 → 账户）：已同步 · 刚刚 / 正在同步… / 离线，联网后自动同步 / 同步出错（带 HTTP 状态码中文说明）+ 重试；凭据被拒（401 未登录 / 403 无权限）时按钮变「重新登录」。另有「立即同步」。
+- 服务端按 user_id（登录邮箱，小写）隔离数据；Web 端与原生端共用一个账号。
+
+### 同步引擎选型（Rei 2026-10-15 定 A：Turso Sync；实现时的取舍）
+Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自己的 outbox / 游标协议（经 Worker）**，没有直接用 Turso Sync 的客户端 SDK（`@tursodatabase/sync-wasm` / Rust `turso` crate 的 sync）。2026-10-15 实测与原因：
+- SDK 本身能用：`@tursodatabase/sync@0.8.3` 在 node 里对 Turso Cloud push / pull 成功。但它是**“最后推送者赢”**：实测设备 B 用更旧的 `updated_at` 改同一行后推送，A 拉下来是 B 的旧值——和我们要的“按 updated_at 行级 LWW”相反（可以用 `transform` 钩子改写成带条件的 upsert，但下面几条更难绕）。
+- 它同步的是**整个数据库文件**（物理页 + 本地改动回放）：本机专用的 `meta`（device_id、游标）、`outbox` 会被云端版本盖掉；建表 / `ALTER TABLE` 也会同步，离线设备回放同一条 `ADD COLUMN` 会失败、把拉取卡死，以后加迁移很危险。
+- Safari / iOS / macOS 的 WKWebView 没有 `COEP: credentialless`，跑不了 wasm 引擎（Web 端在 Safari 上本来就退回 localStorage），Apple 端只能换 Rust `turso` crate 重写原生存储层并实测移动端交叉编译。我们的协议是纯 TS，localStorage、rusqlite、OPFS 三种存储都能同步，Rust 侧不用动。
+- 鉴权：Turso Sync 要把数据库 token 交给客户端；Turso 的 token 只能经 Platform API（org 级权限）或长期 token 签发，没法在 Worker 里不带 Platform API token 就签短期 token。现在数据库 token 只放在 Worker 的密钥里，客户端拿的是 Worker 签的 1 小时同步凭据，只能读写自己的行。
+- 留的路：core 的 `SyncTransport` 接口与 `SyncEngine` 和存储无关，以后 Turso Sync 成熟（逻辑行级冲突、DDL 不随同步走）可以换；云端数据本来就在 Turso。
+- 备选（未用）：B 自建 Worker + D1（同一套协议换个云端存储即可，~10 行）；cr-sqlite；PowerSync（需要 Postgres）。
+
+### 云端（Turso `mindough`）
+- `sync_row(user_id, tbl, id, updated_at, deleted, data, seq)`，主键 (user_id, tbl, id)，索引 (user_id, seq)；`data` 是整行 JSON，云端不关心业务列——客户端加列 / 加表不用改云端。
+- `auth_code(code, payload, challenge, expires_at, used)`：原生端一次性登录码（5 分钟）。
+- `server_schema`：云端迁移版本；Worker 第一次用到时自动应用（`apps/server/src/sync.ts` 的 `SERVER_MIGRATIONS`，只追加）。
+- Worker 密钥：`TURSO_DB_URL`、`TURSO_DB_TOKEN`（全权限数据库 token，只在 Worker 里，不进仓库、不给客户端）。
+- 接口：`POST /api/sync/token`（会话 → `{ url, token, expires_at }`，401 未登录 / 403 无权限 / 503 服务不可用）、`POST /api/sync/push`（`{ rows }` → `{ applied }`，单次最多 500 行、单行 ≤ 2 MB）、`POST /api/sync/pull`（`{ cursor, limit }` → `{ rows, cursor, more }`）。
+
+### 原生端登录（Tauri）
+- 「用 Google 登录」→ app 生成 verifier，用系统浏览器打开 `/auth/login?native=1&challenge=base64url(SHA-256(verifier))` → Google → Worker 发一次性登录码，结果页（“已登录，回到 Mindough 继续”）跳回 `mindough://auth?code=…` → app `POST /auth/exchange { code, verifier }` 换成会话（30 天），存本机，之后请求带 `Authorization: Bearer`。别的 app 截到 deep link 没有 verifier 换不走；码只能用一次。
+- Tauri 插件：opener（系统浏览器）、deep-link（`mindough://`，桌面与移动端都注册）、桌面端 single-instance（带 deep-link 特性：Windows / Linux 再开一个进程时把链接交给已开着的窗口）。Worker 给 `tauri://localhost`、`http(s)://tauri.localhost` 开 CORS。
+- 状态：代码写完、`cargo check`（Linux）通过、Worker 端单测覆盖；**还没在真机上走过**（需要打包安装后点一次登录）。`rust-ini` 锁在 0.21.1（0.21.3 给 `ParseOption` 加了字段，deep-link 2.6.2 编译不过）。
+
+### 图片（R2）
+- `POST /api/assets`（会话或同步凭据，image/*，≤ 10 MB）存进 R2 桶 `mindough-assets`，key = 用户邮箱哈希前 16 位 / 内容 SHA-256（同一张图只存一份）；`GET /api/assets/<key>` 公开读、长缓存（key 猜不到）。
+- 客户端上传图片时：登录且在线 → 传 R2，asset 行只存地址（`url`、`r2_key`、`sha256`）；离线或没登录 → 仍存 data: 地址（照样同步，只是行大一些）。以前存的 data: 图片暂不自动搬到 R2（以后做）。
+
+### 风险与缺口
+- 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖 Turso 单写者串行；若以后开 `BEGIN CONCURRENT` 要改成计数表。
+- 行级 LWW：两台设备离线改同一件任务的不同字段，只留晚的那次（整行）。字段级合并以后再说。
+- 旧版本客户端不认识的新列：拉下来能存（JSON 里有），但旧版本改这一行再推，会丢掉新列的值。
+- 同步凭据 1 小时、会话 30 天；会话是 HMAC 签名、无服务端状态，泄露只能靠换 `SESSION_SECRET` 失效。
+- Turso 免费档（starter）；2026 年 Turso 宣布加入 Supabase，留意产品走向。
 
 ## 任务类型（显示变体 + 创建模板）
 任务可选一个“类型”。类型决定两件事：在列表、组、依赖图节点里怎么显示（显示变体），以及新建时给出什么模板（要填的字段 + 预填的 markdown 正文）。正文仍是 markdown、仍无标题。
@@ -204,8 +231,9 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
   - Tauri 原生：`src-tauri/src/db.rs` 命令层（rusqlite bundled，单连接，`db_exec / db_run / db_all`），schema 与迁移仍在前端 core，与 Web 同一份。没用 tauri-plugin-sql：它是连接池，跨 invoke 的 BEGIN / COMMIT 不可靠。本机 `cargo check` 通过（Linux）。
   - 测试：同一套契约跑 内存 / localStorage / node:sqlite / Turso 引擎（`@tursodatabase/database`，与 wasm 同引擎）。
 - ✅ GitHub Actions：`ci.yml`（类型检查、单测、构建）；`build.yml`（手动或推 `v*` 标签）用 tauri-action 打未签名的 macOS universal、Windows（msi / nsis）、Linux（AppImage / deb），另有 Android debug APK（arm64，CI 里 `tauri android init`）；产物传 artifacts，推标签时建 Release 草稿。iOS 待签名方案。
-- ✅ Google 登录（Worker 写好未部署）：`/auth/login`、`/auth/callback`、`/auth/logout`、`/api/me`；HMAC 签名会话 cookie（SESSION_SECRET，30 天）；`ALLOWED_EMAILS` 白名单，为空 = 谁都不能登录。失败回跳带 `?login_error=代码`，前端启动时立即用 history.replaceState 去掉并显示可关闭提示，登录成功后不再显示。`POST /api/sync/token` 先返回 501 未实现（M2 签发 Turso token）。客户端设置页有“账户”区；不登录也能完整离线使用。
-- 待做：原生端登录（系统浏览器 + deep link 回调）；Worker 部署与 Google OAuth 客户端配置；Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
+- ✅ Google 登录（Worker 写好未部署）：`/auth/login`、`/auth/callback`、`/auth/logout`、`/api/me`；HMAC 签名会话 cookie（SESSION_SECRET，30 天）；`ALLOWED_EMAILS` 白名单，为空 = 谁都不能登录。失败回跳带 `?login_error=代码`，前端启动时立即用 history.replaceState 去掉并显示可关闭提示，登录成功后不再显示。`POST /api/sync/token` 当时先返回 501 未实现，M2 已签发同步凭据。客户端设置页有“账户”区；不登录也能完整离线使用。
+- ✅ 原生端登录（系统浏览器 + deep link 回调）：M2 里做完，见“原生端登录（Tauri）”；Worker 已部署，Google OAuth 客户端 Rei 配好（2026-10-15）。
+- 待做：Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
 
 ### M1b ✅（2026-10-15）：新建与详情重做 + 文案（Rei：“功能都有，但让人厌恶……完成方式在新建时就要让用户选，而且用词很粗糙”）
 - 新建和详情拆开。新建面板（TaskComposer）：一个大的无边框内容框（「要做什么？」，自动聚焦，无标签无编辑/预览页签，Markdown 写法只在 ? 悬停提示里）；下面一排属性胶囊（类型 / 日期 / 组 / 和谁有关，点开是弹层，设了显示值）；「怎么算完成」四张卡片（名称 + 一句话例子，默认勾选完成），选中后只出现它自己的一句话设置（每次 [10] [分钟] / 目标 [8] [杯] / 目标日期 [..]，到时显示 还有 N 天）；「多久一次」只做一次 / 定期打卡 → 每天 / 每周[一…日] / 每月 [15] 号 / 每 [3] 天，定期时出打卡分类网格。选了非普通类型才出现该类型的字段，类型可带默认完成方式（用户手动挑过就不改）。没有状态、没有删除；主按钮「添加」（⌘/Ctrl+Enter），取消或 Esc。从侧边栏新建且无组无日期的仍自动进我的一天；建好后提示里可「查看」。“然后呢？”/「新建下一步」打开同一个面板，带“做完「X」之后”，建好自动连上。
@@ -222,9 +250,15 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - core：`related.ts`（规范顺序、确定 id、前后关系优先的过滤）、`task_link` 表与 SQLite 迁移 v3、Store `linkTasks / unlinkTasks / relatedTasks / taskLinks`（按版本缓存）、删任务级联、演示数据三对；测试覆盖去重、不阻塞、与前后关系重叠、localStorage / node:sqlite / Turso v2 → v3。
 - 界面：详情的分区改叫「关系」，下分 先做完这些 / 做完后解锁 / 相关任务（「添加」可搜索、「新建相关任务」、行可点开、悬停 × 去掉、显示对方状态）；新建面板多一颗「相关任务」胶囊（多选）；列表行在元信息里显示小链环 + 个数；关系图把相关画成没有箭头的点线（前后关系里还没完成的是虚线带箭头，所以相关用圆点线区分），参与排布让两件挨着，图例「相关（不分先后）」，「有关系的」范围包含相关任务；选中点线按 Delete 去掉。
 
-### M2：多端同步
-- 定同步引擎（A Turso Sync 推荐 / B 自建 Worker + D1）；从 outbox push、按游标 pull；字段级 / 行级 LWW；check_in 只追加；合并后重跑环检测并标冲突边。
-- 图片上传 R2，asset 只存引用。
+### M2 ✅（2026-10-15）：多端同步
+- ✅ 引擎：Rei 定 A（Turso）；实现为 Turso Cloud + 自己的 outbox / 游标协议经 Worker（原因见“同步引擎选型”）。core `sync/`：`SyncEngine`（防抖推送、游标拉取、第一次登录的合并、演示数据不带上去、状态）、`SyncTransport` 接口、`MemoryRemote` 假云端；Store `applyRemote` / `onLocalWrite` / `raw` / `conflictEdges`；适配器 `applyRemoteChanges`（不进 outbox）。
+- ✅ 合并规则：行级 LWW（HLC + 设备 id 定先后）、墓碑同样比较、check_in 只追加、合并后成环的后到边标冲突。core 测试用两台模拟设备 + 假云端覆盖：互相看到、第一次合并两边数据都留、LWW 与推送先后无关、同毫秒按设备 id、删除 vs 编辑、打卡相加、成环冲突一致、同一对去重、新设备只有演示数据、改过的演示数据照常合并、离线后补推、401、防抖不回推、退出后不推、SQLite 落盘不进 outbox、重置后重新合并。
+- ✅ Worker：`/api/sync/token`、`/api/sync/push`、`/api/sync/pull`、云端 schema 自动迁移、`/api/me` 移出白名单 403、Bearer 会话、Tauri CORS；单测用 node:sqlite 实现的假 Turso（真跑 SQL）；`apps/server/e2e/real-turso.test.ts` 对真实 Turso 跑两台设备（默认跳过，2026-10-15 跑通后清掉了测试行）。
+- ✅ 客户端：`lib/sync.ts`（凭据缓存与 401 重取、HTTP 传输层、跟着账户开停、焦点 / 联网 / 60 秒触发）、`lib/account.ts` 改成全局账户状态（Web cookie / 原生 Bearer）、设置 → 账户的同步状态行与「立即同步」、详情里的成环提示、登录同步时不能重置。
+- ✅ 原生端登录（deep link + 一次性码 + verifier）：代码与 `cargo check` 通过，未在真机验证。
+- ✅ 图片上传 R2（登录在线时），asset 只存地址；旧的 data: 图片暂不迁移。
+- 线上：Worker 已部署（`/api/health` stage M2）；Turso 库 `mindough`（东京）已建、云端 schema v1 已应用；Worker 密钥 `TURSO_DB_URL`、`TURSO_DB_TOKEN` 已设；R2 桶 `mindough-assets` 已建并绑定 `FILES`。
+- 要 Rei 验证：两个浏览器（或电脑 + 手机）都登录同一个 Google 账户，一边新建 / 改 / 打卡，另一边回到前台或点「立即同步」看到。
 
 ### 以后
 - 自定义类型编辑器（版式、字段、模板、图标、颜色）；类型隐藏 / 排序。
@@ -248,7 +282,6 @@ SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、b
 
 ## 待确认
 - Web 端风格：跟随访问者系统（默认），还是固定一种？
-- 同步引擎：A Turso Sync（推荐）还是 B 自建 Worker + D1？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - 谁能登录：只 Rei 自己（`ALLOWED_EMAILS` 白名单，现默认 reiy.leoz@gmail.com），还是开放注册？代码已按白名单可配写好。
 - iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？
