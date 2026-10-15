@@ -1083,3 +1083,56 @@
 [data-skin='material'] .ep-chip {
   border-radius: 8px;
 }
+
+/* 链接预览太长时省略号，不撑出格子 */
+.field-hint-link {
+  min-width: 0;
+}
+.field-hint-link-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-hint-link svg {
+  flex: none;
+}
+
+/* 手机：更多链接每条一张小卡——上面 名字 + 上移 / 下移 / 去掉，下面整行网址 */
+[data-layout='mobile'] .links-list {
+  gap: 8px;
+}
+[data-layout='mobile'] .links-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label actions' 'url url';
+  gap: 2px 4px;
+  padding: 4px 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+[data-layout='mobile'] .links-row .links-label {
+  grid-area: label;
+  width: auto;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding-left: 4px;
+}
+[data-layout='mobile'] .links-row .links-label:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+[data-layout='mobile'] .links-row .links-url {
+  grid-area: url;
+  background: var(--surface);
+}
+[data-layout='mobile'] .links-row .links-row-actions {
+  grid-area: actions;
+  align-self: center;
+}
+[data-layout='mobile'] .links-row-actions .icon-btn {
+  width: 34px;
+  height: 34px;
+}

@@ -1250,3 +1250,22 @@
   flex: none;
   white-space: nowrap;
 }
+
+/* 弹层底部的轻提示：放不下时自己占一行，按钮整组靠右，不会把「保存」挤到下一行 */
+.dialog-foot .foot-note {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.dialog-foot .foot-note + .grow {
+  flex: 0 0 0;
+}
+.dialog-foot .btn {
+  flex: none;
+}
+[data-layout='mobile'] .dialog-foot .foot-note {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+[data-layout='mobile'] .dialog-foot .foot-note + .grow {
+  flex: 1 1 0;
+}

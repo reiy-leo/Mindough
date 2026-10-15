@@ -3,6 +3,7 @@ import { Store } from '../src/store';
 import { MemoryAdapter } from '../src/storage/memory';
 import { seedDemo } from '../src/seed/demo';
 import { BUILTIN_TASK_TYPES } from '../src/seed/builtin-types';
+import { BUILTIN_CHECKIN_CATEGORIES, BUILTIN_CHECKIN_CATEGORY_IDS, pickFrequentCategories } from '../src/seed/builtin-checkin-categories';
 import { findCycleEdges } from '../src/dag';
 import { taskStreak } from '../src/checkin';
 import { local } from './helpers';
@@ -42,5 +43,29 @@ describe('演示数据', () => {
     expect(streak?.best).toBeGreaterThan(1);
     const blocked = [...store.derived().values()].filter((d) => d.state === '被阻塞');
     expect(blocked.length).toBeGreaterThan(2);
+  });
+});
+
+describe('常用打卡分类', () => {
+  const cats = BUILTIN_CHECKIN_CATEGORIES;
+  const id = (k: keyof typeof BUILTIN_CHECKIN_CATEGORY_IDS) => BUILTIN_CHECKIN_CATEGORY_IDS[k];
+  it('没用过时是默认 6 个', () => {
+    expect(pickFrequentCategories(cats, []).map((c) => c.name)).toEqual(['健康', '运动', '学习', '读书', '饮食', '作息']);
+  });
+  it('用得多的在前，件数一样按最近，再用默认补齐、不重复', () => {
+    const usage = [
+      { categoryId: id('plant'), at: '1' },
+      { categoryId: id('finance'), at: '2' },
+      { categoryId: id('finance'), at: '3' },
+      { categoryId: id('sport'), at: '4' },
+      { categoryId: null, at: '5' },
+    ];
+    expect(pickFrequentCategories(cats, usage).map((c) => c.name)).toEqual(['理财', '运动', '植物', '健康', '学习', '读书']);
+  });
+  it('隐藏的不算常用', () => {
+    const visible = cats.filter((c) => c.id !== id('health'));
+    const names = pickFrequentCategories(visible, [{ categoryId: id('health'), at: '1' }]).map((c) => c.name);
+    expect(names).not.toContain('健康');
+    expect(names).toHaveLength(6);
   });
 });

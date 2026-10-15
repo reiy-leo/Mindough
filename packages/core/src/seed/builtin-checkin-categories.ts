@@ -58,3 +58,40 @@ export const BUILTIN_CHECKIN_CATEGORIES: CheckInCategory[] = SEED.map(([n, , nam
   hidden: false,
   sort: i + 1,
 }));
+
+/** 还没用过几个分类时，「常用」先放这几个（按日常最常见的打卡）。 */
+export const DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS: readonly SeedKey[] = ['health', 'sport', 'study', 'reading', 'diet', 'sleep'];
+
+/**
+ * 「常用」分类：先按用到它的重复任务件数（多的在前，件数一样按最近一次用到），再用默认几个补齐到 n 个。
+ * 只返回 visible 里的（隐藏的不算常用）。纯函数，界面经 Store.frequentCheckInCategories 调用。
+ */
+export function pickFrequentCategories(
+  visible: readonly CheckInCategory[],
+  usage: readonly { categoryId: string | null; at: string }[],
+  n = 6,
+): CheckInCategory[] {
+  const byId = new Map(visible.map((c) => [c.id, c]));
+  const stat = new Map<string, { count: number; last: string }>();
+  for (const u of usage) {
+    if (!u.categoryId || !byId.has(u.categoryId)) continue;
+    const s = stat.get(u.categoryId) ?? { count: 0, last: '' };
+    s.count++;
+    if (u.at > s.last) s.last = u.at;
+    stat.set(u.categoryId, s);
+  }
+  const used = [...stat.entries()]
+    .sort((a, b) => b[1].count - a[1].count || (a[1].last < b[1].last ? 1 : a[1].last > b[1].last ? -1 : 0))
+    .map(([id]) => byId.get(id)!);
+  const out = used.slice(0, n);
+  for (const key of DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS) {
+    if (out.length >= n) break;
+    const c = byId.get(BUILTIN_CHECKIN_CATEGORY_IDS[key]);
+    if (c && !out.includes(c)) out.push(c);
+  }
+  for (const c of visible) {
+    if (out.length >= n) break;
+    if (!out.includes(c)) out.push(c);
+  }
+  return out;
+}

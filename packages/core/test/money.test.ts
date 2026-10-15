@@ -34,7 +34,13 @@ describe('金额：币种、格式、识别', () => {
     expect(formatMoney({ amount: 1200, currency: 'JPY' })).toBe('JP¥1,200');
     expect(formatMoney({ amount: 1200.4, currency: 'JPY' })).toBe('JP¥1,200');
     expect(formatMoney({ amount: 59.9, currency: 'GBP' })).toBe('£59.90');
-    expect(formatMoney({ amount: 189, currency: 'SGD' })).toMatch(/189$/);
+    expect(formatMoney({ amount: 189, currency: 'SGD' })).toBe('S$189');
+    expect(formatMoney({ amount: 1299.5, currency: 'TRY' })).toBe('₺1,299.50');
+    expect(formatMoney({ amount: 500, currency: 'PHP' })).toBe('₱500');
+    expect(formatMoney({ amount: 49, currency: 'MYR' })).toBe('RM49');
+    expect(formatMoney({ amount: 99, currency: 'RUB' })).toBe('₽99');
+    // 只有代码、表里也只写代码的照原样
+    expect(formatMoney({ amount: 10, currency: 'CHF' })).toMatch(/^CHF\s10$/);
     expect(fieldText({ amount: 1299, currency: 'CNY' })).toBe('¥1,299');
   });
 

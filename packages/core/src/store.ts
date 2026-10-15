@@ -22,7 +22,7 @@ import {
   splitTypeData,
   type LibraryEntry,
 } from './library';
-import { BUILTIN_CHECKIN_CATEGORIES } from './seed/builtin-checkin-categories';
+import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
 import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
@@ -715,6 +715,14 @@ export class Store {
     return this.list('checkin_category')
       .filter((c) => includeHidden || !c.hidden)
       .sort((a, b) => a.sort - b.sort);
+  }
+
+  /** 「常用」打卡分类（选择器第一屏）：按重复任务用到的件数，不够用默认几个补齐。 */
+  frequentCheckInCategories(n = 6): TableMap['checkin_category'][] {
+    const usage = this.tasks()
+      .filter((t) => t.recurrence)
+      .map((t) => ({ categoryId: t.checkin_category_id ?? null, at: t.created_at }));
+    return pickFrequentCategories(this.checkInCategories(), usage, n);
   }
 
   createCheckInCategory(name: string, icon = 'tag', color = '#8e8e93'): TableMap['checkin_category'] {

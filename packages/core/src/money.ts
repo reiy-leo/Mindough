@@ -125,11 +125,28 @@ export function parseMoney(text: string, fallbackCurrency = DEFAULT_CURRENCY): M
 
 /** 显示：Intl（zh-CN）按币种的小数位；整数金额不补 .00（「¥1,299」「US$12.50」「JP¥1,200」）。 */
 export function formatMoney(m: MoneyValue): string {
-  const currency = currencyOf(m.currency)?.code ?? m.currency;
+  const cur = currencyOf(m.currency);
+  const currency = cur?.code ?? m.currency;
   try {
     const base = new Intl.NumberFormat('zh-CN', { style: 'currency', currency });
     const max = base.resolvedOptions().maximumFractionDigits ?? 2;
-    return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: Number.isInteger(m.amount) ? 0 : max, maximumFractionDigits: max }).format(m.amount);
+    const parts = new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: Number.isInteger(m.amount) ? 0 : max, maximumFractionDigits: max }).formatToParts(m.amount);
+    // zh-CN 对很多币种只给代码（「SGD 189」「TRY 1,299」）；这时换成当地常用符号（S$、₺、₱、RM…），去掉代码后的空格
+    const codeOnly = parts.some((p) => p.type === 'currency' && p.value === currency);
+    if (!codeOnly || !cur || cur.symbol === currency) return parts.map((p) => p.value).join('');
+    let out = '';
+    let skipSpace = false;
+    for (const p of parts) {
+      if (p.type === 'currency') {
+        out += cur.symbol;
+        skipSpace = true;
+        continue;
+      }
+      if (skipSpace && p.type === 'literal' && /^\s+$/.test(p.value)) continue;
+      skipSpace = false;
+      out += p.value;
+    }
+    return out;
   } catch {
     return `${m.amount} ${currency}`;
   }

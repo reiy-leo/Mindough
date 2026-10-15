@@ -9,7 +9,7 @@ import { SITES, detectLinkLabel, linksOf, normalizeUrl, type FieldDef, type Fiel
 import { Field, Tip } from '../../ui/primitives';
 
 /**
- * 链接打开方式：新标签页（Tauri 里由 webview 交给系统浏览器）。
+ * 链接打开方式：新标签页（App 里由 lib/external.ts 交给系统浏览器）。
  * 放在卡片、弹层这类自己能点的东西里面：按下和点击都不往外传，免得点链接同时触发外层（打开详情、关弹层）。
  */
 export function ExtLink({ href, className, children, label, title }: { href: string; className?: string; children: React.ReactNode; label?: string; title?: string }) {
@@ -90,7 +90,7 @@ export function SiteIdInput({ def, value, onChange }: { def: FieldDef; value: Fi
           site.hint
         ) : id ? (
           <ExtLink href={site.url(id)} className="field-hint-link">
-            {shortUrl(site.url(id))}
+            <span className="field-hint-link-text">{shortUrl(site.url(id))}</span>
             <ExternalLink size={11} aria-hidden />
           </ExtLink>
         ) : null
