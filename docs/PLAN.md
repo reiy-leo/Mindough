@@ -8,7 +8,7 @@
 - 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
 - 前端：TypeScript + React + Vite，UI 用 Kumo（与 vector-wallpapers 等一致），lucide 图标，浅/深色。
 - 存储：本地优先、离线可用。原生端 SQLite（tauri-plugin-sql）；Web 端 SQLite WASM（OPFS 持久化）。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
-- 同步：Cloudflare Worker + D1 作服务端（同域 `mindough.rei8t.dev/api`）。登录用 Google OAuth（Rei 的 Worker 默认）；原生端走系统浏览器 + deep link 回调。
+- 同步：Cloudflare Worker + D1（结构化数据）+ R2（海报、图标等图片）作服务端（同域 `mindough.rei8t.dev/api`）。登录用 Google OAuth（Rei 的 Worker 默认）；原生端走系统浏览器 + deep link 回调。
 - Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
 
@@ -27,11 +27,27 @@
 - 依赖边合并后两端都重跑环检测；若两台设备各加一条边恰好成环，后到的那条标“冲突”，在界面上提示用户删掉其一。
 - 服务端按 user_id 隔离数据；Web 端与原生端共用一个账号。
 
+## 显示变体（variant）
+任务可选一个“显示变体”，决定它在列表、组、依赖图节点里长什么样。正文仍是 markdown、仍无标题；变体只是附加的展示信息。
+- 内置三种：
+  - 影视：竖版海报（2:3）+ 片名，可选年份。
+  - 项目：项目图标 + 项目名。
+  - 游戏：游戏图标（方形）+ 游戏名，可选平台。
+- 无变体的任务照旧显示正文首行。
+- 自定义变体：用户自己建，选一种版式（海报 / 图标+名称 / 横幅 / 纯文字），再定义要填的字段（名称、文本、链接、日期、图片），可改名、配图标与颜色。内置三种也是用同一机制预置的，可修改或复制。
+- 组可设“默认变体”，组里新建任务自动套用。
+- 图片：本地上传或粘贴链接；原生端存本地文件，同步时上传到 Cloudflare R2，D1 只存引用。
+- 以后再做：按名称自动找图（影视 TMDB、游戏 Steam/IGDB），展示时附来源。
+
 ## 数据模型
 - task：id、body_md（无标题，列表里显示首行作预览）、status（待办/进行中/完成/取消）、group_id（可空）、scheduled_date（可空，用于列表视图）、done_at、sort、created_at
 - dependency：pred_id、succ_id、type=FS、lag=0
 - group：id、name、icon（emoji 或 lucide）、start_at、end_at、category_id
 - category：id、name、color
+- variant：id、name、icon、color、layout（poster / icon_name / banner / text）、fields（JSON 字段定义）、builtin
+- task 增加 variant_id（可空）、variant_data（JSON，按字段定义填写，图片存 asset_id）
+- group 增加 default_variant_id（可空）
+- asset：id、sha256、mime、width、height、r2_key（同步后）
 - 依赖可以跨组。
 
 ## 视图（MVP）
@@ -55,5 +71,6 @@ SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、b
 - 每轮完成后 commit + push
 
 ## 待确认
+- 变体的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - 谁能登录：只 Rei 自己（ADMIN_EMAILS 白名单），还是开放注册？
 - iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？
