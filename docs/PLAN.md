@@ -29,7 +29,7 @@
 
 ## 任务类型（显示变体 + 创建模板）
 任务可选一个“类型”。类型决定两件事：在列表、组、依赖图节点里怎么显示（显示变体），以及新建时给出什么模板（要填的字段 + 预填的 markdown 正文）。正文仍是 markdown、仍无标题。
-- 默认类型“琐事”：纯文字，显示正文首行，无字段，新建即写。
+- 默认类型“普通”：就是一段没有标题的 markdown 文本，无字段、无模板，显示正文首行，新建即写。
 - 内置类型（先做这些，均可修改、复制、隐藏）：
 
 | 类型 | 显示 | 字段 | 正文模板 |
@@ -44,7 +44,7 @@
 | 餐厅 | 照片 + 店名 | 店名、照片、地址、链接 | 想吃什么 / 评价 |
 
 - 自定义类型：选一种版式（海报 / 图标+名称 / 横幅 / 纯文字），定义字段（文本、数字、进度、日期、链接、图片、单选），写一段正文模板，配名称、图标、颜色。内置类型走同一套机制，不写死特例。
-- 新建任务时先选类型（快捷键可直接新建琐事）；组可设“默认类型”，组里新建自动套用。
+- 新建任务时先选类型（快捷键直接新建普通任务）；组可设“默认类型”，组里新建自动套用。
 - 改类型时保留已填字段，新类型没有的字段先隐藏不删。
 - 图片：本地上传或粘贴链接；原生端存本地文件，同步时上传到 Cloudflare R2，D1 只存引用。
 - 以后再做：按名称自动找图和资料（影视 TMDB、游戏 Steam/IGDB、书籍 Open Library），展示时附来源。
@@ -55,7 +55,7 @@
 - group：id、name、icon（emoji 或 lucide）、start_at、end_at、category_id
 - category：id、name、color
 - task_type：id、name、icon、color、layout（poster / icon_name / banner / text）、fields（JSON 字段定义）、body_template（markdown）、builtin、hidden
-- task 增加 type_id（可空=琐事）、type_data（JSON，按字段定义填写，图片存 asset_id）
+- task 增加 type_id（可空=普通）、type_data（JSON，按字段定义填写，图片存 asset_id）
 - group 增加 default_type_id（可空）
 - asset：id、sha256、mime、width、height、r2_key（同步后）
 - 依赖可以跨组。
