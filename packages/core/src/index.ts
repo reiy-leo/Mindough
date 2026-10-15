@@ -25,3 +25,6 @@ export * from './storage/migrate';
 export * from './seed/builtin-types';
 export * from './seed/builtin-checkin-categories';
 export * from './seed/demo';
+export * from './sync/protocol';
+export * from './sync/engine';
+export * from './sync/memory-remote';

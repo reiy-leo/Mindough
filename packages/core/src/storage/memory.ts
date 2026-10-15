@@ -25,6 +25,14 @@ export class MemoryAdapter implements StorageAdapter {
     }
   }
 
+  async applyRemoteChanges(changes: readonly Change[]): Promise<void> {
+    for (const c of changes) {
+      const table = this.tables.get(c.table);
+      if (!table) continue;
+      table.set(c.row.id, clone(lwwPick(table.get(c.row.id), c.row as BaseRow)));
+    }
+  }
+
   async getMeta(key: string): Promise<string | null> {
     return this.meta.get(key) ?? null;
   }

@@ -5,7 +5,7 @@
 import { HlcClock } from './hlc';
 import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
-import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
+import { assertCanAddEdge, deriveAll, findCycleEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
 import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, relatedIdsOf, taskLinkId, visibleLinks } from './related';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
@@ -46,6 +46,12 @@ export interface CheckInResult {
 
 type Tables = { [K in TableName]: Map<string, TableMap[K]> };
 
+/** 同步合并后绕成环的前后关系：不生效（不阻塞、不进图的排布），界面提示用户去掉其一。 */
+export interface ConflictEdge extends Edge {
+  /** 这一对的依赖行 id（可能不止一行：两台设备各连了一次）。 */
+  ids: string[];
+}
+
 export type NewTaskInput = Partial<Omit<Task, 'id' | 'updated_at' | 'deleted'>> & { id?: string };
 
 export class Store {
@@ -56,6 +62,8 @@ export class Store {
   private batchBuffer: Change[] | null = null;
   private derivedCache: { version: number; value: Map<string, DerivedStatus> } | null = null;
   private relatedCache: { version: number; value: Map<string, string[]> } | null = null;
+  private edgeCache: { version: number; accepted: Edge[]; conflicts: ConflictEdge[] } | null = null;
+  private localWriteListeners = new Set<(changes: readonly Change[]) => void>();
   readonly clock: HlcClock;
   readonly now: () => Date;
 
@@ -122,6 +130,11 @@ export class Store {
     return [...this.tables[table].values()];
   }
 
+  /** 含墓碑的一行（同步推送用）。 */
+  raw<K extends TableName>(table: K, id: string): TableMap[K] | undefined {
+    return this.tables[table]?.get(id);
+  }
+
   get<K extends TableName>(table: K, id: string | null | undefined): TableMap[K] | undefined {
     if (!id) return undefined;
     const r = this.tables[table].get(id);
@@ -132,8 +145,40 @@ export class Store {
     return this.list('task').sort((a, b) => a.sort - b.sort || (a.created_at < b.created_at ? -1 : 1));
   }
 
+  /**
+   * 生效的前后关系（去重、无环）。依赖行按 updated_at（HLC，含设备 id，各端顺序一致）依次加入，
+   * 同一对只算一次；加入后会成环的记为冲突（conflictEdges），不生效。本机加边时已过环检测，
+   * 只有两台设备各加一条、合并后才会出现冲突。按版本缓存。
+   */
   edges(): Edge[] {
-    return liveEdges(this.list('dependency'));
+    return this.edgeState().accepted;
+  }
+
+  /** 同步合并后成环、暂不生效的前后关系（“后到的那条”）。 */
+  conflictEdges(): ConflictEdge[] {
+    return this.edgeState().conflicts;
+  }
+
+  private edgeState() {
+    if (this.edgeCache?.version === this._version) return this.edgeCache;
+    const deps = this.list('dependency').sort((a, b) => (a.updated_at < b.updated_at ? -1 : a.updated_at > b.updated_at ? 1 : a.id < b.id ? -1 : 1));
+    const byPair = new Map<string, { edge: Edge; ids: string[] }>();
+    for (const d of deps) {
+      const key = `${d.pred_id}>${d.succ_id}`;
+      const cur = byPair.get(key);
+      if (cur) cur.ids.push(d.id);
+      else byPair.set(key, { edge: { pred_id: d.pred_id, succ_id: d.succ_id }, ids: [d.id] });
+    }
+    const ordered = [...byPair.values()];
+    const bad = new Set(findCycleEdges(ordered.map((x) => x.edge)));
+    const accepted: Edge[] = [];
+    const conflicts: ConflictEdge[] = [];
+    for (const x of ordered) {
+      if (bad.has(x.edge)) conflicts.push({ ...x.edge, ids: x.ids });
+      else accepted.push(x.edge);
+    }
+    this.edgeCache = { version: this._version, accepted, conflicts };
+    return this.edgeCache;
   }
 
   /** 全部任务的派生状态（可开始 / 被阻塞 …），按版本缓存。 */
@@ -193,9 +238,47 @@ export class Store {
   private commit(stamped: Change[]): void {
     this._version++;
     for (const fn of this.listeners) fn();
+    for (const fn of this.localWriteListeners) fn(stamped);
     this.pending = this.pending
       .then(() => this.adapter.applyChanges(stamped))
       .catch((err) => this.opts.onError?.(err));
+  }
+
+  /** 本机写入（不含同步拉下来的）之后回调，同步引擎用它安排推送。 */
+  onLocalWrite(fn: (changes: readonly Change[]) => void): () => void {
+    this.localWriteListeners.add(fn);
+    return () => this.localWriteListeners.delete(fn);
+  }
+
+  /**
+   * 合并从云端拉下来的行：行级 LWW（updated_at 大者胜；HLC 末尾是设备 id，相等即同一次写入，保留已有）。
+   * 墓碑也只是一次写入，按同样规则比较。胜出的行改内存、通知订阅者，落盘但不进 outbox。
+   * 未知表（更新版本的 app 加的）忽略。返回实际改动的行数。
+   */
+  applyRemote(changes: readonly Change[]): number {
+    const applied: Change[] = [];
+    for (const c of changes) {
+      const table = this.tables[c.table] as Map<string, BaseRow> | undefined;
+      if (!table || !c.row?.id || typeof c.row.updated_at !== 'string') continue;
+      const cur = table.get(c.row.id);
+      if (/^\d{13}-/.test(c.row.updated_at)) this.clock.receive(c.row.updated_at);
+      if (cur && !(c.row.updated_at > cur.updated_at)) continue;
+      const row = { ...c.row } as BaseRow;
+      if (c.table === 'task') {
+        const t = row as Task;
+        if (t.checkin_category_id === undefined) t.checkin_category_id = null;
+        if (t.library_item_id === undefined) t.library_item_id = null;
+      }
+      table.set(row.id, row);
+      applied.push({ table: c.table, row } as Change);
+    }
+    if (!applied.length) return 0;
+    this._version++;
+    for (const fn of this.listeners) fn();
+    this.pending = this.pending
+      .then(() => this.adapter.applyRemoteChanges(applied))
+      .catch((err) => this.opts.onError?.(err));
+    return applied.length;
   }
 
   /** 等待所有写入落盘。 */

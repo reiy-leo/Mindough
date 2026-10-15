@@ -67,6 +67,12 @@ export class WebStorageAdapter extends MemoryAdapter {
     this.persist(new Set(changes.map((c) => c.table)));
   }
 
+  override async applyRemoteChanges(changes: readonly Change[]): Promise<void> {
+    this.ensureLoaded();
+    await super.applyRemoteChanges(changes);
+    this.persist(new Set(changes.map((c) => c.table)));
+  }
+
   override async getMeta(key: string) {
     this.ensureLoaded();
     return super.getMeta(key);

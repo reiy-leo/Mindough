@@ -170,6 +170,16 @@ export class SqlAdapter implements StorageAdapter {
     );
   }
 
+  applyRemoteChanges(changes: readonly Change[]): Promise<void> {
+    const known = changes.filter((c) => (TABLES as readonly string[]).includes(c.table));
+    if (!known.length) return this.serial(async () => {});
+    return this.serial(() =>
+      this.tx(async () => {
+        for (const c of known) await this.db.run(UPSERT[c.table], rowToParams(c.table, c.row as BaseRow));
+      }),
+    );
+  }
+
   getMeta(key: string): Promise<string | null> {
     return this.serial(async () => {
       const rows = await this.db.all<{ value: string }>(`SELECT "value" FROM "meta" WHERE "key" = ?`, [key]);

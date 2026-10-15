@@ -1,10 +1,10 @@
 /**
- * 存储适配器接口。SQLite（tauri-plugin-sql）/ Turso Sync / SQLite WASM 适配器以后实现同一接口。
+ * 存储适配器接口。memory / localStorage / SQLite（rusqlite、Turso wasm、node:sqlite）都实现它。
  * 设计为异步：原生与 WASM 驱动都是异步的；UI 读的是 Store 里的内存快照，永不等待存储或网络。
  *
  * 同步友好：
  * - 每行带 UUIDv7 id、HLC updated_at、deleted 墓碑，只做 upsert，不物理删除；
- * - applyChanges 同时写入 outbox，同步引擎以后从 outbox 批量 push，再按游标 pull；
+ * - applyChanges 同时写入 outbox，同步引擎从 outbox 批量 push，再按游标 pull（applyRemoteChanges 写入，不进 outbox）；
  * - meta 存 device_id、同步游标等。
  */
 import type { BaseRow, Hlc, TableMap, TableName } from '../types';
@@ -29,6 +29,11 @@ export interface StorageAdapter {
   loadAll(): Promise<Snapshot>;
   /** 原子地写入一批行（upsert），并追加到 outbox。 */
   applyChanges(changes: readonly Change[]): Promise<void>;
+  /**
+   * 写入从云端拉下来的行：同样按行级 LWW upsert，但不进 outbox（否则会原样再推回去）。
+   * 同步引擎（sync/engine.ts）用。
+   */
+  applyRemoteChanges(changes: readonly Change[]): Promise<void>;
   getMeta(key: string): Promise<string | null>;
   setMeta(key: string, value: string): Promise<void>;
   /** 待推送的变更（按 seq 升序）。 */
