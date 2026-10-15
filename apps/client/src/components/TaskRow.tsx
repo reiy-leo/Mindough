@@ -1,0 +1,111 @@
+import type { ReactNode } from 'react';
+import { Button as RacButton, Checkbox } from 'react-aria-components';
+import { Check, Lock, Repeat, Sun, SunDim } from 'lucide-react';
+import { describeRecurrence, isCheckInTask, parseRecurrence, relativeDayZh, toDateKey, type Store, type Task } from '@mindough/core';
+import { useUi } from '../lib/ui';
+import { toggleDone, toggleMyDay } from '../lib/actions';
+import { STATE_CLASS, viewOf } from '../lib/view';
+import { typeIcon } from '../lib/icons';
+import { AvatarStack } from './Avatar';
+import { CheckInControl } from './CheckInControl';
+
+export interface TaskRowProps {
+  store: Store;
+  task: Task;
+  showGroup?: boolean;
+  showDate?: boolean;
+  showMyDay?: boolean;
+  /** 我的一天里：重复任务按“今天达标”显示勾。 */
+  doneOverride?: boolean;
+  trailing?: ReactNode;
+}
+
+export function TaskThumb({ media, layout, isAvatar, color, icon }: { media: string | null; layout: string; isAvatar: boolean; color?: string; icon?: string }) {
+  const Icon = typeIcon(icon);
+  if (media) return <img className={`thumb thumb-${isAvatar ? 'avatar' : layout}`} src={media} alt="" />;
+  if (layout === 'text') return null;
+  return (
+    <span className="thumb thumb-icon" style={{ color }}>
+      <Icon size={16} />
+    </span>
+  );
+}
+
+export function TaskRow({ store, task, showGroup = true, showDate = false, showMyDay = true, doneOverride, trailing }: TaskRowProps) {
+  const ui = useUi();
+  const v = viewOf(store, task);
+  const today = toDateKey(store.now());
+  const checkIn = isCheckInTask(task);
+  const done = doneOverride ?? task.status === '完成';
+  const inDay = store.isInMyDay(task.id, today);
+  const state = v.derived?.state;
+  const rec = parseRecurrence(task.recurrence);
+  const TypeIcon = typeIcon(v.type?.icon);
+  const isCheckInRow = checkIn && (task.completion_mode !== 'once' || !!rec);
+
+  return (
+    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}`} data-task-id={task.id}>
+      {isCheckInRow ? (
+        <span className="row-lead" aria-hidden>
+          {rec ? <Repeat size={17} /> : <TypeIcon size={18} style={{ color: v.type?.color }} />}
+        </span>
+      ) : (
+        <Checkbox
+          className="check"
+          isSelected={done}
+          onChange={() => toggleDone(store, ui, task.id)}
+          aria-label={done ? '标为未完成' : '标为完成'}
+        >
+          <span className="check-box" aria-hidden>
+            <Check size={13} strokeWidth={3} />
+          </span>
+        </Checkbox>
+      )}
+      <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} />
+      <RacButton className="row-main" onPress={() => ui.openEditor(task.id)}>
+        <span className="row-title">{v.title}</span>
+        <span className="row-meta">
+          {v.type && v.type.layout !== 'text' && (
+            <span className="meta-type" style={{ color: v.type.color }}>
+              <TypeIcon size={12} />
+              {v.type.name}
+            </span>
+          )}
+          {state === '被阻塞' && (
+            <span className="meta-state state-blocked">
+              <Lock size={11} />
+              还差 {v.derived!.missing.length} 个前置
+            </span>
+          )}
+          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">可开始</span>}
+          {task.status === '进行中' && <span className="meta-state state-doing">进行中</span>}
+          {showGroup && v.group && (
+            <span className="meta-group">
+              {v.group.icon} {v.group.name}
+            </span>
+          )}
+          {showDate && task.scheduled_date && <span className={`meta-date${task.scheduled_date < today && !done ? ' is-overdue' : ''}`}>{relativeDayZh(task.scheduled_date, today)}</span>}
+          {rec && (
+            <span className="meta-rec">
+              <Repeat size={11} />
+              {describeRecurrence(rec)}
+            </span>
+          )}
+          {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}
+        </span>
+      </RacButton>
+      <AvatarStack store={store} people={v.people.filter((p) => !(v.mediaIsAvatar && task.type_data.person === p.id))} />
+      {isCheckInRow && <CheckInControl store={store} task={task} compact />}
+      {trailing}
+      {showMyDay && (
+        <RacButton
+          className={`icon-btn myday-btn${inDay ? ' is-on' : ''}`}
+          aria-label={inDay ? '移出我的一天' : '加入我的一天'}
+          onPress={() => toggleMyDay(store, ui, task.id)}
+        >
+          {inDay ? <Sun size={17} /> : <SunDim size={17} />}
+        </RacButton>
+      )}
+    </div>
+  );
+}

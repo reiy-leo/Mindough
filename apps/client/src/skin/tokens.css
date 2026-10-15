@@ -1,0 +1,299 @@
+/*
+ * 皮肤层：设计令牌。业务组件只用这些变量和语义类名，不写死某个平台的样式。
+ * <html data-skin="apple|winui|material" data-theme="light|dark" data-layout="desktop|mobile">
+ */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --sidebar-w: 248px;
+  --content-max: 980px;
+  --tabbar-h: 56px;
+  --cell: 14px;
+  --cell-gap: 2px;
+  --mini-cell: 10px;
+  --mini-gap: 2px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 状态色（各皮肤可覆盖） */
+  --state-done: #34c759;
+  --state-ready: var(--accent);
+  --state-blocked: #ff9500;
+  --state-cancel: #8e8e93;
+}
+
+/* ───────────────────────── Apple（macOS / iOS，HIG） ───────────────────────── */
+[data-skin='apple'] {
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', 'Helvetica Neue', 'Noto Sans CJK SC', sans-serif;
+  --font-title: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+  --fs-body: 14px;
+  --fs-small: 12px;
+  --fs-title: 26px;
+  --fw-title: 700;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-ctl: 7px;
+  --radius-btn: 7px;
+  --radius-pill: 999px;
+  --ctl-h: 30px;
+  --row-h: 44px;
+  --nav-h: 30px;
+  --nav-radius: 7px;
+
+  --bg: #f5f5f7;
+  --bg-image: none;
+  --sidebar-bg: rgba(232, 232, 237, 0.82);
+  --sidebar-blur: saturate(180%) blur(20px);
+  --surface: #ffffff;
+  --surface-2: #f2f2f7;
+  --surface-3: #e9e9ee;
+  --surface-hover: rgba(0, 0, 0, 0.04);
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #8e8e93;
+  --accent: #007aff;
+  --accent-hover: #0068d9;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(0, 122, 255, 0.12);
+  --accent-soft-text: #0058c4;
+  --nav-active-bg: rgba(0, 0, 0, 0.08);
+  --nav-active-text: var(--text);
+  --nav-active-icon: var(--accent);
+  --danger: #ff3b30;
+  --success: #248a3d;
+  --warning: #c93400;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.1);
+  --focus: 0 0 0 3px rgba(0, 122, 255, 0.35);
+  --tabbar-bg: rgba(249, 249, 251, 0.86);
+  --heat-empty: #ebedf0;
+  --heat-color: #30a14e;
+  --state-done: #34c759;
+  --state-blocked: #ff9500;
+  --overlay: rgba(0, 0, 0, 0.25);
+}
+
+[data-skin='apple'][data-theme='dark'] {
+  --bg: #1c1c1e;
+  --sidebar-bg: rgba(38, 38, 42, 0.82);
+  --surface: #2c2c2e;
+  --surface-2: #232325;
+  --surface-3: #3a3a3c;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #8d8d93;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-soft: rgba(10, 132, 255, 0.2);
+  --accent-soft-text: #64b0ff;
+  --nav-active-bg: rgba(255, 255, 255, 0.1);
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  --tabbar-bg: rgba(28, 28, 30, 0.86);
+  --heat-empty: #2d333b;
+  --heat-color: #39d353;
+  --state-done: #30d158;
+  --state-blocked: #ff9f0a;
+  --overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* ─────────────── Windows 11（WinUI 3 / Fluent 2 for Windows） ─────────────── */
+[data-skin='winui'] {
+  --font: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif;
+  --font-title: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Noto Sans CJK SC', sans-serif;
+  --fs-body: 14px;
+  --fs-small: 12px;
+  --fs-title: 28px;
+  --fw-title: 600;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-ctl: 4px;
+  --radius-btn: 4px;
+  --radius-pill: 999px;
+  --ctl-h: 32px;
+  --row-h: 44px;
+  --nav-h: 36px;
+  --nav-radius: 4px;
+
+  /* Mica 近似：带一点桌面色调的底 + 半透明卡片 */
+  --bg: #f3f3f3;
+  --bg-image: radial-gradient(1200px 600px at 0% 0%, rgba(209, 222, 245, 0.75), transparent 60%),
+    radial-gradient(900px 700px at 100% 100%, rgba(240, 226, 236, 0.6), transparent 60%);
+  --sidebar-bg: transparent;
+  --sidebar-blur: none;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-2: rgba(249, 249, 249, 0.6);
+  --surface-3: rgba(0, 0, 0, 0.04);
+  --surface-hover: rgba(0, 0, 0, 0.037);
+  --border: rgba(0, 0, 0, 0.0578);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --text: rgba(0, 0, 0, 0.896);
+  --text-2: rgba(0, 0, 0, 0.62);
+  --text-3: rgba(0, 0, 0, 0.5);
+  --accent: #005fb8;
+  --accent-hover: #0067c0;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(0, 95, 184, 0.1);
+  --accent-soft-text: #003e78;
+  --nav-active-bg: rgba(0, 0, 0, 0.037);
+  --nav-active-text: var(--text);
+  --nav-active-icon: var(--text);
+  --danger: #c42b1c;
+  --success: #0f7b0f;
+  --warning: #9d5d00;
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 8px 16px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --focus: 0 0 0 2px var(--text), inset 0 0 0 1px #fff;
+  --tabbar-bg: rgba(243, 243, 243, 0.92);
+  --heat-empty: rgba(0, 0, 0, 0.07);
+  --heat-color: #0f7b0f;
+  --state-done: #0f7b0f;
+  --state-blocked: #c27c00;
+  --overlay: rgba(0, 0, 0, 0.3);
+}
+
+[data-skin='winui'][data-theme='dark'] {
+  --bg: #202020;
+  --bg-image: radial-gradient(1200px 600px at 0% 0%, rgba(38, 48, 70, 0.8), transparent 60%),
+    radial-gradient(900px 700px at 100% 100%, rgba(52, 38, 50, 0.7), transparent 60%);
+  --surface: rgba(255, 255, 255, 0.0512);
+  --surface-2: rgba(255, 255, 255, 0.03);
+  --surface-3: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.0698);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.786);
+  --text-3: rgba(255, 255, 255, 0.6);
+  --accent: #60cdff;
+  --accent-hover: #5ab9e6;
+  --accent-contrast: #000000;
+  --accent-soft: rgba(96, 205, 255, 0.14);
+  --accent-soft-text: #99ebff;
+  --nav-active-bg: rgba(255, 255, 255, 0.06);
+  --danger: #ff99a4;
+  --success: #6ccb5f;
+  --warning: #fce100;
+  --shadow-pop: 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --focus: 0 0 0 2px #fff, inset 0 0 0 1px #000;
+  --tabbar-bg: rgba(32, 32, 32, 0.92);
+  --heat-empty: rgba(255, 255, 255, 0.08);
+  --heat-color: #6ccb5f;
+  --state-done: #6ccb5f;
+  --state-blocked: #fce100;
+  --overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* ───────────────────────── Material 3（Android） ───────────────────────── */
+[data-skin='material'] {
+  --font: Roboto, 'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-title: Roboto, 'Noto Sans SC', 'Noto Sans CJK SC', system-ui, sans-serif;
+  --fs-body: 14px;
+  --fs-small: 12px;
+  --fs-title: 28px;
+  --fw-title: 400;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-ctl: 4px;
+  --radius-btn: 20px;
+  --radius-pill: 999px;
+  --ctl-h: 40px;
+  --row-h: 56px;
+  --nav-h: 56px;
+  --nav-radius: 28px;
+
+  /* M3 基线色板（以后接 Android 动态取色） */
+  --bg: #fef7ff;
+  --bg-image: none;
+  --sidebar-bg: #f7f2fa;
+  --sidebar-blur: none;
+  --surface: #f7f2fa;
+  --surface-2: #f3edf7;
+  --surface-3: #ece6f0;
+  --surface-hover: rgba(29, 27, 32, 0.08);
+  --border: #cac4d0;
+  --border-strong: #79747e;
+  --text: #1d1b20;
+  --text-2: #49454f;
+  --text-3: #625b71;
+  --accent: #6750a4;
+  --accent-hover: #5b4697;
+  --accent-contrast: #ffffff;
+  --accent-soft: #e8def8;
+  --accent-soft-text: #1d192b;
+  --nav-active-bg: #e8def8;
+  --nav-active-text: #1d192b;
+  --nav-active-icon: #1d192b;
+  --danger: #b3261e;
+  --success: #386a20;
+  --warning: #7d5700;
+  --shadow-card: none;
+  --shadow-pop: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --focus: 0 0 0 3px rgba(103, 80, 164, 0.4);
+  --tabbar-bg: #f3edf7;
+  --heat-empty: #e7e0ec;
+  --heat-color: #6750a4;
+  --state-done: #386a20;
+  --state-blocked: #ba6100;
+  --overlay: rgba(0, 0, 0, 0.32);
+}
+
+[data-skin='material'][data-theme='dark'] {
+  --bg: #141218;
+  --sidebar-bg: #1d1b20;
+  --surface: #1d1b20;
+  --surface-2: #211f26;
+  --surface-3: #2b2930;
+  --surface-hover: rgba(230, 224, 233, 0.08);
+  --border: #49454f;
+  --border-strong: #938f99;
+  --text: #e6e0e9;
+  --text-2: #cac4d0;
+  --text-3: #b0a7c0;
+  --accent: #d0bcff;
+  --accent-hover: #ddd0ff;
+  --accent-contrast: #381e72;
+  --accent-soft: #4a4458;
+  --accent-soft-text: #e8def8;
+  --nav-active-bg: #4a4458;
+  --nav-active-text: #e8def8;
+  --nav-active-icon: #e8def8;
+  --danger: #f2b8b5;
+  --success: #9cd67d;
+  --warning: #f5bd5c;
+  --tabbar-bg: #211f26;
+  --heat-empty: #2b2930;
+  --heat-color: #d0bcff;
+  --state-done: #9cd67d;
+  --state-blocked: #f5bd5c;
+  --overlay: rgba(0, 0, 0, 0.5);
+}
+
+[data-layout='mobile'] {
+  --cell: 11px;
+  --cell-gap: 3px;
+  --fs-title: 30px;
+}
+[data-layout='mobile'][data-skin='apple'] {
+  --fs-title: 32px;
+  --fs-body: 15px;
+}

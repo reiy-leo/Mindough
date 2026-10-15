@@ -1,0 +1,397 @@
+/*
+ * 平台皮肤的形状差异（只按 data-skin 选择器写；业务组件不感知）。
+ * 改这里后要在三种皮肤 × 桌面/手机下截图检查。
+ */
+
+/* ═════════════════════ Apple ═════════════════════ */
+[data-skin='apple'] .sidebar {
+  border-right-color: var(--border);
+}
+[data-skin='apple'] .nav-item {
+  font-weight: 500;
+}
+[data-skin='apple'] .nav-item.is-active {
+  font-weight: 600;
+}
+[data-skin='apple'] .segmented {
+  border-radius: 8px;
+  padding: 2px;
+}
+[data-skin='apple'] .segmented-item {
+  border-radius: 6px;
+}
+[data-skin='apple'] .btn-secondary {
+  border-color: var(--border);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.12);
+}
+[data-skin='apple'] .page-icon {
+  border-radius: 9px;
+}
+/* iOS：大标题、毛玻璃标签栏、圆角分组列表 */
+[data-skin='apple'][data-layout='mobile'] .page-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+[data-skin='apple'][data-layout='mobile'] .tabbar {
+  border-top: 0.5px solid var(--border-strong);
+}
+[data-skin='apple'][data-layout='mobile'] .tab-item {
+  font-size: 10px;
+  font-weight: 500;
+}
+[data-skin='apple'][data-layout='mobile'] .task-list,
+[data-skin='apple'][data-layout='mobile'] .habit-list {
+  border-radius: 12px;
+  border: 0;
+}
+[data-skin='apple'][data-layout='mobile'] .topbar {
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+[data-skin='apple'][data-layout='mobile'] .topbar .icon-btn {
+  color: var(--accent);
+}
+[data-skin='apple'] .modal-sheet {
+  border-radius: 14px 14px 0 0;
+}
+
+/* ═════════════════════ Windows 11 / WinUI 3 ═════════════════════ */
+[data-skin='winui'] .sidebar {
+  border-right: 0;
+  padding-top: var(--space-2);
+}
+[data-skin='winui'] .sidebar-brand {
+  font-weight: 400;
+  font-size: 12px;
+  padding: 6px 8px 8px;
+}
+/* NavigationView：选中项左侧的强调色竖条 */
+[data-skin='winui'] .nav-item {
+  height: 36px;
+  padding: 0 12px;
+  gap: 14px;
+}
+[data-skin='winui'] .nav-item.is-active {
+  font-weight: 400;
+}
+[data-skin='winui'] .nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+[data-skin='winui'] .nav-icon {
+  color: var(--text);
+}
+/* 内容层：圆角左上角 + 比 Mica 亮一层 */
+[data-skin='winui'] .app-desktop .main {
+  background: rgba(255, 255, 255, 0.5);
+  border-top-left-radius: 8px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+[data-skin='winui'][data-theme='dark'] .app-desktop .main {
+  background: rgba(58, 58, 58, 0.3);
+}
+[data-skin='winui'] .page-icon {
+  background: transparent;
+  width: 28px;
+  color: var(--text);
+}
+/* 按钮：控件填充 + 底部描边（Elevation border） */
+[data-skin='winui'] .btn {
+  font-weight: 400;
+  height: 32px;
+  padding: 0 12px;
+}
+[data-skin='winui'] .btn-secondary,
+[data-skin='winui'] .sidebar-search {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.0578);
+  border-bottom-color: rgba(0, 0, 0, 0.1622);
+}
+[data-skin='winui'][data-theme='dark'] .btn-secondary,
+[data-skin='winui'][data-theme='dark'] .sidebar-search {
+  background: rgba(255, 255, 255, 0.0605);
+  border-color: rgba(255, 255, 255, 0.093);
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+[data-skin='winui'] .btn-primary {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(0, 0, 0, 0.4);
+}
+[data-skin='winui'] .btn-tonal {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.0578);
+  border-bottom-color: rgba(0, 0, 0, 0.1622);
+  color: var(--text);
+}
+[data-skin='winui'][data-theme='dark'] .btn-tonal {
+  background: rgba(255, 255, 255, 0.0605);
+  border-color: rgba(255, 255, 255, 0.093);
+}
+[data-skin='winui'] .btn-ghost {
+  color: var(--accent);
+}
+/* TextBox：底部描边，聚焦时 2px 强调色 */
+[data-skin='winui'] .input {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.0578);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4458);
+}
+[data-skin='winui'][data-theme='dark'] .input {
+  background: rgba(255, 255, 255, 0.0605);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.54);
+}
+[data-skin='winui'] .input[data-focused],
+[data-skin='winui'] .input:focus {
+  box-shadow: inset 0 -1px 0 var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--popup-bg, #fff);
+}
+[data-skin='winui'][data-theme='dark'] .input:focus {
+  background: #1f1f1f;
+}
+[data-skin='winui'] .segmented {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+[data-skin='winui'][data-theme='dark'] .segmented {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-skin='winui'] .segmented-item[data-selected] {
+  background: var(--popup-bg, #fff);
+  box-shadow: 0 0 0 1px var(--border), inset 0 -2px 0 var(--accent);
+  font-weight: 400;
+}
+[data-skin='winui'] .check-box {
+  border-radius: 4px;
+}
+[data-skin='winui'] .check[data-selected] .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+[data-skin='winui'] .popover,
+[data-skin='winui'] .modal,
+[data-skin='winui'] .toast {
+  --popup-bg: #f9f9f9;
+  background-color: var(--popup-bg);
+}
+[data-skin='winui'][data-theme='dark'] {
+  --popup-bg: #2c2c2c;
+}
+[data-skin='winui'][data-theme='dark'] .popover,
+[data-skin='winui'][data-theme='dark'] .modal,
+[data-skin='winui'][data-theme='dark'] .toast {
+  --popup-bg: #2c2c2c;
+}
+[data-skin='winui'] .dialog-foot {
+  background: rgba(0, 0, 0, 0.02);
+}
+[data-skin='winui'] .tab[data-selected] {
+  color: var(--text);
+  font-weight: 600;
+}
+[data-skin='winui'] .heat-cell {
+  border-radius: 2px;
+}
+[data-skin='winui'][data-layout='mobile'] .tab-item.is-active {
+  color: var(--accent);
+}
+
+/* ═════════════════════ Material 3 ═════════════════════ */
+[data-skin='material'] .sidebar {
+  border-right: 0;
+  padding: var(--space-3);
+}
+[data-skin='material'] .sidebar-brand {
+  font-weight: 500;
+  padding: 12px 16px;
+}
+/* Navigation drawer：56dp 高的胶囊选中态 */
+[data-skin='material'] .nav-item {
+  height: 52px;
+  padding: 0 16px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+[data-skin='material'] .nav-item.is-active {
+  font-weight: 600;
+}
+[data-skin='material'] .nav-badge {
+  background: transparent;
+}
+[data-skin='material'] .sidebar-search {
+  height: 48px;
+  border-radius: 28px;
+  border: 0;
+  background: var(--surface-3);
+  padding: 0 16px;
+}
+[data-skin='material'] .sidebar-new {
+  height: 56px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+[data-skin='material'] .sidebar-new .kbd {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+[data-skin='material'] .btn {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+[data-skin='material'] .btn-secondary {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+[data-skin='material'] .btn-danger {
+  border-color: var(--border-strong);
+}
+/* 卡片：填充式，无阴影，12dp 圆角 */
+[data-skin='material'] .card,
+[data-skin='material'] .task-list,
+[data-skin='material'] .habit-list,
+[data-skin='material'] .agenda-items,
+[data-skin='material'] .add-bar,
+[data-skin='material'] .task-card {
+  border: 0;
+  background: var(--surface);
+  border-radius: 12px;
+}
+[data-skin='material'] .task-list.plain .task-row + .task-row,
+[data-skin='material'] .list-item + .list-item,
+[data-skin='material'] .habit-row + .habit-row {
+  border-top-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+[data-skin='material'] .add-bar {
+  border-radius: 28px;
+  background: var(--surface-3);
+  padding-left: 18px;
+}
+[data-skin='material'] .input {
+  border-radius: 4px;
+  background: transparent;
+  border-color: var(--border-strong);
+}
+[data-skin='material'] .input:focus,
+[data-skin='material'] .input[data-focused] {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+/* Segmented buttons：描边胶囊 */
+[data-skin='material'] .segmented {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+[data-skin='material'] .segmented-item {
+  border-radius: 0;
+  height: 38px;
+  padding: 0 14px;
+  color: var(--text);
+}
+[data-skin='material'] .segmented-item + .segmented-item {
+  border-left: 1px solid var(--border-strong);
+}
+[data-skin='material'] .segmented-item[data-selected] {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  box-shadow: none;
+}
+[data-skin='material'] .check-box {
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  border-color: var(--text-2);
+}
+[data-skin='material'] .check[data-selected] .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+[data-skin='material'] .page-title {
+  font-size: 28px;
+}
+[data-skin='material'] .page-icon {
+  border-radius: 12px;
+}
+[data-skin='material'] .modal {
+  border: 0;
+  border-radius: 28px;
+  background: var(--surface-2);
+}
+[data-skin='material'] .modal-sheet {
+  border-radius: 28px 28px 0 0;
+}
+[data-skin='material'] .dialog-foot {
+  border-top: 0;
+  background: transparent;
+}
+[data-skin='material'] .toast {
+  background: #322f35;
+  color: #f5eff7;
+  border: 0;
+  border-radius: 4px;
+}
+[data-skin='material'] .toast .toast-action {
+  color: #d0bcff;
+}
+[data-skin='material'][data-theme='dark'] .toast {
+  background: #e6e0e9;
+  color: #322f35;
+}
+[data-skin='material'][data-theme='dark'] .toast .toast-action {
+  color: #6750a4;
+}
+[data-skin='material'] .heat-cell {
+  border-radius: 3px;
+}
+/* 手机：Top app bar + Navigation bar（图标外的胶囊指示器） */
+[data-skin='material'][data-layout='mobile'] {
+  --tabbar-h: 80px;
+}
+[data-skin='material'][data-layout='mobile'] .topbar {
+  height: 64px;
+}
+[data-skin='material'][data-layout='mobile'] .tabbar {
+  border-top: 0;
+  backdrop-filter: none;
+}
+[data-skin='material'][data-layout='mobile'] .tab-item {
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+[data-skin='material'][data-layout='mobile'] .tab-icon {
+  width: 64px;
+  height: 32px;
+  border-radius: 16px;
+}
+[data-skin='material'][data-layout='mobile'] .tab-item.is-active {
+  color: var(--text);
+}
+[data-skin='material'][data-layout='mobile'] .tab-item.is-active .tab-icon {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+[data-skin='material'][data-layout='mobile'] .page-title {
+  font-size: 28px;
+}
