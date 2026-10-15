@@ -245,6 +245,12 @@ importers:
 
   packages/core:
     devDependencies:
+      '@tursodatabase/database':
+        specifier: 0.8.3
+        version: 0.8.3
+      '@types/node':
+        specifier: ^22.20.5
+        version: 22.20.5
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -854,6 +860,34 @@ packages:
 
   '@tauri-apps/plugin-os@2.4.0':
     resolution: {integrity: sha512-XFQjntNNI3Vlqdy4WUGwiXX8DByzKVvoemAcUVkBm9NJPGmoDtII5i+vfuAzWaJfOE5cUJJLUDqXBnd4reSAIA==}
+
+  '@tursodatabase/database-common@0.8.3':
+    resolution: {integrity: sha512-T8sMfSnRjgGzKMDVkSg0lh1Jh6dDtTWzjYFK0ZJHtKzr+zs69a7Igo4Z+sxfh+rk9gEqn2njLgRYfpMEghMVMw==}
+
+  '@tursodatabase/database-darwin-arm64@0.8.3':
+    resolution: {integrity: sha512-ZqXF8BUqED5mmSIRM5V13xiowc3CAekfpB26Opb4kbix5/9Q6AKgoxyZ1TkgMgjpih1FXAxD5UKdJ6b8D3IElw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tursodatabase/database-linux-arm64-gnu@0.8.3':
+    resolution: {integrity: sha512-4m9EqKDhL0gwqg6r4KHqX1+2PjMx0xS8CQ61hpoGmWPaCYygePo6O0Zv7EADcf8JJwSBhe7MHyt76gcaEuZDTA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tursodatabase/database-linux-x64-gnu@0.8.3':
+    resolution: {integrity: sha512-CrwYN45/zCSS+qPOqdOw7wI+MKE6ZHWehxwqJJwatW8CAI/tcEWxz3t+gc1v+p8jgGuNGqTJL3QUu2AnQYVC0Q==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tursodatabase/database-win32-x64-msvc@0.8.3':
+    resolution: {integrity: sha512-N19zq+nM9RSeYn4t0FOkfHPMkeWpgHLI2IM3L6dT8KH+bhvdAAAzp2E+cKjl8NQm6RaBSP8f5yqZqV3tp3ET0A==}
+    cpu: [x64]
+    os: [win32]
+
+  '@tursodatabase/database@0.8.3':
+    resolution: {integrity: sha512-pYkADI524URbtreTz+JX7lKtNnfIZU5Pm0n8d6ENnLka3/l1sIexdDmPDWQea4M7CMURv7FxL44oJFYoMQLmOQ==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -1805,6 +1839,29 @@ snapshots:
   '@tauri-apps/plugin-os@2.4.0':
     dependencies:
       '@tauri-apps/api': 2.12.3
+
+  '@tursodatabase/database-common@0.8.3': {}
+
+  '@tursodatabase/database-darwin-arm64@0.8.3':
+    optional: true
+
+  '@tursodatabase/database-linux-arm64-gnu@0.8.3':
+    optional: true
+
+  '@tursodatabase/database-linux-x64-gnu@0.8.3':
+    optional: true
+
+  '@tursodatabase/database-win32-x64-msvc@0.8.3':
+    optional: true
+
+  '@tursodatabase/database@0.8.3':
+    dependencies:
+      '@tursodatabase/database-common': 0.8.3
+    optionalDependencies:
+      '@tursodatabase/database-darwin-arm64': 0.8.3
+      '@tursodatabase/database-linux-arm64-gnu': 0.8.3
+      '@tursodatabase/database-linux-x64-gnu': 0.8.3
+      '@tursodatabase/database-win32-x64-msvc': 0.8.3
 
   '@types/chai@5.2.3':
     dependencies:
