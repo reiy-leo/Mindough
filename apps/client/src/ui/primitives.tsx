@@ -148,11 +148,11 @@ export interface MenuAction {
 }
 
 /** ··· 更多菜单。 */
-export function OverflowMenu({ label = '更多', items }: { label?: string; items: MenuAction[] }) {
+export function OverflowMenu({ label = '更多', items, icon, className }: { label?: string; items: MenuAction[]; icon?: ReactNode; className?: string }) {
   return (
     <MenuTrigger>
-      <RacButton aria-label={label} className="icon-btn">
-        <MoreHorizontal size={18} />
+      <RacButton aria-label={label} className={`icon-btn${className ? ` ${className}` : ''}`}>
+        {icon ?? <MoreHorizontal size={18} />}
       </RacButton>
       <Popover className="popover menu-popover" placement="bottom end" offset={4}>
         <Menu className="menu" onAction={(k) => items.find((i) => i.id === k)?.onAction()}>

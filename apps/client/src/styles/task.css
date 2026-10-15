@@ -1269,3 +1269,43 @@
 [data-layout='mobile'] .dialog-foot .foot-note + .grow {
   flex: 1 1 0;
 }
+
+/* 挑任务连关系：搜索 + 最后一行「新建“xxx”」 */
+.modal-relpick.modal-center {
+  width: min(460px, calc(100vw - 32px));
+}
+.rel-pick-hint {
+  margin: 0 0 10px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.modal-relpick .task-search-list {
+  max-height: 320px;
+}
+.pick-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+.pick-create[data-hovered],
+.pick-create[data-focus-visible] {
+  background: var(--accent-soft);
+}
+.modal-relpick .task-search,
+.modal-relpick .task-search .cat-search {
+  width: 100%;
+}

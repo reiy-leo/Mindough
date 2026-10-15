@@ -2,8 +2,9 @@
  * 挑任务的可搜索列表：详情里加前后关系 / 相关任务，新建面板里的「相关任务」都用它。
  * 给了 selected 就是多选（点一下勾上 / 取消，弹层不关），否则点一下就选中。
  */
-import { Autocomplete, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { Check, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Autocomplete, Button as RacButton, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
+import { Check, Plus, Search } from 'lucide-react';
 import { isFinished, type Store, type Task } from '@mindough/core';
 import { titleOf } from '../../lib/view';
 
@@ -22,14 +23,19 @@ export function TaskSearch({
   selected,
   label = '搜索任务',
   onPick,
+  onCreate,
 }: {
   store: Store;
   exclude: Set<string>;
   selected?: ReadonlySet<string>;
   label?: string;
   onPick: (id: string) => void;
+  /** 给了就在最后一行出「新建“xxx”」：用搜索词新建一件任务（像资料库的选择框）。 */
+  onCreate?: (text: string) => void;
 }) {
   const { contains } = useFilter({ sensitivity: 'base' });
+  const [q, setQ] = useState('');
+  const term = q.trim();
   const items = store
     .tasks()
     .filter((t) => !exclude.has(t.id))
@@ -38,7 +44,17 @@ export function TaskSearch({
   return (
     <div className="task-search">
       <Autocomplete filter={contains}>
-        <SearchField aria-label={label} className="cat-search" autoFocus>
+        <SearchField
+          aria-label={label}
+          className="cat-search"
+          autoFocus
+          value={q}
+          onChange={setQ}
+          onSubmit={() => {
+            // 回车：没有搜到时直接新建
+            if (onCreate && term && !items.some((i) => contains(i.title, term))) onCreate(term);
+          }}
+        >
           <Search size={14} aria-hidden className="cat-search-icon" />
           <Input className="input" placeholder={label} />
         </SearchField>
@@ -54,7 +70,7 @@ export function TaskSearch({
             const changed = [...next].find((id) => !selected.has(id)) ?? [...selected].find((id) => !next.has(id));
             if (changed) onPick(changed);
           } : undefined}
-          renderEmptyState={() => <div className="pick-empty">没有找到</div>}
+          renderEmptyState={() => (onCreate && term ? null : <div className="pick-empty">没有找到</div>)}
         >
           {(t) => (
             <ListBoxItem id={t.id} className="listbox-item pick-item" textValue={t.title}>
@@ -65,6 +81,12 @@ export function TaskSearch({
           )}
         </ListBox>
       </Autocomplete>
+      {onCreate && term && (
+        <RacButton className="pick-create" onPress={() => onCreate(term)}>
+          <Plus size={15} aria-hidden />
+          <span className="grow ellipsis">新建“{term}”</span>
+        </RacButton>
+      )}
     </div>
   );
 }

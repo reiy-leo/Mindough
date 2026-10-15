@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { AlertTriangle, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -278,6 +278,59 @@ function PropRow({ icon, label, value, empty, children, wide }: { icon: ReactNod
   );
 }
 
+type RelKind = 'pred' | 'succ' | 'related';
+
+/** 三种关系的叫法（菜单、分组标题、挑任务的弹层标题共用，见 COPY.md）。 */
+const REL_LABEL: Record<RelKind, string> = { pred: '先做完这些', succ: '做完后解锁', related: '相关任务' };
+
+/** 「添加关系」菜单：三种关系各一项，选了打开挑任务的弹层。 */
+function RelationMenu({ onPick, className }: { onPick: (k: RelKind) => void; className?: string }) {
+  const items: MenuAction[] = [
+    { id: 'pred', label: `${REL_LABEL.pred}…`, icon: <CornerLeftUp size={16} />, onAction: () => onPick('pred') },
+    { id: 'succ', label: `${REL_LABEL.succ}…`, icon: <CornerRightDown size={16} />, onAction: () => onPick('succ') },
+    { id: 'related', label: `${REL_LABEL.related}…`, icon: <Link2 size={16} />, onAction: () => onPick('related') },
+  ];
+  return <OverflowMenu label="添加关系" icon={<Network size={17} />} items={items} {...(className ? { className } : {})} />;
+}
+
+/** 挑一件任务连上这种关系；搜不到就「新建“xxx”」，新建的任务直接连好（合并了以前的「添加」和「新建下一步」）。 */
+function RelationPicker({ store, task, kind, onClose }: { store: Store; task: Task; kind: RelKind | null; onClose: () => void }) {
+  const ui = useUi();
+  if (!kind) return null;
+  const edges = store.edges();
+  const exclude = new Set([task.id, ...predecessorsOf(edges, task.id), ...successorsOf(edges, task.id), ...store.relatedTasks(task.id).map((t) => t.id)]);
+  const connect = (id: string) => {
+    if (kind === 'pred') tryAddDependency(store, ui, id, task.id);
+    else if (kind === 'succ') tryAddDependency(store, ui, task.id, id);
+    else tryLinkTasks(store, ui, task.id, id);
+  };
+  const hint = kind === 'pred' ? '这些做完了，才能开始这件。' : kind === 'succ' ? '这件做完了，它们就能开始。' : '只是有关系，不分先后：不用等它，也不会解锁它。';
+  return (
+    <Sheet isOpen onOpenChange={(o) => !o && onClose()} title={REL_LABEL[kind]} className="modal-relpick">
+      <p className="rel-pick-hint">{hint}</p>
+      <TaskSearch
+        store={store}
+        exclude={exclude}
+        label="搜索任务，或写下新的一件"
+        onPick={(id) => {
+          connect(id);
+          onClose();
+        }}
+        onCreate={(text) => {
+          const created = store.createTask({ body_md: text, group_id: task.group_id });
+          connect(created.id);
+          ui.toast({ message: `已新建「${text}」`, actions: [{ label: '查看', onPress: () => ui.openEditor(created.id) }] });
+          onClose();
+        }}
+      />
+    </Sheet>
+  );
+}
+
+/**
+ * 详情的「关系」（Rei 2026-10-16：「关联占用那么大空间……如果这类关系中没有内容，则不显示」）：
+ * 只显示有内容的分组；三组都空时整个分区不显示。添加一律走顶栏的「添加关系」（三种关系的菜单）。分组里不再有「添加」「新建下一步」。
+ */
 function Relations({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
   const edges = store.edges();
@@ -285,57 +338,39 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   const succs = successorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const related = store.relatedTasks(task.id);
   const title = (t: Task) => titleOf(store, t);
-  // 已经有前后关系或已相关的不再出现在选择里（同一对只算一种关系）
-  const exclude = new Set([task.id, ...preds.map((t) => t.id), ...succs.map((t) => t.id), ...related.map((t) => t.id)]);
   const derived = store.derived().get(task.id);
   // 同步合并后绕成圈、暂不生效的前后关系（两台设备各连了一条）
   const conflicts = store.conflictEdges().filter((e) => e.pred_id === task.id || e.succ_id === task.id);
-  const row = (t: Task, dir: 'pred' | 'succ' | 'related') => {
+  if (!preds.length && !succs.length && !related.length && !conflicts.length) return null;
+  const row = (t: Task, dir: RelKind) => {
     const state = t.status === '完成' ? 'done' : t.status === '关闭' ? 'closed' : 'open';
-    const meta = dir === 'related' ? taskStateText(store, t) : null;
+    const meta = taskStateText(store, t);
     const remove = () => (dir === 'pred' ? store.removeDependency(t.id, task.id) : dir === 'succ' ? store.removeDependency(task.id, t.id) : store.unlinkTasks(task.id, t.id));
     return (
       <li key={t.id} className={`rel-item is-${state}${dir === 'related' ? ' is-related' : ''}`}>
         <span className="rel-dot" aria-label={state === 'done' ? '已完成' : state === 'closed' ? '已关闭' : '未完成'}>
-          {state === 'done' ? <Check size={11} strokeWidth={3} /> : state === 'closed' ? <X size={11} strokeWidth={3} /> : null}
+          {state === 'done' ? <Check size={11} strokeWidth={3} /> : state === 'closed' ? <X size={11} strokeWidth={3} /> : dir === 'related' ? <Link2 size={10} strokeWidth={2.5} /> : null}
         </span>
         <RacButton className="rel-title" onPress={() => ui.openEditor(t.id)}>
           {title(t)}
         </RacButton>
-        {meta && <span className="rel-meta">{meta}</span>}
+        {meta && state === 'open' && <span className="rel-meta">{meta}</span>}
         <RacButton className="icon-btn rel-remove" aria-label={dir === 'related' ? `不再和「${title(t)}」相关` : `去掉和「${title(t)}」的关系`} onPress={remove}>
           <X size={14} />
         </RacButton>
       </li>
     );
   };
-  const add = (dir: 'pred' | 'succ' | 'related', extra?: ReactNode) => (
-    <div className="rel-actions">
-      <PopoverPanel
-        label={dir === 'pred' ? '添加要先做完的任务' : dir === 'succ' ? '添加做完后解锁的任务' : '添加相关任务'}
-        trigger={
-          <RacButton className="link-btn">
-            <Plus size={14} />
-            添加
-          </RacButton>
-        }
-      >
-        {(close) => (
-          <TaskSearch
-            store={store}
-            exclude={exclude}
-            onPick={(id) => {
-              if (dir === 'pred') tryAddDependency(store, ui, id, task.id);
-              else if (dir === 'succ') tryAddDependency(store, ui, task.id, id);
-              else tryLinkTasks(store, ui, task.id, id);
-              close();
-            }}
-          />
-        )}
-      </PopoverPanel>
-      {extra}
-    </div>
-  );
+  const group = (kind: RelKind, list: Task[], extra?: ReactNode) =>
+    list.length ? (
+      <div className="rel-group">
+        <div className="rel-head">
+          <span>{REL_LABEL[kind]}</span>
+          {extra}
+        </div>
+        <ul className="rel-list">{list.map((t) => row(t, kind))}</ul>
+      </div>
+    ) : null;
   return (
     <section className="relations" aria-label="关系">
       <h3 className="detail-section-title">关系</h3>
@@ -358,45 +393,17 @@ function Relations({ store, task }: { store: Store; task: Task }) {
           </div>
         );
       })}
-      <div className="rel-group">
-        <div className="rel-head">
-          <span>先做完这些</span>
-          {derived?.state === '被阻塞' && <span className="rel-count">还差 {derived.missing.length} 件</span>}
-        </div>
-        {preds.length ? <ul className="rel-list">{preds.map((t) => row(t, 'pred'))}</ul> : <p className="rel-empty">没有要先做的事，随时可以开始。</p>}
-        {add('pred')}
-      </div>
-      <div className="rel-group">
-        <div className="rel-head">
-          <span>做完后解锁</span>
-        </div>
-        {succs.length ? <ul className="rel-list">{succs.map((t) => row(t, 'succ'))}</ul> : <p className="rel-empty">还没有接着要做的事。</p>}
-        {add(
-          'succ',
-          <RacButton className="link-btn" onPress={() => ui.openQuickCreate({ group_id: task.group_id }, { after: task.id })}>
-            <ListPlus size={14} />
-            新建下一步
-          </RacButton>,
-        )}
-      </div>
-      <div className="rel-group">
-        <div className="rel-head">
-          <span>相关任务</span>
-          <Tip content="只是有关系，不分先后：不用等它，也不会解锁它">
-            <RacButton className="icon-btn rel-hint" aria-label="相关任务是什么">
-              <CircleHelp size={13} aria-hidden />
-            </RacButton>
-          </Tip>
-        </div>
-        {related.length ? <ul className="rel-list">{related.map((t) => row(t, 'related'))}</ul> : <p className="rel-empty">有关系、但不分先后的事放这里。</p>}
-        {add(
-          'related',
-          <RacButton className="link-btn" onPress={() => ui.openQuickCreate({ group_id: task.group_id }, { related: [task.id] })}>
-            <Link2 size={14} />
-            新建相关任务
-          </RacButton>,
-        )}
-      </div>
+      {group('pred', preds, derived?.state === '被阻塞' ? <span className="rel-count">还差 {derived.missing.length} 件</span> : null)}
+      {group('succ', succs)}
+      {group(
+        'related',
+        related,
+        <Tip content="只是有关系，不分先后：不用等它，也不会解锁它">
+          <RacButton className="icon-btn rel-hint" aria-label="相关任务是什么">
+            <CircleHelp size={13} aria-hidden />
+          </RacButton>
+        </Tip>,
+      )}
     </section>
   );
 }
@@ -507,6 +514,7 @@ function Detail({ task }: { task: Task }) {
   const store = useStore();
   const { layout } = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addRel, setAddRel] = useState<RelKind | null>(null);
   const close = () => ui.openEditor(null);
   const { primary, secondary, today, complete } = useActions(store, task, close);
   const type = store.get('task_type', task.type_id);
@@ -551,7 +559,6 @@ function Detail({ task }: { task: Task }) {
 
   const menu: MenuAction[] = [
     { id: 'myday', label: inDay ? '移出我的一天' : '加入我的一天', icon: inDay ? <SunDim size={16} /> : <Sun size={16} />, onAction: () => toggleMyDay(store, ui, task.id) },
-    { id: 'next', label: '新建下一步', icon: <ListPlus size={16} />, onAction: () => ui.openQuickCreate({ group_id: task.group_id }, { after: task.id }) },
     ...(!finished && !recurring && task.completion_mode !== 'once' ? [{ id: 'done', label: '直接标为完成', icon: <Check size={16} />, onAction: complete }] : []),
     { id: 'delete', label: '删除…', icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirmDelete(true) },
   ];
@@ -672,6 +679,7 @@ function Detail({ task }: { task: Task }) {
                 <Sun size={18} />
               </RacButton>
             </Tip>
+            <RelationMenu onPick={setAddRel} />
             <OverflowMenu items={menu} />
           </>
         }
@@ -767,6 +775,7 @@ function Detail({ task }: { task: Task }) {
           {layout !== 'mobile' && <aside className="detail-side">{props}</aside>}
         </div>
       </Sheet>
+      <RelationPicker store={store} task={task} kind={addRel} onClose={() => setAddRel(null)} />
       <ConfirmDialog
         isOpen={confirmDelete}
         onOpenChange={setConfirmDelete}
