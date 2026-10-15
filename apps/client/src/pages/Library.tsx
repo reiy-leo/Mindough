@@ -8,6 +8,7 @@ import { ChevronLeft, ExternalLink, Library as LibraryIcon, Pencil, Plus, Search
 import {
   BUILTIN_TYPE_IDS,
   extraItemFieldsOf,
+  fieldDisplay,
   fieldText,
   hasLibrary,
   isFinished,
@@ -18,6 +19,7 @@ import {
   type TaskType,
 } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
+import { useSettings } from '../lib/settings';
 import { useUi } from '../lib/ui';
 import { href, navigate } from '../lib/router';
 import { typeIcon } from '../lib/icons';
@@ -58,6 +60,8 @@ function Tile({ entry, type, onPress }: { entry: LibraryEntry; type: TaskType; o
 export function LibraryPage({ typeId }: { typeId?: string }) {
   const store = useStore();
   const libs = useLibraries();
+  const { layout } = useSettings();
+  const mobile = layout === 'mobile';
   const type = libs.find((t) => t.id === typeId) ?? libs[0];
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
@@ -76,14 +80,18 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
     <div className="page lib-page" style={{ '--chip-color': type.color } as CSSProperties}>
       <PageHeader
         title="资料库"
-        subtitle="看过的片、在读的书、想去的地方都留在这里，新建任务时直接选。"
+        {...(mobile ? {} : { subtitle: '看过的片、在读的书、想去的地方都留在这里，新建任务时直接选。' })}
         icon={<LibraryIcon size={22} />}
-        actions={
-          <Button variant="primary" onPress={() => add(query.trim())}>
-            <Plus size={16} />
-            添加
-          </Button>
-        }
+        {...(mobile
+          ? {}
+          : {
+              actions: (
+                <Button variant="primary" onPress={() => add(query.trim())}>
+                  <Plus size={16} />
+                  添加
+                </Button>
+              ),
+            })}
       />
       <nav className="lib-tabs" aria-label="资料库">
         {libs.map((t) => {
@@ -120,6 +128,11 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
         <span className="lib-toolbar-count">
           {entries.length ? `${entries.length} ${copy.measure}` : ''}
         </span>
+        {mobile && (
+          <RacButton className="icon-btn lib-add-mobile" aria-label={`添加到${copy.name}`} onPress={() => add(query.trim())}>
+            <Plus size={20} />
+          </RacButton>
+        )}
       </div>
 
       {entries.length === 0 ? (
@@ -209,7 +222,7 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
                         <ExternalLink size={12} aria-hidden />
                       </a>
                     ) : (
-                      fieldText(v)
+                      fieldDisplay(f, v)
                     )}
                   </dd>
                 </div>

@@ -697,3 +697,94 @@
   color: var(--text-3);
   opacity: 1;
 }
+
+/* ───────── 资料库：各平台的切换条与卡片 ───────── */
+/* WinUI：SelectorBar——无底色，选中项字重加粗 + 底部 3px 强调色短条 */
+[data-skin='winui'] .lib-tabs {
+  gap: 2px;
+}
+[data-skin='winui'] .lib-tab {
+  position: relative;
+  border-radius: 4px;
+  height: 36px;
+}
+[data-skin='winui'] .lib-tab.is-active {
+  background: transparent;
+  box-shadow: none;
+  font-weight: 600;
+}
+[data-skin='winui'] .lib-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 16px;
+  height: 3px;
+  margin-left: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+[data-skin='winui'] .lib-tab.is-active svg {
+  color: var(--accent);
+}
+[data-skin='winui'] .lib-tile.shape-square .lib-tile-art {
+  border-radius: 8px;
+}
+[data-skin='winui'] .lib-tile.shape-poster .lib-tile-art,
+[data-skin='winui'] .lib-tile.shape-banner .lib-tile-art {
+  border-radius: 6px;
+}
+[data-skin='winui'] .lib-option {
+  border-radius: 4px;
+}
+[data-skin='winui'] .lib-option.is-active {
+  box-shadow: inset 3px 0 0 -0px var(--accent);
+}
+
+/* Material 3：过滤条（Filter chips）——8dp 圆角描边，选中是次级容器色 */
+[data-skin='material'] .lib-tabs {
+  gap: 8px;
+}
+[data-skin='material'] .lib-tab {
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  height: 32px;
+  padding: 0 12px;
+}
+[data-skin='material'] .lib-tab:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+[data-skin='material'] .lib-tab.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  border-color: transparent;
+  box-shadow: none;
+}
+[data-skin='material'] .lib-tab.is-active svg,
+[data-skin='material'] .lib-tab.is-active .lib-tab-count {
+  color: var(--accent-soft-text);
+}
+[data-skin='material'] .lib-tile.shape-square .lib-tile-art {
+  border-radius: 16px;
+}
+[data-skin='material'] .lib-tile.shape-poster .lib-tile-art {
+  border-radius: 12px;
+}
+[data-skin='material'] .lib-tile.shape-banner .lib-tile-art {
+  border-radius: 16px;
+}
+[data-skin='material'] .lib-tile-art {
+  box-shadow: none;
+}
+[data-skin='material'] .lib-tile[data-hovered] .lib-tile-art {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+[data-skin='material'] .lib-option {
+  border-radius: 12px;
+}
+[data-skin] .type-fields.is-bare {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}

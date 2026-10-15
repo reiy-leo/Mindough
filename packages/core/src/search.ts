@@ -63,7 +63,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     const type = typeById.get(it.type_id);
     const sub = itemSubtitle(type, it.fields);
     const s = scoreText(`${it.name} ${Object.values(it.fields).map(fieldText).join(' ')} ${it.note_md}`, terms);
-    if (s > 0) hits.push({ kind: 'item', id: it.id, title: it.name, snippet: sub, score: s + (scoreText(it.name, terms) > 0 ? 4 : 0), item: it, type });
+    if (s > 0) hits.push({ kind: 'item', id: it.id, title: it.name, snippet: sub, score: s + (scoreText(it.name, terms) > 0 ? 6 : 0), item: it, type });
   }
   for (const t0 of input.tasks) {
     if (t0.deleted) continue;
@@ -84,7 +84,9 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     if (s > 0) {
       const titleBoost = scoreText(title, terms) > 0 ? 5 : 0;
       const done = isFinished(t.status) ? -2 : 0;
-      hits.push({ kind: 'task', id: t.id, title, snippet: snippetAround(`${t.body_md} ${extra}`, terms[0]!), score: s + titleBoost + done, task: t0 });
+      // 片段只取内容里命中的那段；资料字段（年份、平台…）不拼进片段，免得一长串
+      const inBody = norm(t.body_md).includes(terms[0]!);
+      hits.push({ kind: 'task', id: t.id, title, snippet: inBody ? snippetAround(t.body_md, terms[0]!) : '', score: s + titleBoost + done, task: t0 });
     }
   }
   for (const p of personById.values()) {

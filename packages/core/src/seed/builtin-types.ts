@@ -89,7 +89,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'title', label: '书名', kind: 'text', primary: true },
       { key: 'cover', label: '封面', kind: 'image', media: true },
       { key: 'author', label: '作者', kind: 'text' },
-      { key: 'total_pages', label: '页数', kind: 'number' },
+      { key: 'total_pages', label: '页数', kind: 'number', unit: '页' },
       { key: 'pages', label: '读到第几页', kind: 'progress', unit: '页', scope: 'task' },
     ],
     body_template: '## 摘录\n\n\n## 笔记\n',
@@ -157,7 +157,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     fields: [
       { key: 'name', label: '名称', kind: 'text', primary: true },
       { key: 'image', label: '图片', kind: 'image', media: true },
-      { key: 'price', label: '价格', kind: 'number' },
+      { key: 'price', label: '价格', kind: 'number', unit: '元' },
       { key: 'link', label: '链接', kind: 'link' },
       { key: 'quantity', label: '买几件', kind: 'number', scope: 'task' },
     ],

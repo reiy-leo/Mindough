@@ -383,7 +383,7 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
     case 'progress':
       return (
         <Field
-          label={def.unit ? `${def.label}（${def.unit}）` : def.label}
+          label={def.unit && !def.label.includes(def.unit) ? `${def.label}（${def.unit}）` : def.label}
           type="number"
           value={str}
           onChange={(v) => onChange(v === '' ? null : Number(v))}

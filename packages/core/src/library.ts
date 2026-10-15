@@ -138,10 +138,17 @@ export interface LibraryEntry {
 export function itemSubtitle(type: Pick<TaskType, 'fields'> | null | undefined, fields: Record<string, FieldValue>): string {
   return extraItemFieldsOf(type)
     .filter((f) => f.kind === 'text' || f.kind === 'number' || f.kind === 'select')
-    .map((f) => fieldText(fields[f.key]).trim())
+    .map((f) => fieldDisplay(f, fields[f.key]))
     .filter(Boolean)
     .slice(0, 3)
     .join(' · ');
+}
+
+/** 一个资料字段的显示文本：数字带单位（302 页、1299 元）。 */
+export function fieldDisplay(f: Pick<FieldDef, 'kind' | 'unit'>, v: FieldValue | undefined): string {
+  const t = fieldText(v).trim();
+  if (!t) return '';
+  return f.kind === 'number' && f.unit ? `${t} ${f.unit}` : t;
 }
 
 export function entryOfItem(type: TaskType | undefined, item: LibraryItem, recency: number, uses: number): LibraryEntry {
