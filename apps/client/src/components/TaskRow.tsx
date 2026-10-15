@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button as RacButton, Checkbox } from 'react-aria-components';
-import { Check, Lock, Repeat, Sun, SunDim } from 'lucide-react';
+import { Check, Lock, Repeat, Sun, SunDim, X } from 'lucide-react';
 import { describeRecurrence, isCheckInTask, parseRecurrence, relativeDayZh, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
@@ -38,7 +38,8 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const v = viewOf(store, task);
   const today = toDateKey(store.now());
   const checkIn = isCheckInTask(task);
-  const done = doneOverride ?? task.status === '完成';
+  const closed = task.status === '关闭';
+  const done = !closed && (doneOverride ?? task.status === '完成');
   const inDay = store.isInMyDay(task.id, today);
   const state = v.derived?.state;
   const rec = parseRecurrence(task.recurrence);
@@ -46,20 +47,20 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const isCheckInRow = checkIn && (task.completion_mode !== 'once' || !!rec);
 
   return (
-    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}`} data-task-id={task.id}>
+    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}`} data-task-id={task.id}>
       {isCheckInRow ? (
         <span className="row-lead" aria-hidden>
           {rec ? <Repeat size={17} /> : <TypeIcon size={18} style={{ color: v.type?.color }} />}
         </span>
       ) : (
         <Checkbox
-          className="check"
-          isSelected={done}
+          className={`check${closed ? ' is-closed' : ''}`}
+          isSelected={done || closed}
           onChange={() => toggleDone(store, ui, task.id)}
-          aria-label={done ? '标为未完成' : '标为完成'}
+          aria-label={closed ? '已关闭，点一下重新打开' : done ? '标为未完成' : '标为完成'}
         >
           <span className="check-box" aria-hidden>
-            <Check size={13} strokeWidth={3} />
+            {closed ? <X size={13} strokeWidth={3} /> : <Check size={13} strokeWidth={3} />}
           </span>
         </Checkbox>
       )}
@@ -81,12 +82,13 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           )}
           {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">可开始</span>}
           {task.status === '进行中' && <span className="meta-state state-doing">进行中</span>}
+          {closed && <span className="meta-state state-closed">关闭</span>}
           {showGroup && v.group && (
             <span className="meta-group">
               {v.group.icon} {v.group.name}
             </span>
           )}
-          {showDate && task.scheduled_date && <span className={`meta-date${task.scheduled_date < today && !done ? ' is-overdue' : ''}`}>{relativeDayZh(task.scheduled_date, today)}</span>}
+          {showDate && task.scheduled_date && <span className={`meta-date${task.scheduled_date < today && !done && !closed ? ' is-overdue' : ''}`}>{relativeDayZh(task.scheduled_date, today)}</span>}
           {rec && (
             <span className="meta-rec">
               <Repeat size={11} />

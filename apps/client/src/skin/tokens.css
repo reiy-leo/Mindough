@@ -24,7 +24,7 @@
   --state-done: #34c759;
   --state-ready: var(--accent);
   --state-blocked: #ff9500;
-  --state-cancel: #8e8e93;
+  --state-closed: #8e8e93;
 }
 
 /* ───────────────────────── Apple（macOS / iOS，HIG） ───────────────────────── */

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } from 'react-aria-components';
 import { CornerDownLeft, FolderOpen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
-import { search, type SearchHit } from '@mindough/core';
+import { isFinished, search, type SearchHit } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -32,7 +32,7 @@ export function CommandPalette() {
       ),
     [q, store, store.version], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const recent = useMemo(() => (q ? [] : store.tasks().filter((t) => t.status !== '完成' && t.status !== '取消').slice(-6).reverse()), [q, store, store.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const recent = useMemo(() => (q ? [] : store.tasks().filter((t) => !isFinished(t.status)).slice(-6).reverse()), [q, store, store.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = () => ui.setPaletteOpen(false);
   const createFromQuery = () => {

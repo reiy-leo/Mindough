@@ -5,7 +5,8 @@ import { CycleError } from '../src/dag';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS } from '../src/seed/builtin-types';
 import { formatRecurrence } from '../src/recurrence';
 import { isUuidv7 } from '../src/uuid';
-import { local } from './helpers';
+import { local, mkTask } from './helpers';
+import type { TaskStatus } from '../src/types';
 
 async function open(now = local(2026, 10, 15, 10)) {
   let t = now.getTime();
@@ -142,6 +143,34 @@ describe('Store', () => {
     const p = store.insert('person', { name: '妈妈', avatar_asset_id: null, relation: '家人', birthday: null, note_md: '' });
     const t = store.createTask({ type_id: BUILTIN_TYPE_IDS.person, type_data: { person: p.id } });
     expect(store.tasksOfPerson(p.id).map((x) => x.id)).toEqual([t.id]);
+  });
+
+  it('关闭也算结束：解锁后续、记 done_at；可以重新打开', async () => {
+    const { store } = await open();
+    const a = store.createTask({ body_md: 'a' });
+    const c = store.createTask({ body_md: 'c' });
+    store.addDependency(a.id, c.id);
+    const r = store.closeTask(a.id);
+    expect(r.task.status).toBe('关闭');
+    expect(r.task.done_at).toBeTruthy();
+    expect(r.unlocked.map((t) => t.id)).toEqual([c.id]);
+    expect(store.derived().get(a.id)?.state).toBe('关闭');
+    const back = store.reopenTask(a.id);
+    expect(back.status).toBe('待办');
+    expect(back.done_at).toBeNull();
+    expect(store.derived().get(c.id)?.state).toBe('被阻塞');
+  });
+
+  it('打开时把旧数据的“取消”迁移成“关闭”并进 outbox', async () => {
+    const adapter = new MemoryAdapter();
+    const legacy = { ...mkTask('t-old'), status: '取消' as unknown as TaskStatus, updated_at: '0000000000001-0000-x' };
+    await adapter.applyChanges([{ table: 'task', row: legacy }]);
+    await adapter.ackOutbox(1e9);
+    const s = await Store.open(adapter, { deviceId: 'dev1' });
+    expect(s.get('task', 't-old')?.status).toBe('关闭');
+    await s.flush();
+    expect((await adapter.loadAll()).task.find((t) => t.id === 't-old')?.status).toBe('关闭');
+    expect((await adapter.pendingOutbox()).some((e) => e.id === 't-old')).toBe(true);
   });
 
   it('批量写入只通知一次、落盘一次；重开后数据还在且时钟不倒退', async () => {

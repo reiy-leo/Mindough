@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Network } from 'lucide-react';
+import { isFinished } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { Select } from '../ui/primitives';
 import { PageHeader } from '../components/PageHeader';
@@ -16,7 +17,7 @@ export function GraphPage() {
     const linked = new Set(store.edges().flatMap((e) => [e.pred_id, e.succ_id]));
     tasks = tasks.filter((t) => linked.has(t.id));
   } else if (scope !== 'all') tasks = tasks.filter((t) => t.group_id === scope);
-  if (hideDone === 'open') tasks = tasks.filter((t) => t.status !== '完成' && t.status !== '取消');
+  if (hideDone === 'open') tasks = tasks.filter((t) => !isFinished(t.status));
   return (
     <div className="page page-fill">
       <PageHeader
@@ -40,6 +41,7 @@ export function GraphPage() {
           <span className="legend state-done">完成</span>
           <span className="legend state-ready">可开始</span>
           <span className="legend state-blocked">被阻塞</span>
+          <span className="legend state-closed">关闭</span>
         </div>
       </div>
       <DependencyGraph store={store} tasks={tasks} height="100%" />

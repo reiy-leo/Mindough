@@ -6,6 +6,7 @@ import {
   describeRecurrence,
   dueToday,
   formatDateZh,
+  isFinished,
   parseRecurrence,
   taskStreak,
   taskTitle,
@@ -34,12 +35,12 @@ export function CheckInsPage() {
   const idx = useMemo(() => buildRatioIndex(tasks, checkIns, now), [store.version, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const dayRatio = useCallback((d: DateKey) => idx.dayRatio(d), [idx]);
 
-  const recurring = tasks.filter((t) => parseRecurrence(t.recurrence) && t.status !== '取消');
+  const recurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
   const dueNow = recurring.filter((t) => dueToday(t, today));
   const others = recurring.filter((t) => !dueToday(t, today));
   const metToday = dueNow.filter((t) => store.progress(t.id, today)?.met).length;
   const running = tasks.filter((t) => t.completion_mode === 'timer' && store.progress(t.id, today)?.running);
-  const countdowns = tasks.filter((t) => t.completion_mode === 'countdown' && t.target_date && t.status !== '取消');
+  const countdowns = tasks.filter((t) => t.completion_mode === 'countdown' && t.target_date && t.status !== '关闭');
   const streaks = recurring.map((t) => taskStreak(t, store.checkInsOf(t.id), now)?.current ?? 0);
   const best = Math.max(0, ...streaks);
   const title = (t: Task) => taskTitle(t, store.get('task_type', t.type_id), resolver(store));

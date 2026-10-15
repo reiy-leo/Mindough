@@ -4,7 +4,7 @@
 import { addDays } from './dates';
 import { dueToday, progressOn } from './checkin';
 import type { DerivedStatus } from './dag';
-import type { CheckIn, DateKey, MyDayEntry, Task } from './types';
+import { isFinished, type CheckIn, type DateKey, type MyDayEntry, type Task } from './types';
 
 export function entriesFor(entries: readonly MyDayEntry[], date: DateKey): MyDayEntry[] {
   const seen = new Set<string>();
@@ -15,9 +15,9 @@ export function entriesFor(entries: readonly MyDayEntry[], date: DateKey): MyDay
     .filter((e) => (seen.has(e.task_id) ? false : (seen.add(e.task_id), true)));
 }
 
-/** 任务在 date 那天是否算“做完”：完成/取消，或打卡任务当天周期达标。 */
+/** 任务在 date 那天是否算“做完”：已结束（完成 / 关闭），或打卡任务当天周期达标。 */
 export function isDoneOn(task: Task, checkIns: readonly CheckIn[], date: DateKey, now: Date): boolean {
-  if (task.status === '完成' || task.status === '取消') return true;
+  if (isFinished(task.status)) return true;
   if (task.recurrence) {
     return progressOn(task, checkIns.filter((c) => c.task_id === task.id), date, now).met;
   }
@@ -63,7 +63,7 @@ export function yesterdayUnfinished(
     const t = tasksById.get(e.task_id);
     if (!t || t.deleted) continue;
     // 重复任务看的是昨天那个周期；普通任务看现在的状态
-    if (t.recurrence ? !isDoneOn(t, checkIns, yesterday, now) : t.status !== '完成' && t.status !== '取消') out.push(t);
+    if (t.recurrence ? !isDoneOn(t, checkIns, yesterday, now) : !isFinished(t.status)) out.push(t);
   }
   return out;
 }
@@ -96,7 +96,7 @@ export function suggestions({ tasks, entries, checkIns, derived, recentlyUnlocke
     seen.add(task.id);
     out.push({ task, reason });
   };
-  const live = tasks.filter((t) => !t.deleted && t.status !== '完成' && t.status !== '取消');
+  const live = tasks.filter((t) => !t.deleted && !isFinished(t.status));
   for (const t of live) if (t.scheduled_date && t.scheduled_date <= today && !t.recurrence) push(t, '今天到期');
   for (const t of live) if (t.completion_mode === 'countdown' && t.target_date === today) push(t, '倒数日到了');
   for (const t of live)

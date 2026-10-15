@@ -1,6 +1,6 @@
 /** 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、人物、组。 */
 import { fieldText, taskTitle } from './preview';
-import type { Group, Person, Task, TaskPerson, TaskType } from './types';
+import { isFinished, type Group, type Person, type Task, type TaskPerson, type TaskType } from './types';
 
 export type SearchHit =
   | { kind: 'task'; id: string; title: string; snippet: string; score: number; task: Task }
@@ -70,7 +70,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     const s = scoreText(`${title} ${t.body_md} ${extra}`, terms);
     if (s > 0) {
       const titleBoost = scoreText(title, terms) > 0 ? 5 : 0;
-      const done = t.status === '完成' || t.status === '取消' ? -2 : 0;
+      const done = isFinished(t.status) ? -2 : 0;
       hits.push({ kind: 'task', id: t.id, title, snippet: snippetAround(`${t.body_md} ${extra}`, terms[0]!), score: s + titleBoost + done, task: t });
     }
   }

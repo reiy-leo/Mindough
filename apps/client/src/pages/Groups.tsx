@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarRange, LayoutGrid, List, Network, Plus, Shapes } from 'lucide-react';
-import { formatDateZh, toDateKey, type Group, type Task } from '@mindough/core';
+import { formatDateZh, isFinished, toDateKey, type Group, type Task } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -95,10 +95,12 @@ export function GroupsPage() {
         <div className="card-grid">
           {groups.map((g) => {
             const tasks = store.tasks().filter((t) => t.group_id === g.id);
-            const done = tasks.filter((t) => t.status === '完成').length;
+            // 关闭的不算成就：既不算完成，也不计入总数
+            const counted = tasks.filter((t) => t.status !== '关闭');
+            const done = counted.filter((t) => t.status === '完成').length;
             const blocked = tasks.filter((t) => store.derived().get(t.id)?.state === '被阻塞').length;
             const c = store.get('category', g.category_id);
-            const late = g.end_at && g.end_at < toDateKey(store.now()) && done < tasks.length;
+            const late = g.end_at && g.end_at < toDateKey(store.now()) && done < counted.length;
             return (
               <RacButton key={g.id} className="card group-card" onPress={() => navigate({ page: 'group', id: g.id })}>
                 <div className="group-card-head">
@@ -109,10 +111,10 @@ export function GroupsPage() {
                 <div className={`group-range${late ? ' is-late' : ''}`}>
                   <CalendarRange size={13} /> {range(g)}
                 </div>
-                <ProgressBar value={tasks.length ? done / tasks.length : 0} color={c?.color} />
+                <ProgressBar value={counted.length ? done / counted.length : 0} color={c?.color} />
                 <div className="group-stats">
                   <span>
-                    {done}/{tasks.length} 完成
+                    {done}/{counted.length} 完成
                   </span>
                   {blocked > 0 && <span className="state-blocked">{blocked} 个被阻塞</span>}
                 </div>
@@ -134,8 +136,8 @@ export function GroupDetailPage({ id }: { id: string }) {
   if (!g) return <Empty title="找不到这个组" hint="可能已经删除了" />;
   const tasks: Task[] = store.tasks().filter((t) => t.group_id === id);
   const c = store.get('category', g.category_id);
-  const open = tasks.filter((t) => t.status !== '完成' && t.status !== '取消');
-  const closed = tasks.filter((t) => t.status === '完成' || t.status === '取消');
+  const open = tasks.filter((t) => !isFinished(t.status));
+  const ended = tasks.filter((t) => isFinished(t.status));
   const defType = store.get('task_type', g.default_type_id);
   return (
     <div className="page">
@@ -184,10 +186,10 @@ export function GroupDetailPage({ id }: { id: string }) {
             ))}
             {!open.length && <Empty title="组里的任务都做完了" />}
           </div>
-          {closed.length > 0 && (
-            <Section title={`已完成 ${closed.length}`}>
+          {ended.length > 0 && (
+            <Section title={`已结束 ${ended.length}`}>
               <div className="task-list plain">
-                {closed.map((t) => (
+                {ended.map((t) => (
                   <TaskRow key={t.id} store={store} task={t} showGroup={false} showDate />
                 ))}
               </div>

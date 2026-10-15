@@ -98,7 +98,8 @@ describe('重复任务的周期与连续天数', () => {
   it('今天要不要打卡', () => {
     expect(dueToday(task, '2026-10-15')).toBe(true);
     expect(dueToday(task, '2026-10-09')).toBe(false); // 创建之前
-    expect(dueToday({ ...task, status: '取消' }, '2026-10-15')).toBe(false);
+    expect(dueToday({ ...task, status: '关闭' }, '2026-10-15')).toBe(false);
+    expect(dueToday({ ...task, status: '完成' }, '2026-10-15')).toBe(false);
     expect(dueToday(mkTask('x'), '2026-10-15')).toBe(false);
   });
 
@@ -129,5 +130,13 @@ describe('热力图比例索引', () => {
     expect(idx.dayRatio('2026-10-13')).toBe(0.25);
     expect(idx.dayRatio('2026-10-05')).toBe(0); // 只有周一跑步要打卡，没打
     expect(idx.dayRatio('2026-09-01')).toBeNull();
+  });
+
+  it('关闭的重复任务：关闭那天起不再应打卡，之前的历史保留，关闭本身不算达成', () => {
+    const closed = { ...water, status: '关闭' as const, done_at: local(2026, 10, 13, 9).toISOString() };
+    const i2 = buildRatioIndex([closed], evs, now);
+    expect(i2.taskRatio('w', '2026-10-12')).toBe(1);
+    expect(i2.taskRatio('w', '2026-10-13')).toBeNull();
+    expect(i2.dayRatio('2026-10-14')).toBeNull();
   });
 });

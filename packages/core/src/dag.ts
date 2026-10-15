@@ -1,12 +1,12 @@
 /** 依赖图（前导图 PDM）：DAG、环检测、派生状态、解锁后续。 */
-import type { Dependency, Task } from './types';
+import { isFinished, type Dependency, type Task } from './types';
 
 export interface Edge {
   pred_id: string;
   succ_id: string;
 }
 
-export type DerivedState = '完成' | '取消' | '可开始' | '被阻塞';
+export type DerivedState = '完成' | '关闭' | '可开始' | '被阻塞';
 
 export interface DerivedStatus {
   state: DerivedState;
@@ -126,15 +126,15 @@ export function successorsOf(edges: readonly Edge[], id: string): string[] {
 
 type TaskLike = Pick<Task, 'id' | 'status' | 'deleted'>;
 
-/** 前置任务“满足”：已完成或已取消（取消的前置不再阻塞后续）。 */
+/** 前置任务“满足”：已结束（完成或关闭）或已删除。关闭的前置同样解锁后续。 */
 function satisfied(t: TaskLike | undefined): boolean {
-  return !t || t.deleted || t.status === '完成' || t.status === '取消';
+  return !t || t.deleted || isFinished(t.status);
 }
 
 /** 派生状态：所有前置都完成 → 可开始；否则 → 被阻塞（列出还差哪些）。 */
 export function deriveStatus(task: TaskLike, tasksById: ReadonlyMap<string, TaskLike>, edges: readonly Edge[]): DerivedStatus {
   if (task.status === '完成') return { state: '完成', missing: [] };
-  if (task.status === '取消') return { state: '取消', missing: [] };
+  if (task.status === '关闭') return { state: '关闭', missing: [] };
   const missing = predecessorsOf(edges, task.id).filter((p) => !satisfied(tasksById.get(p)));
   return missing.length ? { state: '被阻塞', missing } : { state: '可开始', missing: [] };
 }
@@ -147,8 +147,8 @@ export function deriveAll(tasks: readonly TaskLike[], edges: readonly Edge[]): M
 }
 
 /**
- * completedId 完成后新解锁的后续：完成前被阻塞、完成后可开始。
- * tasks 传入完成“之前”的快照。
+ * completedId 结束（完成或关闭）后新解锁的后续：之前被阻塞、之后可开始。
+ * tasks 传入结束“之前”的快照。
  */
 export function unlockedSuccessors(completedId: string, tasks: readonly TaskLike[], edges: readonly Edge[]): string[] {
   const before = new Map(tasks.map((t) => [t.id, t]));

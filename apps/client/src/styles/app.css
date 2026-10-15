@@ -725,6 +725,31 @@ button {
   color: var(--text-3);
   text-decoration: line-through;
 }
+/* 关闭：已结束但不算完成——不划线，整体变淡，带“关闭”标记 */
+.is-closed .row-title {
+  color: var(--text-3);
+}
+.is-closed .thumb {
+  opacity: 0.55;
+}
+.check.is-closed[data-selected] .check-box {
+  background: transparent;
+  border-color: var(--state-closed);
+  color: var(--state-closed);
+}
+.meta-state.state-closed {
+  color: var(--state-closed);
+  border: 1px solid color-mix(in srgb, var(--state-closed) 45%, transparent);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+.task-card.is-closed {
+  opacity: 0.6;
+}
+.dep-item.is-closed .dep-title {
+  color: var(--text-3);
+}
 .row-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1279,9 +1304,12 @@ button {
 .graph-node.state-ready {
   --node-color: var(--accent);
 }
-.graph-node.state-cancel {
-  --node-color: var(--state-cancel);
-  opacity: 0.6;
+.graph-node.state-closed {
+  --node-color: var(--state-closed);
+  opacity: 0.7;
+}
+.graph-node.state-closed .graph-node-title {
+  color: var(--text-3);
 }
 .graph-node .thumb-poster {
   width: 24px;
@@ -1340,6 +1368,9 @@ button {
 }
 .legend.state-blocked::before {
   background: var(--state-blocked);
+}
+.legend.state-closed::before {
+  background: var(--state-closed);
 }
 [data-layout='mobile'] .graph-toolbar .field {
   width: calc(50% - 6px);

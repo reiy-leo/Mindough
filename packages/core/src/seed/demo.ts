@@ -103,6 +103,9 @@ export function seedDemo(store: Store): void {
       store.createTask({ body_md: body, created_at: iso(-40), ...extra });
     const done = (body: string, daysAgo: number, extra: Partial<Task> = {}) =>
       task(body, { status: '完成', done_at: iso(-daysAgo, 20), ...extra });
+    // 关闭：不做了也算结束（解锁后续），但不算成就
+    const closed = (body: string, daysAgo: number, extra: Partial<Task> = {}) =>
+      task(body, { status: '关闭', done_at: iso(-daysAgo, 18), ...extra });
 
     // 搬家：依赖链
     const m1 = done('整理要带走的东西，列一张清单\n\n- [x] 书\n- [x] 衣服\n- [x] 厨具', 3, { group_id: move.id });
@@ -111,6 +114,8 @@ export function seedDemo(store: Store): void {
     const m4 = task('打包书和衣服（纸箱 × 12）', { group_id: move.id, scheduled_date: d(6) });
     const m5 = task('新家网络开通，预约师傅上门', { group_id: move.id });
     const m6 = task('退押金、交钥匙', { group_id: move.id, scheduled_date: d(14) });
+    const m0 = closed('找朋友借面包车自己搬（改请搬家公司了）', 1, { group_id: move.id });
+    store.addDependency(m0.id, m3.id);
     store.addDependency(m1.id, m4.id);
     store.addDependency(m2.id, m3.id);
     store.addDependency(m3.id, m4.id);
@@ -162,6 +167,8 @@ export function seedDemo(store: Store): void {
     const c2 = task('交水电费', { scheduled_date: d(-1) });
     done('牙医复诊', 3, { scheduled_date: d(-3) });
     done('取快递（门口丰巢）', 1, { scheduled_date: d(-1) });
+    closed('退掉旧宽带（房东说网络随房子留下）', 1, { scheduled_date: d(-1) });
+    const c3 = closed('去超市买菜（改成网上下单了）', 0, { scheduled_date: d(0), done_at: new Date(now.getTime() - 3600_000).toISOString() });
     const call = task('## 要聊什么\n- 搬家的事\n- 国庆的照片\n', {
       type_id: T.person,
       type_data: { person: mom.id, reason: '周末打电话' },
@@ -237,7 +244,7 @@ export function seedDemo(store: Store): void {
     // 我的一天
     const yesterday = d(-1);
     for (const t of [c2, m2, read]) store.addToMyDay(t.id, yesterday);
-    for (const t of [m3, p2, water, c1]) store.addToMyDay(t.id, today);
+    for (const t of [m3, p2, water, c1, c3]) store.addToMyDay(t.id, today);
     void call;
   });
 }

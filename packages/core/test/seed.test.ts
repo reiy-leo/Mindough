@@ -30,7 +30,8 @@ describe('演示数据', () => {
     expect(store.list('person')).toHaveLength(3);
     expect(store.tasks().length).toBeGreaterThan(20);
     expect(findCycleEdges(store.edges())).toEqual([]);
-    expect(store.list('my_day').filter((e) => e.date === '2026-10-15')).toHaveLength(4);
+    expect(store.tasks().some((t) => t.status === '关闭')).toBe(true);
+    expect(store.list('my_day').filter((e) => e.date === '2026-10-15')).toHaveLength(5);
     const water = store.tasks().find((t) => t.body_md === '每天喝 8 杯水')!;
     expect(store.progress(water.id)?.value).toBe(3);
     const fast = store.tasks().find((t) => t.body_md === '16 小时轻断食')!;

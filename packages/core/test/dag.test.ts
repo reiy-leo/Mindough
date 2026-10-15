@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isFinished, normalizeStatus } from '../src/types';
 import {
   CycleError,
   DuplicateEdgeError,
@@ -56,11 +57,12 @@ describe('派生状态', () => {
     expect(deriveStatus(tasks[0]!, byId, edges).state).toBe('完成');
   });
 
-  it('取消或已删除的前置不再阻塞', () => {
-    const tasks = [mkTask('a', { status: '取消' }), mkTask('x', { deleted: true }), mkTask('c')];
+  it('关闭或已删除的前置不再阻塞；关闭有自己的派生状态', () => {
+    const tasks = [mkTask('a', { status: '关闭' }), mkTask('x', { deleted: true }), mkTask('c')];
     const all = deriveAll(tasks, [e('a', 'c'), e('x', 'c')]);
     expect(all.get('c')?.state).toBe('可开始');
     expect(all.has('x')).toBe(false);
+    expect(all.get('a')?.state).toBe('关闭');
   });
 
   it('完成后解锁的后续', () => {
@@ -70,5 +72,16 @@ describe('派生状态', () => {
     expect(unlockedSuccessors('a', tasks, edges)).toEqual(['d']);
     const afterB = tasks.map((t) => (t.id === 'b' ? { ...t, status: '完成' as const } : t));
     expect(unlockedSuccessors('a', afterB, edges).sort()).toEqual(['c', 'd']);
+  });
+});
+
+describe('状态工具', () => {
+  it('isFinished：完成和关闭都算结束；normalizeStatus 把旧的“取消”映射为“关闭”', () => {
+    expect(isFinished('完成')).toBe(true);
+    expect(isFinished('关闭')).toBe(true);
+    expect(isFinished('进行中')).toBe(false);
+    expect(normalizeStatus('取消')).toBe('关闭');
+    expect(normalizeStatus('进行中')).toBe('进行中');
+    expect(normalizeStatus('乱写')).toBe('待办');
   });
 });

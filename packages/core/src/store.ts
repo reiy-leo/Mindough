@@ -8,7 +8,7 @@ import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
 import { BUILTIN_TASK_TYPES, PLAIN_TYPE_ID } from './seed/builtin-types';
-import { TABLES, type BaseRow, type CheckInKind, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 export interface StoreOptions {
@@ -71,6 +71,7 @@ export class Store {
       }
     }
     store.ensureBuiltinTypes();
+    store.migrateLegacyStatuses();
     await store.flush();
     return store;
   }
@@ -198,6 +199,16 @@ export class Store {
     if (cur && !cur.deleted) this.write([{ table, row: { ...cur, deleted: true } }]);
   }
 
+  /** M0 旧数据里的“取消”→“关闭”（改写一次并进 outbox，其他设备同步后一致）。 */
+  private migrateLegacyStatuses() {
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const t of this.tables.task.values()) {
+      const s = normalizeStatus(t.status);
+      if (s !== t.status) rows.push({ table: 'task', row: { ...t, status: s } as BaseRow });
+    }
+    this.write(rows);
+  }
+
   private ensureBuiltinTypes() {
     const missing = BUILTIN_TASK_TYPES.filter((t) => !this.tables.task_type.has(t.id));
     if (!missing.length) return;
@@ -254,9 +265,10 @@ export class Store {
   setStatus(id: string, status: TaskStatus): CompleteResult {
     const before = this.list('task');
     const edges = this.edges();
-    const task = this.updateTask(id, { status, done_at: status === '完成' ? this.now().toISOString() : null });
+    // done_at = 结束时间（完成或关闭都记），重新打开时清空
+    const task = this.updateTask(id, { status, done_at: isFinished(status) ? this.now().toISOString() : null });
     const unlocked =
-      status === '完成' || status === '取消'
+      isFinished(status)
         ? unlockedSuccessors(id, before, edges)
             .map((s) => this.get('task', s))
             .filter((x): x is Task => !!x)
@@ -266,6 +278,16 @@ export class Store {
 
   completeTask(id: string): CompleteResult {
     return this.setStatus(id, '完成');
+  }
+
+  /** 关闭：不做了也算结束，同样解锁后续，但不算成就。 */
+  closeTask(id: string): CompleteResult {
+    return this.setStatus(id, '关闭');
+  }
+
+  /** 重新打开：改回待办。 */
+  reopenTask(id: string): Task {
+    return this.setStatus(id, '待办').task;
   }
 
   /** “然后呢？”：新建一个后续任务并连上 FS 依赖。 */

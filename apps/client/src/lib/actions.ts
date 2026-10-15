@@ -1,4 +1,4 @@
-import { CycleError, DuplicateEdgeError, SelfLoopError, taskTitle, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
+import { CycleError, DuplicateEdgeError, SelfLoopError, isFinished, taskTitle, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
 import type { useUi } from './ui';
 import { resolver } from './view';
 
@@ -9,14 +9,15 @@ function titleOf(store: Store, id: string) {
   return t ? taskTitle(t, store.get('task_type', t.type_id), resolver(store)) : '任务';
 }
 
-/** 完成后的提示：解锁了哪些后续 + “然后呢？”一键新建后续 + 撤销。 */
+/** 结束（完成 / 关闭）后的提示：解锁了哪些后续 + “然后呢？”一键新建后续 + 撤销。 */
 export function announceComplete(store: Store, ui: Ui, result: CompleteResult, prev: TaskStatus) {
   const n = result.unlocked.length;
   const names = result.unlocked.slice(0, 3).map((t) => `「${titleOf(store, t.id)}」`).join('、');
+  const verb = result.task.status === '关闭' ? '已关闭' : '已完成';
   ui.toast(
     {
-      tone: 'success',
-      message: n ? `已完成，解锁了 ${n} 个后续：${names}${n > 3 ? ' 等' : ''}` : `已完成「${titleOf(store, result.task.id)}」`,
+      tone: result.task.status === '关闭' ? 'info' : 'success',
+      message: n ? `${verb}，解锁了 ${n} 个后续：${names}${n > 3 ? ' 等' : ''}` : `${verb}「${titleOf(store, result.task.id)}」`,
       actions: [
         {
           label: '然后呢？',
@@ -35,11 +36,27 @@ export function announceComplete(store: Store, ui: Ui, result: CompleteResult, p
 export function toggleDone(store: Store, ui: Ui, taskId: string) {
   const t = store.get('task', taskId);
   if (!t) return;
-  if (t.status === '完成') {
-    store.setStatus(taskId, '待办');
+  // 已结束（完成或关闭）再点一下 = 重新打开
+  if (isFinished(t.status)) {
+    store.reopenTask(taskId);
     return;
   }
   announceComplete(store, ui, store.completeTask(taskId), t.status);
+}
+
+/** 关闭：不做了，也算结束（同样解锁后续），但不算成就。 */
+export function closeTask(store: Store, ui: Ui, taskId: string) {
+  const t = store.get('task', taskId);
+  if (!t || t.status === '关闭') return;
+  announceComplete(store, ui, store.closeTask(taskId), t.status);
+}
+
+/** 改状态：结束态走解锁提示，其余直接改。 */
+export function changeStatus(store: Store, ui: Ui, taskId: string, status: TaskStatus) {
+  const t = store.get('task', taskId);
+  if (!t || t.status === status) return;
+  if (isFinished(status)) announceComplete(store, ui, store.setStatus(taskId, status), t.status);
+  else store.setStatus(taskId, status);
 }
 
 /** 加依赖：环检测失败时提示，返回是否成功。 */

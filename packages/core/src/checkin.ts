@@ -4,7 +4,7 @@
  */
 import { diffDays, toDateKey } from './dates';
 import { ONCE_PERIOD, isDueOn, parseRecurrence, periodKeyFor, computeStreak, type Streak } from './recurrence';
-import type { CheckIn, CompletionMode, DateKey, Task } from './types';
+import { isFinished, type CheckIn, type CompletionMode, type DateKey, type Task } from './types';
 
 export interface Progress {
   mode: CompletionMode;
@@ -163,7 +163,8 @@ export function isCheckInTask(task: Pick<Task, 'completion_mode' | 'recurrence'>
 }
 
 export function dueToday(task: Pick<Task, 'recurrence' | 'deleted' | 'status' | 'created_at'>, date: DateKey): boolean {
-  if (task.deleted || task.status === '取消') return false;
+  // 已结束（完成 / 关闭）的重复任务不再要打卡
+  if (task.deleted || isFinished(task.status)) return false;
   const r = parseRecurrence(task.recurrence);
   if (!r) return false;
   if (toDateKey(new Date(task.created_at)) > date) return false;
@@ -198,7 +199,7 @@ export interface RatioIndex {
 }
 
 export function buildRatioIndex(tasks: readonly Task[], checkIns: readonly CheckIn[], now: Date): RatioIndex {
-  const recurring = tasks.filter((t) => !t.deleted && parseRecurrence(t.recurrence) && t.status !== '取消');
+  const recurring = tasks.filter((t) => !t.deleted && parseRecurrence(t.recurrence));
   const byTask = new Map<string, Map<string, CheckIn[]>>();
   for (const c of checkIns) {
     if (c.deleted) continue;
@@ -209,14 +210,25 @@ export function buildRatioIndex(tasks: readonly Task[], checkIns: readonly Check
     else m.set(c.period_key, [c]);
   }
   const cache = new Map<string, number | null>();
-  const parsed = new Map(recurring.map((t) => [t.id, { task: t, rule: parseRecurrence(t.recurrence), since: toDateKey(new Date(t.created_at)) }]));
+  // 已结束（完成 / 关闭）的重复任务：结束那天起不再算应打卡日，之前的历史照常显示；关闭本身不算达成
+  const parsed = new Map(
+    recurring.map((t) => [
+      t.id,
+      {
+        task: t,
+        rule: parseRecurrence(t.recurrence),
+        since: toDateKey(new Date(t.created_at)),
+        until: isFinished(t.status) && t.done_at ? toDateKey(new Date(t.done_at)) : null,
+      },
+    ]),
+  );
   const taskRatio = (taskId: string, date: DateKey): number | null => {
     const key = `${taskId}|${date}`;
     if (cache.has(key)) return cache.get(key)!;
     const p = parsed.get(taskId);
     let v: number | null = null;
     // 周期键 = 应打卡日，所以直接按 date 取该周期的事件；创建之前的日子不算
-    if (p?.rule && date >= p.since && isDueOn(p.rule, date)) {
+    if (p?.rule && date >= p.since && (p.until === null || date < p.until) && isDueOn(p.rule, date)) {
       v = computeProgress(p.task, byTask.get(taskId)?.get(date) ?? [], now).ratio;
     }
     cache.set(key, v);

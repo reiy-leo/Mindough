@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Tab, TabList, TabPanel, Tabs, ToggleButton, Button as RacButton } from 'react-aria-components';
-import { ImagePlus, Link2, Sun, Trash2, X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ImagePlus, Link2, Sun, Trash2, X, ArrowRight, ArrowLeft, CircleSlash, RotateCcw } from 'lucide-react';
 import {
   COMPLETION_MODE_LABEL,
   TASK_STATUSES,
   formatRecurrence,
+  isFinished,
   parseRecurrence,
   predecessorsOf,
   successorsOf,
@@ -24,7 +25,7 @@ import { Button, Field, Segmented, Select, Sheet } from '../ui/primitives';
 import { Markdown } from './Markdown';
 import { Avatar } from './Avatar';
 import { imageUrl, resolver } from '../lib/view';
-import { announceComplete, toggleMyDay, tryAddDependency } from '../lib/actions';
+import { announceComplete, changeStatus, closeTask, toggleMyDay, tryAddDependency } from '../lib/actions';
 
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 const WEEK_LABEL = ['日', '一', '二', '三', '四', '五', '六'];
@@ -179,7 +180,7 @@ function DependencyList({ store, task }: { store: Store; task: Task }) {
   const options = [{ id: '__pick', label: '选择任务…' }, ...candidates.map((t) => ({ id: t.id, label: title(t).slice(0, 40) }))];
   const derived = store.derived().get(task.id);
   const row = (t: Task, dir: 'pred' | 'succ') => (
-    <li key={t.id} className={`dep-item${t.status === '完成' ? ' is-done' : ''}`}>
+    <li key={t.id} className={`dep-item${t.status === '完成' ? ' is-done' : ''}${t.status === '关闭' ? ' is-closed' : ''}`}>
       {dir === 'pred' ? <ArrowLeft size={14} aria-hidden /> : <ArrowRight size={14} aria-hidden />}
       <RacButton className="dep-title" onPress={() => ui.openEditor(t.id)}>
         {title(t)}
@@ -268,18 +269,45 @@ export function TaskEditor() {
             <Sun size={16} />
             {inDay ? '移出我的一天' : '加入我的一天'}
           </Button>
-          {task.status !== '完成' && !task.recurrence && (
+          {isFinished(task.status) ? (
             <Button
-              variant="primary"
+              variant="secondary"
               onPress={() => {
                 commitBody();
-                const prev = task.status;
-                announceComplete(store, ui, store.completeTask(task.id), prev);
-                ui.openEditor(null);
+                store.reopenTask(task.id);
+                ui.toast({ message: '已重新打开' }, 2500);
               }}
             >
-              完成
+              <RotateCcw size={16} />
+              重新打开
             </Button>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  commitBody();
+                  closeTask(store, ui, task.id);
+                  ui.openEditor(null);
+                }}
+              >
+                <CircleSlash size={16} />
+                关闭
+              </Button>
+              {!task.recurrence && (
+                <Button
+                  variant="primary"
+                  onPress={() => {
+                    commitBody();
+                    const prev = task.status;
+                    announceComplete(store, ui, store.completeTask(task.id), prev);
+                    ui.openEditor(null);
+                  }}
+                >
+                  完成
+                </Button>
+              )}
+            </>
           )}
         </>
       }
@@ -297,10 +325,7 @@ export function TaskEditor() {
               if (body.trim() === '' && nt?.body_template) setBody(nt.body_template);
             }}
           />
-          <Select label="状态" value={task.status} options={TASK_STATUSES.map((s) => ({ id: s, label: s }))} onChange={(s) => {
-            if (s === '完成') announceComplete(store, ui, store.setStatus(task.id, '完成'), task.status);
-            else store.setStatus(task.id, s as TaskStatus);
-          }} />
+          <Select label="状态" value={task.status} options={TASK_STATUSES.map((s) => ({ id: s, label: s }))} onChange={(s) => changeStatus(store, ui, task.id, s as TaskStatus)} />
           <Select
             label="组"
             value={task.group_id ?? '__none'}

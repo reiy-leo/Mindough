@@ -53,7 +53,7 @@ export function viewOf(store: Store, task: Task): TaskView {
 
 export const STATE_CLASS: Record<string, string> = {
   完成: 'state-done',
-  取消: 'state-cancel',
+  关闭: 'state-closed',
   可开始: 'state-ready',
   被阻塞: 'state-blocked',
 };

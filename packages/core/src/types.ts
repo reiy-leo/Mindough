@@ -17,8 +17,25 @@ export interface BaseRow {
   deleted: boolean;
 }
 
-export type TaskStatus = '待办' | '进行中' | '完成' | '取消';
-export const TASK_STATUSES: readonly TaskStatus[] = ['待办', '进行中', '完成', '取消'];
+/**
+ * 任务状态。结束态只有两种：完成、关闭（Rei 2026-10-15：“任务没有取消之说，只有完成和关闭两种，关闭也是完成状态”）。
+ * - 完成：做成了，算成就（热力图、连续天数、组进度）。
+ * - 关闭：不做了 / 不需要了，同样算“已结束”：解锁后续、不进待办清单，但不算成就。
+ * 两种都可以重新打开（改回待办）。
+ */
+export type TaskStatus = '待办' | '进行中' | '完成' | '关闭';
+export const TASK_STATUSES: readonly TaskStatus[] = ['待办', '进行中', '完成', '关闭'];
+
+/** 已结束（完成或关闭）：满足依赖、不出现在待办 / 可做清单里。 */
+export function isFinished(status: TaskStatus): boolean {
+  return status === '完成' || status === '关闭';
+}
+
+/** 旧数据兼容：M0 存过的“取消”一律视作“关闭”；未知值当“待办”。 */
+export function normalizeStatus(status: unknown): TaskStatus {
+  if (status === '取消' || status === 'cancelled') return '关闭';
+  return (TASK_STATUSES as readonly unknown[]).includes(status) ? (status as TaskStatus) : '待办';
+}
 
 /** 完成方式：点一下 / 计时 / 计量 / 倒数日。 */
 export type CompletionMode = 'once' | 'timer' | 'count' | 'countdown';

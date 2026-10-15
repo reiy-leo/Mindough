@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Cake, ImagePlus, Plus, Users } from 'lucide-react';
-import { formatDateZh } from '@mindough/core';
+import { formatDateZh, isFinished } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -91,7 +91,7 @@ export function PeoplePage() {
       ) : (
         <div className="people-list">
           {people.map((p) => {
-            const n = store.tasksOfPerson(p.id).filter((t) => t.status !== '完成').length;
+            const n = store.tasksOfPerson(p.id).filter((t) => !isFinished(t.status)).length;
             return (
               <RacButton key={p.id} className="card person-card" onPress={() => navigate({ page: 'person', id: p.id })}>
                 <Avatar store={store} person={p} size={48} />

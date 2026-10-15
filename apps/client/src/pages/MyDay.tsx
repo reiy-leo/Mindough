@@ -34,7 +34,10 @@ export function MyDayPage() {
   const unlocked = recentlyUnlocked(tasks, store.edges(), derived, new Date(now.getTime() - 24 * 3600_000).toISOString());
   const yIds = new Set(yesterday.map((t) => t.id));
   const sugg = suggestions({ tasks, entries, checkIns, derived, recentlyUnlocked: unlocked, today, now }).filter((s) => !yIds.has(s.task.id));
-  const doneCount = items.filter((i) => i.done).length;
+  // 关闭的算结束（沉底）但不算成就：不计入“已完成 x/y”
+  const closedCount = items.filter((i) => i.task.status === '关闭').length;
+  const counted = items.length - closedCount;
+  const doneCount = items.filter((i) => i.done && i.task.status !== '关闭').length;
 
   const { dragAndDropHooks } = useDragAndDrop({
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
@@ -61,7 +64,7 @@ export function MyDayPage() {
     <div className="page">
       <PageHeader
         title="我的一天"
-        subtitle={`${formatDateZh(today)} · ${items.length ? `${doneCount}/${items.length} 已完成` : '还没有安排'}`}
+        subtitle={`${formatDateZh(today)} · ${items.length ? `${doneCount}/${counted} 已完成${closedCount ? ` · ${closedCount} 个已关闭` : ''}` : '还没有安排'}`}
         icon={<Sun size={22} />}
       />
 

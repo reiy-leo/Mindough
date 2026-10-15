@@ -15,7 +15,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import ELK from 'elkjs/lib/elk.bundled.js';
-import { Check, Lock, Play } from 'lucide-react';
+import { Check, CircleSlash, Lock, Play } from 'lucide-react';
 import type { Store, Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { tryAddDependency } from '../lib/actions';
@@ -38,10 +38,10 @@ interface NodeData extends Record<string, unknown> {
   icon?: string;
 }
 
-const STATE_LABEL: Record<string, string> = { 完成: '完成', 取消: '已取消', 可开始: '可开始', 被阻塞: '被阻塞' };
+const STATE_LABEL: Record<string, string> = { 完成: '完成', 关闭: '已关闭', 可开始: '可开始', 被阻塞: '被阻塞' };
 
 const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }: NodeProps<Node<NodeData>>) {
-  const Icon = data.state === '完成' ? Check : data.state === '被阻塞' ? Lock : Play;
+  const Icon = data.state === '完成' ? Check : data.state === '关闭' ? CircleSlash : data.state === '被阻塞' ? Lock : Play;
   return (
     <div className={`graph-node ${STATE_CLASS[data.state] ?? ''}`}>
       <Handle type="target" position={targetPosition ?? Position.Left} className="graph-handle" />
