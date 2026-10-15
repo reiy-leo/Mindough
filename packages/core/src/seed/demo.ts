@@ -168,7 +168,7 @@ export function seedDemo(store: Store): void {
     const c2 = task('交水电费', { scheduled_date: d(-1) });
     done('牙医复诊', 3, { scheduled_date: d(-3) });
     done('取快递（门口丰巢）', 1, { scheduled_date: d(-1) });
-    closed('退掉旧宽带（房东说网络随房子留下）', 1, { scheduled_date: d(-1) });
+    const broadband = closed('退掉旧宽带（房东说网络随房子留下）', 1, { scheduled_date: d(-1) });
     const c3 = closed('去超市买菜（改成网上下单了）', 0, { scheduled_date: d(0), done_at: new Date(now.getTime() - 3600_000).toISOString() });
     const call = task('## 要聊什么\n- 搬家的事\n- 国庆的照片\n', {
       type_id: T.person,
@@ -189,6 +189,11 @@ export function seedDemo(store: Store): void {
       target_date: d(24),
     });
     store.linkPerson(trip.id, lin.id);
+
+    // 相关任务：只是有关系，没有先后（不解锁、关系图上是虚线）
+    store.linkTasks(m5.id, broadband.id);
+    store.linkTasks(p0.id, p2.id);
+    store.linkTasks(c1.id, c3.id);
     task('年底述职', { completion_mode: 'countdown', target_date: d(62) });
 
     // 资料库：每个库放几条（没有图片，界面用按名字生成的渐变占位）；同一部片可以有好几件任务

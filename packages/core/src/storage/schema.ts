@@ -57,6 +57,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   checkin_category: { name: 'text', icon: 'text', color: 'text', builtin: 'bool', hidden: 'bool', sort: 'real' },
   asset: { sha256: 'text', mime: 'text', width: 'int?', height: 'int?', r2_key: 'text?', url: 'text?' },
   library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text' },
+  task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
 };
 
 /** SQL 标识符加引号（"group" 是关键字）。 */
@@ -152,6 +153,18 @@ CREATE TABLE IF NOT EXISTS "library_item" (
 CREATE INDEX IF NOT EXISTS "library_item_type" ON "library_item" ("type_id");
 ALTER TABLE "task" ADD COLUMN "library_item_id" TEXT;
 CREATE INDEX IF NOT EXISTS "task_library_item" ON "task" ("library_item_id");
+`,
+  },
+  {
+    version: 3,
+    name: '相关任务（task_link）',
+    sql: `
+CREATE TABLE IF NOT EXISTS "task_link" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "a_task_id" TEXT NOT NULL, "b_task_id" TEXT NOT NULL, "note" TEXT NOT NULL DEFAULT '', "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "task_link_a" ON "task_link" ("a_task_id");
+CREATE INDEX IF NOT EXISTS "task_link_b" ON "task_link" ("b_task_id");
 `,
   },
 ];

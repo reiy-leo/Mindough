@@ -7,6 +7,7 @@ import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
+import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, relatedIdsOf, taskLinkId, visibleLinks } from './related';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
 import {
   entryOfItem,
@@ -441,7 +442,7 @@ export class Store {
     return this.update('task', id, patch);
   }
 
-  /** 删除任务：任务与它的依赖边、我的一天条目、人物关联一起打墓碑。 */
+  /** 删除任务：任务与它的依赖边、相关任务、我的一天条目、人物关联一起打墓碑。 */
   deleteTask(id: string): void {
     const rows: Array<{ table: TableName; row: BaseRow }> = [];
     const t = this.tables.task.get(id);
@@ -451,6 +452,7 @@ export class Store {
       if (d.pred_id === id || d.succ_id === id) rows.push({ table: 'dependency', row: { ...d, deleted: true } });
     for (const m of this.list('my_day')) if (m.task_id === id) rows.push({ table: 'my_day', row: { ...m, deleted: true } });
     for (const p of this.list('task_person')) if (p.task_id === id) rows.push({ table: 'task_person', row: { ...p, deleted: true } });
+    for (const l of this.list('task_link')) if (l.a_task_id === id || l.b_task_id === id) rows.push({ table: 'task_link', row: { ...l, deleted: true } });
     this.write(rows);
   }
 
@@ -500,6 +502,45 @@ export class Store {
 
   removeDependency(predId: string, succId: string): void {
     for (const d of this.list('dependency')) if (d.pred_id === predId && d.succ_id === succId) this.remove('dependency', d.id);
+  }
+
+  // ───────────── 相关任务（无方向、不阻塞） ─────────────
+
+  /**
+   * 把两件任务连成「相关」：自己和自己、已经有前后关系的两件会抛错；已经相关就原样返回（幂等）。
+   * 去掉过再连上：同一行（确定 id）的墓碑翻回来。
+   */
+  linkTasks(x: string, y: string): TableMap['task_link'] {
+    if (x === y) throw new SelfLinkError();
+    if (!this.get('task', x) || !this.get('task', y)) throw new Error('任务不存在');
+    if (hasDependencyBetween(this.edges(), x, y)) throw new LinkedByDependencyError();
+    const id = taskLinkId(x, y);
+    const cur = this.tables.task_link.get(id);
+    if (cur && !cur.deleted) return cur;
+    const [a, b] = canonicalPair(x, y);
+    if (cur) return this.update('task_link', id, { deleted: false, created_at: this.now().toISOString() });
+    return this.insert('task_link', { id, a_task_id: a, b_task_id: b, note: '', created_at: this.now().toISOString() });
+  }
+
+  unlinkTasks(x: string, y: string): void {
+    // 确定 id 那行之外，同步进来的旧行（别的写法）也一起去掉
+    const key = canonicalPair(x, y).join('|');
+    for (const l of this.list('task_link')) if (canonicalPair(l.a_task_id, l.b_task_id).join('|') === key) this.remove('task_link', l.id);
+  }
+
+  /** 显示用的相关行：两端都还在、且没有前后关系（前后关系优先）。 */
+  taskLinks(): TableMap['task_link'][] {
+    return visibleLinks(this.list('task_link'), this.edges()).filter((l) => this.get('task', l.a_task_id) && this.get('task', l.b_task_id));
+  }
+
+  /** 和这件任务相关的任务（按连上的先后，去重）。 */
+  relatedTasks(taskId: string): Task[] {
+    const ids = [...new Set(relatedIdsOf(this.taskLinks(), taskId))];
+    return ids.map((id) => this.get('task', id)).filter((t): t is Task => !!t);
+  }
+
+  isRelated(x: string, y: string): boolean {
+    return this.relatedTasks(x).some((t) => t.id === y);
   }
 
   // ───────────── 我的一天 ─────────────

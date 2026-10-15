@@ -224,6 +224,20 @@ export interface TaskPerson extends BaseRow {
   person_id: string;
 }
 
+/**
+ * 相关任务：两件任务只是有关系，没有先后（Rei 2026-10-15：“任务只是有关系，但没有FS关系”）。
+ * 无方向、不阻塞：不解锁、不进环检测、关系图上画成没有箭头的虚线。
+ * 规范顺序 a_task_id < b_task_id，id 由这一对算出（见 related.ts 的 taskLinkId），
+ * 所以两台设备各自连同一对会得到同一行，同步时自然合并；去掉再连上 = 同一行墓碑翻回来。
+ */
+export interface TaskLink extends BaseRow {
+  a_task_id: string;
+  b_task_id: string;
+  /** 一句说明（为什么相关）；界面暂不编辑，先留着。 */
+  note: string;
+  created_at: Timestamp;
+}
+
 export interface MyDayEntry extends BaseRow {
   task_id: string;
   /** 本地日期。同步时按 task_id + date 合并。 */
@@ -263,6 +277,7 @@ export interface TableMap {
   task_type: TaskType;
   person: Person;
   task_person: TaskPerson;
+  task_link: TaskLink;
   my_day: MyDayEntry;
   check_in: CheckIn;
   checkin_category: CheckInCategory;
@@ -284,6 +299,7 @@ export const TABLES: readonly TableName[] = [
   'checkin_category',
   'asset',
   'library_item',
+  'task_link',
 ];
 
 /** 写入时调用方提供的部分：id / updated_at / deleted 由存储层补齐。 */

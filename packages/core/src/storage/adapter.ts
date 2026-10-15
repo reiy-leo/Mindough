@@ -53,6 +53,7 @@ export function emptySnapshot(): Snapshot {
     checkin_category: [],
     asset: [],
     library_item: [],
+    task_link: [],
   };
 }
 

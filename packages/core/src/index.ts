@@ -3,6 +3,7 @@ export * from './uuid';
 export * from './hlc';
 export * from './dates';
 export * from './dag';
+export * from './related';
 export * from './recurrence';
 export * from './checkin';
 export * from './heatmap';
