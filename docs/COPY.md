@@ -59,9 +59,18 @@
 | 相关任务 | 引用 / 关联任务 | 资料详情、人物详情里的分区 |
 | 看到哪 / 读到第几页 / 学到第几课 / 买几件 | 季集进度 / 页数进度 / 课时进度 | 任务字段：属于这一次，不属于资料本身 |
 | 部 / 本 / 款 / 个 / 门 / 件 / 家 / 道 / 位 | — | 各库的量词（「7 部」「添加第一本」） |
+| IMDb / 豆瓣 | IMDb 编号 / 豆瓣 ID | 影视的资料字段标签；占位「tt0816692，或粘贴链接」「1889243，或粘贴链接」；格式不对轻提示「IMDb 编号是 tt 加数字，比如 tt0816692」「豆瓣编号是一串数字，在链接 subject/ 后面」；对了就在下面显示可点的链接 |
+| 更多链接 | 外部链接 / 相关链接 | 资料字段；最后一行占位「粘贴链接，比如烂番茄、EXT、TMDB」，有了以后「再粘贴一条链接」；名字空着就按网址自动认（EXT、烂番茄、TMDB、Letterboxd、B 站、爱奇艺、腾讯视频、优酷、Netflix、YouTube、维基百科 / Wikipedia、Steam、Epic、GOG、PlayStation Store、Xbox、Microsoft Store、Nintendo eShop、App Store、Google Play、itch.io、IGDB、Metacritic、小黑盒、TapTap），不认识的用域名；按钮「上移」「下移」「去掉」；不像链接时「这不像链接，以 https:// 开头试试」 |
+| 链接小标签 | 打开链接 | 资料卡和资料页名字下面一排：IMDb、豆瓣在前，再是更多链接；点开新标签页 |
+| 平台（游戏） | — | 多选；选项写法：PC（Steam）、PC（Epic）、PC（其他）、PlayStation 5、PlayStation 4、Xbox Series X\|S、Xbox One、Nintendo Switch、Switch 2、iOS、Android、macOS、Linux / Steam Deck、网页、其他；没选时显示「不选」；多个用「、」连 |
+| 价格 + 币种 | 金额 / 货币 | 好物的资料字段：金额框 + 币种下拉（按钮显示「S$ SGD」，列表「符号 中文名 代码」，搜索框占位「搜币种：美元、USD、$」，搜不到「没有这个币种」）；显示用系统格式（「¥1,299」「US$12.50」「JP¥1,200」「£59.90」），整数不补 .00；不换算；金额里写了字时提示「金额只写数字就好」 |
+| 看到哪 | 季集进度 | 影视的任务字段；占位「第 2 季第 3 集，或 S02E03」；认出的统一显示成「第 2 季第 3 集」「第 3 集」「第 2 季」 |
+| 已识别 第 2 季第 3 集 | 自动提取 / 解析成功 | 新建面板里的小胶囊：还没填进去时「已识别 第 2 季第 3 集，会填进「看到哪」」+ ×（悬停「不用识别」），填进去后「已识别 第 2 季第 3 集」+「撤销」；详情里写完内容后的提示「已识别 第 2 季第 3 集，填进了「看到哪」」+「撤销」 |
+| 备注 · 支持 Markdown | Markdown 备注 / 富文本 | 资料、人物的备注；标签右边一行小字「支持 Markdown」，写法放在它的悬停提示里；空的时候占位「写点什么…」 |
 
 ## 写在代码里的约定
 - 完成方式的名称与一句话说明在 `packages/core/src/types.ts`（`COMPLETION_MODE_LABEL`、`COMPLETION_MODE_HINT`），界面一律从这里取，不要自己写。
 - 把属性说成人话的函数在 `packages/core/src/describe.ts`（`describeCompletion`、`countdownPhrase`、`friendlyDate`、`formatTarget`）；`describeRecurrence` 在 `recurrence.ts`。
+- 站点编号（IMDb / 豆瓣）的占位与提示、常见网站的显示名在 `packages/core/src/links.ts`（`SITES`、`detectLinkLabel`）；币种中文名与符号在 `money.ts`（`CURRENCIES`）；季集的显示在 `episode.ts`（`formatEpisode`）。
 - 资料库的叫法（库名、短名、选择框占位、量词）在 `packages/core/src/library.ts` 的 `LIBRARY_COPY` / `libraryCopy()`，界面从这里取。
 - 内部枚举值（`once` / `timer` / `count` / `countdown`，状态 `待办` / `进行中` / `完成` / `关闭`，派生状态 `可开始` / `被阻塞`）不随文案改。
