@@ -83,3 +83,19 @@ export function quickDates(today: DateKey): QuickDate[] {
     { label: '下周一', date: addDays(today, toMon) },
   ];
 }
+
+/** 「已同步 · 刚刚」后半句：刚刚 / N 分钟前 / N 小时前 / 昨天 HH:mm / M月D日 HH:mm（本机时区）。 */
+export function syncedAgo(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return '';
+  const at = new Date(iso);
+  const diff = now.getTime() - at.getTime();
+  if (!Number.isFinite(diff)) return '';
+  if (diff < 60_000) return '刚刚';
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
+  const hm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(now) - day(at)) / 86_400_000);
+  if (days === 0) return `${Math.floor(diff / 3600_000)} 小时前`;
+  if (days === 1) return `昨天 ${hm}`;
+  return `${at.getMonth() + 1}月${at.getDate()}日 ${hm}`;
+}

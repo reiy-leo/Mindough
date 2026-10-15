@@ -2504,3 +2504,38 @@ button {
 .app-mobile .banner {
   width: calc(100% - 2 * var(--space-4));
 }
+
+/* 设置 → 账户：同步状态 */
+.sync-row {
+  gap: 12px;
+}
+.sync-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--state-done);
+}
+.sync-syncing .sync-icon {
+  color: var(--accent);
+}
+.sync-offline .sync-icon {
+  color: var(--text-3);
+}
+.sync-error .sync-icon {
+  color: var(--state-blocked);
+}
+.spin {
+  animation: md-spin 1s linear infinite;
+}
+@keyframes md-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

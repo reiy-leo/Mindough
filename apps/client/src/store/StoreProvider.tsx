@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { SqlAdapter, Store, WebStorageAdapter, migrateStorage, seedDemo, type StorageAdapter } from '@mindough/core';
+import { DEMO_STAMP_META, SqlAdapter, Store, TABLES, WebStorageAdapter, migrateStorage, seedDemo, type BaseRow, type StorageAdapter } from '@mindough/core';
+import { bindSync } from '../lib/sync';
 import { openWebSqlite, webSqliteSupported } from './sqlite-web';
 import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
@@ -54,6 +55,10 @@ export async function openWebStore(): Promise<Store> {
   if (!(await adapter.getMeta('demo_seeded')) && store.tasks().length === 0) {
     seedDemo(store);
     await adapter.setMeta('demo_seeded', new Date().toISOString());
+    // 记下演示数据的最后一笔：第一次登录时，没动过演示数据的新设备不会把它带进账户（见 core sync/engine.ts）
+    let stamp = '';
+    for (const t of TABLES) for (const r of store.listAll(t) as BaseRow[]) if (r.updated_at > stamp) stamp = r.updated_at;
+    await adapter.setMeta(DEMO_STAMP_META, stamp);
     await store.flush();
   }
   return store;
@@ -65,6 +70,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     openWebStore().then(setStore, (e: unknown) => setError(String(e)));
   }, []);
+  // 登录后多设备同步；退出登录就停（本机数据不动）
+  useEffect(() => (store ? bindSync(store) : undefined), [store]);
   if (error) return <div className="boot-error">打不开本地数据：{error}</div>;
   if (!store) return <div className="boot">Mindough</div>;
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -288,6 +288,8 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   // 已经有前后关系或已相关的不再出现在选择里（同一对只算一种关系）
   const exclude = new Set([task.id, ...preds.map((t) => t.id), ...succs.map((t) => t.id), ...related.map((t) => t.id)]);
   const derived = store.derived().get(task.id);
+  // 同步合并后绕成圈、暂不生效的前后关系（两台设备各连了一条）
+  const conflicts = store.conflictEdges().filter((e) => e.pred_id === task.id || e.succ_id === task.id);
   const row = (t: Task, dir: 'pred' | 'succ' | 'related') => {
     const state = t.status === '完成' ? 'done' : t.status === '关闭' ? 'closed' : 'open';
     const meta = dir === 'related' ? taskStateText(store, t) : null;
@@ -337,6 +339,25 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   return (
     <section className="relations" aria-label="关系">
       <h3 className="detail-section-title">关系</h3>
+      {conflicts.map((e) => {
+        const a = store.get('task', e.pred_id);
+        const b = store.get('task', e.succ_id);
+        if (!a || !b) return null;
+        return (
+          <div key={`${e.pred_id}>${e.succ_id}`} className="rel-conflict" role="alert">
+            <AlertTriangle size={16} aria-hidden />
+            <div className="grow">
+              <div className="rel-conflict-title">先后关系绕成了圈</div>
+              <div className="rel-conflict-text">
+                在两台设备上分别连的前后关系合在一起，绕成了圈：「{title(a)}」做完才能开始「{title(b)}」这一条暂时不生效。去掉其中一条就好。
+              </div>
+            </div>
+            <RacButton className="link-btn" onPress={() => store.removeDependency(e.pred_id, e.succ_id)}>
+              去掉这条
+            </RacButton>
+          </div>
+        );
+      })}
       <div className="rel-group">
         <div className="rel-head">
           <span>先做完这些</span>

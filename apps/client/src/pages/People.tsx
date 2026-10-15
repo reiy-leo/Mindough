@@ -3,6 +3,7 @@ import { Cake, ChevronLeft, ImagePlus, Plus } from 'lucide-react';
 import { formatDateZh } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
+import { saveImageAsset } from '../lib/upload';
 import { href, navigate } from '../lib/router';
 import { Button, Empty, Field, Section, Sheet } from '../ui/primitives';
 import { Avatar } from '../components/Avatar';
@@ -51,9 +52,7 @@ export function PersonDialog({ id, initialName, onClose }: { id?: string; initia
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              const r = new FileReader();
-              r.onload = () => setAvatar(store.insert('asset', { sha256: '', mime: f.type, width: null, height: null, r2_key: null, url: String(r.result) }).id);
-              r.readAsDataURL(f);
+              void saveImageAsset(store, f).then(setAvatar);
             }}
           />
         </label>

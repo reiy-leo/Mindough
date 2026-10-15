@@ -29,6 +29,30 @@
     "targets": "all",
     "category": "Productivity",
     "shortDescription": "用依赖把任务串起来的任务管理",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "mindough"
+        ]
+      },
+      "mobile": [
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "auth",
+          "appLink": false
+        }
+      ]
+    }
   }
 }

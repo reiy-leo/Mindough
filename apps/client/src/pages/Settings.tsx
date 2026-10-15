@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, LogIn, LogOut, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { AlertCircle, CloudCheck, CloudOff, Eye, EyeOff, LogIn, LogOut, Plus, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { loginUrl, logout, useAccount } from '../lib/account';
+import { syncNow, useSyncView, type SyncView } from '../lib/sync';
+import { startNativeLogin } from '../lib/native-login';
+import { isTauri } from '../store/sqlite-tauri';
+import { useUi } from '../lib/ui';
+import { resetSyncState, syncedAgo } from '@mindough/core';
 import { Input, TextField } from 'react-aria-components';
 import type { CheckInCategory } from '@mindough/core';
 import { typeIcon } from '../lib/icons';
@@ -8,11 +13,12 @@ import { Button, Section, Segmented } from '../ui/primitives';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
-import { storageInfo, useStore } from '../store/StoreProvider';
+import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
 export function SettingsPage() {
   const { settings, set, platform, skin } = useSettings();
   const store = useStore();
+  const sync = useSyncView();
   const [pending, setPending] = useState<number | null>(null);
   useEffect(() => {
     store.adapter.pendingOutbox(100000).then((o) => setPending(o.length));
@@ -105,21 +111,25 @@ export function SettingsPage() {
                   ? `SQLite（${storageInfo.detail === 'tauri-rusqlite' ? '本机文件' : '浏览器本地'}）`
                   : `浏览器 localStorage${storageInfo.fallbackReason ? `（${storageInfo.fallbackReason}）` : ''}`}{' '}
                 · 设备 {store.deviceId}
-                {pending !== null && ` · 待同步 ${pending} 条（同步尚未开通）`}
+                {pending !== null && pending > 0 && ` · ${pending} 处改动还没同步`}
               </div>
             </div>
           </div>
           <div className="setting">
             <div className="setting-text">
               <div className="setting-name">重置演示数据</div>
-              <div className="setting-hint">清空本机所有任务，重新生成一份演示数据</div>
+              <div className="setting-hint">
+                {sync.enabled ? '登录同步时不能重置：会影响你的其他设备。先退出登录再重置。' : '清空本机所有任务，重新生成一份演示数据'}
+              </div>
             </div>
             <Button
               variant="danger"
+              isDisabled={sync.enabled}
               onPress={async () => {
                 if (!confirm('确定清空本机数据并重新生成演示数据？')) return;
                 await store.adapter.clear();
                 await store.adapter.setMeta('demo_seeded', ''); // 空值 = 未生成，刷新后重新生成
+                await resetSyncState(store.adapter); // 下次登录重新合并，云端数据会回来
                 location.reload();
               }}
             >
@@ -194,9 +204,16 @@ function CategoryRow({ c }: { c: CheckInCategory }) {
   );
 }
 
-/** 登录 / 账户。不登录也能完整离线使用；登录是为以后的多端同步（M2）。 */
+/** 登录 / 账户与同步状态。不登录也能完整离线使用；登录后改动在各设备间自动同步。 */
 function AccountSection() {
   const [acc, refresh] = useAccount();
+  const sync = useSyncView();
+  const { toast } = useUi();
+  const native = isTauri();
+  const login = () => {
+    if (native) void startNativeLogin().catch(() => toast({ message: '没能打开浏览器，请再试一次。', tone: 'error' }));
+    else window.location.href = loginUrl();
+  };
   return (
     <Section title="账户">
       <div className="card settings-card">
@@ -206,13 +223,14 @@ function AccountSection() {
               {acc.user.picture ? <img className="account-avatar" src={acc.user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="account-avatar" />}
               <div className="setting-text">
                 <div className="setting-name">{acc.user.name}</div>
-                <div className="setting-hint">{acc.user.email} · 已登录 Google（多设备同步即将开放）</div>
+                <div className="setting-hint">{acc.user.email}</div>
               </div>
               <Button
                 variant="secondary"
                 onPress={async () => {
-                  await logout().catch(() => {});
+                  await logout();
                   refresh();
+                  toast({ message: '已退出登录。这台设备上的数据都还在，只是不再同步。' });
                 }}
               >
                 <LogOut size={15} />
@@ -228,24 +246,66 @@ function AccountSection() {
                     ? '现在离线，联网后可以登录。'
                     : acc.status === 'unavailable'
                       ? `暂时不能登录：${acc.reason}。`
-                      : '登录后可以在多台设备间同步（即将开放）。'}
-                  不登录也能完整使用，数据都存在本机。
+                      : native
+                        ? '登录后，改动会在你的设备间自动同步。会在浏览器里打开 Google 登录，登好后自动回到这里。'
+                        : '登录后，改动会在你的设备间自动同步。'}
+                  不登录也能完整使用，数据都存在这台设备上。
                 </div>
               </div>
-              <Button
-                variant="primary"
-                isDisabled={acc.status !== 'out'}
-                onPress={() => {
-                  window.location.href = loginUrl();
-                }}
-              >
+              <Button variant="primary" isDisabled={acc.status !== 'out'} onPress={login}>
                 <LogIn size={15} />
                 用 Google 登录
               </Button>
             </>
           )}
         </div>
+        {acc.status === 'in' && sync.enabled && <SyncRow sync={sync} onLogin={login} />}
       </div>
     </Section>
+  );
+}
+
+/** 同步状态一行：已同步 · 刚刚 / 正在同步… / 离线，联网后自动同步 / 同步出错 + 重试。 */
+function SyncRow({ sync, onLogin }: { sync: Extract<SyncView, { enabled: true }>; onLogin: () => void }) {
+  const now = useNow(30_000);
+  const busy = sync.phase === 'syncing';
+  const ago = syncedAgo(sync.lastSyncedAt, now);
+  let icon = <CloudCheck size={18} />;
+  let title = ago ? `已同步 · ${ago}` : '已同步';
+  let hint = '改动会自动同步到你的其他设备。';
+  if (busy) {
+    icon = <RefreshCw size={18} className="spin" />;
+    title = '正在同步…';
+    hint = ago ? `上次同步 · ${ago}` : '第一次同步，会把这台设备上的数据和账户里的合在一起。';
+  } else if (sync.phase === 'offline') {
+    icon = <CloudOff size={18} />;
+    title = '离线，联网后自动同步';
+    hint = ago ? `上次同步 · ${ago}。离线时的改动都存在这台设备上。` : '离线时的改动都存在这台设备上。';
+  } else if (sync.phase === 'error') {
+    icon = <AlertCircle size={18} />;
+    title = '同步出错';
+    hint = `${(sync.error ?? '').replace(/[。.]$/, '')}${sync.error ? '。' : ''}${sync.needsLogin ? '' : '改动都还在这台设备上，稍后会自动再试。'}`;
+  }
+  return (
+    <div className={`setting sync-row sync-${sync.phase}`} aria-live="polite">
+      <span className="sync-icon" aria-hidden>
+        {icon}
+      </span>
+      <div className="setting-text">
+        <div className="setting-name">{title}</div>
+        {hint && <div className="setting-hint">{hint}</div>}
+      </div>
+      {sync.phase === 'error' && sync.needsLogin ? (
+        <Button variant="primary" onPress={onLogin}>
+          <LogIn size={15} />
+          重新登录
+        </Button>
+      ) : (
+        <Button variant={sync.phase === 'error' ? 'primary' : 'secondary'} isDisabled={busy} onPress={() => void syncNow()}>
+          <RefreshCw size={15} />
+          {sync.phase === 'error' ? '重试' : '立即同步'}
+        </Button>
+      )}
+    </div>
   );
 }

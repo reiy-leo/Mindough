@@ -10,6 +10,7 @@ import {
   formatTarget,
   friendlyDate,
   quickDates,
+  syncedAgo,
 } from '../src';
 
 describe('完成方式的叫法', () => {
@@ -83,5 +84,18 @@ describe('完成方式摘要', () => {
     expect(describeCompletion({ ...base, completion_mode: 'count', target_value: 8, unit: '杯' })).toBe('计数 · 目标 8 杯');
     expect(describeCompletion({ ...base, completion_mode: 'count', target_value: 3 })).toBe('计数 · 目标 3 次');
     expect(describeCompletion({ ...base, completion_mode: 'countdown', target_date: '2026-12-20' }, '2026-10-15')).toBe('倒数日 · 12月20日 周日');
+  });
+});
+
+describe('syncedAgo', () => {
+  const now = new Date(2026, 9, 15, 15, 30);
+  const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+  it('刚刚 / 分钟 / 小时 / 昨天 / 更早', () => {
+    expect(syncedAgo(ago(5_000), now)).toBe('刚刚');
+    expect(syncedAgo(ago(5 * 60_000), now)).toBe('5 分钟前');
+    expect(syncedAgo(ago(3 * 3600_000), now)).toBe('3 小时前');
+    expect(syncedAgo(new Date(2026, 9, 14, 21, 5).toISOString(), now)).toBe('昨天 21:05');
+    expect(syncedAgo(new Date(2026, 9, 1, 8, 0).toISOString(), now)).toBe('10月1日 08:00');
+    expect(syncedAgo(null, now)).toBe('');
   });
 });

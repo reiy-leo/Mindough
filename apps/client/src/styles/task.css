@@ -1221,3 +1221,32 @@
 .type-fields .image-row {
   align-items: center;
 }
+
+/* 同步合并后绕成圈的前后关系 */
+.rel-conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--state-blocked) 12%, transparent);
+  color: var(--text);
+}
+.rel-conflict > svg {
+  color: var(--state-blocked);
+  flex: none;
+  margin-top: 2px;
+}
+.rel-conflict-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.rel-conflict-text {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.rel-conflict .link-btn {
+  flex: none;
+  white-space: nowrap;
+}

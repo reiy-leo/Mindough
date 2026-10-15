@@ -1,14 +1,44 @@
 //! Mindough 原生外壳（Tauri 2）。
 //! - os 插件：前端按平台选皮肤
 //! - db：本地 SQLite 命令层（schema / 迁移在前端 core，与 Web 端同一份）
-//! - 以后：deep link 登录回调、窗口毛玻璃等。
+//! - 登录：opener 用系统浏览器打开 Google 登录，deep-link 接住 mindough://auth?code=… 回调（前端 lib/native-login.ts）
+//! - 桌面端 single-instance：已经开着时，deep link 交给原来的窗口
+//! - 以后：窗口毛玻璃等。
 
 mod db;
 
+#[cfg(desktop)]
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    // single-instance 要最先注册；带 deep-link 特性时，第二个进程带来的链接会转给 onOpenUrl
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }));
+    }
+
+    builder
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .setup(|_app| {
+            // Windows / Linux 开发时也注册 mindough:// （安装包会自己注册；macOS / 移动端靠 Info.plist / Manifest）
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = _app.deep_link().register_all();
+            }
+            Ok(())
+        })
         .manage(db::Db::new())
         .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all])
         .run(tauri::generate_context!())

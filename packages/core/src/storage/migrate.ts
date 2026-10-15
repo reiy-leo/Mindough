@@ -9,7 +9,7 @@ import type { Change, StorageAdapter } from './adapter';
 
 export const MIGRATED_META_KEY = 'migrated_from_localstorage';
 /** 需要随数据一起带过去的 meta。 */
-export const CARRIED_META_KEYS = ['device_id', 'demo_seeded'] as const;
+export const CARRIED_META_KEYS = ['device_id', 'demo_seeded', 'demo_stamp'] as const;
 
 export interface MigrationResult {
   migrated: boolean;

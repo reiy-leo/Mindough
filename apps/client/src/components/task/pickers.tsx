@@ -47,6 +47,7 @@ import { DatePanel } from './DatePanel';
 import { Avatar } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
 import { imageUrl } from '../../lib/view';
+import { saveImageAsset } from '../../lib/upload';
 
 export const MODE_ICON: Record<CompletionMode, typeof Timer> = { once: CircleCheck, timer: Timer, count: Hash, countdown: CalendarClock };
 
@@ -351,15 +352,6 @@ export function PeopleList({ store, value, onChange }: { store: Store; value: st
   );
 }
 
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
-
 /** 看到哪：可以直接写 S02E03 / 第二季第三集，离开时整理成「第 2 季第 3 集」；别的写法原样留着。 */
 function EpisodeInput({ def, value, onChange }: { def: FieldDef; value: FieldValue | undefined; onChange: (v: FieldValue) => void }) {
   const shown = fieldText(value);
@@ -453,9 +445,7 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
-                  const data = await readFile(f);
-                  const a = store.insert('asset', { sha256: '', mime: f.type, width: null, height: null, r2_key: null, url: data });
-                  onChange(a.id);
+                  onChange(await saveImageAsset(store, f));
                 }}
               />
             </label>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Store } from '../src/store';
 import { MemoryAdapter } from '../src/storage/memory';
 import { SqlAdapter } from '../src/storage/sql';
-import { SyncEngine, isSeedRow } from '../src/sync/engine';
+import { SyncEngine, isSeedRow, resetSyncState } from '../src/sync/engine';
 import { MemoryRemote } from '../src/sync/memory-remote';
 import { SyncHttpError, type SyncTransport } from '../src/sync/protocol';
 import { seedDemo } from '../src/seed/demo';
@@ -345,6 +345,21 @@ describe('同步引擎（两台设备 + 假云端）', () => {
     expect(await sql.pendingOutbox()).toHaveLength(0);
     const reopened = await Store.open(new SqlAdapter(driver), { deviceId: 'devB' });
     expect(reopened.tasks().map((t) => t.body_md)).toEqual(['从 A 来']);
+  });
+
+  it('本机清空（重置）后 resetSyncState：下次重新合并，云端的数据全部回来', async () => {
+    const remote = new MemoryRemote();
+    const A = await device(remote, 'devA');
+    A.store.createTask({ body_md: '云端有的' });
+    await A.engine.start();
+    await A.sync();
+    await A.engine.stop();
+    await A.adapter.clear();
+    await resetSyncState(A.adapter);
+    const A2 = await device(remote, 'devA', { adapter: A.adapter });
+    expect(A2.store.tasks()).toHaveLength(0);
+    await A2.sync();
+    expect(A2.bodies()).toEqual(['云端有的']);
   });
 
   it('内置类型与打卡分类是种子行（时间戳 0），不算数据', () => {

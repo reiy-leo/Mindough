@@ -57,6 +57,18 @@ const metaKey = (account: string, k: string) => `sync:${account.toLowerCase()}:$
 /** 演示数据写完时记下的最大 updated_at（apps/client 的 openWebStore 写）。 */
 export const DEMO_STAMP_META = 'demo_stamp';
 
+const LAST_ACCOUNT_META = 'sync:last_account';
+
+/**
+ * 本机数据被清空（设置里的“重置演示数据”）后调用：忘掉上次同步的游标与“已初始化”，
+ * 下次登录重新走一遍第一次的合并，不会漏掉云端的数据。
+ */
+export async function resetSyncState(adapter: Store['adapter']): Promise<void> {
+  const account = await adapter.getMeta(LAST_ACCOUNT_META);
+  if (!account) return;
+  for (const k of ['bootstrapped', 'cursor', 'last_synced_at']) await adapter.setMeta(metaKey(account, k), '');
+}
+
 export function toWire(table: TableName, row: BaseRow): WireRow {
   return { table, id: row.id, updated_at: row.updated_at, deleted: !!row.deleted, row };
 }
@@ -119,6 +131,7 @@ export class SyncEngine {
   /** 开始：读上次同步时间，订阅本机写入（防抖推送），并立即同步一次。 */
   async start(): Promise<void> {
     this.stopped = false;
+    await this.store.adapter.setMeta(LAST_ACCOUNT_META, this.opts.account.toLowerCase());
     const last = await this.store.adapter.getMeta(this.key('last_synced_at'));
     if (last) this.set({ lastSyncedAt: last });
     this.unsub?.();

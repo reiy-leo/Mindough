@@ -5,7 +5,8 @@ import { SettingsProvider } from './lib/settings';
 import { StoreProvider } from './store/StoreProvider';
 import { UiProvider } from './lib/ui';
 import { App } from './App';
-import { initLoginError } from './lib/account';
+import { initLoginError, startAccountWatch } from './lib/account';
+import { initNativeLogin } from './lib/native-login';
 import './skin/tokens.css';
 import './styles/app.css';
 import './styles/task.css';
@@ -14,6 +15,9 @@ import './skin/skins.css';
 
 // 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
 initLoginError();
+// 账户状态（同步跟着它开 / 停）；原生端监听登录回调的 deep link
+startAccountWatch();
+void initNativeLogin();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

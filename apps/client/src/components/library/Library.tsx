@@ -20,6 +20,7 @@ import {
   type TaskType,
 } from '@mindough/core';
 import { imageUrl } from '../../lib/view';
+import { saveImageAsset } from '../../lib/upload';
 import { Button, Field, Sheet } from '../../ui/primitives';
 import { FieldInput } from '../task/pickers';
 import { LinkChips } from './LinkFields';
@@ -217,19 +218,8 @@ export function draftOfEntry(store: Store, e: Pick<LibraryEntry, 'kind' | 'id'>)
   return { name: it?.name ?? '', image: it?.image ?? null, fields: { ...(it?.fields ?? {}) }, note_md: it?.note_md ?? '' };
 }
 
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
-
-async function saveImage(store: Store, file: File): Promise<string> {
-  const data = await readFile(file);
-  return store.insert('asset', { sha256: '', mime: file.type, width: null, height: null, r2_key: null, url: data }).id;
-}
+/** 登录在线时上传到 R2，否则存 data: 地址（lib/upload.ts）。 */
+const saveImage = (store: Store, file: File): Promise<string> => saveImageAsset(store, file);
 
 /** 图片：点一下上传，也能直接粘贴图片或图片链接。 */
 function ArtUpload({ store, value, name, shape, label, onChange }: { store: Store; value: string | null; name: string; shape: ArtShape; label: string; onChange: (v: string | null) => void }) {
