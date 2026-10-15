@@ -6,6 +6,7 @@ import { formatRecurrence, isDueOn, parseRecurrence, periodKeyFor } from '../rec
 import type { Store } from '../store';
 import type { CheckInKind, Task } from '../types';
 import { BUILTIN_TYPE_IDS as T } from './builtin-types';
+import { BUILTIN_CHECKIN_CATEGORY_IDS } from './builtin-checkin-categories';
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -192,19 +193,23 @@ export function seedDemo(store: Store): void {
 
     // 打卡任务（重复）+ 历史
     const daily = formatRecurrence({ kind: 'daily' });
-    const water = task('每天喝 8 杯水', { completion_mode: 'count', target_value: 8, unit: '杯', recurrence: daily, created_at: iso(-200) });
-    const fast = task('16 小时轻断食', { completion_mode: 'timer', target_value: 16 * 3600_000, recurrence: daily, created_at: iso(-120) });
-    const read = task('读书 30 页', { completion_mode: 'count', target_value: 30, unit: '页', recurrence: daily, created_at: iso(-260) });
+    const C = BUILTIN_CHECKIN_CATEGORY_IDS;
+    const water = task('每天喝 8 杯水', { completion_mode: 'count', target_value: 8, unit: '杯', recurrence: daily, checkin_category_id: C.health, created_at: iso(-200) });
+    const fast = task('16 小时轻断食', { completion_mode: 'timer', target_value: 16 * 3600_000, recurrence: daily, checkin_category_id: C.health, created_at: iso(-120) });
+    const read = task('读书 30 页', { completion_mode: 'count', target_value: 30, unit: '页', recurrence: daily, checkin_category_id: C.reading, created_at: iso(-260) });
     const run = task('跑步 5 公里', {
       completion_mode: 'count',
       target_value: 5,
       unit: '公里',
       recurrence: formatRecurrence({ kind: 'weekly', weekdays: [1, 3, 5] }),
+      checkin_category_id: C.sport,
       created_at: iso(-300),
     });
+    task('睡前护肤：洁面 + 保湿', { completion_mode: 'once', recurrence: daily, checkin_category_id: C.skincare, created_at: iso(0, 0) });
+    task('周六大扫除', { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'weekly', weekdays: [6] }), checkin_category_id: C.clean, created_at: iso(0, 0) });
     store.linkPerson(run.id, lin.id);
-    const meditate = task('冥想 10 分钟', { completion_mode: 'once', recurrence: daily, created_at: iso(-90) });
-    task('对账、记一下上月开销', { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'monthly', day: 1 }), created_at: iso(-330) });
+    const meditate = task('冥想 10 分钟', { completion_mode: 'once', recurrence: daily, checkin_category_id: C.health, created_at: iso(-90) });
+    task('对账、记一下上月开销', { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'monthly', day: 1 }), checkin_category_id: C.record, created_at: iso(-330) });
 
     const ev = (t: Task, kind: CheckInKind, amount: number, at: string, date: string) =>
       store.insert('check_in', { task_id: t.id, period_key: periodKeyFor(parseRecurrence(t.recurrence), date), kind, amount, at });

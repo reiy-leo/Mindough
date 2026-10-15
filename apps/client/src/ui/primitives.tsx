@@ -240,3 +240,36 @@ export function ProgressRing({ value, size = 28, stroke = 3, children }: { value
     </span>
   );
 }
+
+/** 横向可滑动的单选标签（分类筛选等选项多的场合）。 */
+export function ChipPicker<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ id: T; label: ReactNode; color?: string }>;
+}) {
+  return (
+    <ToggleButtonGroup
+      aria-label={label}
+      className="chip-picker"
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={[value]}
+      onSelectionChange={(keys) => {
+        const k = [...keys][0];
+        if (k !== undefined) onChange(String(k) as T);
+      }}
+    >
+      {options.map((o) => (
+        <ToggleButton key={o.id} id={o.id} className="chip-pick" style={o.color ? ({ '--chip-color': o.color } as CSSProperties) : undefined}>
+          {o.label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
+  );
+}

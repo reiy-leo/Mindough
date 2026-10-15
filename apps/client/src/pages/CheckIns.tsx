@@ -1,11 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, Flame, Hourglass, Timer } from 'lucide-react';
+import { CalendarCheck2, Flame, Hourglass, Plus, Timer } from 'lucide-react';
 import {
   buildRatioIndex,
   describeRecurrence,
   dueToday,
   formatDateZh,
+  formatRecurrence,
   isFinished,
   parseRecurrence,
   taskStreak,
@@ -15,9 +16,10 @@ import {
   type Task,
 } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
+import { CategoryLabel, NO_CATEGORY } from '../components/CheckInCategory';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
-import { Empty, Section } from '../ui/primitives';
+import { Button, ChipPicker, Empty, Section, Segmented } from '../ui/primitives';
 import { Heatmap } from '../components/Heatmap';
 import { CheckInControl } from '../components/CheckInControl';
 import { PageHeader } from '../components/PageHeader';
@@ -35,7 +37,14 @@ export function CheckInsPage() {
   const idx = useMemo(() => buildRatioIndex(tasks, checkIns, now), [store.version, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const dayRatio = useCallback((d: DateKey) => idx.dayRatio(d), [idx]);
 
-  const recurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
+  const [cat, setCat] = useState<string>('all');
+  const [arrange, setArrange] = useState<'today' | 'category'>('today');
+  const allRecurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
+  const catOf = (t: Task) => store.get('checkin_category', t.checkin_category_id);
+  // 筛选标签：只列出有重复任务的分类（按分类顺序），有未分类的再加一个“未分类”
+  const usedCats = store.checkInCategories(true).filter((c) => allRecurring.some((t) => t.checkin_category_id === c.id));
+  const hasUncategorized = allRecurring.some((t) => !catOf(t));
+  const recurring = cat === 'all' ? allRecurring : allRecurring.filter((t) => (cat === NO_CATEGORY ? !catOf(t) : t.checkin_category_id === cat));
   const dueNow = recurring.filter((t) => dueToday(t, today));
   const others = recurring.filter((t) => !dueToday(t, today));
   const metToday = dueNow.filter((t) => store.progress(t.id, today)?.met).length;
@@ -54,6 +63,7 @@ export function CheckInsPage() {
         <RacButton className="habit-main" onPress={() => ui.openEditor(t.id)}>
           <span className="habit-title">{title(t)}</span>
           <span className="habit-meta">
+            {arrange !== 'category' && catOf(t) && <CategoryLabel c={catOf(t)!} size={12} />}
             {describeRecurrence(parseRecurrence(t.recurrence))}
             {s && (
               <span className="habit-streak">
@@ -84,6 +94,17 @@ export function CheckInsPage() {
         title="打卡"
         subtitle={`今天 ${metToday}/${dueNow.length} 已完成 · 最长连续 ${best} 天`}
         icon={<CalendarCheck2 size={22} />}
+        actions={
+          <Button
+            variant="primary"
+            onPress={() =>
+              ui.openQuickCreate({ recurrence: formatRecurrence({ kind: 'daily' }), checkin_category_id: cat !== 'all' && cat !== NO_CATEGORY ? cat : null })
+            }
+          >
+            <Plus size={16} />
+            新建打卡
+          </Button>
+        }
       />
 
       <section className="card heatmap-card">
@@ -94,6 +115,47 @@ export function CheckInsPage() {
         <Heatmap end={today} ratioFor={dayRatio} label="过去一年的打卡热力图" />
       </section>
 
+      {allRecurring.length > 0 && (
+        <div className="filter-row checkin-filters">
+          <ChipPicker
+            label="按打卡分类筛选"
+            value={cat}
+            onChange={setCat}
+            options={[
+              { id: 'all', label: `全部 ${allRecurring.length}` },
+              ...usedCats.map((c) => ({ id: c.id, label: <CategoryLabel c={c} />, color: c.color })),
+              ...(hasUncategorized ? [{ id: NO_CATEGORY, label: '未分类' }] : []),
+            ]}
+          />
+          <Segmented
+            label="排列方式"
+            value={arrange}
+            onChange={setArrange}
+            options={[
+              { id: 'today', label: '按今天' },
+              { id: 'category', label: '按分类' },
+            ]}
+          />
+        </div>
+      )}
+
+      {arrange === 'category' ? (
+        <>
+          {[...usedCats.map((c) => ({ key: c.id, c })), { key: NO_CATEGORY, c: undefined }].map(({ key, c }) => {
+            const list = recurring.filter((t) => (c ? t.checkin_category_id === c.id : !catOf(t)));
+            if (!list.length) return null;
+            // 分类内：今天要打卡的在前
+            list.sort((a, b) => Number(dueToday(b, today)) - Number(dueToday(a, today)));
+            return (
+              <Section key={key} title={c ? <CategoryLabel c={c} size={15} /> : '未分类'} extra={<span className="muted small">{list.length} 项</span>}>
+                <div className="habit-list">{list.map(row)}</div>
+              </Section>
+            );
+          })}
+          {!recurring.length && <Empty title="这个分类下还没有重复任务" />}
+        </>
+      ) : (
+        <>
       {running.length > 0 && (
         <Section title={<><Timer size={15} /> 正在计时</>}>
           <div className="habit-list">{running.map(row)}</div>
@@ -108,6 +170,8 @@ export function CheckInsPage() {
         <Section title="其他重复任务">
           <div className="habit-list">{others.map(row)}</div>
         </Section>
+      )}
+        </>
       )}
 
       {countdowns.length > 0 && (

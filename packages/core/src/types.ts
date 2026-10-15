@@ -65,6 +65,8 @@ export interface Task extends BaseRow {
   target_date: DateKey | null;
   /** RRULE 子集，见 recurrence.ts；null 表示不重复。 */
   recurrence: string | null;
+  /** 打卡分类（给重复任务用，见 checkin_category）；可空。 */
+  checkin_category_id: string | null;
   done_at: Timestamp | null;
   sort: number;
   created_at: Timestamp;
@@ -134,6 +136,17 @@ export interface TaskType extends BaseRow {
   sort: number;
 }
 
+/** 打卡分类：给周期性任务分门别类（记录、健康、运动…）。内置 10 个固定 id，可改名 / 隐藏 / 新增。 */
+export interface CheckInCategory extends BaseRow {
+  name: string;
+  /** lucide 图标名。 */
+  icon: string;
+  color: string;
+  builtin: boolean;
+  hidden: boolean;
+  sort: number;
+}
+
 export interface Person extends BaseRow {
   name: string;
   avatar_asset_id: string | null;
@@ -188,6 +201,7 @@ export interface TableMap {
   task_person: TaskPerson;
   my_day: MyDayEntry;
   check_in: CheckIn;
+  checkin_category: CheckInCategory;
   asset: Asset;
 }
 
@@ -202,6 +216,7 @@ export const TABLES: readonly TableName[] = [
   'task_person',
   'my_day',
   'check_in',
+  'checkin_category',
   'asset',
 ];
 

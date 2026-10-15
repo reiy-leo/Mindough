@@ -3,6 +3,7 @@ import { Store } from '../src/store';
 import { MemoryAdapter } from '../src/storage/memory';
 import { CycleError } from '../src/dag';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS } from '../src/seed/builtin-types';
+import { BUILTIN_CHECKIN_CATEGORIES, BUILTIN_CHECKIN_CATEGORY_IDS } from '../src/seed/builtin-checkin-categories';
 import { formatRecurrence } from '../src/recurrence';
 import { isUuidv7 } from '../src/uuid';
 import { local, mkTask } from './helpers';
@@ -171,6 +172,31 @@ describe('Store', () => {
     await s.flush();
     expect((await adapter.loadAll()).task.find((t) => t.id === 't-old')?.status).toBe('关闭');
     expect((await adapter.pendingOutbox()).some((e) => e.id === 't-old')).toBe(true);
+  });
+
+  it('打开时补齐 10 个内置打卡分类（固定 id、按 Rei 定的顺序），可改名 / 隐藏 / 新增', async () => {
+    const { store } = await open();
+    expect(store.checkInCategories().map((c) => c.name)).toEqual(['记录', '整理', '游戏', '玩乐', '健康', '运动', '护肤', '清洁', '学习', '读书']);
+    expect(new Set(BUILTIN_CHECKIN_CATEGORIES.map((c) => c.id)).size).toBe(10);
+    expect(BUILTIN_CHECKIN_CATEGORIES.every((c) => isUuidv7(c.id) && c.icon)).toBe(true);
+    store.update('checkin_category', BUILTIN_CHECKIN_CATEGORY_IDS.game, { hidden: true });
+    store.update('checkin_category', BUILTIN_CHECKIN_CATEGORY_IDS.record, { name: '记账' });
+    const mine = store.createCheckInCategory('冥想', 'leaf');
+    const names = store.checkInCategories().map((c) => c.name);
+    expect(names).not.toContain('游戏');
+    expect(names[0]).toBe('记账');
+    expect(names.at(-1)).toBe('冥想');
+    expect(store.checkInCategories(true)).toHaveLength(11);
+    const t = store.createTask({ recurrence: formatRecurrence({ kind: 'daily' }), checkin_category_id: mine.id });
+    expect(store.get('task', t.id)?.checkin_category_id).toBe(mine.id);
+  });
+
+  it('旧任务没有 checkin_category_id 时读成 null', async () => {
+    const adapter = new MemoryAdapter();
+    const { checkin_category_id: _x, ...old } = { ...mkTask('t-old'), updated_at: '0000000000001-0000-x' };
+    await adapter.applyChanges([{ table: 'task', row: old as never }]);
+    const s = await Store.open(adapter, { deviceId: 'dev1' });
+    expect(s.get('task', 't-old')?.checkin_category_id).toBeNull();
   });
 
   it('批量写入只通知一次、落盘一次；重开后数据还在且时钟不倒退', async () => {

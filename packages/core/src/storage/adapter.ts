@@ -50,6 +50,7 @@ export function emptySnapshot(): Snapshot {
     task_person: [],
     my_day: [],
     check_in: [],
+    checkin_category: [],
     asset: [],
   };
 }

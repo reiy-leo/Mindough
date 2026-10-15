@@ -14,4 +14,5 @@ export * from './storage/adapter';
 export * from './storage/memory';
 export * from './storage/web';
 export * from './seed/builtin-types';
+export * from './seed/builtin-checkin-categories';
 export * from './seed/demo';

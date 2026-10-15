@@ -732,6 +732,7 @@ button {
 .is-closed .thumb {
   opacity: 0.55;
 }
+[data-skin] .check.is-closed[data-selected] .check-box,
 .check.is-closed[data-selected] .check-box {
   background: transparent;
   border-color: var(--state-closed);
@@ -2209,4 +2210,82 @@ button {
   display: grid;
   place-items: center;
   color: var(--text-3);
+}
+
+/* ───────────── 打卡分类 ───────────── */
+.cat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.chip-picker {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.chip-picker::-webkit-scrollbar {
+  display: none;
+}
+.chip-pick {
+  --chip-color: var(--accent);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s var(--ease);
+}
+.chip-pick[data-hovered] {
+  background: color-mix(in srgb, var(--chip-color) 8%, var(--surface));
+}
+.chip-pick[data-selected] {
+  border-color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 16%, var(--surface));
+}
+.chip-pick[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.checkin-filters {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+[data-layout='mobile'] .checkin-filters {
+  flex-wrap: wrap;
+}
+.habit-meta .cat-label {
+  margin-right: 2px;
+}
+.cat-row {
+  gap: 10px;
+}
+.cat-row .cat-name {
+  flex: 1;
+  min-width: 0;
+}
+.cat-row.is-hidden .cat-name .input {
+  color: var(--text-3);
+}
+.cat-row-icon {
+  flex: none;
+}
+.cat-settings-hint {
+  margin: 0 0 4px;
+}
+.checkin-filters {
+  margin-top: 14px;
 }

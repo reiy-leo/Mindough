@@ -15,6 +15,14 @@ import {
   Music,
   Dumbbell,
   Briefcase,
+  NotebookPen,
+  Archive,
+  PartyPopper,
+  HeartPulse,
+  Sparkles,
+  SprayCan,
+  Tag,
+  Leaf,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,6 +44,15 @@ export const TYPE_ICONS: Record<string, LucideIcon> = {
   music: Music,
   dumbbell: Dumbbell,
   briefcase: Briefcase,
+  // 打卡分类
+  'notebook-pen': NotebookPen,
+  archive: Archive,
+  'party-popper': PartyPopper,
+  'heart-pulse': HeartPulse,
+  sparkles: Sparkles,
+  'spray-can': SprayCan,
+  tag: Tag,
+  leaf: Leaf,
 };
 
 export function typeIcon(name: string | undefined): LucideIcon {

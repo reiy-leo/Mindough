@@ -8,6 +8,7 @@ import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
 import { BUILTIN_TASK_TYPES, PLAIN_TYPE_ID } from './seed/builtin-types';
+import { BUILTIN_CHECKIN_CATEGORIES } from './seed/builtin-checkin-categories';
 import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
@@ -65,12 +66,15 @@ export class Store {
     for (const t of TABLES) {
       const map = store.tables[t] as Map<string, BaseRow>;
       for (const row of snap[t] as BaseRow[]) {
+        // M0 旧任务没有 checkin_category_id：只在内存补 null，不改写（无语义变化，不必同步）
+        if (t === 'task' && (row as Task).checkin_category_id === undefined) (row as Task).checkin_category_id = null;
         map.set(row.id, row);
         // 本地时钟不落后于已存数据
         if (row.updated_at && /^\d{13}-/.test(row.updated_at)) store.clock.receive(row.updated_at);
       }
     }
     store.ensureBuiltinTypes();
+    store.ensureBuiltinCheckInCategories();
     store.migrateLegacyStatuses();
     await store.flush();
     return store;
@@ -209,6 +213,15 @@ export class Store {
     this.write(rows);
   }
 
+  /** 补齐内置打卡分类（固定 id）；以后在种子里追加的新分类，老用户打开时也会补上。 */
+  private ensureBuiltinCheckInCategories() {
+    const missing = BUILTIN_CHECKIN_CATEGORIES.filter((c) => !this.tables.checkin_category.has(c.id));
+    if (!missing.length) return;
+    for (const c of missing) this.tables.checkin_category.set(c.id, c);
+    this._version++;
+    this.pending = this.pending.then(() => this.adapter.applyChanges(missing.map((row) => ({ table: 'checkin_category', row }))));
+  }
+
   private ensureBuiltinTypes() {
     const missing = BUILTIN_TASK_TYPES.filter((t) => !this.tables.task_type.has(t.id));
     if (!missing.length) return;
@@ -238,6 +251,7 @@ export class Store {
       unit: input.unit ?? null,
       target_date: input.target_date ?? null,
       recurrence: input.recurrence ?? null,
+      checkin_category_id: input.checkin_category_id ?? null,
       done_at: input.done_at ?? null,
       sort: input.sort ?? maxSort + 1,
       created_at: input.created_at ?? now.toISOString(),
@@ -384,6 +398,20 @@ export class Store {
 
   tasksOfPerson(personId: string): Task[] {
     return this.tasks().filter((t) => this.peopleOf(t.id).some((p) => p.id === personId));
+  }
+
+  // ───────────── 打卡分类 ─────────────
+
+  /** 打卡分类按显示顺序；默认不含隐藏的。 */
+  checkInCategories(includeHidden = false): TableMap['checkin_category'][] {
+    return this.list('checkin_category')
+      .filter((c) => includeHidden || !c.hidden)
+      .sort((a, b) => a.sort - b.sort);
+  }
+
+  createCheckInCategory(name: string, icon = 'tag', color = '#8e8e93'): TableMap['checkin_category'] {
+    const sort = this.list('checkin_category').reduce((m, c) => Math.max(m, c.sort), 0) + 1;
+    return this.insert('checkin_category', { name, icon, color, builtin: false, hidden: false, sort });
   }
 
   // ───────────── 类型 ─────────────

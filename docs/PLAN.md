@@ -97,6 +97,8 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
 - 倒数日：设目标日期，卡片大字显示“还有 N 天”，过期后可切成“已过 N 天”（正数日）；到那天自动标完成，或手动完成。
 - 重复：每天 / 每周几 / 每月几号 / 每 N 天，每个周期一份独立进度；记录连续天数与历史打卡日历。
 - 打卡类任务完成时同样解锁 FS 后续任务。
+- 打卡分类（Rei 2026-10-15）：重复任务可选一个打卡分类。内置 10 个，顺序固定为 记录、整理、游戏、玩乐、健康、运动、护肤、清洁、学习、读书，各带 lucide 图标与颜色，固定 id（UUIDv7 格式、时间戳 0，各设备一致）；可改名、隐藏、新增（设置 → 打卡分类）。打卡页可按分类筛选（横向标签）和“按分类”分组；“新建打卡”与任务详情里可选分类。种子列表在 `packages/core/src/seed/builtin-checkin-categories.ts`，追加一行即可扩展（id 由编号决定、永不复用，顺序由数组位置决定）；Rei 看过候选清单后可能再加。
+  - 与“分类”（挂在组上，名称 + 颜色）是两张表：`checkin_category` 只给重复任务用。
 - 同步：每次开始、结束、+1 都记一条 check_in 事件，多端合并时按事件累加，不会因两台设备同时点而丢次数。
 
 ## 数据模型
@@ -111,6 +113,7 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
 - my_day：task_id、date（本地日期）、sort、added_at（同步时按 task_id+date 合并）
 - check_in：id、task_id、period_key（重复任务的周期）、kind（start / pause / resume / stop / add）、amount、at
 - task_type 增加 default_completion_mode
+- checkin_category：id、name、icon（lucide）、color、builtin、hidden、sort；task 增加 checkin_category_id（可空，重复任务用）
 - person：id、name、avatar_asset_id、relation、birthday、note_md
 - task_person：task_id、person_id
 - asset：id、sha256、mime、width、height、r2_key（同步后）

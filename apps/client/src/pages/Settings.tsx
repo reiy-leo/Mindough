@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Eye, EyeOff, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Input, TextField } from 'react-aria-components';
+import type { CheckInCategory } from '@mindough/core';
+import { typeIcon } from '../lib/icons';
 import { Button, Section, Segmented } from '../ui/primitives';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings, type Settings } from '../lib/settings';
@@ -89,6 +92,7 @@ export function SettingsPage() {
           </div>
         </div>
       </Section>
+      <CheckInCategorySettings />
       <Section title="数据">
         <div className="card settings-card">
           <div className="setting">
@@ -120,6 +124,63 @@ export function SettingsPage() {
         </div>
       </Section>
       <p className="muted small about">Mindough M0 · 本地优先，界面永不等待网络</p>
+    </div>
+  );
+}
+
+/** 打卡分类：改名（失焦保存）、隐藏 / 显示、新增。内置分类不能删，只能隐藏。 */
+function CheckInCategorySettings() {
+  const store = useStore();
+  const [draft, setDraft] = useState('');
+  const cats = store.checkInCategories(true);
+  const add = () => {
+    const name = draft.trim();
+    if (!name) return;
+    store.createCheckInCategory(name);
+    setDraft('');
+  };
+  return (
+    <Section title="打卡分类">
+      <div className="card settings-card">
+        <p className="setting-hint cat-settings-hint">给重复任务分门别类，打卡页可按分类筛选和分组。内置分类可改名、隐藏。</p>
+        {cats.map((c) => (
+          <CategoryRow key={c.id} c={c} />
+        ))}
+        <div className="setting cat-row">
+          <Plus size={16} className="cat-row-icon" aria-hidden />
+          <TextField aria-label="新分类名称" value={draft} onChange={setDraft} className="cat-name">
+            <Input className="input" placeholder="新分类名称" onKeyDown={(e) => e.key === 'Enter' && add()} />
+          </TextField>
+          <Button variant="secondary" onPress={add} isDisabled={!draft.trim()}>
+            新增
+          </Button>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function CategoryRow({ c }: { c: CheckInCategory }) {
+  const store = useStore();
+  const [name, setName] = useState(c.name);
+  useEffect(() => setName(c.name), [c.name]);
+  const Icon = typeIcon(c.icon);
+  const commit = () => {
+    const n = name.trim();
+    if (!n) setName(c.name);
+    else if (n !== c.name) store.update('checkin_category', c.id, { name: n });
+  };
+  return (
+    <div className={`setting cat-row${c.hidden ? ' is-hidden' : ''}`}>
+      <Icon size={16} className="cat-row-icon" style={{ color: c.color }} aria-hidden />
+      <TextField aria-label={`${c.name} 的名称`} value={name} onChange={setName} className="cat-name">
+        <Input className="input" onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+      </TextField>
+      {c.builtin && <span className="muted small">内置</span>}
+      <Button variant="secondary" onPress={() => store.update('checkin_category', c.id, { hidden: !c.hidden })} aria-label={c.hidden ? `显示 ${c.name}` : `隐藏 ${c.name}`}>
+        {c.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+        {c.hidden ? '已隐藏' : '显示中'}
+      </Button>
     </div>
   );
 }

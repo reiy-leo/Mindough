@@ -24,6 +24,7 @@ import { useUi } from '../lib/ui';
 import { Button, Field, Segmented, Select, Sheet } from '../ui/primitives';
 import { Markdown } from './Markdown';
 import { Avatar } from './Avatar';
+import { CategoryPicker } from './CheckInCategory';
 import { imageUrl, resolver } from '../lib/view';
 import { announceComplete, changeStatus, closeTask, toggleMyDay, tryAddDependency } from '../lib/actions';
 
@@ -391,6 +392,7 @@ export function TaskEditor() {
             {task.completion_mode === 'countdown' && <Field label="目标日期" type="date" value={task.target_date ?? ''} onChange={(v) => patch({ target_date: v || null })} />}
           </div>
           <RecurrenceEditor value={task.recurrence} onChange={(r) => patch({ recurrence: r })} today={today} />
+          {task.recurrence && <CategoryPicker store={store} value={task.checkin_category_id} onChange={(id) => patch({ checkin_category_id: id })} compact />}
         </div>
 
         {people.length > 0 && (
