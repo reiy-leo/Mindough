@@ -1,59 +1,20 @@
 /**
- * 资料 / 人物的备注：和任务内容一样——写好后显示排版后的样子，点一下接着改；空的时候直接是输入框。
- * 「支持 Markdown」只是标签旁一行小字，写法放在悬停提示里（docs/COPY.md）。
+ * 资料 / 人物的备注：和任务内容一样，所见即所得的 Markdown 编辑器（存的还是 markdown）。
+ * 编辑时下方出现格式工具栏；空的时候显示占位「写点什么…」（docs/COPY.md）。
  */
-import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Button as RacButton } from 'react-aria-components';
-import { AutoTextarea, Tip } from '../../ui/primitives';
-import { MARKDOWN_HELP, Markdown } from '../Markdown';
+import { useId } from 'react';
+import { LazyMdEditor } from '../editor/LazyMdEditor';
 
 import { tr } from '../../lib/i18n';
+
 export function NoteField({ value, onChange, label = tr('备注'), placeholder = tr('写点什么…'), className }: { value: string; onChange: (v: string) => void; label?: string; placeholder?: string; className?: string }) {
-  const [editing, setEditing] = useState(!value.trim());
-  const [focus, setFocus] = useState(false);
-  const open = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('a, input, button')) return;
-    setFocus(true);
-    setEditing(true);
-  };
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && e.target === e.currentTarget) {
-      e.preventDefault();
-      setFocus(true);
-      setEditing(true);
-    }
-  };
+  const id = useId();
   return (
-    <div className={`field note-field${className ? ` ${className}` : ''}`}>
-      <span className="field-label note-field-label">
+    <div className={`field note-field${className ? ` ${className}` : ''}`} role="group" aria-labelledby={id}>
+      <span className="field-label note-field-label" id={id}>
         {label}
-        <Tip content={MARKDOWN_HELP}>
-          <RacButton className="link-btn note-md-hint">{tr('支持 Markdown')}</RacButton>
-        </Tip>
       </span>
-      {editing ? (
-        <AutoTextarea
-          label={label}
-          className="input note-textarea"
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          autoFocus={focus}
-          minRows={3}
-          onBlur={() => value.trim() && setEditing(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && value.trim()) {
-              e.stopPropagation();
-              e.preventDefault();
-              setEditing(false);
-            }
-          }}
-        />
-      ) : (
-        <div className="input note-preview" tabIndex={0} role="group" aria-label={tr('{label}，按回车编辑', { label })} onClick={open} onKeyDown={onKey}>
-          <Markdown source={value} />
-        </div>
-      )}
+      <LazyMdEditor className="input note-editor" label={label} placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
 }

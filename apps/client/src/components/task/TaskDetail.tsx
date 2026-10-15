@@ -42,7 +42,7 @@ import { AvatarStack } from '../Avatar';
 import { CategoryLabel, CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
-import { MARKDOWN_HELP } from './TaskComposer';
+import { LazyMdEditor } from '../editor/LazyMdEditor';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 export function TaskDetail() {
@@ -53,16 +53,20 @@ export function TaskDetail() {
   return <Detail key={task.id} task={task} />;
 }
 
-/** 正文：平时是排好版的 markdown，点一下变成可编辑；离开或按 Esc 保存。 */
+/**
+ * 正文：所见即所得的 Markdown 编辑器（写的时候就是排好版的样子，存的还是 markdown）。
+ * 打字先记在本地，离开编辑器、按 Esc 或关掉面板时存下来（同步一次一段，不是每个字一次）。
+ */
 function Body({ store, task, placeholder }: { store: Store; task: Task; placeholder: string }) {
-  const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(task.body_md);
   const latest = useRef(body);
   latest.current = body;
+  const editing = useRef(false);
   useEffect(() => {
-    if (!editing) setBody(task.body_md);
-  }, [task.body_md, editing]);
-  // 关掉面板时还在编辑：也要存下来
+    // 别处（同步、撤销）改了正文，而这里没在写：跟上
+    if (!editing.current) setBody(task.body_md);
+  }, [task.body_md]);
+  // 关掉面板时还没存：也要存下来
   useEffect(
     () => () => {
       const cur = store.get('task', task.id);
@@ -72,77 +76,55 @@ function Body({ store, task, placeholder }: { store: Store; task: Task; placehol
   );
   const ui = useUi();
   const commit = () => {
-    if (body !== task.body_md) {
-      store.updateTask(task.id, { body_md: body });
-      // 看到哪还空着、第一行写了 S02E03 / 第二季第三集：顺手填上，提示里可以撤销
-      const type = store.get('task_type', task.type_id);
-      const ep = type?.fields.find((f) => f.kind === 'episode' && f.scope === 'task');
-      const cur = store.get('task', task.id);
-      const m = ep && cur && (cur.type_data[ep.key] === undefined || cur.type_data[ep.key] === null || cur.type_data[ep.key] === '') ? findEpisode(firstLine(body)) : null;
-      if (ep && cur && m) {
-        store.updateTask(task.id, { type_data: { ...cur.type_data, [ep.key]: m.value } });
-        ui.toast(
-          {
-            message: tr('已识别 {formatEpisode}，填进了「{label}」', { formatEpisode: formatEpisode(m.value), label: dataLabel(ep.label) }),
-            actions: [
-              {
-                label: tr('撤销'),
-                onPress: () => {
-                  const t = store.get('task', task.id);
-                  if (!t) return;
-                  const td = { ...t.type_data };
-                  delete td[ep.key];
-                  store.updateTask(task.id, { type_data: td });
-                },
+    editing.current = false;
+    const body = latest.current;
+    if (body === task.body_md) return;
+    store.updateTask(task.id, { body_md: body });
+    // 看到哪还空着、第一行写了 S02E03 / 第二季第三集：顺手填上，提示里可以撤销
+    const type = store.get('task_type', task.type_id);
+    const ep = type?.fields.find((f) => f.kind === 'episode' && f.scope === 'task');
+    const cur = store.get('task', task.id);
+    const m = ep && cur && (cur.type_data[ep.key] === undefined || cur.type_data[ep.key] === null || cur.type_data[ep.key] === '') ? findEpisode(firstLine(body)) : null;
+    if (ep && cur && m) {
+      store.updateTask(task.id, { type_data: { ...cur.type_data, [ep.key]: m.value } });
+      ui.toast(
+        {
+          message: tr('已识别 {formatEpisode}，填进了「{label}」', { formatEpisode: formatEpisode(m.value), label: dataLabel(ep.label) }),
+          actions: [
+            {
+              label: tr('撤销'),
+              onPress: () => {
+                const t = store.get('task', task.id);
+                if (!t) return;
+                const td = { ...t.type_data };
+                delete td[ep.key];
+                store.updateTask(task.id, { type_data: td });
               },
-            ],
-          },
-          5000,
-        );
-      }
-    }
-    setEditing(false);
-  };
-  if (editing)
-    return (
-      <div className="detail-body is-editing">
-        <AutoTextarea
-          label={tr('内容')}
-          className="detail-textarea"
-          value={body}
-          onChange={setBody}
-          onBlur={commit}
-          autoFocus
-          minRows={3}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              e.preventDefault();
-              commit();
-            }
-          }}
-        />
-        <div className="detail-body-help">
-          <Tip content={MARKDOWN_HELP}>
-            <RacButton className="link-btn">{tr('写法提示')}</RacButton>
-          </Tip>
-          <span>{tr('按 Esc 收起')}</span>
-        </div>
-      </div>
-    );
-  const open = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('a, input, button')) return;
-    setEditing(true);
-  };
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && e.target === e.currentTarget) {
-      e.preventDefault();
-      setEditing(true);
+            },
+          ],
+        },
+        5000,
+      );
     }
   };
   return (
-    <div className="detail-body" tabIndex={0} role="group" aria-label={tr('内容，按回车编辑')} onClick={open} onKeyDown={onKey}>
-      {task.body_md.trim() ? <Markdown source={task.body_md} className="detail-md" /> : <div className="detail-placeholder">{placeholder}</div>}
+    <div className="detail-body">
+      <LazyMdEditor
+        className="detail-md"
+        label={tr('内容')}
+        placeholder={placeholder}
+        value={body}
+        onChange={(v) => {
+          editing.current = true;
+          latest.current = v;
+          setBody(v);
+        }}
+        onBlur={commit}
+        onEscape={() => {
+          commit();
+          (document.activeElement as HTMLElement | null)?.blur();
+        }}
+      />
     </div>
   );
 }

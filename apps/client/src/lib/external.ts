@@ -44,6 +44,11 @@ export function installExternalLinks(): void {
     if (e.type === 'auxclick' && e.button !== 1) return;
     const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
     if (!a) return;
+    // 编辑器里的链接：点一下是放光标，⌘ / Ctrl + 点才打开（同 Apple 备忘录）
+    if (a.closest('[contenteditable="true"]') && !(e as MouseEvent).metaKey && !(e as MouseEvent).ctrlKey) {
+      e.preventDefault();
+      return;
+    }
     const url = externalHref(a.getAttribute('href'), window.location.origin);
     if (!url) return;
     e.preventDefault();

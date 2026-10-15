@@ -168,6 +168,19 @@ export const EN: Record<string, EnValue> = {
   '支持 Markdown': 'Markdown supported',
   '{label}，按回车编辑': '{label}, press Return to edit',
 
+  // ── Markdown 编辑器 ──
+  标题: 'Heading',
+  粗体: 'Bold',
+  斜体: 'Italic',
+  删除线: 'Strikethrough',
+  清单: 'Checklist',
+  编号列表: 'Numbered List',
+  引用: 'Quote',
+  代码: 'Code Block',
+  表格: 'Table',
+  格式: 'Formatting',
+  链接地址: 'Link URL',
+
   // ── 日期面板 ──
   不设日期: 'No Date',
   选择日期: 'Choose date',
