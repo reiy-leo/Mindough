@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Store } from '../src/store';
 import { MemoryAdapter } from '../src/storage/memory';
-import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS as T, GAME_PLATFORMS } from '../src/seed/builtin-types';
+import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS as T, GAME_PLATFORMS, withNewBuiltinFields } from '../src/seed/builtin-types';
 import { seedDemo } from '../src/seed/demo';
-import { SITES, detectLinkLabel, linkChips, linksOf, matchOptions, multiValuesOf, normalizeUrl, siteIdOf } from '../src/links';
+import { SITES, detectLinkLabel, linkChips, linksOf, matchOptions, multiValuesOf, normalizeUrl, siteIdOf, siteUrlOf } from '../src/links';
 import { factFieldsOf, itemSubtitle, planFieldMigration } from '../src/library';
 import { fieldText } from '../src/preview';
 import type { LibraryItem, TaskType } from '../src/types';
@@ -193,5 +193,66 @@ describe('内置类型 r2：影视去掉平台，游戏平台改多选', () => {
     const stardew = s.libraryEntries(T.game).find((x) => x.name === '星露谷物语')!;
     expect(stardew.subtitle).toBe('PC（Steam）、Nintendo Switch、iOS');
     expect(stardew.links!.map((l) => l.label)).toEqual(['Steam']);
+  });
+});
+
+describe('填了编号就是链接（回归：Rei「添加 IMDb 和豆瓣号后是要形成可点击的链接的」）', () => {
+  const r1Movie = (updated_at: string): TaskType => ({
+    ...movie,
+    updated_at,
+    fields: [...movie.fields.filter((f) => f.kind !== 'site_id' && f.kind !== 'links'), { key: 'platform', label: '平台', kind: 'text' }],
+  });
+
+  it('中文输入法打出的全角编号、夹着零宽字符、存成数字的都认', () => {
+    expect(SITES.imdb!.parse('ｔｔ０８１６６９２')).toBe('tt0816692');
+    expect(SITES.douban!.parse('１８８９２４３\u200b')).toBe('1889243');
+    expect(siteIdOf('douban', 1889243)).toBe('1889243');
+    expect(siteUrlOf('imdb', 'tt0816692')).toBe('https://www.imdb.com/title/tt0816692/');
+    expect(siteUrlOf('douban', 'https://m.douban.com/movie/subject/1889243/')).toBe('https://movie.douban.com/subject/1889243/');
+    expect(siteUrlOf('imdb', 'tt12')).toBeNull();
+  });
+
+  it('老用户（内置影视还是 r1）：打开后有 IMDb / 豆瓣，编辑资料填上编号，资料条目上就有两个链接', async () => {
+    const ad = new MemoryAdapter();
+    await ad.applyChanges([{ table: 'task_type', row: r1Movie('0000000000000-0001-builtin') }]);
+    const s = await Store.open(ad, { deviceId: 'd', now });
+    const it = s.createLibraryItem(T.movie, { name: '千与千寻', fields: { year: 2001 } });
+    s.updateLibraryItem(it.id, { fields: { ...it.fields, imdb: 'tt0816692', douban: '1889243' } });
+    const e = s.libraryEntries(T.movie).find((x) => x.id === it.id)!;
+    expect(e.links!.map((l) => [l.label, l.url])).toEqual([
+      ['IMDb', 'https://www.imdb.com/title/tt0816692/'],
+      ['豆瓣', 'https://movie.douban.com/subject/1889243/'],
+    ]);
+  });
+
+  it('内置影视被改过（真实 HLC）：不覆盖，但补上 IMDb / 豆瓣 / 更多链接字段（只在内存，不改写）', async () => {
+    const ad = new MemoryAdapter();
+    const edited = { ...r1Movie('1760000000000-0000-abcdef123456'), color: '#123456' };
+    await ad.applyChanges([{ table: 'task_type', row: edited }]);
+    const s = await Store.open(ad, { deviceId: 'd', now });
+    const mv = s.get('task_type', T.movie)!;
+    expect(mv.color).toBe('#123456');
+    expect(mv.fields.map((f) => f.key)).toEqual(expect.arrayContaining(['platform', 'imdb', 'douban', 'links']));
+    // 新字段排在新定义里的位置（年份 / 电影剧集之后），旧字段原样
+    const keys = mv.fields.map((f) => f.key);
+    expect(keys.indexOf('imdb')).toBeLessThan(keys.indexOf('platform'));
+    expect(linkChips(mv.fields, { imdb: 'tt0816692', douban: '1889243' }).map((l) => l.label)).toEqual(['IMDb', '豆瓣']);
+    // 落盘的那一行没动
+    const snap = await ad.loadAll();
+    expect((snap.task_type as TaskType[]).find((t) => t.id === T.movie)!.fields.some((f) => f.key === 'imdb')).toBe(false);
+  });
+
+  it('更晚的内置版本（别的设备先升级过）不会被降级', async () => {
+    const ad = new MemoryAdapter();
+    const future = { ...movie, updated_at: '0000000000000-0009-builtin', name: '影视（新）' };
+    await ad.applyChanges([{ table: 'task_type', row: future }]);
+    const s = await Store.open(ad, { deviceId: 'd', now });
+    expect(s.get('task_type', T.movie)!.name).toBe('影视（新）');
+  });
+
+  it('withNewBuiltinFields：已有字段一个不动，新字段按新定义的前一个字段插入', () => {
+    const cur = [{ key: 'a', label: 'A', kind: 'text' as const }, { key: 'x', label: '自己加的', kind: 'text' as const }];
+    const next = [{ key: 'a', label: 'A2', kind: 'text' as const }, { key: 'b', label: 'B', kind: 'text' as const }, { key: 'c', label: 'C', kind: 'text' as const }];
+    expect(withNewBuiltinFields(cur, next).map((f) => `${f.key}:${f.label}`)).toEqual(['a:A', 'b:B', 'c:C', 'x:自己加的']);
   });
 });

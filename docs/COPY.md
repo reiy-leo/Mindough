@@ -59,7 +59,7 @@
 | 相关任务 | 引用 / 关联任务 | 资料详情、人物详情里的分区 |
 | 看到哪 / 读到第几页 / 学到第几课 / 买几件 | 季集进度 / 页数进度 / 课时进度 | 任务字段：属于这一次，不属于资料本身 |
 | 部 / 本 / 款 / 个 / 门 / 件 / 家 / 道 / 位 | — | 各库的量词（「7 部」「添加第一本」） |
-| IMDb / 豆瓣 | IMDb 编号 / 豆瓣 ID | 影视的资料字段标签；占位「tt0816692，或粘贴链接」「1889243，或粘贴链接」；格式不对轻提示「IMDb 编号是 tt 加数字，比如 tt0816692」「豆瓣编号是一串数字，在链接 subject/ 后面」；对了就在下面显示可点的链接 |
+| IMDb / 豆瓣 | IMDb 编号 / 豆瓣 ID | 影视的资料字段标签；占位「tt0816692，或粘贴链接」「1889243，或粘贴链接」；格式不对轻提示「IMDb 编号是 tt 加数字，比如 tt0816692」「豆瓣编号是一串数字，在链接 subject/ 后面」；对了就在输入框右端出现「打开」（外链图标，读屏「在 IMDb 打开」，悬停提示「打开」），下面一行显示可点的链接；都开新标签页 |
 | 更多链接 | 外部链接 / 相关链接 | 资料字段；最后一行占位「粘贴链接，比如烂番茄、EXT、TMDB」，有了以后「再粘贴一条链接」；名字空着就按网址自动认（EXT、烂番茄、TMDB、Letterboxd、B 站、爱奇艺、腾讯视频、优酷、Netflix、YouTube、维基百科 / Wikipedia、Steam、Epic、GOG、PlayStation Store、Xbox、Microsoft Store、Nintendo eShop、App Store、Google Play、itch.io、IGDB、Metacritic、小黑盒、TapTap），不认识的用域名；按钮「上移」「下移」「去掉」；不像链接时「这不像链接，以 https:// 开头试试」 |
 | 链接小标签 | 打开链接 | 资料卡和资料页名字下面一排：IMDb、豆瓣在前，再是更多链接；点开新标签页 |
 | 平台（游戏） | — | 多选；选项写法：PC（Steam）、PC（Epic）、PC（其他）、PlayStation 5、PlayStation 4、Xbox Series X\|S、Xbox One、Nintendo Switch、Switch 2、iOS、Android、macOS、Linux / Steam Deck、网页、其他；没选时显示「不选」；多个用「、」连 |

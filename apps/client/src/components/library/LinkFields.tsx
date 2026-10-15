@@ -8,10 +8,26 @@ import { ArrowDown, ArrowUp, ExternalLink, Plus, X } from 'lucide-react';
 import { SITES, detectLinkLabel, linksOf, normalizeUrl, type FieldDef, type FieldValue, type LinkChip, type LinkValue } from '@mindough/core';
 import { Field, Tip } from '../../ui/primitives';
 
-/** 链接打开方式：新标签页（Tauri 里由 webview 交给系统浏览器）。 */
-export function ExtLink({ href, className, children, label }: { href: string; className?: string; children: React.ReactNode; label?: string }) {
+/**
+ * 链接打开方式：新标签页（Tauri 里由 webview 交给系统浏览器）。
+ * 放在卡片、弹层这类自己能点的东西里面：按下和点击都不往外传，免得点链接同时触发外层（打开详情、关弹层）。
+ */
+export function ExtLink({ href, className, children, label, title }: { href: string; className?: string; children: React.ReactNode; label?: string; title?: string }) {
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={className} {...(label ? { 'aria-label': label } : {})}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      onClick={stop}
+      onPointerDown={stop}
+      onMouseDown={stop}
+      onTouchStart={stop}
+      onKeyDown={(e) => e.key === 'Enter' && e.stopPropagation()}
+      {...(label ? { 'aria-label': label } : {})}
+      {...(title ? { title } : {})}
+    >
       {children}
     </a>
   );
@@ -62,6 +78,13 @@ export function SiteIdInput({ def, value, onChange }: { def: FieldDef; value: Fi
       placeholder={def.placeholder ?? site.placeholder}
       inputClassName="mono-id"
       isInvalid={bad}
+      adornment={
+        id ? (
+          <ExtLink href={site.url(id)} className="input-open" label={`在 ${site.label} 打开`} title="打开">
+            <ExternalLink size={15} aria-hidden />
+          </ExtLink>
+        ) : null
+      }
       description={
         bad ? (
           site.hint

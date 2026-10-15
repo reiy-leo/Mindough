@@ -431,6 +431,38 @@ button {
   font: inherit;
   outline: none;
 }
+/* 输入框右端的小按钮 / 链接（站点编号的「打开」） */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input.has-adornment {
+  padding-right: 36px;
+}
+.input-adornment {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+}
+.input-open {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-ctl);
+  color: var(--accent);
+  text-decoration: none;
+}
+.input-open:hover {
+  background: var(--surface-hover);
+}
+.input-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
 .input[data-focused],
 .input:focus {
   border-color: var(--accent);

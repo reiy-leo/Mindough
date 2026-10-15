@@ -2,7 +2,7 @@
  * 内置任务类型：普通 + 10 种。与自定义类型走同一套 layout + fields + body_template 机制。
  * id 固定（UUIDv7 格式、时间戳 0），各设备生成同一批内置类型，同步时自然合并。
  */
-import type { TaskType } from '../types';
+import type { FieldDef, TaskType } from '../types';
 
 export const PLAIN_TYPE_ID = '00000000-0000-7000-8000-000000000000';
 const tid = (n: number) => `00000000-0000-7000-8000-${String(n).padStart(12, '0')}`;
@@ -237,3 +237,29 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     sort: 10,
   },
 ];
+
+/** 内置定义的版本戳（「0000000000000-000N-builtin」）；真实 HLC 是用户改过的。 */
+export const isBuiltinStamp = (updatedAt: string) => /^0{13}-\d{4}-builtin$/.test(updatedAt);
+
+/**
+ * 用户改过的内置类型：保留它的字段，补上新内置定义里新增、它还没有的字段（按 key 判断），
+ * 插在新定义里前一个字段之后（找不到就放最后）。已有字段一个不动。
+ */
+export function withNewBuiltinFields(cur: readonly FieldDef[], next: readonly FieldDef[]): FieldDef[] {
+  const out = [...cur];
+  const has = new Set(cur.map((f) => f.key));
+  next.forEach((f, i) => {
+    if (has.has(f.key)) return;
+    let at = out.length;
+    for (let j = i - 1; j >= 0; j--) {
+      const k = out.findIndex((x) => x.key === next[j]!.key);
+      if (k >= 0) {
+        at = k + 1;
+        break;
+      }
+    }
+    out.splice(at, 0, { ...f });
+    has.add(f.key);
+  });
+  return out;
+}

@@ -7,7 +7,7 @@ import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
 import { assertCanAddEdge, deriveAll, liveEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
-import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID } from './seed/builtin-types';
+import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
 import {
   entryOfItem,
   entryOfPerson,
@@ -248,6 +248,10 @@ export class Store {
       const cur = this.tables.task_type.get(t.id);
       if (!cur) return true;
       if (cur.updated_at < BUILTIN_TYPES_REVISION) return true;
+      if (isBuiltinStamp(cur.updated_at)) return false;
+      // 用户改过的内置类型：不覆盖，只在内存里补上新定义里各字段的 scope，并补上新定义新增、它还没有的字段
+      // （如 r2 的 IMDb / 豆瓣 / 更多链接），插在新定义里前一个字段之后。不改写、不进 outbox。
+      if (cur.builtin) cur.fields = withNewBuiltinFields(cur.fields, t.fields);
       for (const f of cur.fields) {
         const def = t.fields.find((x) => x.key === f.key);
         if (def?.scope && f.scope === undefined) f.scope = def.scope;

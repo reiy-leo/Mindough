@@ -311,6 +311,7 @@ export function Field({
   onPaste,
   inputClassName,
   inputMode,
+  adornment,
 }: {
   label: string;
   value: string;
@@ -328,7 +329,17 @@ export function Field({
   onPaste?: (text: string, e: ClipboardEvent<HTMLInputElement>) => void;
   inputClassName?: string;
   inputMode?: 'decimal' | 'numeric' | 'text' | 'url';
+  /** 输入框右端的小按钮 / 链接（如站点编号的「打开」）。传了（含 null）输入框就放进 .input-wrap。 */
+  adornment?: ReactNode;
 }) {
+  const input = (
+    <Input
+      className={`input${inputClassName ? ` ${inputClassName}` : ''}${adornment ? ' has-adornment' : ''}`}
+      placeholder={placeholder}
+      {...(inputMode ? { inputMode } : {})}
+      {...(onPaste ? { onPaste: (e: ClipboardEvent<HTMLInputElement>) => onPaste(e.clipboardData.getData('text'), e) } : {})}
+    />
+  );
   return (
     <TextField
       className={`field${className ? ` ${className}` : ''}`}
@@ -342,13 +353,14 @@ export function Field({
       <Label className="field-label">{label}</Label>
       {multiline ? (
         <TextArea className="input textarea" rows={rows ?? 6} placeholder={placeholder} />
+      ) : adornment !== undefined ? (
+        // 传了 adornment（哪怕暂时是 null）就一直包一层：输入到一半出现「打开」时输入框不重挂、不丢焦点
+        <div className="input-wrap">
+          {input}
+          {adornment && <span className="input-adornment">{adornment}</span>}
+        </div>
       ) : (
-        <Input
-          className={`input${inputClassName ? ` ${inputClassName}` : ''}`}
-          placeholder={placeholder}
-          {...(inputMode ? { inputMode } : {})}
-          {...(onPaste ? { onPaste: (e: ClipboardEvent<HTMLInputElement>) => onPaste(e.clipboardData.getData('text'), e) } : {})}
-        />
+        input
       )}
       {description && (
         <Text slot="description" className={`field-hint${isInvalid ? ' is-invalid' : ''}`}>

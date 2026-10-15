@@ -332,7 +332,8 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …)：长的预览链接（movie.douban.com/subject/…）不把列撑出屏幕，交给省略号 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px 12px;
 }
 .item-editor-fields > :first-child {
@@ -796,6 +797,7 @@
 }
 .field-hint-link:hover {
   color: var(--accent);
+  text-decoration: underline;
 }
 .input.mono-id {
   font-variant-numeric: tabular-nums;

@@ -19,13 +19,16 @@ export interface SiteDef {
   url: (id: string) => string;
 }
 
+/** 输入整理：全角转半角（中文输入法下打出的 ｔｔ０８１６６９２）、去掉零宽字符与首尾空白。 */
+const clean = (input: string) => input.normalize('NFKC').replace(/[\u200b-\u200d\u2060\ufeff]/g, '').trim();
+
 export const SITES: Record<string, SiteDef> = {
   imdb: {
     label: 'IMDb',
     placeholder: 'tt0816692，或粘贴链接',
     hint: 'IMDb 编号是 tt 加数字，比如 tt0816692',
     parse: (input) => {
-      const s = input.trim();
+      const s = clean(input);
       if (!s) return null;
       // 整条网址：imdb.com/title/tt0816692/…（含 m.imdb.com、带语言前缀的）
       const m = /^(tt\d{7,10})$/i.exec(s) ?? (s.includes('/') ? /(?:^|[^a-z0-9])(tt\d{7,10})(?=$|[^a-z0-9])/i.exec(s) : null);
@@ -41,7 +44,7 @@ export const SITES: Record<string, SiteDef> = {
     placeholder: '1889243，或粘贴链接',
     hint: '豆瓣编号是一串数字，在链接 subject/ 后面',
     parse: (input) => {
-      const s = input.trim();
+      const s = clean(input);
       if (!s) return null;
       if (/^\d{4,12}$/.test(s)) return s;
       // movie.douban.com/subject/1889243/、m.douban.com/movie/subject/1889243/、douban.com/doubanapp/…/movie/1889243
@@ -55,7 +58,10 @@ export const SITES: Record<string, SiteDef> = {
 /** 一个站点编号字段的值 → 编号（认不出 = null）。 */
 export function siteIdOf(site: string | undefined, v: FieldValue | undefined): string | null {
   const def = site ? SITES[site] : undefined;
-  if (!def || typeof v !== 'string') return null;
+  if (!def) return null;
+  // 旧数据或别处写进来的数字（1889243）也认
+  if (typeof v === 'number' && Number.isFinite(v)) return def.parse(String(v));
+  if (typeof v !== 'string') return null;
   return def.parse(v);
 }
 
@@ -147,6 +153,12 @@ export interface LinkChip {
   key: string;
   label: string;
   url: string;
+}
+
+/** 站点编号字段的值 → 打开用的链接（认不出 = null）。编辑资料里输入框旁的「打开」用它。 */
+export function siteUrlOf(site: string | undefined, v: FieldValue | undefined): string | null {
+  const id = siteIdOf(site, v);
+  return id && site ? SITES[site]!.url(id) : null;
 }
 
 /** 一条资料上要显示的链接：站点编号字段在前（按字段顺序，如 IMDb、豆瓣），再是更多链接；同一网址只出现一次。 */
