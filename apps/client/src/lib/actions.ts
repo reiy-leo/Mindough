@@ -1,4 +1,4 @@
-import { CycleError, DuplicateEdgeError, SelfLoopError, isFinished, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
+import { CycleError, DuplicateEdgeError, LinkedByDependencyError, SelfLinkError, SelfLoopError, isFinished, type CompleteResult, type Store, type TaskStatus } from '@mindough/core';
 import type { useUi } from './ui';
 import { titleOf as taskTitleOf } from './view';
 
@@ -70,6 +70,20 @@ export function tryAddDependency(store: Store, ui: Ui, predId: string, succId: s
       ui.toast({ tone: 'error', message: e.message });
     } else throw e;
     return false;
+  }
+}
+
+/** 标为相关（只是有关系，不分先后）；连上了列表里就会出现，不另弹提示；不能连时给一句。 */
+export function tryLinkTasks(store: Store, ui: Ui, x: string, y: string): boolean {
+  try {
+    store.linkTasks(x, y);
+    return true;
+  } catch (e) {
+    if (e instanceof SelfLinkError || e instanceof LinkedByDependencyError) {
+      ui.toast({ tone: 'error', message: e.message });
+      return false;
+    }
+    throw e;
   }
 }
 

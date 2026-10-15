@@ -14,7 +14,7 @@ export function GraphPage() {
   const [hideDone, setHideDone] = useState('all');
   let tasks = store.tasks().filter((t) => !t.recurrence && t.completion_mode !== 'countdown');
   if (scope === 'linked') {
-    const linked = new Set(store.edges().flatMap((e) => [e.pred_id, e.succ_id]));
+    const linked = new Set([...store.edges().flatMap((e) => [e.pred_id, e.succ_id]), ...store.taskLinks().flatMap((l) => [l.a_task_id, l.b_task_id])]);
     tasks = tasks.filter((t) => linked.has(t.id));
   } else if (scope !== 'all') tasks = tasks.filter((t) => t.group_id === scope);
   if (hideDone === 'open') tasks = tasks.filter((t) => !isFinished(t.status));
@@ -31,7 +31,7 @@ export function GraphPage() {
           value={scope}
           onChange={setScope}
           options={[
-            { id: 'linked', label: '有前后关系的' },
+            { id: 'linked', label: '有关系的' },
             { id: 'all', label: '全部任务' },
             ...store.list('group').map((g) => ({ id: g.id, label: `${g.icon} ${g.name}` })),
           ]}
@@ -42,6 +42,7 @@ export function GraphPage() {
           <span className="legend state-ready">可开始</span>
           <span className="legend state-blocked">还不能开始</span>
           <span className="legend state-closed">关闭</span>
+          <span className="legend legend-related">相关（不分先后）</span>
         </div>
       </div>
       <DependencyGraph store={store} tasks={tasks} height="100%" />

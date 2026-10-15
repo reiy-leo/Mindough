@@ -28,6 +28,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   types.ts              全部表的行类型（UUIDv7 id + HLC updated_at + deleted）
   uuid.ts hlc.ts        UUIDv7 生成、混合逻辑时钟
   dag.ts                环检测、派生状态（可开始/被阻塞+缺哪些）、解锁后续
+  related.ts            相关任务（task_link，无方向、不阻塞）：规范顺序、确定 id、前后关系优先
   recurrence.ts         RRULE 子集、周期键、连续天数
   checkin.ts            check_in 事件折叠出进度（计时/计量/点一下/倒数日）、热力图比例索引
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
@@ -41,7 +42,7 @@ apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）
   ui/primitives.tsx     React Aria 包装（Button、Sheet、PopoverPanel、OverflowMenu、ConfirmDialog、InlineNumber、AutoTextarea、Tip…）
-  components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel
+  components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
   components/library/   资料库共用件：占位图 ItemArt、选择框 LibraryPicker、资料编辑 ItemEditor / ItemSheet、资料卡 ItemCard
                         LinkFields（站点编号 / 更多链接 / 链接小标签）、MoneyField（金额 + 可搜索币种）、NoteField（Markdown 备注）
   pages/Library.tsx     资料库页与资料详情（人物库沿用 pages/People.tsx 的人物详情）
@@ -78,7 +79,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 ## 代码规范
 - 界面文案中文，**一律按 [docs/COPY.md](docs/COPY.md)**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；新词先补进术语表。HTTP 状态码出现时附中文说明（如「408 请求超时」）。
 - 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
-- 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、前后关系）；两者共用 `components/task/pickers.tsx`。
+- 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
 - 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
 - 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时一律用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
 - 新字段种类（多选、金额、站点编号、更多链接、看到哪）逻辑写在 core，界面在 `FieldInput` 里按 kind 分派；改内置类型定义就把 `BUILTIN_TYPES_REVISION` 加一，旧值的迁移写进 `planFieldMigration`（只动旧形状的值）。
@@ -86,6 +87,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
+- 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。
 - 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在三种皮肤（Apple / WinUI / Material）× 桌面 / 手机下截图检查。
 
 ## 禁止事项

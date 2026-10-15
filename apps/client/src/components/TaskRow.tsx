@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button as RacButton, Checkbox } from 'react-aria-components';
-import { Check, Lock, Repeat, Sun, SunDim, X } from 'lucide-react';
+import { Check, Link2, Lock, Repeat, Sun, SunDim, X } from 'lucide-react';
 import { describeRecurrence, isCheckInTask, parseRecurrence, relativeDayZh, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
@@ -48,6 +48,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const rec = parseRecurrence(task.recurrence);
   const TypeIcon = typeIcon(v.type?.icon);
   const isCheckInRow = checkIn && (task.completion_mode !== 'once' || !!rec);
+  const relatedCount = store.relatedTasks(task.id).length;
 
   return (
     <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}`} data-task-id={task.id}>
@@ -96,6 +97,12 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
             <span className="meta-rec">
               <Repeat size={11} />
               {describeRecurrence(rec)}
+            </span>
+          )}
+          {relatedCount > 0 && (
+            <span className="meta-related" role="img" aria-label={`${relatedCount} 件相关任务`}>
+              <Link2 size={11} aria-hidden />
+              {relatedCount}
             </span>
           )}
           {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}

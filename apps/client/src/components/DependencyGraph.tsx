@@ -62,6 +62,7 @@ const TaskNode = memo(function TaskNode({ data, targetPosition, sourcePosition }
 
 const nodeTypes = { task: TaskNode };
 
+/** 排布：前后关系的边决定分层；相关的两件也当成一条边参与排布，好让它们挨在一起。 */
 async function layoutPositions(tasks: Task[], edges: { pred_id: string; succ_id: string }[], direction: 'RIGHT' | 'DOWN') {
   const ids = new Set(tasks.map((t) => t.id));
   const res = await elk.layout({
@@ -86,14 +87,17 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
   const allEdges = store.edges();
   const ids = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
   const edges = useMemo(() => allEdges.filter((e) => ids.has(e.pred_id) && ids.has(e.succ_id)), [allEdges, ids]);
+  // 相关任务：无方向、不阻塞，画成没有箭头的点线（和前后关系分开）
+  const links = store.taskLinks().filter((l) => ids.has(l.a_task_id) && ids.has(l.b_task_id));
+  const layoutEdges = [...edges, ...links.map((l) => ({ pred_id: l.a_task_id, succ_id: l.b_task_id }))];
   const [positions, setPositions] = useState<{ key: string; map: Map<string, { x: number; y: number }> } | null>(null);
   const [dragged, setDragged] = useState<Map<string, { x: number; y: number }>>(new Map());
   const direction = layout === 'mobile' ? 'DOWN' : 'RIGHT';
-  const structureKey = `${direction}|${tasks.map((t) => t.id).join(',')}|${edges.map((e) => `${e.pred_id}>${e.succ_id}`).join(',')}`;
+  const structureKey = `${direction}|${tasks.map((t) => t.id).join(',')}|${layoutEdges.map((e) => `${e.pred_id}>${e.succ_id}`).join(',')}`;
 
   useEffect(() => {
     let alive = true;
-    layoutPositions(tasks, edges, direction).then((map) => {
+    layoutPositions(tasks, layoutEdges, direction).then((map) => {
       if (!alive) return;
       setPositions((prev) => {
         // 结构变了（加/删节点或边）才重新铺排；只是状态变化时保留拖动后的位置
@@ -144,6 +148,16 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
     };
   });
 
+  for (const l of links)
+    flowEdges.push({
+      id: `rel:${l.a_task_id}~${l.b_task_id}`,
+      source: l.a_task_id,
+      target: l.b_task_id,
+      type: 'straight',
+      className: 'edge-related',
+      ariaLabel: '相关（不分先后）',
+    });
+
   const onConnect = useCallback((c: Connection) => {
     if (c.source && c.target) tryAddDependency(store, ui, c.source, c.target);
   }, [store, ui]);
@@ -162,7 +176,7 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
           for (const ch of changes) if (ch.type === 'position' && ch.position) next.set(ch.id, ch.position);
           if (next.size !== dragged.size || changes.some((c) => c.type === 'position')) setDragged(next);
         }}
-        onEdgesDelete={(es) => es.forEach((e) => store.removeDependency(e.source, e.target))}
+        onEdgesDelete={(es) => es.forEach((e) => (e.id.startsWith('rel:') ? store.unlinkTasks(e.source, e.target) : store.removeDependency(e.source, e.target)))}
         onNodeDoubleClick={(_, n) => ui.openEditor(n.id)}
         onNodeClick={(_, n) => layout === 'mobile' && ui.openEditor(n.id)}
         deleteKeyCode={['Backspace', 'Delete']}

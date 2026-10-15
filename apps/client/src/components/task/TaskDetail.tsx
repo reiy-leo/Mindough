@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { CalendarDays, Check, ChevronDown, ChevronRight, CircleSlash, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -32,7 +32,8 @@ import { ItemCard, ItemSheet, LibraryPicker } from '../library/Library';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
-import { announceComplete, closeTask, toggleMyDay, tryAddDependency } from '../../lib/actions';
+import { announceComplete, closeTask, toggleMyDay, tryAddDependency, tryLinkTasks } from '../../lib/actions';
+import { TaskSearch, taskStateText } from './TaskSearch';
 import { imageUrl, titleOf } from '../../lib/view';
 import { typeIcon } from '../../lib/icons';
 import { AutoTextarea, Button, ConfirmDialog, OverflowMenu, PopoverPanel, ProgressRing, Sheet, Tip, type MenuAction } from '../../ui/primitives';
@@ -277,62 +278,39 @@ function PropRow({ icon, label, value, empty, children, wide }: { icon: ReactNod
   );
 }
 
-/** 挑一个任务（加前后关系用）：可搜索。 */
-function TaskSearch({ store, exclude, onPick }: { store: Store; exclude: Set<string>; onPick: (id: string) => void }) {
-  const { contains } = useFilter({ sensitivity: 'base' });
-  const items = store
-    .tasks()
-    .filter((t) => !exclude.has(t.id))
-    .map((t) => ({ id: t.id, title: titleOf(store, t), finished: isFinished(t.status) }))
-    .sort((a, b) => Number(a.finished) - Number(b.finished));
-  return (
-    <div className="task-search">
-      <Autocomplete filter={contains}>
-        <SearchField aria-label="搜索任务" className="cat-search" autoFocus>
-          <Search size={14} aria-hidden className="cat-search-icon" />
-          <Input className="input" placeholder="搜索任务" />
-        </SearchField>
-        <ListBox aria-label="任务" className="listbox pick-list task-search-list" items={items} onAction={(k) => onPick(String(k))} renderEmptyState={() => <div className="pick-empty">没有找到</div>}>
-          {(t) => (
-            <ListBoxItem id={t.id} className="listbox-item pick-item" textValue={t.title}>
-              <span className={`grow ellipsis${t.finished ? ' muted' : ''}`}>{t.title}</span>
-              {t.finished && <span className="pick-meta">已结束</span>}
-            </ListBoxItem>
-          )}
-        </ListBox>
-      </Autocomplete>
-    </div>
-  );
-}
-
 function Relations({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
   const edges = store.edges();
   const preds = predecessorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const succs = successorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
+  const related = store.relatedTasks(task.id);
   const title = (t: Task) => titleOf(store, t);
-  const exclude = new Set([task.id, ...preds.map((t) => t.id), ...succs.map((t) => t.id)]);
+  // 已经有前后关系或已相关的不再出现在选择里（同一对只算一种关系）
+  const exclude = new Set([task.id, ...preds.map((t) => t.id), ...succs.map((t) => t.id), ...related.map((t) => t.id)]);
   const derived = store.derived().get(task.id);
-  const row = (t: Task, dir: 'pred' | 'succ') => {
+  const row = (t: Task, dir: 'pred' | 'succ' | 'related') => {
     const state = t.status === '完成' ? 'done' : t.status === '关闭' ? 'closed' : 'open';
+    const meta = dir === 'related' ? taskStateText(store, t) : null;
+    const remove = () => (dir === 'pred' ? store.removeDependency(t.id, task.id) : dir === 'succ' ? store.removeDependency(task.id, t.id) : store.unlinkTasks(task.id, t.id));
     return (
-      <li key={t.id} className={`rel-item is-${state}`}>
+      <li key={t.id} className={`rel-item is-${state}${dir === 'related' ? ' is-related' : ''}`}>
         <span className="rel-dot" aria-label={state === 'done' ? '已完成' : state === 'closed' ? '已关闭' : '未完成'}>
           {state === 'done' ? <Check size={11} strokeWidth={3} /> : state === 'closed' ? <X size={11} strokeWidth={3} /> : null}
         </span>
         <RacButton className="rel-title" onPress={() => ui.openEditor(t.id)}>
           {title(t)}
         </RacButton>
-        <RacButton className="icon-btn rel-remove" aria-label={`去掉和「${title(t)}」的关系`} onPress={() => (dir === 'pred' ? store.removeDependency(t.id, task.id) : store.removeDependency(task.id, t.id))}>
+        {meta && <span className="rel-meta">{meta}</span>}
+        <RacButton className="icon-btn rel-remove" aria-label={dir === 'related' ? `不再和「${title(t)}」相关` : `去掉和「${title(t)}」的关系`} onPress={remove}>
           <X size={14} />
         </RacButton>
       </li>
     );
   };
-  const add = (dir: 'pred' | 'succ', extra?: ReactNode) => (
+  const add = (dir: 'pred' | 'succ' | 'related', extra?: ReactNode) => (
     <div className="rel-actions">
       <PopoverPanel
-        label={dir === 'pred' ? '添加要先做完的任务' : '添加做完后解锁的任务'}
+        label={dir === 'pred' ? '添加要先做完的任务' : dir === 'succ' ? '添加做完后解锁的任务' : '添加相关任务'}
         trigger={
           <RacButton className="link-btn">
             <Plus size={14} />
@@ -346,7 +324,8 @@ function Relations({ store, task }: { store: Store; task: Task }) {
             exclude={exclude}
             onPick={(id) => {
               if (dir === 'pred') tryAddDependency(store, ui, id, task.id);
-              else tryAddDependency(store, ui, task.id, id);
+              else if (dir === 'succ') tryAddDependency(store, ui, task.id, id);
+              else tryLinkTasks(store, ui, task.id, id);
               close();
             }}
           />
@@ -356,8 +335,8 @@ function Relations({ store, task }: { store: Store; task: Task }) {
     </div>
   );
   return (
-    <section className="relations" aria-label="前后关系">
-      <h3 className="detail-section-title">前后关系</h3>
+    <section className="relations" aria-label="关系">
+      <h3 className="detail-section-title">关系</h3>
       <div className="rel-group">
         <div className="rel-head">
           <span>先做完这些</span>
@@ -376,6 +355,24 @@ function Relations({ store, task }: { store: Store; task: Task }) {
           <RacButton className="link-btn" onPress={() => ui.openQuickCreate({ group_id: task.group_id }, { after: task.id })}>
             <ListPlus size={14} />
             新建下一步
+          </RacButton>,
+        )}
+      </div>
+      <div className="rel-group">
+        <div className="rel-head">
+          <span>相关任务</span>
+          <Tip content="只是有关系，不分先后：不用等它，也不会解锁它">
+            <RacButton className="icon-btn rel-hint" aria-label="相关任务是什么">
+              <CircleHelp size={13} aria-hidden />
+            </RacButton>
+          </Tip>
+        </div>
+        {related.length ? <ul className="rel-list">{related.map((t) => row(t, 'related'))}</ul> : <p className="rel-empty">有关系、但不分先后的事放这里。</p>}
+        {add(
+          'related',
+          <RacButton className="link-btn" onPress={() => ui.openQuickCreate({ group_id: task.group_id }, { related: [task.id] })}>
+            <Link2 size={14} />
+            新建相关任务
           </RacButton>,
         )}
       </div>
@@ -753,7 +750,7 @@ function Detail({ task }: { task: Task }) {
         isOpen={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="删除这件任务？"
-        message={<>「{title}」和它的前后关系会一起删除，删除后不能恢复。</>}
+        message={<>「{title}」会被删除，它和别的任务之间的关系也一起去掉。删除后不能恢复。</>}
         confirmLabel="删除"
         danger
         onConfirm={() => {

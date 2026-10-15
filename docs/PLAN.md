@@ -42,6 +42,7 @@
   - 关闭：不做了 / 不需要了。同样算已结束：解锁后续并弹“解锁了 N 个后续”、不进待办 / 可做 / 搜索前排、在我的一天沉底；但不算成就（不计入组进度和“已完成”计数，重复任务关闭当天起不再应打卡、历史格子保留）。界面上不划线、整体变淡、带“关闭”标记，勾选框显示 ×。
   - 两种都能“重新打开”（回到待办，清空 done_at）。M0 存过的“取消”在打开时自动迁移为“关闭”（改写一次并进 outbox）。
 - 完成一个任务时，弹出它的后续任务，提示“已解锁 N 个”；也可在完成时一键新建后续（“然后呢？”）。
+- 相关任务（Rei 2026-10-15：“任务只是有关系，但没有FS关系”）：表 `task_link(a_task_id, b_task_id, note, created_at)`，无方向、不阻塞——不解锁、不进环检测、不影响可开始 / 被阻塞。去重：规范顺序 a < b，id 由这一对算出（`related.ts` 的 `taskLinkId`，UUID 形状），两台设备各自连同一对得到同一行；去掉再连上 = 同一行墓碑翻回来。不能连自己；两件已有前后关系时不让再连相关（前后关系已经说明有关系），先相关后加了前后关系时只按前后关系显示（相关行不删，去掉前后关系后又出现）。删任务时它的相关行一起打墓碑。note 先留着，界面暂不编辑。
 - 有组的起止时间时，可沿依赖链推算最早开始，超出组结束时间就标红（后期做，关键路径同理）。
 
 ## 多端同步怎么做
@@ -127,6 +128,7 @@ Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其
 ## 数据模型
 - task：id、body_md（无标题，列表里显示首行作预览）、status（待办 / 进行中 / 完成 / 关闭；完成和关闭都是“已结束”，done_at 记结束时间）、group_id（可空）、scheduled_date（可空，用于列表视图）、done_at、sort、created_at
 - dependency：pred_id、succ_id、type=FS、lag=0
+- task_link（相关任务，无方向）：a_task_id < b_task_id、note、created_at；id 由这一对确定（SQLite 迁移 v3）
 - group：id、name、icon（emoji 或 lucide）、start_at、end_at、category_id
 - category：id、name、color
 - task_type：id、name、icon、color、layout（poster / icon_name / banner / text）、fields（JSON 字段定义）、body_template（markdown）、builtin、hidden
@@ -215,6 +217,10 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 ### M1c ✅（2026-10-15）：资料库
 - core：`library.ts`（叫法、字段拆分、规范化与模糊搜索、迁移计划、确定性 id、占位图配色）、`library_item` 表（SQLite 迁移 v2）、Store 的资料增删改 / 换资料 / 改类型保留字段 / 打开时迁移、⌘K 搜资料；内置类型拆 资料 / 任务 字段并按版本戳升级；演示数据每个库几条（星际穿越重看两次）。测试覆盖迁移（localStorage、node:sqlite、Turso 三种存储 v1 → v2）、去重、模糊搜索、删除 / 改类型。
 - client：新建面板的资料选择框与就地新建、详情资料卡、资料库页与资料详情、人物并入资料库、⌘K「用它新建任务」、渐变占位图；三种皮肤的切换条与卡片形状。
+
+### 相关任务 ✅（2026-10-15）
+- core：`related.ts`（规范顺序、确定 id、前后关系优先的过滤）、`task_link` 表与 SQLite 迁移 v3、Store `linkTasks / unlinkTasks / relatedTasks / taskLinks`（按版本缓存）、删任务级联、演示数据三对；测试覆盖去重、不阻塞、与前后关系重叠、localStorage / node:sqlite / Turso v2 → v3。
+- 界面：详情的分区改叫「关系」，下分 先做完这些 / 做完后解锁 / 相关任务（「添加」可搜索、「新建相关任务」、行可点开、悬停 × 去掉、显示对方状态）；新建面板多一颗「相关任务」胶囊（多选）；列表行在元信息里显示小链环 + 个数；关系图把相关画成没有箭头的点线（前后关系里还没完成的是虚线带箭头，所以相关用圆点线区分），参与排布让两件挨着，图例「相关（不分先后）」，「有关系的」范围包含相关任务；选中点线按 Delete 去掉。
 
 ### M2：多端同步
 - 定同步引擎（A Turso Sync 推荐 / B 自建 Worker + D1）；从 outbox push、按游标 pull；字段级 / 行级 LWW；check_in 只追加；合并后重跑环检测并标冲突边。

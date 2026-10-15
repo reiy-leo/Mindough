@@ -55,6 +55,7 @@ export class Store {
   private _version = 0;
   private batchBuffer: Change[] | null = null;
   private derivedCache: { version: number; value: Map<string, DerivedStatus> } | null = null;
+  private relatedCache: { version: number; value: Map<string, string[]> } | null = null;
   readonly clock: HlcClock;
   readonly now: () => Date;
 
@@ -533,10 +534,15 @@ export class Store {
     return visibleLinks(this.list('task_link'), this.edges()).filter((l) => this.get('task', l.a_task_id) && this.get('task', l.b_task_id));
   }
 
-  /** 和这件任务相关的任务（按连上的先后，去重）。 */
+  /** 和这件任务相关的任务（按连上的先后，去重）。列表里每行都要用，按版本缓存。 */
   relatedTasks(taskId: string): Task[] {
-    const ids = [...new Set(relatedIdsOf(this.taskLinks(), taskId))];
-    return ids.map((id) => this.get('task', id)).filter((t): t is Task => !!t);
+    if (this.relatedCache?.version !== this._version) {
+      const links = this.taskLinks();
+      const index = new Map<string, string[]>();
+      for (const id of new Set(links.flatMap((l) => [l.a_task_id, l.b_task_id]))) index.set(id, [...new Set(relatedIdsOf(links, id))]);
+      this.relatedCache = { version: this._version, value: index };
+    }
+    return (this.relatedCache.value.get(taskId) ?? []).map((id) => this.get('task', id)).filter((t): t is Task => !!t);
   }
 
   isRelated(x: string, y: string): boolean {

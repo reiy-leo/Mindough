@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarDays, CircleHelp, CornerDownRight, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store } from '@mindough/core';
+import { CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
+import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -13,6 +13,7 @@ import { titleOf } from '../../lib/view';
 import { ItemCard, ItemEditor, LibraryPicker, draftEntry, emptyDraft, saveDraft, type ItemDraft } from '../library/Library';
 import { CompletionChoice, CompletionSentence, GroupList, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults, type CompletionValue } from './pickers';
 import { DatePanel } from './DatePanel';
+import { TaskSearch } from './TaskSearch';
 
 /** 属性小胶囊：没设时是灰色的名称，设了显示值。点开是弹层。 */
 export function PropChip({ icon, label, value, color }: { icon: ReactNode; label: string; value?: ReactNode; color?: string }) {
@@ -63,6 +64,8 @@ interface Draft extends CompletionValue {
   date: string | null;
   groupId: string | null;
   people: string[];
+  /** 相关任务：建好后连成「相关」（只是有关系，不分先后）。 */
+  related: string[];
   /** 资料库：选中的条目（资料或人物 id）、正在新建的资料、搜索词。 */
   entryId: string | null;
   newItem: ItemDraft | null;
@@ -92,6 +95,7 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     date: d.scheduled_date ?? null,
     groupId: d.group_id ?? null,
     people: [],
+    related: [],
     entryId: d.library_item_id ?? (type && isPersonLibrary(type) && typeof d.type_data?.person === 'string' ? d.type_data.person : null),
     newItem: null,
     query: '',
@@ -112,7 +116,7 @@ function Composer() {
   const store = useStore();
   const { skin } = useSettings();
   const req = ui.quickCreate!;
-  const [d, setD] = useState<Draft>(() => initialDraft(store, req.defaults));
+  const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults), related: req.related ?? [] }));
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
   const today = toDateKey(store.now());
   const types = useMemo(() => store.list('task_type').filter((t) => !t.hidden).sort((a, b) => a.sort - b.sort), [store]);
@@ -125,6 +129,7 @@ function Composer() {
   const group = store.get('group', d.groupId);
   const people = d.people.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
   const after = req.after ? store.get('task', req.after) : undefined;
+  const relatedTasks = d.related.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const afterTitle = after ? titleOf(store, after) : '';
   const primaryKey = type?.fields.find((f) => f.primary)?.key;
   // 看到哪：从搜索框 / 内容第一行认出 S02E03、第二季第三集
@@ -182,6 +187,8 @@ function Composer() {
     };
     const t = req.after ? store.createSuccessor(req.after, input) : store.createTask(input);
     for (const pid of d.people) store.linkPerson(t.id, pid);
+    // 和「接在后面」的那件已经有前后关系了，就不再标相关
+    for (const rid of d.related) if (rid !== req.after && store.get('task', rid)) store.linkTasks(t.id, rid);
     // 从侧边栏 / 快捷键新建（不在组里、没定日期、不是打卡）的任务自动进我的一天
     const toMyDay = !req.after && req.defaults.scheduled_date === undefined && !d.groupId && !d.date && !recurring;
     if (toMyDay) store.addToMyDay(t.id);
@@ -357,6 +364,25 @@ function Composer() {
             }
           >
             <PeopleList store={store} value={d.people} onChange={(ids) => set({ people: ids })} />
+          </PopoverPanel>
+          <PopoverPanel
+            label="相关任务"
+            trigger={
+              <PropChip
+                icon={<Link2 size={14} />}
+                label="相关任务"
+                {...(relatedTasks.length ? { value: relatedTasks.length === 1 ? `「${titleOf(store, relatedTasks[0]!)}」` : `${relatedTasks.length} 件相关` } : {})}
+              />
+            }
+          >
+            <TaskSearch
+              store={store}
+              exclude={new Set(req.after ? [req.after] : [])}
+              selected={new Set(d.related)}
+              label="搜索相关的任务"
+              onPick={(id) => set({ related: d.related.includes(id) ? d.related.filter((x) => x !== id) : [...d.related, id] })}
+            />
+            <p className="pop-note">只是有关系，不分先后。</p>
           </PopoverPanel>
         </div>
 

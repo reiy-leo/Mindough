@@ -1143,6 +1143,17 @@
 [data-layout='mobile'] .rel-remove {
   opacity: 1;
 }
+.rel-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.rel-hint {
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
+  color: var(--text-3);
+}
 .rel-empty {
   margin: 4px 0 2px;
   font-size: 13px;
