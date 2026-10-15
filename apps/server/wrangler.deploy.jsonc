@@ -1,0 +1,12 @@
+// 线上部署配置（API Token 部署）：Web 静态文件放 R2 桶 mindough-web，由 Worker 读出并加 COOP / COEP。
+// 原因：Hark 的 token 网关下 wrangler assets 上传会 401 未授权。本地开发仍用 wrangler.jsonc 的 assets。
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mindough",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
+  "r2_buckets": [{ "binding": "WEB", "bucket_name": "mindough-web" }],
+  "observability": { "enabled": true }
+}

@@ -1,12 +1,15 @@
 /**
- * Mindough Worker（尚未部署）：Google 登录、/api、Web 静态资源（wrangler assets）。
+ * Mindough Worker：Google 登录、/api、Web 静态资源（wrangler assets）。
  * 状态码都带中文说明，如 401 未登录、501 未实现。
  */
+import { serveFromR2, type R2Like } from './static-r2';
 import { currentUser, handleCallback, handleLogin, handleLogout, type AuthEnv } from './auth';
 
 export interface Env extends AuthEnv {
   /** wrangler assets 绑定（apps/client/dist）；本地单测里没有。 */
   ASSETS?: { fetch(req: Request): Promise<Response> };
+  /** 线上：Web 静态文件放 R2（wrangler.deploy.jsonc） */
+  WEB?: R2Like;
 }
 
 const json = (data: unknown, status = 200) =>
@@ -37,6 +40,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
 
   if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) return json({ error: '404 未找到' }, 404);
   if (env.ASSETS) return env.ASSETS.fetch(request);
+  if (env.WEB) return serveFromR2(request, env.WEB);
   return json({ error: '404 未找到' }, 404);
 }
 

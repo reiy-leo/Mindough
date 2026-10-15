@@ -27,3 +27,9 @@ Google Cloud OAuth 客户端的重定向 URI：`https://mindough.rei8t.dev/auth/
 - 图片：R2
 
 本地开发：`pnpm --filter server dev`（需要 `.dev.vars`，参考仓库根的 `.dev.vars.example`）。
+
+## 线上部署（2026-10-15 起）
+- 地址：https://mindough.rei8t.dev（Worker 名 mindough，custom domain）。
+- Hark 的 API Token 网关下 wrangler 静态资源上传会 401 未授权，所以线上用 `wrangler.deploy.jsonc`：Web 端 `apps/client/dist` 放 R2 桶 `mindough-web`，Worker（`src/static-r2.ts`）读出并加 COOP / COEP。
+- 一键：`pnpm --filter server deploy`（先构建 client，再 `scripts/upload-web.sh` 上传，再 `wrangler deploy -c wrangler.deploy.jsonc`）。
+- 已设密钥：SESSION_SECRET、ALLOWED_EMAILS（reiy.leoz@gmail.com）。还缺 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET，缺时 /auth/login 跳回 `?login_error=config_missing`。
