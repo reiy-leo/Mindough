@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Form, Input, TextField, Button as RacButton } from 'react-aria-components';
 import { CalendarDays, ChevronsUp, Plus } from 'lucide-react';
-import { addDays, compareDateKey, formatDateZh, relativeDayZh, toDateKey } from '@mindough/core';
+import { WEEKDAY_LABEL, addDays, compareDateKey, diffDays, formatDateZh, relativeDayZh, toDateKey, weekday } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { Button } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
@@ -55,8 +55,17 @@ export function AgendaPage() {
           return (
             <li key={d} className={`agenda-day${rel === 0 ? ' is-today' : rel < 0 ? ' is-past' : ''}`} ref={rel === 0 ? todayRef : undefined}>
               <div className="agenda-date">
-                <span className="agenda-rel">{relativeDayZh(d, today).split(' ')[0]}</span>
-                <span className="agenda-full">{formatDateZh(d)}</span>
+                {Math.abs(diffDays(today, d)) <= 2 ? (
+                  <>
+                    <span className="agenda-rel">{relativeDayZh(d, today)}</span>
+                    <span className="agenda-full">{formatDateZh(d)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="agenda-rel">{formatDateZh(d, false)}</span>
+                    <span className="agenda-full">周{WEEKDAY_LABEL[weekday(d)]}</span>
+                  </>
+                )}
               </div>
               <div className="agenda-items">
                 {list.map((t) => (
