@@ -186,3 +186,52 @@ export function formatDuration(ms: number): string {
   if (m > 0) return `${m} 分 ${String(s).padStart(2, '0')} 秒`;
   return `${s} 秒`;
 }
+
+/**
+ * 热力图用的每日比例索引：先按 任务 → 周期 分组事件，再按需计算。
+ * - taskRatio(task, date)：该任务在 date 这天（须是应打卡日）的达成比例，非应打卡日为 null。
+ * - dayRatio(date)：当天所有应打卡任务的达成比例之和 / 应打卡数（每个任务最多计 1）；没有要打卡的为 null。
+ */
+export interface RatioIndex {
+  taskRatio(taskId: string, date: DateKey): number | null;
+  dayRatio(date: DateKey): number | null;
+}
+
+export function buildRatioIndex(tasks: readonly Task[], checkIns: readonly CheckIn[], now: Date): RatioIndex {
+  const recurring = tasks.filter((t) => !t.deleted && parseRecurrence(t.recurrence) && t.status !== '取消');
+  const byTask = new Map<string, Map<string, CheckIn[]>>();
+  for (const c of checkIns) {
+    if (c.deleted) continue;
+    let m = byTask.get(c.task_id);
+    if (!m) byTask.set(c.task_id, (m = new Map()));
+    const list = m.get(c.period_key);
+    if (list) list.push(c);
+    else m.set(c.period_key, [c]);
+  }
+  const cache = new Map<string, number | null>();
+  const parsed = new Map(recurring.map((t) => [t.id, { task: t, rule: parseRecurrence(t.recurrence), since: toDateKey(new Date(t.created_at)) }]));
+  const taskRatio = (taskId: string, date: DateKey): number | null => {
+    const key = `${taskId}|${date}`;
+    if (cache.has(key)) return cache.get(key)!;
+    const p = parsed.get(taskId);
+    let v: number | null = null;
+    // 周期键 = 应打卡日，所以直接按 date 取该周期的事件；创建之前的日子不算
+    if (p?.rule && date >= p.since && isDueOn(p.rule, date)) {
+      v = computeProgress(p.task, byTask.get(taskId)?.get(date) ?? [], now).ratio;
+    }
+    cache.set(key, v);
+    return v;
+  };
+  const dayRatio = (date: DateKey): number | null => {
+    let due = 0;
+    let sum = 0;
+    for (const id of parsed.keys()) {
+      const r = taskRatio(id, date);
+      if (r === null) continue;
+      due++;
+      sum += Math.min(1, r);
+    }
+    return due ? sum / due : null;
+  };
+  return { taskRatio, dayRatio };
+}

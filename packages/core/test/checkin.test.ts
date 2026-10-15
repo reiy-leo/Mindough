@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeProgress, foldTimer, formatDuration, metPeriods, progressOn, taskStreak, dueToday } from '../src/checkin';
+import { buildRatioIndex, computeProgress, foldTimer, formatDuration, metPeriods, progressOn, taskStreak, dueToday } from '../src/checkin';
 import { formatRecurrence } from '../src/recurrence';
 import { ci, local, mkTask } from './helpers';
 
@@ -106,5 +106,28 @@ describe('重复任务的周期与连续天数', () => {
     expect(formatDuration(16 * H + 5 * 60_000)).toBe('16 小时 05 分');
     expect(formatDuration(90_000)).toBe('1 分 30 秒');
     expect(formatDuration(-1)).toBe('0 秒');
+  });
+});
+
+describe('热力图比例索引', () => {
+  const now = local(2026, 10, 15, 20);
+  const water = mkTask('w', { completion_mode: 'count', target_value: 4, recurrence: formatRecurrence({ kind: 'daily' }), created_at: local(2026, 10, 10).toISOString() });
+  const run = mkTask('r', { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'weekly', weekdays: [1] }), created_at: local(2026, 10, 1).toISOString() });
+  const plain = mkTask('p');
+  const evs = [ci('w', '2026-10-12', 'add', local(2026, 10, 12), 4), ci('w', '2026-10-13', 'add', local(2026, 10, 13), 1), ci('r', '2026-10-12', 'add', local(2026, 10, 12), 1)];
+  const idx = buildRatioIndex([water, run, plain], evs, now);
+
+  it('单个任务：应打卡日给比例，其余为 null', () => {
+    expect(idx.taskRatio('w', '2026-10-13')).toBe(0.25);
+    expect(idx.taskRatio('w', '2026-10-09')).toBeNull(); // 创建之前
+    expect(idx.taskRatio('r', '2026-10-13')).toBeNull(); // 周二不是应打卡日
+    expect(idx.taskRatio('p', '2026-10-13')).toBeNull();
+  });
+
+  it('当天总比例 = 各任务比例（封顶 1）之和 / 应打卡数', () => {
+    expect(idx.dayRatio('2026-10-12')).toBe(1);
+    expect(idx.dayRatio('2026-10-13')).toBe(0.25);
+    expect(idx.dayRatio('2026-10-05')).toBe(0); // 只有周一跑步要打卡，没打
+    expect(idx.dayRatio('2026-09-01')).toBeNull();
   });
 });
