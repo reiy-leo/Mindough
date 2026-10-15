@@ -2289,3 +2289,64 @@ button {
 .checkin-filters {
   margin-top: 14px;
 }
+.cat-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cat-search {
+  position: relative;
+}
+.cat-search .input {
+  width: 100%;
+  padding-left: 30px;
+}
+.cat-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+.cat-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  max-height: 212px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.cat-tile {
+  --chip-color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+.cat-tile[data-hovered] {
+  background: color-mix(in srgb, var(--chip-color) 8%, var(--surface));
+}
+.cat-tile[data-selected] {
+  border-color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 16%, var(--surface));
+}
+.cat-tile[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.cat-current {
+  justify-content: space-between;
+}
