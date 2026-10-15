@@ -38,13 +38,15 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
 apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）
-  ui/primitives.tsx     React Aria 包装（Button、Sheet、Field、Select、Segmented…）
+  ui/primitives.tsx     React Aria 包装（Button、Sheet、PopoverPanel、OverflowMenu、ConfirmDialog、InlineNumber、AutoTextarea、Tip…）
+  components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel
   components/ pages/    业务组件与页面（不写死平台样式）
+  styles/task.css       新建面板与详情的结构样式
   lib/ store/           设置、路由、提示、账户（account.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
 apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层）
 apps/server/            Cloudflare Worker：Google 登录、/api、静态资源（未部署）
 .github/workflows/      ci.yml、build.yml
-docs/                   PLAN.md、PRODUCT.md
+docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 .agents/                skills / rules / prompts / memory
 ```
 
@@ -68,8 +70,9 @@ docs/                   PLAN.md、PRODUCT.md
 截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍。
 
 ## 代码规范
-- 界面文案中文；HTTP 状态码出现时附中文说明（如「408 请求超时」）。
-- 术语固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（点一下、计时、计量、倒数日）。
+- 界面文案中文，**一律按 [docs/COPY.md](docs/COPY.md)**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；新词先补进术语表。HTTP 状态码出现时附中文说明（如「408 请求超时」）。
+- 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
+- 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、前后关系）；两者共用 `components/task/pickers.tsx`。
 - 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
 - 类型只管展示与新建模板，不替代正文；内置类型与自定义类型走同一套 layout + fields + body_template 机制，不要写死特例。
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
