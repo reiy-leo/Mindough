@@ -4,7 +4,7 @@
 import { addDays, toDateKey } from '../dates';
 import { formatRecurrence, isDueOn, parseRecurrence, periodKeyFor } from '../recurrence';
 import type { Store } from '../store';
-import type { CheckInKind, Task } from '../types';
+import type { CheckInKind, FieldValue, Task } from '../types';
 import { BUILTIN_TYPE_IDS as T } from './builtin-types';
 import { BUILTIN_CHECKIN_CATEGORY_IDS } from './builtin-checkin-categories';
 
@@ -144,13 +144,13 @@ export function seedDemo(store: Store): void {
     task('## 想看理由\n大银幕看沙漠和沙虫\n\n## 观后感\n', {
       group_id: watch.id,
       type_id: T.movie,
-      type_data: { title: '沙丘 2', year: 2024, kind: '电影', platform: '影院' },
+      type_data: { title: '沙丘 2', year: 2024, kind: '电影', imdb: 'tt15239678', douban: '35575567' },
       scheduled_date: d(3),
     });
     task('## 想看理由\n听说上海话版本很好\n', {
       group_id: watch.id,
       type_id: T.movie,
-      type_data: { title: '繁花', year: 2023, kind: '剧集', episode: '第 12 集', platform: '腾讯视频' },
+      type_data: { title: '繁花', year: 2023, kind: '剧集', episode: { season: 1, episode: 12 } },
       status: '进行中',
     });
     task('## 摘录\n> 给岁月以文明，而不是给文明以岁月。\n', {
@@ -160,7 +160,7 @@ export function seedDemo(store: Store): void {
     });
     task('## 目标\n通关主线，收集 120 个神庙', {
       type_id: T.game,
-      type_data: { name: '塞尔达传说 王国之泪', platform: 'Switch', progress: 60 },
+      type_data: { name: '塞尔达传说 王国之泪', platform: ['Nintendo Switch'], progress: 60 },
     });
 
     // 琐事（时间线）
@@ -192,11 +192,17 @@ export function seedDemo(store: Store): void {
     task('年底述职', { completion_mode: 'countdown', target_date: d(62) });
 
     // 资料库：每个库放几条（没有图片，界面用按名字生成的渐变占位）；同一部片可以有好几件任务
-    const lib = (typeId: string, name: string, fields: Record<string, string | number | string[]> = {}) => store.createLibraryItem(typeId, { name, fields });
-    const interstellar = lib(T.movie, '星际穿越', { year: 2014, kind: '电影', platform: '影院' });
+    const lib = (typeId: string, name: string, fields: Record<string, FieldValue> = {}) => store.createLibraryItem(typeId, { name, fields });
+    const interstellar = lib(T.movie, '星际穿越', {
+      year: 2014,
+      kind: '电影',
+      imdb: 'tt0816692',
+      douban: '1889243',
+      links: [{ url: 'https://www.rottentomatoes.com/m/interstellar_2014' }, { url: 'https://www.themoviedb.org/movie/157336' }],
+    });
     done('', 400, { type_id: T.movie, library_item_id: interstellar.id, body_md: '第一次在 IMAX 看' });
     task('## 想看理由\n过年和家人一起重看一遍\n', { type_id: T.movie, library_item_id: interstellar.id, scheduled_date: d(9) });
-    lib(T.movie, '漫长的季节', { year: 2023, kind: '剧集', platform: '腾讯视频' });
+    lib(T.movie, '漫长的季节', { year: 2023, kind: '剧集', douban: '35588177' });
     lib(T.movie, '请回答 1988', { year: 2015, kind: '剧集' });
     lib(T.movie, '奥本海默', { year: 2023, kind: '电影' });
     lib(T.movie, '千与千寻', { year: 2001, kind: '电影' });
@@ -204,10 +210,10 @@ export function seedDemo(store: Store): void {
     lib(T.book, '长安的荔枝', { author: '马伯庸', total_pages: 220 });
     lib(T.book, '人类简史', { author: '尤瓦尔·赫拉利', total_pages: 440 });
     lib(T.book, '原则', { author: '瑞·达利欧' });
-    lib(T.game, '星露谷物语', { platform: 'PC' });
-    lib(T.game, '哈迪斯 2', { platform: 'Switch' });
-    lib(T.game, '双人成行', { platform: 'PS5' });
-    lib(T.game, '集合啦！动物森友会', { platform: 'Switch' });
+    lib(T.game, '星露谷物语', { platform: ['PC（Steam）', 'Nintendo Switch', 'iOS'], links: [{ url: 'https://store.steampowered.com/app/413150/Stardew_Valley/' }] });
+    lib(T.game, '哈迪斯 2', { platform: ['PC（Steam）', 'Switch 2'] });
+    lib(T.game, '双人成行', { platform: ['PlayStation 5', 'Xbox Series X|S', 'PC（Steam）'] });
+    lib(T.game, '集合啦！动物森友会', { platform: ['Nintendo Switch'] });
     lib(T.project, '个人主页', { link: 'https://rei8t.dev' });
     lib(T.project, '家庭相册备份');
     const guitar = lib(T.course, '吉他入门', { platform: 'B 站' });
@@ -217,9 +223,9 @@ export function seedDemo(store: Store): void {
     lib(T.travel, '大理');
     lib(T.travel, '成都');
     lib(T.travel, '冰岛');
-    lib(T.shopping, '降噪耳机', { price: 1299 });
-    lib(T.shopping, '空气炸锅', { price: 399 });
-    lib(T.shopping, '跑鞋', { price: 699 });
+    lib(T.shopping, '降噪耳机', { price: { amount: 1299, currency: 'CNY' } });
+    lib(T.shopping, '空气炸锅', { price: { amount: 59.9, currency: 'GBP' } });
+    lib(T.shopping, '跑鞋', { price: { amount: 189, currency: 'SGD' } });
     lib(T.restaurant, '巷口的老火锅', { address: '朝阳区某路 8 号' });
     lib(T.restaurant, '楼下的咖啡馆');
     const tomato = lib(T.meal, '番茄炒蛋', { ingredients: ['番茄 2 个', '鸡蛋 3 个', '葱', '糖'] });

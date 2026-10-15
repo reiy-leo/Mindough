@@ -17,6 +17,7 @@ import {
   itemData,
   mergedData,
   planLibraryMigration,
+  planFieldMigration,
   splitTypeData,
   type LibraryEntry,
 } from './library';
@@ -91,6 +92,7 @@ export class Store {
     store.ensureBuiltinCheckInCategories();
     store.migrateLegacyStatuses();
     store.migrateToLibrary();
+    store.migrateFieldKinds();
     await store.flush();
     return store;
   }
@@ -262,6 +264,14 @@ export class Store {
    * 资料库迁移：资料直接写在 type_data 里的旧任务 → 资料库条目（按类型 + 规范化名字去重）+ library_item_id。
    * 资料用确定的 id，两台设备各自迁移会得到同一条。见 library.ts 的 planLibraryMigration。
    */
+  /** 字段种类改了（文字 → 多选、数字 → 金额）后，把资料里的旧值迁成新形状（见 library.ts 的 planFieldMigration）。 */
+  migrateFieldKinds(): number {
+    const plan = planFieldMigration(this.list('library_item'), this.list('task_type'));
+    if (!plan.length) return 0;
+    this.write(plan.map((p) => ({ table: 'library_item' as TableName, row: { ...this.tables.library_item.get(p.id)!, fields: p.fields, note_md: p.note_md } as BaseRow })));
+    return plan.length;
+  }
+
   migrateToLibrary(): number {
     const plan = planLibraryMigration(this.list('task'), this.list('task_type'), this.list('library_item'));
     if (!plan.tasks.length) return 0;

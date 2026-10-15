@@ -57,8 +57,29 @@ export const COMPLETION_MODE_HINT: Record<CompletionMode, string> = {
   countdown: '等到某一天，如考试、纪念日',
 };
 
-/** type_data 中的值：按字段定义填写；图片存 asset_id 或链接，人物存 person_id。 */
-export type FieldValue = string | number | boolean | string[] | null;
+/** 「更多链接」里的一条：label 只在用户自己改过名字时才存，否则按网址自动认出（EXT、烂番茄、Steam…）。 */
+/** 金额字段的值：金额 + 币种（ISO 4217，如 CNY、USD），不做换算。 */
+export interface MoneyValue {
+  amount: number;
+  currency: string;
+}
+
+/** 看片进度（episode 字段）：第几季第几集，两者至少有一个。 */
+export interface EpisodeValue {
+  season?: number;
+  episode?: number;
+}
+
+export interface LinkValue {
+  url: string;
+  label?: string;
+}
+
+/**
+ * type_data 中的值：按字段定义填写；图片存 asset_id 或链接，人物存 person_id，
+ * 多选存选中的选项数组，money 存 MoneyValue，site_id 存站点编号（tt0816692、1889243），links 存 LinkValue 数组。
+ */
+export type FieldValue = string | number | boolean | string[] | LinkValue[] | MoneyValue | EpisodeValue | null;
 
 export interface Task extends BaseRow {
   /** 无标题的 markdown 正文；列表显示首行。 */
@@ -123,7 +144,11 @@ export const TYPE_LAYOUT_LABEL: Record<TypeLayout, string> = {
   text: '纯文字',
 };
 
-export type FieldKind = 'text' | 'number' | 'progress' | 'date' | 'link' | 'image' | 'select' | 'person' | 'list';
+/**
+ * 字段种类。multiselect = 多选（选项见 options，存 string[]）；site_id = 某个站点上的编号（见 site，
+ * 只存编号、显示成链接，如 IMDb / 豆瓣）；money = 金额 + 币种（见 money.ts）；episode = 看到第几季第几集（见 episode.ts）；links = 一组可增删的链接（更多链接），各类型通用。
+ */
+export type FieldKind = 'text' | 'number' | 'progress' | 'date' | 'link' | 'image' | 'select' | 'multiselect' | 'money' | 'episode' | 'person' | 'list' | 'site_id' | 'links';
 
 export interface FieldDef {
   key: string;
@@ -134,6 +159,8 @@ export interface FieldDef {
   /** 该字段作为卡片图片（海报、封面…）。 */
   media?: boolean;
   options?: string[];
+  /** site_id 字段的站点（见 links.ts 的 SITES）。 */
+  site?: string;
   /** progress 字段的单位提示，如 "%"、"页"、"集"。 */
   unit?: string;
   placeholder?: string;

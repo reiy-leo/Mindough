@@ -99,7 +99,7 @@ describe('名字规范化与模糊搜索', () => {
 describe('旧任务迁移到资料库', () => {
   const old = [
     legacy('m1', { type_id: T.movie, type_data: { title: '沙丘 2', poster: 'https://x/p.jpg', year: 2024, episode: 'S1E1' }, body_md: '想看' }, 0),
-    legacy('m2', { type_id: T.movie, type_data: { title: '沙丘2', platform: '影院', year: 2099 } }, 1),
+    legacy('m2', { type_id: T.movie, type_data: { title: '沙丘2', platform: '影院', imdb: 'tt15239678', year: 2099 } }, 1),
     legacy('m3', { type_id: T.movie, type_data: { title: '繁花', kind: '剧集' } }, 2),
     legacy('b1', { type_id: T.book, type_data: { title: '三体', author: '刘慈欣', pages: 230 } }, 3),
     legacy('n1', { type_id: T.movie, type_data: { year: 2020 } }, 4), // 没有片名：不动
@@ -111,11 +111,12 @@ describe('旧任务迁移到资料库', () => {
     const plan = planLibraryMigration(old, types, []);
     expect(plan.items.map((i) => i.name)).toEqual(['沙丘 2', '繁花', '三体']);
     const dune = plan.items[0]!;
-    expect(dune).toMatchObject({ type_id: T.movie, image: 'https://x/p.jpg', fields: { year: 2024, platform: '影院' } });
+    expect(dune).toMatchObject({ type_id: T.movie, image: 'https://x/p.jpg', fields: { year: 2024, imdb: 'tt15239678' } });
+    // 影视已经没有「平台」：旧值留在任务数据里（不显示、不丢）
     const byTask = Object.fromEntries(plan.tasks.map((t) => [t.id, t]));
     expect(byTask.m1).toEqual({ id: 'm1', library_item_id: dune.id, type_data: { episode: 'S1E1' } });
     expect(byTask.m2!.library_item_id).toBe(dune.id);
-    expect(byTask.m2!.type_data).toEqual({});
+    expect(byTask.m2!.type_data).toEqual({ platform: '影院' });
     expect(byTask.b1!.type_data).toEqual({ pages: 230 });
     expect(plan.items[2]!.fields).toEqual({ author: '刘慈欣' });
     expect(Object.keys(byTask).sort()).toEqual(['b1', 'm1', 'm2', 'm3']);

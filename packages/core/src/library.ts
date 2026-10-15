@@ -8,6 +8,8 @@
  */
 import { BUILTIN_TYPE_IDS, PLAIN_TYPE_ID } from './seed/builtin-types';
 import { fieldText } from './preview';
+import { isLinkField, linkChips, matchOptions, type LinkChip } from './links';
+import { DEFAULT_CURRENCY, moneyOf } from './money';
 import type { FieldDef, FieldValue, LibraryItem, Person, Task, TaskType } from './types';
 
 // ───────────── 叫法 ─────────────
@@ -64,12 +66,17 @@ export function taskFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined):
   return (type?.fields ?? []).filter(isTaskField);
 }
 
-/** 资料字段里除主字段、图片外的那些（年份、作者、平台…）。 */
+/** 资料字段里除主字段、图片外的那些（年份、作者、平台、链接…）。 */
 export function extraItemFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined): FieldDef[] {
   return itemFieldsOf(type).filter((f) => !f.primary && !f.media);
 }
 
 /** 一条资料展开成 type_data 的样子（主字段 = name，图片字段 = image）。 */
+/** 资料页「事实」列表里显示的字段：除去链接类（链接单独显示成一排）。 */
+export function factFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined): FieldDef[] {
+  return extraItemFieldsOf(type).filter((f) => !isLinkField(f));
+}
+
 export function itemData(type: Pick<TaskType, 'fields'> | null | undefined, item: Pick<LibraryItem, 'name' | 'image' | 'fields'>): Record<string, FieldValue> {
   const out: Record<string, FieldValue> = { ...item.fields };
   const p = type?.fields.find((f) => f.primary);
@@ -132,12 +139,14 @@ export interface LibraryEntry {
   recency: number;
   /** 有几件任务用到它。 */
   uses: number;
+  /** 资料上的链接（IMDb、豆瓣、更多链接…），按显示顺序。 */
+  links?: LinkChip[];
 }
 
 /** 一行简介：取前三个有值的简单资料字段。 */
 export function itemSubtitle(type: Pick<TaskType, 'fields'> | null | undefined, fields: Record<string, FieldValue>): string {
   return extraItemFieldsOf(type)
-    .filter((f) => f.kind === 'text' || f.kind === 'number' || f.kind === 'select')
+    .filter((f) => f.kind === 'text' || f.kind === 'number' || f.kind === 'select' || f.kind === 'multiselect' || f.kind === 'money')
     .map((f) => fieldDisplay(f, fields[f.key]))
     .filter(Boolean)
     .slice(0, 3)
@@ -162,6 +171,7 @@ export function entryOfItem(type: TaskType | undefined, item: LibraryItem, recen
     keywords: Object.values(item.fields).map(fieldText).join(' '),
     recency,
     uses,
+    links: linkChips(type?.fields, item.fields),
   };
 }
 
@@ -277,6 +287,59 @@ export function planLibraryMigration(tasks: readonly Task[], types: readonly Tas
   }
   plan.items = [...newItems.values()];
   return plan;
+}
+
+/**
+ * 字段种类改了之后迁移已有资料里的旧值（只处理还是旧形状的值，所以重复跑、多台设备各跑一遍都得到同样的结果）：
+ * - 自由文本 → 多选（游戏「平台」：「Switch / PC」→ Nintendo Switch、PC（其他））：对得上的选上；
+ *   有对不上的片段就加选「其他」（选项里有的话），并把原来填的整段文字记进备注，不丢。
+ * - 数字 / 文字 → 金额（好物「价格」：1299 → ¥1,299；「$12.5」→ 12.5 美元）：没写币种的算人民币；
+ *   认不出的文字记进备注。
+ */
+export function planFieldMigration(items: readonly LibraryItem[], types: readonly TaskType[]): Array<{ id: string; fields: Record<string, FieldValue>; note_md: string }> {
+  const typeById = new Map(types.map((t) => [t.id, t]));
+  const out: Array<{ id: string; fields: Record<string, FieldValue>; note_md: string }> = [];
+  for (const it of items) {
+    if (it.deleted) continue;
+    const defs = typeById.get(it.type_id)?.fields.filter((f) => f.kind === 'multiselect' || f.kind === 'money') ?? [];
+    let fields: Record<string, FieldValue> | null = null;
+    let note = it.note_md;
+    const keep = (label: string, text: string) => {
+      const line = `${label}：${text}`;
+      if (!note.includes(line)) note = note.trim() ? `${note.replace(/\s+$/, '')}\n\n${line}` : line;
+    };
+    for (const f of defs) {
+      const v = it.fields[f.key];
+      if (f.kind === 'money') {
+        if (typeof v !== 'number' && typeof v !== 'string') continue;
+        fields ??= { ...it.fields };
+        const m = moneyOf(v, DEFAULT_CURRENCY);
+        if (m) fields[f.key] = m;
+        else {
+          delete fields[f.key];
+          if (typeof v === 'string' && v.trim()) keep(f.label, v.trim());
+        }
+        continue;
+      }
+      if (typeof v !== 'string') continue;
+      fields ??= { ...it.fields };
+      const text = v.trim();
+      if (!text) {
+        delete fields[f.key];
+        continue;
+      }
+      const options = f.options ?? [];
+      const { values, unmatched } = matchOptions(options, text);
+      if (unmatched.length) {
+        if (options.includes('其他') && !values.includes('其他')) values.push('其他');
+        keep(f.label, text);
+      }
+      if (values.length) fields[f.key] = values;
+      else delete fields[f.key];
+    }
+    if (fields) out.push({ id: it.id, fields, note_md: note });
+  }
+  return out;
 }
 
 // ───────────── 占位图 ─────────────

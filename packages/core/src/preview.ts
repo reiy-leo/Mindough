@@ -1,5 +1,8 @@
 /** 任务预览：没有标题，列表里显示 body_md 首行；有类型主字段时用主字段。 */
-import type { FieldDef, FieldValue, Task, TaskType } from './types';
+import { linkLabel } from './links';
+import { formatMoney, moneyOf } from './money';
+import { episodeOf, formatEpisode } from './episode';
+import type { FieldDef, FieldValue, LinkValue, Task, TaskType } from './types';
 
 /** 把字段值解析成显示文本（如人物字段 person_id → 姓名）。 */
 export type FieldResolver = (def: FieldDef, value: FieldValue) => string;
@@ -20,7 +23,15 @@ export function firstLine(md: string): string {
 
 export function fieldText(v: FieldValue | undefined): string {
   if (v === null || v === undefined) return '';
-  if (Array.isArray(v)) return v.join('、');
+  if (typeof v === 'object' && !Array.isArray(v)) {
+    if ('amount' in v) {
+      const m = moneyOf(v);
+      return m ? formatMoney(m) : '';
+    }
+    const e = episodeOf(v);
+    return e ? formatEpisode(e) : '';
+  }
+  if (Array.isArray(v)) return (v as Array<string | LinkValue>).map((x) => (typeof x === 'string' ? x : x && typeof x === 'object' ? linkLabel(x) : '')).filter(Boolean).join('、');
   return String(v);
 }
 

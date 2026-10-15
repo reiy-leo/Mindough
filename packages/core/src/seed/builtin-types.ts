@@ -24,9 +24,28 @@ export const BUILTIN_TYPE_IDS = {
 /**
  * 内置定义的版本戳。改了内置类型的定义（如资料库拆分 资料字段 / 任务字段）就把序号加一：
  * 打开时，存着的内置类型若仍是更早的内置版本（用户没改过），自动换成新定义；用户改过的（真实 HLC）不动。
- * r1 = 资料库（2026-10-15）。
+ * r1 = 资料库（2026-10-15）；r2 = 影视去掉「平台」、加 IMDb / 豆瓣 / 更多链接，游戏「平台」改多选、加更多链接，购物「价格」改金额 + 币种，「看到哪」认 S02E03 / 第二季第三集（2026-10-15）。
  */
-export const BUILTIN_TYPES_REVISION = '0000000000000-0001-builtin';
+export const BUILTIN_TYPES_REVISION = '0000000000000-0002-builtin';
+
+/** 游戏平台的选项（多选；界面文案见 docs/COPY.md）。 */
+export const GAME_PLATFORMS = [
+  'PC（Steam）',
+  'PC（Epic）',
+  'PC（其他）',
+  'PlayStation 5',
+  'PlayStation 4',
+  'Xbox Series X|S',
+  'Xbox One',
+  'Nintendo Switch',
+  'Switch 2',
+  'iOS',
+  'Android',
+  'macOS',
+  'Linux / Steam Deck',
+  '网页',
+  '其他',
+];
 const BASE = { updated_at: BUILTIN_TYPES_REVISION, deleted: false, builtin: true, hidden: false } as const;
 
 export const BUILTIN_TASK_TYPES: TaskType[] = [
@@ -54,8 +73,10 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'poster', label: '海报', kind: 'image', media: true },
       { key: 'year', label: '年份', kind: 'number' },
       { key: 'kind', label: '电影/剧集', kind: 'select', options: ['电影', '剧集'] },
-      { key: 'platform', label: '平台', kind: 'text', placeholder: '影院 / Netflix / B 站' },
-      { key: 'episode', label: '看到哪', kind: 'text', placeholder: '第 2 季第 3 集', scope: 'task' },
+      { key: 'imdb', label: 'IMDb', kind: 'site_id', site: 'imdb' },
+      { key: 'douban', label: '豆瓣', kind: 'site_id', site: 'douban' },
+      { key: 'links', label: '更多链接', kind: 'links' },
+      { key: 'episode', label: '看到哪', kind: 'episode', placeholder: '第 2 季第 3 集，或 S02E03', scope: 'task' },
     ],
     body_template: '## 想看理由\n\n\n## 观后感\n',
     default_completion_mode: 'once',
@@ -71,7 +92,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     fields: [
       { key: 'name', label: '游戏名', kind: 'text', primary: true },
       { key: 'icon', label: '图标', kind: 'image', media: true },
-      { key: 'platform', label: '平台', kind: 'text', placeholder: 'Switch / PC / PS5' },
+      { key: 'platform', label: '平台', kind: 'multiselect', options: GAME_PLATFORMS },
+      { key: 'links', label: '更多链接', kind: 'links' },
       { key: 'progress', label: '进度', kind: 'progress', unit: '%', scope: 'task' },
     ],
     body_template: '## 目标\n\n\n## 心得\n',
@@ -157,7 +179,7 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
     fields: [
       { key: 'name', label: '名称', kind: 'text', primary: true },
       { key: 'image', label: '图片', kind: 'image', media: true },
-      { key: 'price', label: '价格', kind: 'number', unit: '元' },
+      { key: 'price', label: '价格', kind: 'money' },
       { key: 'link', label: '链接', kind: 'link' },
       { key: 'quantity', label: '买几件', kind: 'number', scope: 'task' },
     ],
