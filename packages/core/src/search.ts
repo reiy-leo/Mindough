@@ -3,6 +3,7 @@ import { fieldText, taskTitle } from './preview';
 import { itemSubtitle, mergedData } from './library';
 import { isFinished, type Group, type LibraryItem, type Person, type Task, type TaskPerson, type TaskType } from './types';
 
+import { tr } from './i18n';
 export type SearchHit =
   | { kind: 'task'; id: string; title: string; snippet: string; score: number; task: Task }
   | { kind: 'person'; id: string; title: string; snippet: string; score: number; person: Person }
@@ -95,7 +96,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
   }
   for (const g of groupById.values()) {
     const s = scoreText(g.name, terms);
-    if (s > 0) hits.push({ kind: 'group', id: g.id, title: g.name, snippet: '组', score: s + 4, group: g });
+    if (s > 0) hits.push({ kind: 'group', id: g.id, title: g.name, snippet: tr('组'), score: s + 4, group: g });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }

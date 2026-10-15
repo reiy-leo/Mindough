@@ -6,6 +6,7 @@ import { diffDays, toDateKey } from './dates';
 import { ONCE_PERIOD, isDueOn, parseRecurrence, periodKeyFor, computeStreak, type Streak } from './recurrence';
 import { isFinished, type CheckIn, type CompletionMode, type DateKey, type Task } from './types';
 
+import { tr } from './i18n';
 export interface Progress {
   mode: CompletionMode;
   /** 计时：已用毫秒；计量：累计数量；点一下：0/1；倒数日：剩余天数（过期为负）。 */
@@ -183,9 +184,9 @@ export function formatDuration(ms: number): string {
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  if (h > 0) return `${h} 小时 ${String(m).padStart(2, '0')} 分`;
-  if (m > 0) return `${m} 分 ${String(s).padStart(2, '0')} 秒`;
-  return `${s} 秒`;
+  if (h > 0) return tr('{h} 小时 {padStart} 分', { h, padStart: String(m).padStart(2, '0') });
+  if (m > 0) return tr('{m} 分 {padStart} 秒', { m, padStart: String(s).padStart(2, '0') });
+  return tr('{s} 秒', { s });
 }
 
 /**

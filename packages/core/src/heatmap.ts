@@ -2,7 +2,7 @@
  * GitHub 式活动热力图数据。一列 = 一周（默认周一开始），一格 = 一天。
  * 档位：0 = 没打卡（或当天无需打卡）、1 = <50%、2 = <100%、3 = 达标。
  */
-import { addDays, diffDays, parseDateKey, startOfWeek } from './dates';
+import { addDays, diffDays, monthShort, parseDateKey, startOfWeek } from './dates';
 import type { DateKey } from './types';
 
 export type HeatLevel = 0 | 1 | 2 | 3;
@@ -59,7 +59,7 @@ export function buildHeatmap({ end, weeks = 53, weekStartsOn = 1, ratioFor }: He
     }
     const firstMonth = parseDateKey(col[0]!.date).m;
     if (firstMonth !== lastMonth) {
-      monthLabels.push({ column: c, month: firstMonth, label: `${firstMonth}月` });
+      monthLabels.push({ column: c, month: firstMonth, label: monthShort(firstMonth) });
       lastMonth = firstMonth;
     }
     columns.push(col);

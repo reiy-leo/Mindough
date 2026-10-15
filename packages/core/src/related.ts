@@ -9,16 +9,17 @@
 import type { Edge } from './dag';
 import type { TaskLink } from './types';
 
+import { tr } from './i18n';
 export class SelfLinkError extends Error {
   constructor() {
-    super('不能和自己相关');
+    super(tr('不能和自己相关'));
     this.name = 'SelfLinkError';
   }
 }
 
 export class LinkedByDependencyError extends Error {
   constructor() {
-    super('这两件事已经有前后关系了');
+    super(tr('这两件事已经有前后关系了'));
     this.name = 'LinkedByDependencyError';
   }
 }

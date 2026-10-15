@@ -1,6 +1,7 @@
 /** 依赖图（前导图 PDM）：DAG、环检测、派生状态、解锁后续。 */
 import { isFinished, type Dependency, type Task } from './types';
 
+import { tr } from './i18n';
 export interface Edge {
   pred_id: string;
   succ_id: string;
@@ -16,21 +17,21 @@ export interface DerivedStatus {
 
 export class CycleError extends Error {
   constructor(readonly path: string[]) {
-    super('不能这样连：会绕成一个圈');
+    super(tr('不能这样连：会绕成一个圈'));
     this.name = 'CycleError';
   }
 }
 
 export class SelfLoopError extends Error {
   constructor() {
-    super('一件任务不能排在自己前面');
+    super(tr('一件任务不能排在自己前面'));
     this.name = 'SelfLoopError';
   }
 }
 
 export class DuplicateEdgeError extends Error {
   constructor() {
-    super('这两件任务已经连上了');
+    super(tr('这两件任务已经连上了'));
     this.name = 'DuplicateEdgeError';
   }
 }

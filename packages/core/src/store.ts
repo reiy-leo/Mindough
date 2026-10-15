@@ -27,6 +27,7 @@ import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/built
 import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
+import { dataLabel, tr } from './i18n';
 export interface StoreOptions {
   deviceId?: string;
   now?: () => Date;
@@ -298,7 +299,7 @@ export class Store {
 
   update<K extends TableName>(table: K, id: string, patch: Partial<Omit<TableMap[K], 'id' | 'updated_at'>>): TableMap[K] {
     const cur = this.tables[table].get(id);
-    if (!cur) throw new Error(`找不到记录：${table}/${id}`);
+    if (!cur) throw new Error(tr('找不到记录：{table}/{id}', { table, id }));
     this.write([{ table, row: { ...cur, ...patch } as BaseRow }]);
     return this.tables[table].get(id)!;
   }
@@ -474,12 +475,12 @@ export class Store {
    */
   changeTaskType(taskId: string, typeId: string | null): Task {
     const t = this.get('task', taskId);
-    if (!t) throw new Error('任务不存在');
+    if (!t) throw new Error(tr('任务不存在'));
     const next = typeId === PLAIN_TYPE_ID ? null : typeId;
     if (next === t.type_id) return t;
     const nt = this.get('task_type', next);
     const data = this.taskData(t);
-    const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: nt.body_template } : {};
+    const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: dataLabel(nt.body_template) } : {};
     const patched = this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
     return this.attachLibrary(patched);
   }
@@ -504,7 +505,7 @@ export class Store {
     const resolvedType = type ?? this.get('task_type', typeId);
     const maxSort = this.list('task').reduce((m, t) => Math.max(m, t.sort), 0);
     const created = this.insert('task', {
-      body_md: input.body_md ?? resolvedType?.body_template ?? '',
+      body_md: input.body_md ?? dataLabel(resolvedType?.body_template ?? ''),
       status: input.status ?? '待办',
       group_id: input.group_id ?? null,
       scheduled_date: input.scheduled_date ?? null,
@@ -601,7 +602,7 @@ export class Store {
    */
   linkTasks(x: string, y: string): TableMap['task_link'] {
     if (x === y) throw new SelfLinkError();
-    if (!this.get('task', x) || !this.get('task', y)) throw new Error('任务不存在');
+    if (!this.get('task', x) || !this.get('task', y)) throw new Error(tr('任务不存在'));
     if (hasDependencyBetween(this.edges(), x, y)) throw new LinkedByDependencyError();
     const id = taskLinkId(x, y);
     const cur = this.tables.task_link.get(id);
@@ -695,7 +696,7 @@ export class Store {
    */
   checkIn(taskId: string, kind: CheckInKind, amount = 0, date: string = toDateKey(this.now())): CheckInResult {
     const task = this.get('task', taskId);
-    if (!task) throw new Error('任务不存在');
+    if (!task) throw new Error(tr('任务不存在'));
     const period_key = periodKeyForTask(task, date);
     const before = this.progress(taskId, date);
     this.insert('check_in', { task_id: taskId, period_key, kind, amount, at: this.now().toISOString() });
@@ -793,8 +794,8 @@ export class Store {
   /** 复制一个类型（内置类型也可复制后修改）。 */
   duplicateType(typeId: string, name?: string): TableMap['task_type'] {
     const src = this.get('task_type', typeId);
-    if (!src) throw new Error('类型不存在');
+    if (!src) throw new Error(tr('类型不存在'));
     const { id: _id, updated_at: _u, deleted: _d, ...rest } = src;
-    return this.insert('task_type', { ...rest, name: name ?? `${src.name} 副本`, builtin: false, sort: this.list('task_type').length });
+    return this.insert('task_type', { ...rest, name: name ?? tr('{name} 副本', { name: src.name }), builtin: false, sort: this.list('task_type').length });
   }
 }

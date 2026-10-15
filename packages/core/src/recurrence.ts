@@ -6,9 +6,10 @@
  *   每月几号    FREQ=MONTHLY;BYMONTHDAY=15   （小月自动取月末）
  * 周期：每次“应打卡日”开启一个周期，持续到下一次应打卡日前一天；周期键 = 该应打卡日的日期键。
  */
-import { addDays, daysInMonth, diffDays, parseDateKey, weekday } from './dates';
+import { addDays, daysInMonth, diffDays, parseDateKey, weekday, weekdayShort } from './dates';
 import type { DateKey } from './types';
 
+import { tr } from './i18n';
 export type Recurrence =
   | { kind: 'daily' }
   | { kind: 'every'; days: number; anchor: DateKey }
@@ -67,21 +68,20 @@ export function parseRecurrence(rule: string | null | undefined): Recurrence | n
 }
 
 export function describeRecurrence(r: Recurrence | null): string {
-  if (!r) return '只做一次';
+  if (!r) return tr('只做一次');
   switch (r.kind) {
     case 'daily':
-      return '每天';
+      return tr('每天');
     case 'every':
-      return `每 ${r.days} 天`;
+      return tr('每 {days} 天', { days: r.days });
     case 'weekly': {
-      const names = ['日', '一', '二', '三', '四', '五', '六'];
       const sorted = [...r.weekdays].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
-      if (sorted.length === 7) return '每天';
-      if (sorted.join() === '1,2,3,4,5') return '工作日';
-      return `每周${sorted.map((d) => names[d]).join('、')}`;
+      if (sorted.length === 7) return tr('每天');
+      if (sorted.join() === '1,2,3,4,5') return tr('工作日');
+      return tr('每周{join}', { join: sorted.map((d) => weekdayShort(d)).join(tr('、')) });
     }
     case 'monthly':
-      return `每月 ${r.day} 号`;
+      return tr('每月 {day} 号', { day: r.day });
   }
 }
 

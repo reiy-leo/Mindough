@@ -20,6 +20,7 @@ import type { Change } from '../storage/adapter';
 import type { Store } from '../store';
 import { PULL_PAGE, PUSH_BATCH, SyncHttpError, type PulledRow, type SyncTransport, type WireRow } from './protocol';
 
+import { tr } from '../i18n';
 export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error';
 
 export interface SyncStatus {
@@ -80,12 +81,12 @@ export function fromWire(w: WireRow): Change {
 /** 把错误说成人话（COPY.md：HTTP 状态码附中文说明）。 */
 export function describeSyncError(e: unknown): { offline: boolean; needsLogin: boolean; text: string } {
   if (e instanceof SyncHttpError) {
-    if (e.offline) return { offline: true, needsLogin: false, text: '离线，联网后自动同步' };
-    if (e.status === 401) return { offline: false, needsLogin: true, text: '登录已过期（401 未登录），重新登录后继续同步' };
-    if (e.status === 403) return { offline: false, needsLogin: true, text: '这个账户不能同步（403 无权限）' };
+    if (e.offline) return { offline: true, needsLogin: false, text: tr('离线，联网后自动同步') };
+    if (e.status === 401) return { offline: false, needsLogin: true, text: tr('登录已过期（401 未登录），重新登录后继续同步') };
+    if (e.status === 403) return { offline: false, needsLogin: true, text: tr('这个账户不能同步（403 无权限）') };
     return { offline: false, needsLogin: false, text: e.message };
   }
-  return { offline: false, needsLogin: false, text: `同步出错：${e instanceof Error ? e.message : String(e)}` };
+  return { offline: false, needsLogin: false, text: tr('同步出错：{p}', { p: e instanceof Error ? e.message : String(e) }) };
 }
 
 export class SyncEngine {

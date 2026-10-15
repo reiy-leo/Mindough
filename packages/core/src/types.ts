@@ -3,6 +3,7 @@
  * 每条记录：UUIDv7 id + updated_at（HLC 字符串，可字典序比较）+ deleted 墓碑。
  * 不物理删除；同步时按行 / 字段 LWW 合并。
  */
+import { tr, trc } from './i18n';
 
 /** 本地日期键，格式 YYYY-MM-DD（按本机时区）。 */
 export type DateKey = string;
@@ -25,6 +26,13 @@ export interface BaseRow {
  */
 export type TaskStatus = '待办' | '进行中' | '完成' | '关闭';
 export const TASK_STATUSES: readonly TaskStatus[] = ['待办', '进行中', '完成', '关闭'];
+/** 状态的显示文字（内部值是中文，显示按当前语言）。 */
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  get 待办() { return trc('状态', '待办'); },
+  get 进行中() { return trc('状态', '进行中'); },
+  get 完成() { return trc('状态', '完成'); },
+  get 关闭() { return trc('状态', '关闭'); },
+};
 
 /** 已结束（完成或关闭）：满足依赖、不出现在待办 / 可做清单里。 */
 export function isFinished(status: TaskStatus): boolean {
@@ -44,17 +52,17 @@ export function normalizeStatus(status: unknown): TaskStatus {
 export type CompletionMode = 'once' | 'timer' | 'count' | 'countdown';
 export const COMPLETION_MODES: readonly CompletionMode[] = ['once', 'timer', 'count', 'countdown'];
 export const COMPLETION_MODE_LABEL: Record<CompletionMode, string> = {
-  once: '勾选完成',
-  timer: '计时',
-  count: '计数',
-  countdown: '倒数日',
+  get once() { return tr('勾选完成'); },
+  get timer() { return tr('计时'); },
+  get count() { return tr('计数'); },
+  get countdown() { return tr('倒数日'); },
 };
 /** 每种完成方式的一句话说明（新建时给用户挑）。 */
 export const COMPLETION_MODE_HINT: Record<CompletionMode, string> = {
-  once: '做完就打勾',
-  timer: '做够一段时间，如冥想 10 分钟',
-  count: '做够一定数量，如喝 8 杯水',
-  countdown: '等到某一天，如考试、纪念日',
+  get once() { return tr('做完就打勾'); },
+  get timer() { return tr('做够一段时间，如冥想 10 分钟'); },
+  get count() { return tr('做够一定数量，如喝 8 杯水'); },
+  get countdown() { return tr('等到某一天，如考试、纪念日'); },
 };
 
 /** 「更多链接」里的一条：label 只在用户自己改过名字时才存，否则按网址自动认出（EXT、烂番茄、Steam…）。 */
@@ -143,10 +151,10 @@ export interface Category extends BaseRow {
 
 export type TypeLayout = 'poster' | 'icon_name' | 'banner' | 'text';
 export const TYPE_LAYOUT_LABEL: Record<TypeLayout, string> = {
-  poster: '海报',
-  icon_name: '图标+名称',
-  banner: '横幅',
-  text: '纯文字',
+  get poster() { return tr('海报'); },
+  get icon_name() { return tr('图标+名称'); },
+  get banner() { return tr('横幅'); },
+  get text() { return tr('纯文字'); },
 };
 
 /**

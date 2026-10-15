@@ -6,6 +6,7 @@ import { dueToday, progressOn } from './checkin';
 import type { DerivedStatus } from './dag';
 import { isFinished, type CheckIn, type DateKey, type MyDayEntry, type Task } from './types';
 
+import { tr } from './i18n';
 export function entriesFor(entries: readonly MyDayEntry[], date: DateKey): MyDayEntry[] {
   const seen = new Set<string>();
   // 同一 task_id + date 只保留一条（同步时按此合并）
@@ -69,6 +70,13 @@ export function yesterdayUnfinished(
 }
 
 export type SuggestionReason = '今天到期' | '今天要打卡' | '刚解锁' | '倒数日到了';
+/** 建议理由的显示文字（内部值是中文，显示按当前语言）。 */
+export const SUGGESTION_REASON_LABEL: Record<SuggestionReason, string> = {
+  get 今天到期() { return tr('今天到期'); },
+  get 今天要打卡() { return tr('今天要打卡'); },
+  get 刚解锁() { return tr('刚解锁'); },
+  get 倒数日到了() { return tr('倒数日到了'); },
+};
 
 export interface Suggestion {
   task: Task;

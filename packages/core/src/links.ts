@@ -3,6 +3,7 @@
  * 用户可以直接粘贴整条网址，这里负责认出编号、认出是哪个网站（EXT、烂番茄、Steam…），并排好显示顺序。
  * 界面叫法见 docs/COPY.md「资料库 · 链接」。
  */
+import { dataLabel, tr } from './i18n';
 import type { FieldDef, FieldValue, LinkValue } from './types';
 
 // ───────────── 站点编号 ─────────────
@@ -25,8 +26,8 @@ const clean = (input: string) => input.normalize('NFKC').replace(/[\u200b-\u200d
 export const SITES: Record<string, SiteDef> = {
   imdb: {
     label: 'IMDb',
-    placeholder: 'tt0816692，或粘贴链接',
-    hint: 'IMDb 编号是 tt 加数字，比如 tt0816692',
+    get placeholder() { return tr('tt0816692，或粘贴链接'); },
+    get hint() { return tr('IMDb 编号是 tt 加数字，比如 tt0816692'); },
     parse: (input) => {
       const s = clean(input);
       if (!s) return null;
@@ -40,9 +41,9 @@ export const SITES: Record<string, SiteDef> = {
     url: (id) => `https://www.imdb.com/title/${id}/`,
   },
   douban: {
-    label: '豆瓣',
-    placeholder: '1889243，或粘贴链接',
-    hint: '豆瓣编号是一串数字，在链接 subject/ 后面',
+    get label() { return tr('豆瓣'); },
+    get placeholder() { return tr('1889243，或粘贴链接'); },
+    get hint() { return tr('豆瓣编号是一串数字，在链接 subject/ 后面'); },
     parse: (input) => {
       const s = clean(input);
       if (!s) return null;
@@ -82,7 +83,7 @@ export function hostOf(url: string): string {
   return (m ? m[1]! : url.split('/')[0] ?? url).toLowerCase().replace(/^www\./, '');
 }
 
-/** 常见网站：域名（含子域名）→ 显示名。先长后短，按顺序匹配。 */
+/** 常见网站：域名（含子域名）→ 显示名（中文名显示时经 dataLabel 换成当前语言，英文在 i18n-data-en.ts）。先长后短，按顺序匹配。 */
 const SITE_LABELS: Array<[RegExp, string]> = [
   [/(^|\.)ext\.to$/, 'EXT'],
   [/(^|\.)rottentomatoes\.com$/, '烂番茄'],
@@ -122,7 +123,7 @@ const SITE_LABELS: Array<[RegExp, string]> = [
 /** 按网址认出网站名；不认识的用域名（去掉 www.）。 */
 export function detectLinkLabel(url: string): string {
   const host = hostOf(url).toLowerCase();
-  for (const [re, label] of SITE_LABELS) if (re.test(host)) return label;
+  for (const [re, label] of SITE_LABELS) if (re.test(host)) return dataLabel(label);
   return host;
 }
 

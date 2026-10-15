@@ -4,6 +4,8 @@ import { formatMoney, moneyOf } from './money';
 import { episodeOf, formatEpisode } from './episode';
 import type { FieldDef, FieldValue, LinkValue, Task, TaskType } from './types';
 
+import { dataLabel, tr } from './i18n';
+
 /** 把字段值解析成显示文本（如人物字段 person_id → 姓名）。 */
 export type FieldResolver = (def: FieldDef, value: FieldValue) => string;
 
@@ -31,8 +33,9 @@ export function fieldText(v: FieldValue | undefined): string {
     const e = episodeOf(v);
     return e ? formatEpisode(e) : '';
   }
-  if (Array.isArray(v)) return (v as Array<string | LinkValue>).map((x) => (typeof x === 'string' ? x : x && typeof x === 'object' ? linkLabel(x) : '')).filter(Boolean).join('、');
-  return String(v);
+  if (Array.isArray(v)) return (v as Array<string | LinkValue>).map((x) => (typeof x === 'string' ? dataLabel(x) : x && typeof x === 'object' ? linkLabel(x) : '')).filter(Boolean).join(tr('、'));
+  // 选项值（电影 / 剧集、PC（Steam）…）是存着的中文，显示按当前语言
+  return typeof v === 'string' ? dataLabel(v) : String(v);
 }
 
 export function primaryFieldKey(type: Pick<TaskType, 'fields'> | null | undefined): string | null {
@@ -55,7 +58,7 @@ export function taskTitle(
     const v = raw !== undefined && raw !== null && resolve ? resolve(def, raw) : fieldText(raw);
     if (v) return v;
   }
-  return firstLine(task.body_md) || '空白任务';
+  return firstLine(task.body_md) || tr('空白任务');
 }
 
 /** 卡片副标题：有主字段时显示正文首行。 */

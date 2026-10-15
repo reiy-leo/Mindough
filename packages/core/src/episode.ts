@@ -2,6 +2,7 @@
  * 看片进度（episode 字段）：从「绝命毒师 S02E03」「第二季第三集」这类文字里认出第几季第几集，
  * 存成 { season, episode }，显示成「第 2 季第 3 集」（docs/COPY.md）。认不出的仍按原文存。
  */
+import { tr } from './i18n';
 import type { EpisodeValue, FieldValue } from './types';
 
 const CN_DIGIT: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
@@ -84,11 +85,12 @@ export function stripEpisode(text: string): { rest: string; match: EpisodeMatch 
   return { rest, match };
 }
 
-/** 显示：第 2 季第 3 集 / 第 3 集 / 第 2 季。 */
+/** 显示：第 2 季第 3 集 / 第 3 集 / 第 2 季（英文 Season 2, Episode 3）。 */
 export function formatEpisode(v: EpisodeValue): string {
-  const s = v.season !== undefined ? `第 ${v.season} 季` : '';
-  const e = v.episode !== undefined ? `第 ${v.episode} 集` : '';
-  return s + e;
+  if (v.season !== undefined && v.episode !== undefined) return tr('第 {s} 季第 {e} 集', { s: v.season, e: v.episode });
+  if (v.season !== undefined) return tr('第 {s} 季', { s: v.season });
+  if (v.episode !== undefined) return tr('第 {e} 集', { e: v.episode });
+  return '';
 }
 
 /** 字段值 → 结构化的季集（旧数据是文字时尽量认出来；整段都是标记才算）。 */

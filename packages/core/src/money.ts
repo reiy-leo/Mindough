@@ -2,6 +2,7 @@
  * 金额字段（money）：金额 + 币种，不做换算。币种表、显示格式（Intl，zh-CN，按币种的小数位）、
  * 旧价格（数字 / 「$12.5」「£30」「1299 元」）的识别，以及「上次用的币种」。界面文案见 docs/COPY.md。
  */
+import { getLocale, intlLocale } from './i18n';
 import type { FieldValue, LibraryItem, MoneyValue } from './types';
 
 export interface Currency {
@@ -42,14 +43,37 @@ export const CURRENCIES: Currency[] = [
 ];
 
 export const DEFAULT_CURRENCY = 'CNY';
+
+let enNames: Intl.DisplayNames | null = null;
+/** 币种的显示名：中文用表里的中文名，英文用 Intl（「US Dollar」「Singapore Dollar」）。 */
+export function currencyName(c: Currency): string {
+  if (getLocale() !== 'en') return c.name;
+  try {
+    enNames ??= new Intl.DisplayNames(['en'], { type: 'currency' });
+    return enNames.of(c.code) ?? c.code;
+  } catch {
+    return c.code;
+  }
+}
 const byCode = new Map(CURRENCIES.map((c) => [c.code, c]));
 export const currencyOf = (code: string) => byCode.get(code.toUpperCase());
 
-/** 搜币种：代码、中文名、符号、别名都能搜（「美」「usd」「$」「里拉」）。 */
+/** 搜币种用的文字：代码、中文名、英文名、符号、别名。 */
+export function currencySearchText(c: Currency): string {
+  let en = '';
+  try {
+    en = new Intl.DisplayNames(['en'], { type: 'currency' }).of(c.code) ?? '';
+  } catch {
+    /* 没有 Intl.DisplayNames 的环境：只搜中文名和代码 */
+  }
+  return [c.code, c.name, en, c.symbol, ...(c.aliases ?? [])].join(' ').toLowerCase();
+}
+
+/** 搜币种：代码、中文名、英文名、符号、别名都能搜（「美」「usd」「dollar」「$」「里拉」）。 */
 export function searchCurrencies(query: string): Currency[] {
   const q = query.trim().toLowerCase();
   if (!q) return CURRENCIES;
-  return CURRENCIES.filter((c) => [c.code, c.name, c.symbol, ...(c.aliases ?? [])].some((s) => s.toLowerCase().includes(q)));
+  return CURRENCIES.filter((c) => currencySearchText(c).includes(q));
 }
 
 /** 字段值 → 金额（容错：旧数据是数字、文字；认不出返回 null）。数字和没写币种的默认人民币。 */
@@ -123,14 +147,14 @@ export function parseMoney(text: string, fallbackCurrency = DEFAULT_CURRENCY): M
   return { amount, currency: cur ?? fallbackCurrency };
 }
 
-/** 显示：Intl（zh-CN）按币种的小数位；整数金额不补 .00（「¥1,299」「US$12.50」「JP¥1,200」）。 */
+/** 显示：Intl（按界面语言，zh-CN / en-US）按币种的小数位；整数金额不补 .00（「¥1,299」「US$12.50」「JP¥1,200」）。 */
 export function formatMoney(m: MoneyValue): string {
   const cur = currencyOf(m.currency);
   const currency = cur?.code ?? m.currency;
   try {
-    const base = new Intl.NumberFormat('zh-CN', { style: 'currency', currency });
+    const base = new Intl.NumberFormat(intlLocale(), { style: 'currency', currency });
     const max = base.resolvedOptions().maximumFractionDigits ?? 2;
-    const parts = new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: Number.isInteger(m.amount) ? 0 : max, maximumFractionDigits: max }).formatToParts(m.amount);
+    const parts = new Intl.NumberFormat(intlLocale(), { style: 'currency', currency, minimumFractionDigits: Number.isInteger(m.amount) ? 0 : max, maximumFractionDigits: max }).formatToParts(m.amount);
     // zh-CN 对很多币种只给代码（「SGD 189」「TRY 1,299」）；这时换成当地常用符号（S$、₺、₱、RM…），去掉代码后的空格
     const codeOnly = parts.some((p) => p.type === 'currency' && p.value === currency);
     if (!codeOnly || !cur || cur.symbol === currency) return parts.map((p) => p.value).join('');

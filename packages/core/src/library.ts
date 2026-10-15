@@ -12,6 +12,8 @@ import { isLinkField, linkChips, matchOptions, type LinkChip } from './links';
 import { DEFAULT_CURRENCY, moneyOf } from './money';
 import type { FieldDef, FieldValue, LibraryItem, Person, Task, TaskType } from './types';
 
+import { dataLabel, tr } from './i18n';
+
 // ───────────── 叫法 ─────────────
 
 export interface LibraryCopy {
@@ -23,24 +25,28 @@ export interface LibraryCopy {
   pick: string;
   /** 量词：部、本、款… */
   measure: string;
+  /** 条数：「12 部」/「12 titles」。 */
+  count(n: number): string;
+  /** 空库时的按钮：「添加第一部」/「Add your first title」。 */
+  addFirst: string;
 }
 
 const B = BUILTIN_TYPE_IDS;
 export const LIBRARY_COPY: Record<string, LibraryCopy> = {
-  [B.movie]: { name: '影视库', short: '影视', pick: '选一部影视…', measure: '部' },
-  [B.book]: { name: '书库', short: '书', pick: '选一本书…', measure: '本' },
-  [B.game]: { name: '游戏库', short: '游戏', pick: '选一款游戏…', measure: '款' },
-  [B.project]: { name: '项目库', short: '项目', pick: '选一个项目…', measure: '个' },
-  [B.course]: { name: '课程库', short: '课程', pick: '选一门课…', measure: '门' },
-  [B.travel]: { name: '目的地', short: '目的地', pick: '选一个目的地…', measure: '个' },
-  [B.shopping]: { name: '好物清单', short: '好物', pick: '选一件东西…', measure: '件' },
-  [B.restaurant]: { name: '餐厅库', short: '餐厅', pick: '选一家餐厅…', measure: '家' },
-  [B.meal]: { name: '菜谱', short: '菜谱', pick: '选一道菜…', measure: '道' },
-  [B.person]: { name: '人物', short: '人物', pick: '选一个人…', measure: '位' },
+  [B.movie]: { get name() { return tr('影视库'); }, get short() { return tr('影视'); }, get pick() { return tr('选一部影视…'); }, get measure() { return tr('部'); }, count: (n) => tr('{n} 部', { n }), get addFirst() { return tr('添加第一部'); } },
+  [B.book]: { get name() { return tr('书库'); }, get short() { return tr('书'); }, get pick() { return tr('选一本书…'); }, get measure() { return tr('本'); }, count: (n) => tr('{n} 本', { n }), get addFirst() { return tr('添加第一本'); } },
+  [B.game]: { get name() { return tr('游戏库'); }, get short() { return tr('游戏'); }, get pick() { return tr('选一款游戏…'); }, get measure() { return tr('款'); }, count: (n) => tr('{n} 款', { n }), get addFirst() { return tr('添加第一款'); } },
+  [B.project]: { get name() { return tr('项目库'); }, get short() { return tr('项目'); }, get pick() { return tr('选一个项目…'); }, get measure() { return tr('个'); }, count: (n) => tr('{n} 个项目', { n }), get addFirst() { return tr('添加第一个项目'); } },
+  [B.course]: { get name() { return tr('课程库'); }, get short() { return tr('课程'); }, get pick() { return tr('选一门课…'); }, get measure() { return tr('门'); }, count: (n) => tr('{n} 门课', { n }), get addFirst() { return tr('添加第一门课'); } },
+  [B.travel]: { get name() { return tr('目的地'); }, get short() { return tr('目的地'); }, get pick() { return tr('选一个目的地…'); }, get measure() { return tr('个'); }, count: (n) => tr('{n} 个目的地', { n }), get addFirst() { return tr('添加第一个目的地'); } },
+  [B.shopping]: { get name() { return tr('好物清单'); }, get short() { return tr('好物'); }, get pick() { return tr('选一件东西…'); }, get measure() { return tr('件'); }, count: (n) => tr('{n} 件', { n }), get addFirst() { return tr('添加第一件'); } },
+  [B.restaurant]: { get name() { return tr('餐厅库'); }, get short() { return tr('餐厅'); }, get pick() { return tr('选一家餐厅…'); }, get measure() { return tr('家'); }, count: (n) => tr('{n} 家', { n }), get addFirst() { return tr('添加第一家'); } },
+  [B.meal]: { get name() { return tr('菜谱'); }, get short() { return tr('菜谱'); }, get pick() { return tr('选一道菜…'); }, get measure() { return tr('道'); }, count: (n) => tr('{n} 道菜', { n }), get addFirst() { return tr('添加第一道菜'); } },
+  [B.person]: { get name() { return tr('人物'); }, get short() { return tr('人物'); }, get pick() { return tr('选一个人…'); }, get measure() { return tr('位'); }, count: (n) => tr('{n} 位', { n }), get addFirst() { return tr('添加第一位'); } },
 };
 
 export function libraryCopy(type: Pick<TaskType, 'id' | 'name'>): LibraryCopy {
-  return LIBRARY_COPY[type.id] ?? { name: `${type.name}库`, short: type.name, pick: `选一个${type.name}…`, measure: '个' };
+  return LIBRARY_COPY[type.id] ?? { name: tr('{name}库', { name: type.name }), short: type.name, pick: tr('选一个{name}…', { name: type.name }), measure: tr('个'), count: (n) => tr('{n} 个', { n }), addFirst: tr('添加第一个') };
 }
 
 // ───────────── 字段拆分 ─────────────
@@ -157,7 +163,7 @@ export function itemSubtitle(type: Pick<TaskType, 'fields'> | null | undefined, 
 export function fieldDisplay(f: Pick<FieldDef, 'kind' | 'unit'>, v: FieldValue | undefined): string {
   const t = fieldText(v).trim();
   if (!t) return '';
-  return f.kind === 'number' && f.unit ? `${t} ${f.unit}` : t;
+  return f.kind === 'number' && f.unit ? `${t} ${dataLabel(f.unit)}` : t;
 }
 
 export function entryOfItem(type: TaskType | undefined, item: LibraryItem, recency: number, uses: number): LibraryEntry {
@@ -305,7 +311,7 @@ export function planFieldMigration(items: readonly LibraryItem[], types: readonl
     let fields: Record<string, FieldValue> | null = null;
     let note = it.note_md;
     const keep = (label: string, text: string) => {
-      const line = `${label}：${text}`;
+      const line = `${label}：${text}`; // i18n-ignore 写进数据的备注，不随界面语言变
       if (!note.includes(line)) note = note.trim() ? `${note.replace(/\s+$/, '')}\n\n${line}` : line;
     };
     for (const f of defs) {
@@ -331,7 +337,7 @@ export function planFieldMigration(items: readonly LibraryItem[], types: readonl
       const options = f.options ?? [];
       const { values, unmatched } = matchOptions(options, text);
       if (unmatched.length) {
-        if (options.includes('其他') && !values.includes('其他')) values.push('其他');
+        if (options.includes('其他') && !values.includes('其他')) values.push('其他'); // i18n-ignore 选项值（数据）
         keep(f.label, text);
       }
       if (values.length) fields[f.key] = values;
