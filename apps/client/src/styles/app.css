@@ -1475,10 +1475,21 @@ button {
   flex-direction: column;
   gap: 4px;
 }
+.heatmap-months-row {
+  display: flex;
+  gap: var(--g);
+}
+.heatmap-corner {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  width: var(--wd, 18px);
+  background-color: color-mix(in srgb, var(--surface) 100%, var(--bg));
+}
 .heatmap-months {
   display: grid;
   column-gap: var(--g);
-  margin-left: calc(var(--wd, 18px) + var(--g));
   font-size: 11px;
   color: var(--text-2);
   height: 15px;

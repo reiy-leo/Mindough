@@ -797,13 +797,13 @@
   font-size: 15px;
   line-height: 1.65;
 }
-.detail-md > :first-child {
+.detail-md:not(.md-editor) > :first-child {
   font-size: 20px;
   line-height: 1.35;
   font-weight: 600;
   margin-bottom: 8px;
 }
-.detail-hero ~ .detail-body .detail-md > :first-child {
+.detail-hero ~ .detail-body .detail-md:not(.md-editor) > :first-child {
   font-size: 15px;
   line-height: 1.65;
 }
@@ -1308,4 +1308,21 @@
 .modal-relpick .task-search,
 .modal-relpick .task-search .cat-search {
   width: 100%;
+}
+
+/* 新建面板的内容框是不带工具栏的编辑器：字和以前的输入框一样大 */
+.composer-body .md-editor-content {
+  font-size: 18px;
+  line-height: 1.5;
+}
+.composer-body .md-editor-content h1,
+.composer-body .md-editor-content h2,
+.composer-body .md-editor-content h3 {
+  margin-top: 0.4em;
+}
+.composer-body .md-editor-content h1,
+.composer-body .md-editor-content h2,
+.composer-body .md-editor-content h3 {
+  font-size: 18px;
+  font-weight: 600;
 }

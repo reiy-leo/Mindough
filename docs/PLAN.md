@@ -233,7 +233,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - ✅ GitHub Actions：`ci.yml`（类型检查、单测、构建）；`build.yml`（手动或推 `v*` 标签）用 tauri-action 打未签名的 macOS universal、Windows（msi / nsis）、Linux（AppImage / deb），另有 Android debug APK（arm64，CI 里 `tauri android init`）；产物传 artifacts，推标签时建 Release 草稿。iOS 待签名方案。
 - ✅ Google 登录（Worker 写好未部署）：`/auth/login`、`/auth/callback`、`/auth/logout`、`/api/me`；HMAC 签名会话 cookie（SESSION_SECRET，30 天）；`ALLOWED_EMAILS` 白名单，为空 = 谁都不能登录。失败回跳带 `?login_error=代码`，前端启动时立即用 history.replaceState 去掉并显示可关闭提示，登录成功后不再显示。`POST /api/sync/token` 当时先返回 501 未实现，M2 已签发同步凭据。客户端设置页有“账户”区；不登录也能完整离线使用。
 - ✅ 原生端登录（系统浏览器 + deep link 回调）：M2 里做完，见“原生端登录（Tauri）”；Worker 已部署，Google OAuth 客户端 Rei 配好（2026-10-15）。
-- 待做：Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
+- ✅ Markdown 编辑换成 Milkdown（所见即所得），见 M3-2。
 
 ### M1b ✅（2026-10-15）：新建与详情重做 + 文案（Rei：“功能都有，但让人厌恶……完成方式在新建时就要让用户选，而且用词很粗糙”）
 - 新建和详情拆开。新建面板（TaskComposer）：一个大的无边框内容框（「要做什么？」，自动聚焦，无标签无编辑/预览页签，Markdown 写法只在 ? 悬停提示里）；下面一排属性胶囊（类型 / 日期 / 组 / 和谁有关，点开是弹层，设了显示值）；「怎么算完成」四张卡片（名称 + 一句话例子，默认勾选完成），选中后只出现它自己的一句话设置（每次 [10] [分钟] / 目标 [8] [杯] / 目标日期 [..]，到时显示 还有 N 天）；「多久一次」只做一次 / 定期打卡 → 每天 / 每周[一…日] / 每月 [15] 号 / 每 [3] 天，定期时出打卡分类网格。选了非普通类型才出现该类型的字段，类型可带默认完成方式（用户手动挑过就不改）。没有状态、没有删除；主按钮「添加」（⌘/Ctrl+Enter），取消或 Esc。从侧边栏新建且无组无日期的仍自动进我的一天；建好后提示里可「查看」。“然后呢？”/「新建下一步」打开同一个面板，带“做完「X」之后”，建好自动连上。
@@ -262,7 +262,12 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 
 ### M3 天天好用（Rei 2026-10-16 批准路线图：“做完之后就按顺序，开工M3，直到做完为止”；动工顺序 4 → 6 → 2 → 1 → 3 → 5）
 1. ⬜ 提醒通知：计时到点、倒数日、周期打卡（每天 X 点提醒）；任务上设「到期提醒时间」；设置页总开关。Web 用 Notification API（app 开着时排程，能用 service worker 就用），Tauri 用 tauri-plugin-notification（桌面 + 移动端）。提醒设置存进任务 / 打卡的数据模型（迁移 + 同步行）。
-2. ⬜ 正经的 Markdown 编辑器：所见即所得，取代「输入框 + 排好版的预览」；Milkdown 或 TipTap（选型与理由写在下面）；入库仍是 markdown 文本；资料备注也用它。
+2. ✅ 正经的 Markdown 编辑器（2026-10-16）：所见即所得，取代「输入框 + 排好版的预览」，入库仍是 markdown 文本。
+   - 选 **Milkdown 7**（不选 TipTap）：它本身就是 markdown 原生的——remark 解析 ↔ ProseMirror 文档 ↔ remark 序列化，存进去、读出来就是 markdown，往返保真（`milkdown.test.ts` 覆盖标题 / 清单 / 表格 / 删除线 / 链接 / 代码 / 引用 / 空清单项）；TipTap 的 markdown 要靠社区扩展转换，往返会丢东西。GFM 预设直接带表格、清单（`- [ ]`）、删除线、自动链接。headless、不带样式，排版沿用 `.md`，三种皮肤只改令牌（清单勾 Apple 圆形 / WinUI · Material 圆角方形）。
+   - 用在：任务详情的内容（点进去就能改，Esc 收起）、资料 / 人物备注、**新建面板的内容框**（不带工具栏的轻量版 `toolbar="none"`：只靠写法变样子，`# `、`- [ ] `、`**粗体**` 打出来就排好；字号同以前 18px；Esc 关面板、⌘/Ctrl+Enter 添加照旧）。编辑器约 120 KB（gzip）按需加载，启动后空闲时预加载，新建面板一打开就能写。
+   - 详情和备注编辑时下方出现格式工具栏（标题 / 粗体 / 斜体 / 删除线 · 清单 / 列表 / 编号列表 / 引用 / 代码 · 链接 / 表格），按钮不抢焦点，悬停提示带快捷键，⌘K 加链接；点清单的勾直接切换。
+   - 去掉了备注标签旁的「支持 Markdown」小字（写的时候就是排好的样子，用不着说）；新建面板的 ? 提示改成「直接这样写，会自动排好版：」。
+   - 修：详情第一行的标题样式漏到了整段（`.detail-md > :first-child` 套到了编辑器外壳上），小标题比正文大一点（h1 19 / h2 17）。
 3. ⬜ 小组件：我的一天、今天要打卡。桌面 = 置顶的「小窗」（Tauri 第二个窗口，可直接勾掉）；手机主屏 = Android AppWidget（读 app 写出的 JSON 快照），iOS WidgetKit 能做就搭架子，否则写明。
 4. ✅ 桌面 app 外链用系统浏览器打开（Tauri opener）：`lib/external.ts` 在 document 上捕获 click / auxclick，指向别的源的 http(s) 和 mailto / tel 链接一律交给 `openUrl`（Markdown 渲染的链接、资料卡小标签、编辑器里的链接都不用各自处理）；Web 端照常新标签页；权限沿用 `opener:default`（只放行 http / https / mailto / tel）。真机待验。
 5. ⬜ 各平台安装包跑通（macOS / Windows / Android）；iOS 分发方式待 Rei 定。

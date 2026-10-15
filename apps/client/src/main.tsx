@@ -9,6 +9,7 @@ import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
 import { applyLocalePref, initialLocalePref } from './lib/i18n';
 import { LocaleRoot } from './lib/locale';
+import { preloadMdEditor } from './components/editor/LazyMdEditor';
 import './skin/tokens.css';
 import './styles/app.css';
 import './styles/task.css';
@@ -25,6 +26,10 @@ startAccountWatch();
 void initNativeLogin();
 // App 里的外链交给系统浏览器
 installExternalLinks();
+
+// 编辑器在空闲时先加载好：新建面板一打开就能写
+const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500));
+idle(preloadMdEditor);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -3,7 +3,13 @@ import { lazy, Suspense } from 'react';
 import { Markdown } from '../Markdown';
 import type { MdEditorProps } from './MdEditor';
 
-const Impl = lazy(() => import('./MdEditor'));
+const load = () => import('./MdEditor');
+const Impl = lazy(load);
+
+/** 提前把编辑器加载好（新建面板一打开就能写，不等下载）。 */
+export function preloadMdEditor() {
+  void load();
+}
 
 export function LazyMdEditor(props: MdEditorProps) {
   return (

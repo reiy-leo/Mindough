@@ -24,8 +24,8 @@ export interface MdEditorProps {
   onBlur?: () => void;
   onEscape?: () => void;
   className?: string;
-  /** 工具栏一直显示（否则只在编辑时出现）。 */
-  toolbar?: 'focus' | 'always';
+  /** 工具栏：编辑时出现（默认）/ 一直显示 / 不要（新建面板：只靠写法变样子，保持安静）。 */
+  toolbar?: 'focus' | 'always' | 'none';
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -92,7 +92,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
         }, 0);
       },
       onEscape: () => cb.current.onEscape?.(),
-      onLinkShortcut: () => setLinking(true),
+      ...(toolbar === 'none' ? {} : { onLinkShortcut: () => setLinking(true) }),
       onSelection: () => h && setActive(h.active()),
     }).then((x) => {
       if (dead) return void x.destroy();
@@ -136,7 +136,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
     if (url) h.run('link', /^[a-z]+:/i.test(url) ? url : `https://${url}`);
   };
 
-  const showBar = toolbar === 'always' || focused || linking;
+  const showBar = toolbar !== 'none' && (toolbar === 'always' || focused || linking);
   return (
     <div className={`md-editor${showBar ? ' is-active' : ''}${className ? ` ${className}` : ''}`}>
       <div ref={root} className="md-editor-root" />

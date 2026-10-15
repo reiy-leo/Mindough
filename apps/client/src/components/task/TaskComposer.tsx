@@ -5,7 +5,8 @@ import { PLAIN_TYPE_ID, episodeOf, findEpisode, firstLine, formatEpisode, stripE
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
-import { AutoTextarea, Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
+import { Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
+import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { CategoryPicker } from '../CheckInCategory';
 import { AvatarStack } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
@@ -27,7 +28,6 @@ export function PropChip({ icon, label, value, color }: { icon: ReactNode; label
   );
 }
 
-export { MARKDOWN_HELP } from '../Markdown';
 
 /** 「已识别 第 2 季第 3 集」：让人看见自动填了什么；还没填进去时是 ×（不用），填进去后是「撤销」。 */
 function EpisodeChip({ text, pending, onUndo }: { text: string; pending: boolean; onUndo: () => void }) {
@@ -50,7 +50,7 @@ function EpisodeChip({ text, pending, onUndo }: { text: string; pending: boolean
     </div>
   );
 }
-import { MARKDOWN_HELP } from '../Markdown';
+import { markdownHelp } from '../Markdown';
 
 import { dataLabel, tr } from '../../lib/i18n';
 import { trx } from '../../lib/trx';
@@ -148,11 +148,11 @@ function Composer() {
     // 打开即可输入：React Aria 的 Dialog 会先把焦点放在自己身上，晚一帧再聚焦正文
     // 资料库类型由选择框自己聚焦
     if (lib && !entry) return;
-    const t = setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer-body')?.focus(), 30);
+    const t = setTimeout(() => document.querySelector<HTMLElement>('.composer-body .ProseMirror')?.focus(), 30);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const focusBody = () => setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer-body')?.focus(), 30);
+  const focusBody = () => setTimeout(() => document.querySelector<HTMLElement>('.composer-body .ProseMirror')?.focus(), 30);
 
   const title = after ? tr('接下来做什么') : group && req.defaults.group_id ? tr('在「{name}」里新建', { name: group.name }) : req.defaults.recurrence ? tr('新建打卡') : tr('新建任务');
 
@@ -233,7 +233,7 @@ function Composer() {
       onKeyDown={onKeyDown}
       footer={
         <>
-          <Tip content={MARKDOWN_HELP}>
+          <Tip content={markdownHelp()}>
             <RacButton className="icon-btn composer-help" aria-label={tr('写法提示')}>
               <CircleHelp size={16} />
             </RacButton>
@@ -307,7 +307,16 @@ function Composer() {
             }}
           />
         )}
-        <AutoTextarea label={tr('内容')} className="composer-body" value={d.body} onChange={(v) => set({ body: v })} placeholder={lib || typed ? tr('还想记点什么？（可以不填）') : tr('要做什么？')} minRows={1} />
+        <LazyMdEditor
+          label={tr('内容')}
+          className="composer-body"
+          toolbar="none"
+          onEscape={() => ui.closeQuickCreate()}
+          autoFocus={!(lib && !entry)}
+          value={d.body}
+          onChange={(v) => set({ body: v })}
+          placeholder={lib || typed ? tr('还想记点什么？（可以不填）') : tr('要做什么？')}
+        />
 
         <div className="prop-chips" role="group" aria-label={tr('更多属性')}>
           <PopoverPanel label={tr('类型')} trigger={<PropChip icon={<TypeIcon size={14} />} label={tr('类型')} {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: dataLabel(type.name), color: type.color } : {})} />}>

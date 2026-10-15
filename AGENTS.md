@@ -13,10 +13,10 @@
 
 ## 技术栈（M0 已落定的版本标 ✅）
 - ✅ TypeScript 5.9（strict + noUncheckedIndexedAccess）、React 19、Vite 8、Vitest 4、pnpm workspace
-- ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（编辑先用 textarea）
+- ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify；✅ 编辑 Milkdown 7（`components/editor/`，所见即所得，存 markdown）
 - Tauri 2（桌面 + iOS/Android；本机 cargo check 通过，GitHub Actions build.yml 打包）
 - UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
-- Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
+- ✅ Markdown 编辑：Milkdown 7（commonmark + gfm 预设），正文以 .md 文本入库；详情 / 备注带工具栏，新建面板 `toolbar="none"`
 - 依赖图：React Flow（xyflow）+ elkjs
 - ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），同一 schema 与迁移（packages/core/src/storage/schema.ts）
 - ✅ 同步：云端是 Turso Cloud 库 `mindough`（东京），客户端经 Worker `/api/sync/*` 用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）；Worker `mindough`（`mindough.rei8t.dev`）负责 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`

@@ -164,7 +164,15 @@
 .detail-md .md-editor-content h2,
 .detail-md .md-editor-content h3 {
   font-size: 15px;
+  font-weight: 600;
   margin: 16px 0 4px;
+}
+/* 标题比正文大一点点（Things 3 的小标题）：h1 19、h2 17、h3 15 粗体 */
+.detail-md .md-editor-content h1 {
+  font-size: 19px;
+}
+.detail-md .md-editor-content h2 {
+  font-size: 17px;
 }
 .detail-md .md-editor-content > h1:first-child,
 .detail-md .md-editor-content > h2:first-child,

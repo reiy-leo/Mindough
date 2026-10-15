@@ -106,7 +106,7 @@ export const EN: Record<string, EnValue> = {
 
   // ── Markdown ──
   '（还没有内容）': '(Nothing here yet)',
-  '可以用 Markdown 排版：': 'You can format with Markdown:',
+  '直接这样写，会自动排好版：': 'Type these and they format as you go:',
   '# 标题': '# Heading',
   '- [ ] 清单': '- [ ] Checklist',
   '**粗体**': '**Bold**',
@@ -165,7 +165,6 @@ export const EN: Record<string, EnValue> = {
   // ── 备注 ──
   备注: 'Notes',
   '写点什么…': 'Write something…',
-  '支持 Markdown': 'Markdown supported',
   '{label}，按回车编辑': '{label}, press Return to edit',
 
   // ── Markdown 编辑器 ──
