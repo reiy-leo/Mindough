@@ -23,6 +23,11 @@ export const CORE_EN: Record<string, V> = {
   分钟: 'min',
   小时: 'hr',
 
+  // ── 提醒 ──
+  今天要做: 'Due today',
+  该打卡了: 'Time to check in',
+  '计时到了：{duration}': 'Time’s up — {duration}',
+
   // ── 依赖 / 相关 ──
   '不能这样连：会绕成一个圈': 'Can’t connect these — it would make a loop',
   一件任务不能排在自己前面: 'A task can’t come before itself',
