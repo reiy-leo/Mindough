@@ -28,7 +28,7 @@ export interface SessionUser {
 
 export const SESSION_COOKIE = 'md_session';
 const OAUTH_COOKIE = 'md_oauth';
-const SESSION_TTL_S = 30 * 24 * 3600;
+export const SESSION_TTL_S = 30 * 24 * 3600;
 const OAUTH_TTL_S = 10 * 60;
 
 export const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -85,20 +85,53 @@ const redirect = (location: string, cookies: string[] = []) => {
   return new Response(null, { status: 302, headers });
 };
 
-export async function currentUser(req: Request, env: AuthEnv): Promise<SessionUser | null> {
+/** 会话：Web 端是 md_session cookie；原生端（Tauri）没有 cookie，用 `Authorization: Bearer <会话>`（/auth/exchange 换来的）。 */
+export async function sessionFrom(req: Request, env: AuthEnv): Promise<SessionUser | null> {
   if (!env.SESSION_SECRET) return null;
-  const user = await verify<SessionUser>(readCookie(req, SESSION_COOKIE), env.SESSION_SECRET);
-  // 白名单改了以后，已登录但不在名单里的会话也失效
-  if (user && !allowedEmails(env).has(user.email.toLowerCase())) return null;
+  const bearer = (req.headers.get('authorization') ?? '').match(/^Bearer\s+(.+)$/i)?.[1];
+  const user = await verify<SessionUser & { k?: string }>(bearer ?? readCookie(req, SESSION_COOKIE), env.SESSION_SECRET);
+  // 只认会话：同步凭据（k = sync）不能当会话用
+  if (!user || user.k !== undefined || typeof user.sub !== 'string' || typeof user.email !== 'string') return null;
   return user;
+}
+
+export type SessionCheck = { status: 200; user: SessionUser } | { status: 401 } | { status: 403; user: SessionUser };
+
+/** 401 = 没有有效会话；403 = 会话有效但邮箱不在 ALLOWED_EMAILS 里（白名单改了以后的旧会话）。 */
+export async function currentSession(req: Request, env: AuthEnv): Promise<SessionCheck> {
+  const user = await sessionFrom(req, env);
+  if (!user) return { status: 401 };
+  if (!allowedEmails(env).has(user.email.toLowerCase())) return { status: 403, user };
+  return { status: 200, user };
+}
+
+export async function currentUser(req: Request, env: AuthEnv): Promise<SessionUser | null> {
+  const s = await currentSession(req, env);
+  return s.status === 200 ? s.user : null;
+}
+
+/** 原生端（Tauri）登录完成后回到 app 的 deep link。 */
+export const NATIVE_RETURN = 'mindough://auth';
+
+interface OAuthState {
+  state: string;
+  return_to: string;
+  exp: number;
+  /** 原生端登录：PKCE 式的 challenge = base64url(SHA-256(verifier))，换会话时要出示 verifier。 */
+  native?: { challenge: string };
 }
 
 export async function handleLogin(req: Request, env: AuthEnv): Promise<Response> {
   const url = new URL(req.url);
-  const returnTo = safeReturnTo(url.searchParams.get('return_to'), url, env);
-  if (!configured(env)) return redirect(withLoginError(returnTo, 'config_missing'));
+  const challenge = url.searchParams.get('challenge');
+  const native = url.searchParams.get('native') === '1' && !!challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge);
+  const returnTo = native ? NATIVE_RETURN : safeReturnTo(url.searchParams.get('return_to'), url, env);
+  if (!configured(env)) return native ? nativeResult(withLoginError(NATIVE_RETURN, 'config_missing'), false) : redirect(withLoginError(returnTo, 'config_missing'));
   const state = randomToken();
-  const oauth = await sign({ state, return_to: returnTo, exp: Date.now() + OAUTH_TTL_S * 1000 }, env.SESSION_SECRET!);
+  const oauth = await sign(
+    { state, return_to: returnTo, exp: Date.now() + OAUTH_TTL_S * 1000, ...(native ? { native: { challenge: challenge! } } : {}) } satisfies OAuthState,
+    env.SESSION_SECRET!,
+  );
   const auth = new URL(GOOGLE_AUTH_URL);
   auth.searchParams.set('client_id', env.GOOGLE_CLIENT_ID!);
   auth.searchParams.set('redirect_uri', `${url.origin}/auth/callback`);
@@ -109,14 +142,34 @@ export async function handleLogin(req: Request, env: AuthEnv): Promise<Response>
   return redirect(auth.toString(), [setCookie(OAUTH_COOKIE, oauth, { maxAge: OAUTH_TTL_S, secure: isSecure(url), path: '/auth' })]);
 }
 
-export async function handleCallback(req: Request, env: AuthEnv): Promise<Response> {
+/**
+ * 原生端登录的结果页：浏览器里显示一句话，并自动跳回 app（mindough://auth?code=… 或 ?login_error=…）。
+ * 不直接 302 到自定义协议：有的浏览器会静默拦下，留一个按钮可以再点。
+ */
+export function nativeResult(link: string, ok: boolean): Response {
+  const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const title = ok ? '已登录，回到 Mindough 继续' : '没有登录成功';
+  const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+<style>body{font:16px/1.6 -apple-system,"Segoe UI Variable","Segoe UI",system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#1d1d1f;background:#f5f5f7}main{text-align:center;padding:24px}a{display:inline-block;margin-top:12px;padding:8px 18px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none}p{color:#6e6e73}@media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}p{color:#a1a1a6}}</style></head>
+<body><main><h1 style="font-size:22px;font-weight:600">${title}</h1><p>${ok ? '这个页面可以关掉了。' : '回到 Mindough 看看是怎么回事。'}</p><a href="${esc(link)}">打开 Mindough</a></main>
+<script>location.href=${JSON.stringify(link)}</script></body></html>`;
+  return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'set-cookie': setCookie(OAUTH_COOKIE, '', { maxAge: 0, secure: true, path: '/auth' }) } });
+}
+
+export interface CallbackHooks {
+  /** 原生端登录成功：发一次性登录码，返回 deep link（见 native.ts）。 */
+  issueNativeCode?: (user: SessionUser, challenge: string) => Promise<string>;
+}
+
+export async function handleCallback(req: Request, env: AuthEnv, hooks: CallbackHooks = {}): Promise<Response> {
   const url = new URL(req.url);
   const secure = isSecure(url);
   const clearOauth = setCookie(OAUTH_COOKIE, '', { maxAge: 0, secure, path: '/auth' });
   if (!configured(env)) return redirect(withLoginError('/', 'config_missing'), [clearOauth]);
-  const oauth = await verify<{ state: string; return_to: string; exp: number }>(readCookie(req, OAUTH_COOKIE), env.SESSION_SECRET!);
+  const oauth = await verify<OAuthState>(readCookie(req, OAUTH_COOKIE), env.SESSION_SECRET!);
   const returnTo = oauth?.return_to ?? '/';
-  const fail = (code: LoginError) => redirect(withLoginError(returnTo, code), [clearOauth]);
+  const fail = (code: LoginError) =>
+    oauth?.native ? nativeResult(withLoginError(NATIVE_RETURN, code), false) : redirect(withLoginError(returnTo, code), [clearOauth]);
 
   if (url.searchParams.get('error')) return fail('access_denied');
   const code = url.searchParams.get('code');
@@ -151,6 +204,15 @@ export async function handleCallback(req: Request, env: AuthEnv): Promise<Respon
     picture: info.picture ?? null,
     exp: Date.now() + SESSION_TTL_S * 1000,
   };
+  if (oauth.native) {
+    if (!hooks.issueNativeCode) return fail('config_missing');
+    try {
+      const code = await hooks.issueNativeCode(user, oauth.native.challenge);
+      return nativeResult(`${NATIVE_RETURN}?code=${encodeURIComponent(code)}`, true);
+    } catch {
+      return fail('config_missing');
+    }
+  }
   const session = await sign(user, env.SESSION_SECRET!);
   return redirect(returnTo, [clearOauth, setCookie(SESSION_COOKIE, session, { maxAge: SESSION_TTL_S, secure })]);
 }

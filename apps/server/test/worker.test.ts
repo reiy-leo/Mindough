@@ -176,20 +176,22 @@ describe('/api 与 /auth/logout', () => {
     return `md_session=${encodeURIComponent(s)}`;
   }
 
-  it('/api/me 未登录：401 未登录；伪造 / 过期 / 已移出白名单的会话也是 401', async () => {
+  it('/api/me 未登录：401 未登录；伪造 / 过期的会话也是 401；已移出白名单的会话 403 无权限', async () => {
     expect((await handle(req('/api/me'), env)).status).toBe(401);
     expect(await (await handle(req('/api/me'), env)).json()).toEqual({ error: '401 未登录' });
     expect((await handle(req('/api/me', { cookie: 'md_session=abc.def' }), env)).status).toBe(401);
     const expired = await sign({ sub: '1', email: 'reiy.leoz@gmail.com', exp: Date.now() - 1 }, env.SESSION_SECRET!);
     expect((await handle(req('/api/me', { cookie: `md_session=${encodeURIComponent(expired)}` }), env)).status).toBe(401);
-    expect((await handle(req('/api/me', { cookie: await loggedInCookie('removed@x.com') }), env)).status).toBe(401);
+    const removed = await handle(req('/api/me', { cookie: await loggedInCookie('removed@x.com') }), env);
+    expect(removed.status).toBe(403);
+    expect(((await removed.json()) as { error: string }).error).toContain('403 无权限');
   });
 
-  it('POST /api/sync/token：未登录 401；登录后 501 未实现；GET 405', async () => {
+  it('POST /api/sync/token：未登录 401；同步数据库没配置 503；GET 405（签发见 sync.test.ts）', async () => {
     expect((await handle(req('/api/sync/token', { method: 'POST' }), env)).status).toBe(401);
     const res = await handle(req('/api/sync/token', { method: 'POST', cookie: await loggedInCookie() }), env);
-    expect(res.status).toBe(501);
-    expect((await res.json()) as { error: string }).toEqual({ error: expect.stringContaining('501 未实现') });
+    expect(res.status).toBe(503);
+    expect((await res.json()) as { error: string }).toEqual({ error: expect.stringContaining('503 服务不可用') });
     expect((await handle(req('/api/sync/token'), env)).status).toBe(405);
   });
 

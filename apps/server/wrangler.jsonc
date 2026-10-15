@@ -1,5 +1,5 @@
-// Mindough Worker（尚未部署）：Google 登录、/api、托管 Web 端静态资源（apps/client/dist）。
-// 密钥用 `wrangler secret put` 配：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS。
+// Mindough Worker（本地开发配置；线上用 wrangler.deploy.jsonc）：Google 登录、同步 API、图片、托管 Web 端静态资源。
+// 密钥用 `wrangler secret put` 配：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS、TURSO_DB_URL、TURSO_DB_TOKEN。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mindough",
@@ -14,5 +14,7 @@
     // /api 与 /auth 先进 Worker，其余直接出静态文件（带 dist/_headers 里的 COOP / COEP）
     "run_worker_first": ["/api/*", "/auth/*"]
   },
+  // 用户上传的图片（/api/assets）；本地 wrangler dev 用模拟的 R2
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "mindough-assets" }],
   "observability": { "enabled": true }
 }

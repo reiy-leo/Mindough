@@ -7,7 +7,11 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
-  "r2_buckets": [{ "binding": "WEB", "bucket_name": "mindough-web" }],
+  "r2_buckets": [
+    { "binding": "WEB", "bucket_name": "mindough-web" },
+    // 用户上传的图片（/api/assets）
+    { "binding": "FILES", "bucket_name": "mindough-assets" }
+  ],
   // 控制台里配的 GOOGLE_CLIENT_ID 等明文变量，部署时保留
   "keep_vars": true,
   "observability": { "enabled": true }
