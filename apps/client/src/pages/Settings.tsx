@@ -7,7 +7,7 @@ import { Button, Section, Segmented } from '../ui/primitives';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
-import { useStore } from '../store/StoreProvider';
+import { storageInfo, useStore } from '../store/StoreProvider';
 
 export function SettingsPage() {
   const { settings, set, platform, skin } = useSettings();
@@ -99,7 +99,10 @@ export function SettingsPage() {
             <div className="setting-text">
               <div className="setting-name">本地存储</div>
               <div className="setting-hint">
-                {store.adapter.kind === 'localStorage' ? '浏览器 localStorage（M0；以后换 SQLite WASM / Turso）' : store.adapter.kind} · 设备 {store.deviceId}
+                {storageInfo.engine === 'sqlite'
+                  ? `SQLite（${storageInfo.detail === 'tauri-rusqlite' ? '本机文件' : 'Turso wasm · 浏览器 OPFS'}）`
+                  : `浏览器 localStorage${storageInfo.fallbackReason ? `（${storageInfo.fallbackReason}）` : ''}`}{' '}
+                · 设备 {store.deviceId}
                 {pending !== null && ` · 待同步 ${pending} 条（同步尚未开通）`}
               </div>
             </div>
@@ -114,7 +117,7 @@ export function SettingsPage() {
               onPress={async () => {
                 if (!confirm('确定清空本机数据并重新生成演示数据？')) return;
                 await store.adapter.clear();
-                localStorage.removeItem('mindough:v1:meta');
+                await store.adapter.setMeta('demo_seeded', ''); // 空值 = 未生成，刷新后重新生成
                 location.reload();
               }}
             >
@@ -123,7 +126,7 @@ export function SettingsPage() {
           </div>
         </div>
       </Section>
-      <p className="muted small about">Mindough M0 · 本地优先，界面永不等待网络</p>
+      <p className="muted small about">Mindough M1 · 本地优先，界面永不等待网络</p>
     </div>
   );
 }

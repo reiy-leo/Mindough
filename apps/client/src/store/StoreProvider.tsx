@@ -1,10 +1,55 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Store, WebStorageAdapter, seedDemo } from '@mindough/core';
+import { SqlAdapter, Store, WebStorageAdapter, migrateStorage, seedDemo, type StorageAdapter } from '@mindough/core';
+import { openWebSqlite, webSqliteSupported } from './sqlite-web';
+import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
 const Ctx = createContext<Store | null>(null);
 
+/** 记在 localStorage 里：这台设备已经用上 SQLite。之后 SQLite 打不开就报错，而不是悄悄退回 localStorage（会分叉数据）。 */
+const ENGINE_KEY = 'mindough:engine';
+
+export interface StorageInfo {
+  engine: 'sqlite' | 'localStorage';
+  detail: string;
+  /** 退回 localStorage 的原因。 */
+  fallbackReason?: string;
+  /** 本次启动从 localStorage 迁过来的行数。 */
+  migratedRows?: number;
+}
+
+export let storageInfo: StorageInfo = { engine: 'localStorage', detail: 'localStorage' };
+
+/**
+ * 选存储：Tauri → 原生 SQLite；浏览器 → Turso wasm（OPFS）；都不行 → localStorage。
+ * 第一次用上 SQLite 时，把 localStorage 里的旧数据迁过去（只迁一次，旧数据保留作备份）。
+ */
+async function openAdapter(): Promise<StorageAdapter> {
+  const legacy = () => new WebStorageAdapter(window.localStorage);
+  let reason: string | undefined;
+  try {
+    const driver = isTauri() ? await openTauriSqlite() : await openWebSqlite();
+    if (driver) {
+      const sql = new SqlAdapter(driver);
+      await sql.schemaVersion();
+      const r = await migrateStorage(legacy(), sql);
+      localStorage.setItem(ENGINE_KEY, 'sqlite');
+      storageInfo = { engine: 'sqlite', detail: sql.kind, migratedRows: r.rows };
+      return sql;
+    }
+    reason = webSqliteSupported().reason;
+  } catch (e) {
+    if (localStorage.getItem(ENGINE_KEY) === 'sqlite') {
+      throw new Error(`本地数据库打不开（可能在另一个标签页里开着，关掉它再刷新）：${String(e)}`);
+    }
+    reason = `SQLite 启动失败：${String(e)}`;
+    console.warn(reason);
+  }
+  storageInfo = { engine: 'localStorage', detail: 'localStorage', ...(reason ? { fallbackReason: reason } : {}) };
+  return legacy();
+}
+
 export async function openWebStore(): Promise<Store> {
-  const adapter = new WebStorageAdapter(window.localStorage);
+  const adapter = await openAdapter();
   const store = await Store.open(adapter, { onError: (e) => console.error('写入本地存储失败', e) });
   if (!(await adapter.getMeta('demo_seeded')) && store.tasks().length === 0) {
     seedDemo(store);
