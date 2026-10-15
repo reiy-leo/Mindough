@@ -6,7 +6,7 @@
 ## 技术方案
 - 平台（MVP 全部要可用）：macOS、Windows、iOS、Android、Web。
 - 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
-- 前端：TypeScript + React + Vite，UI 用 Kumo（与 vector-wallpapers 等一致），lucide 图标，浅/深色。
+- 前端：TypeScript + React + Vite；UI 为 headless 组件 + 每端原生风格皮肤（见“设计风格”）；浅/深色跟随系统。
 - 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）；同步引擎见“同步引擎选型”。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
 - 同步：Cloudflare Worker + D1（结构化数据）+ R2（海报、图标等图片）作服务端（同域 `mindough.rei8t.dev/api`）。登录用 Google OAuth（Rei 的 Worker 默认）；原生端走系统浏览器 + deep link 回调。
 - Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
@@ -18,6 +18,19 @@
 - 短板与对策：移动端插件生态比桌面小，原生能力（通知、分享、相机选图）用官方插件，没有的写 Swift / Kotlin 小插件；桌面小组件 / iOS 主屏小组件 / 灵动岛计时需要原生扩展，放到以后；后台同步受系统限制，改为回到前台时同步 + 推送唤醒（以后）。
 - 退路：`packages/core`（数据模型、DAG、打卡、同步）保持纯 TS，界面层若移动端体验不达标，可换 Expo / React Native（Turso 有 `@tursodatabase/sync-react-native`）只重写外壳。
 - 已看过 MyGo（mygo.egoist.dev）：Go 写桌面 app，体积小，但只支持 macOS / Windows / Linux，没有 iOS / Android，不采用。
+
+### 设计风格：每个系统用对应的原生风格（Rei 2026-10-15 提）
+可行，做法是“一套结构 + 每端一层皮肤”，而不是五套界面。
+- 共用：数据、状态、交互逻辑、页面结构全部一份；组件用无样式的 headless 组件（React Aria Components），自己不带外观。
+- 每端一套皮肤（启动时按平台选，设置里可手动切）：
+  - Apple（macOS + iOS 共用）：SF 字体、HIG 圆角与间距；macOS 侧边栏 + 工具栏 + 窗口毛玻璃（Tauri window-vibrancy），iOS 大标题、底部标签栏、左滑操作、底部弹层。Liquid Glass 只能用 backdrop-filter 近似。
+  - Windows：Fluent 2（Segoe UI Variable、Mica 窗口背景、NavigationView 式侧栏），可直接用 Fluent UI React v9 的令牌。
+  - Android：Material 3（Roboto、动态取色、底部导航栏、FAB、底部弹层、返回手势）。
+  - Web：默认跟随访问者的系统，也可固定一种。
+- 移动端可用 Konsta UI（同一组件出 iOS 和 Material 两种外观）加速。
+- 原生部分直接用系统：菜单栏、右键菜单、托盘、通知、文件选择走 Tauri 原生 API，不用网页模拟。
+- 代价：界面工作量约 1.5 倍，每次改界面要在四种皮肤下截图检查；导航结构（侧边栏 vs 底部标签栏）按“桌面 / 手机”两种布局写，不按五个平台写。
+- 因此本项目不用 Kumo（Kumo 是 Cloudflare 自己的统一风格，与“各端原生”冲突）。
 
 ## 前导图（PDM）怎么实现
 - 依赖是一张有向无环图（DAG）：表 `dependency(pred_id, succ_id, type, lag)`。
@@ -134,6 +147,7 @@ SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、b
 - 每轮完成后 commit + push
 
 ## 待确认
+- Web 端风格：跟随访问者系统（默认），还是固定一种？
 - 同步引擎：A Turso Sync（推荐）还是 B 自建 Worker + D1？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - 谁能登录：只 Rei 自己（ADMIN_EMAILS 白名单），还是开放注册？

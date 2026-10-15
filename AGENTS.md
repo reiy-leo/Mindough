@@ -13,7 +13,7 @@
 
 ## 技术栈（计划，开工时落定版本）
 - Tauri 2（桌面 + iOS/Android）+ TypeScript（strict）+ React + Vite
-- UI：Kumo（`@cloudflare/kumo`，kumo-design 统筹设计）；lucide 线条图标；明暗主题跟随系统
+- UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、Fluent 2（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
 - 本地存储：原生 SQLite（tauri-plugin-sql）/ Web SQLite WASM（OPFS），同一 schema
@@ -38,7 +38,7 @@ docs/               PLAN.md、PRODUCT.md
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
-- 加依赖边必须过环检测；能用 Kumo 组件就不手写。
+- 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在四种皮肤下截图检查。
 
 ## 禁止事项
 - 不提交密钥、OAuth secret、`.keys/`、`.env`、`.dev.vars`。
