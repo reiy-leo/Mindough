@@ -173,11 +173,17 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 列表（Agenda）只放有日期的非重复任务；重复任务在打卡页。
 - 从侧边栏 / 快捷键新建（不在组内、未指定日期）的任务自动加入我的一天。
 
-### M1：真存储 + 原生包 + 登录
-- SQLite 适配器：原生端 tauri-plugin-sql 或 Turso 本地库；Web 端 SQLite WASM（OPFS）。同一 schema，实现 `StorageAdapter`；从 localStorage 迁移。
-- GitHub Actions 打 macOS / Windows / Android 包发布到 Releases（iOS 待签名方案）；`tauri android/ios init`。
-- Google 登录：Worker `mindough` 上线（OAuth、静态资源托管 Web 端、ADMIN_EMAILS 白名单待定）；原生端系统浏览器 + deep link 回调。
-- Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
+### M1（进行中，2026-10-15）：真存储 + 原生包 + 登录
+- ✅ SQLite 存储：`packages/core/src/storage/sql.ts` 的 `SqlAdapter` 实现 `StorageAdapter`，底下换驱动。
+  - schema（`storage/schema.ts`）与数据模型一一对应（每字段一列，JSON 列存文本、布尔 0/1），`COLUMNS` 的类型约束保证 types.ts 加字段时必须加列；`schema_version` 表 + 只追加的迁移列表；`outbox`（自增 seq）与 `meta` 表。
+  - 写入：一批变更一个事务，`INSERT … ON CONFLICT DO UPDATE … WHERE excluded.updated_at > updated_at`（行级 LWW，相等保留已有），每行进 outbox；失败整批回滚。
+  - Web：Turso `@tursodatabase/database-wasm`（OPFS 文件 `mindough.db`）——选它是因为同步走 Turso Sync，以后可换同引擎的 sync-wasm。需要跨源隔离：COOP `same-origin` + COEP `credentialless`（不用 require-corp，外站图片才能显示）；vite dev / preview 与 `public/_headers`（Worker 静态资源）都带上。wasm 约 11.6 MB（gzip 4 MB），按需加载。不支持时（无 OPFS / 未隔离，如 Safari 不支持 credentialless）退回 localStorage；已用过 SQLite 的设备打不开时报错（多半是另一个标签页占着），不悄悄退回以免分叉数据。
+  - 首次用上 SQLite 时把 localStorage 的数据原样迁过去（行、device_id、demo_seeded），只迁一次，旧数据留作备份。
+  - Tauri 原生：`src-tauri/src/db.rs` 命令层（rusqlite bundled，单连接，`db_exec / db_run / db_all`），schema 与迁移仍在前端 core，与 Web 同一份。没用 tauri-plugin-sql：它是连接池，跨 invoke 的 BEGIN / COMMIT 不可靠。本机 `cargo check` 通过（Linux）。
+  - 测试：同一套契约跑 内存 / localStorage / node:sqlite / Turso 引擎（`@tursodatabase/database`，与 wasm 同引擎）。
+- ✅ GitHub Actions：`ci.yml`（类型检查、单测、构建）；`build.yml`（手动或推 `v*` 标签）用 tauri-action 打未签名的 macOS universal、Windows（msi / nsis）、Linux（AppImage / deb），另有 Android debug APK（arm64，CI 里 `tauri android init`）；产物传 artifacts，推标签时建 Release 草稿。iOS 待签名方案。
+- ✅ Google 登录（Worker 写好未部署）：`/auth/login`、`/auth/callback`、`/auth/logout`、`/api/me`；HMAC 签名会话 cookie（SESSION_SECRET，30 天）；`ALLOWED_EMAILS` 白名单，为空 = 谁都不能登录。失败回跳带 `?login_error=代码`，前端启动时立即用 history.replaceState 去掉并显示可关闭提示，登录成功后不再显示。`POST /api/sync/token` 先返回 501 未实现（M2 签发 Turso token）。客户端设置页有“账户”区；不登录也能完整离线使用。
+- 待做：原生端登录（系统浏览器 + deep link 回调）；Worker 部署与 Google OAuth 客户端配置；Markdown 编辑换 Milkdown 或 TipTap（所见即所得）。
 
 ### M2：多端同步
 - 定同步引擎（A Turso Sync 推荐 / B 自建 Worker + D1）；从 outbox push、按游标 pull；字段级 / 行级 LWW；check_in 只追加；合并后重跑环检测并标冲突边。
@@ -206,5 +212,5 @@ SS/FF/SF 与 lag、关键路径与日期推算、甘特视图、提醒通知、b
 - Web 端风格：跟随访问者系统（默认），还是固定一种？
 - 同步引擎：A Turso Sync（推荐）还是 B 自建 Worker + D1？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
-- 谁能登录：只 Rei 自己（ADMIN_EMAILS 白名单），还是开放注册？
+- 谁能登录：只 Rei 自己（`ALLOWED_EMAILS` 白名单，现默认 reiy.leoz@gmail.com），还是开放注册？代码已按白名单可配写好。
 - iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？

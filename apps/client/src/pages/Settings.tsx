@@ -147,7 +147,11 @@ function CheckInCategorySettings() {
   return (
     <Section title="打卡分类">
       <div className="card settings-card">
-        <p className="setting-hint cat-settings-hint">给重复任务分门别类，打卡页可按分类筛选和分组。内置分类可改名、隐藏。</p>
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-hint">给重复任务分门别类，打卡页可按分类筛选和分组。内置的 {cats.filter((c) => c.builtin).length} 个可改名、隐藏（不能删）。</div>
+          </div>
+        </div>
         {cats.map((c) => (
           <CategoryRow key={c.id} c={c} />
         ))}

@@ -14,15 +14,15 @@
 ## 技术栈（M0 已落定的版本标 ✅）
 - ✅ TypeScript 5.9（strict + noUncheckedIndexedAccess）、React 19、Vite 8、Vitest 4、pnpm workspace
 - ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（编辑先用 textarea）
-- Tauri 2（桌面 + iOS/Android；src-tauri 已写好，未在 CI 编译）
+- Tauri 2（桌面 + iOS/Android；本机 cargo check 通过，GitHub Actions build.yml 打包）
 - UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
 - Markdown 编辑：Milkdown 或 TipTap，正文以 .md 文本入库
 - 依赖图：React Flow（xyflow）+ elkjs
-- 本地存储：原生 SQLite（tauri-plugin-sql）/ Web SQLite WASM（OPFS），同一 schema
+- ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），同一 schema 与迁移（packages/core/src/storage/schema.ts）
 - 同步：引擎待定（Turso Sync 推荐 / 自建 Worker + D1），见 PLAN“同步引擎选型”；Worker `mindough`（域名 `mindough.rei8t.dev`）负责 Google OAuth、Web 静态资源与签发同步凭据；图片放 R2
 - 包管理：pnpm；测试 Vitest
 
-## 目录（M0 实际）
+## 目录（M1 实际）
 ```
 packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts）
   types.ts              全部表的行类型（UUIDv7 id + HLC updated_at + deleted）
@@ -33,16 +33,17 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）
-  storage/              StorageAdapter 接口；memory、localStorage（web）适配器
-  seed/                 内置 11 种类型（固定 id）、演示数据
+  storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
+  seed/                 内置 11 种类型、27 个打卡分类（固定 id）、演示数据
 apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）
   ui/primitives.tsx     React Aria 包装（Button、Sheet、Field、Select、Segmented…）
   components/ pages/    业务组件与页面（不写死平台样式）
-  lib/ store/           设置、路由、提示、Store 上下文
-apps/client/src-tauri/  Tauri 2 外壳
-apps/server/            Cloudflare Worker 占位（wrangler.jsonc；未部署）
+  lib/ store/           设置、路由、提示、账户（account.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
+apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层）
+apps/server/            Cloudflare Worker：Google 登录、/api、静态资源（未部署）
+.github/workflows/      ci.yml、build.yml
 docs/                   PLAN.md、PRODUCT.md
 .agents/                skills / rules / prompts / memory
 ```
@@ -58,7 +59,11 @@ docs/                   PLAN.md、PRODUCT.md
 | 预览构建 | `pnpm --filter client preview`（:4173） |
 | 桌面 | `pnpm tauri dev` / `pnpm tauri build`（需 Rust） |
 | 重新生成图标 | `pnpm --filter client tauri icon src-tauri/icons/source.svg -o src-tauri/icons` |
-| Worker 本地 | `pnpm --filter server dev`（需 `.dev.vars`） |
+| Worker 本地 | `pnpm --filter server dev`（:8787，需 `apps/server/.dev.vars`，见 `.dev.vars.example`） |
+| Worker 单测 | `pnpm --filter server test` |
+| Rust 检查 | `cd apps/client/src-tauri && cargo check`（Linux 需 libwebkit2gtk-4.1-dev 等） |
+| Android | `pnpm tauri android init` → `pnpm tauri android build --apk --debug` |
+| 打包 CI | GitHub Actions `build.yml`（手动 / 推 `v*` 标签）；`ci.yml` 每次推送跑检查 |
 
 截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍。
 
