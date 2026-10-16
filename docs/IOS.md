@@ -7,6 +7,11 @@ Rei 2026-10-16 定：不交 Apple Developer Program 年费，不走 TestFlight�
 - 一台设备最多 3 个这样装的 app。
 - 免费账号开不了一部分能力（推送、App Group 等）；iOS 小组件要 App Group，先不接。本地通知、mindough:// 深链接、Google 登录不受影响。
 
+## Rei 的 Mac：2018 款 Intel MacBook Pro（2026-10-16）
+- 最高只能升 macOS Sequoia 15 → 最高 Xcode 26.3（26.4 起要 Tahoe 26.2；Xcode 27 只支持 Apple 芯片）。
+- iPhone 还在 iOS 26：照下面步骤用 Xcode 26.3 直接装。
+- iPhone 已是 iOS 27：Xcode 26.3 可能装不上（未验证）。备选：GitHub Actions 的 xcode-27 runner 打未签名 ipa，Mac 上用 Sideloadly 拿免费 Apple ID 签名安装（同样 7 天）。待 Rei 说 iOS 版本后定。
+
 ## 第一次（在 Mac 上）
 1. 装 Xcode（App Store），打开一次同意协议；终端 `xcode-select --install`。
 2. `brew install cocoapods`；`rustup target add aarch64-apple-ios aarch64-apple-ios-sim`。
