@@ -41,3 +41,4 @@ Rei 2026-10-16 定：不交 Apple Developer Program 年费，不走 TestFlight�
 
 ## 已知问题
 - 2026-10-17：iOS 包 CI 已能出 ipa（f9b1359）。Sideloadly 报 `GSA returned a non-plist response (HTTP 503)`：苹果从 2026-09 起拦冒充 Xcode 的登录请求。对策：Rei 已是 Sideloadly v0.70.1 仍 503；不行就设置里 Anisette 换 Fake Anisette、关代理；再不行用 AltServer 1.7.6+。
+- 2026-10-17：换 Fake Anisette 后报 `Login failed (-80045)`。苹果自 2026-10-12 起拒绝所有第三方工具登录（AltStore/SideStore/iloader/Sideloadly 全中），频繁重试有锁号风险。已知可用：iloader 2.3.8（Windows anisette v3）→ 先装 SideStore 再装 ipa。过渡：Safari 网页版添加到主屏幕。
