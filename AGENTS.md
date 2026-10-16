@@ -35,6 +35,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
   links.ts money.ts episode.ts  字段种类的逻辑：站点编号（IMDb / 豆瓣）与更多链接、金额 + 币种、看到第几季第几集
+  lookup.ts             在线找资料的纯逻辑：结果形状、按什么找（去季标记、电影 / 剧集）、库里的同一条、自动补全逐项计划；来源存 fields._source
   store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）；applyRemote 合并拉下来的行（不进 outbox）；edges() / conflictEdges()
   sync/                 同步：protocol.ts（WireRow、SyncTransport、SyncHttpError）、engine.ts（SyncEngine：推、拉、第一次合并、状态）、memory-remote.ts（假云端 / 协议参考实现）
   storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
@@ -52,7 +53,7 @@ apps/client/src/
   styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
   lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
 apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；opener + deep-link（mindough://）+ 桌面 single-instance）
-apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、turso.ts（Hrana HTTP）、assets.ts（R2 图片）、static-r2.ts
+apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、turso.ts（Hrana HTTP）、assets.ts（R2 图片）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
   test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
 .github/workflows/      ci.yml、build.yml
 docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）

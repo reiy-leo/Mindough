@@ -297,6 +297,25 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 ### M4 更聪明
 - 自定义类型编辑器（字段、版式、图标、颜色、排序与隐藏）。
 - 按名字自动补全资料（影视 TMDB / 豆瓣、游戏 Steam、书 Open Library；有 IMDb / 豆瓣编号时按编号取），展示时附来源。
+   - ✅ 按名字 / 编号在线找资料（分支 m4-lookup）：
+     - **Worker**（`apps/server/src/lookup/`，都要登录：会话或同步凭据，同 /api/assets）：`GET /api/lookup/search?kind=movie|book|game&q=&lang=zh|en[&media=movie|tv][&alt=]`、`GET /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb&id=`、`POST /api/lookup/image {url}`（把选中的封面拉进 R2 `mindough-assets`，key 同 /api/assets，资料里存 asset 引用，不热链；只拉 image.tmdb.org、covers.openlibrary.org、*.steamstatic.com、img*.doubanio.com，豆瓣带 Referer）。Cache API：每个来源的搜索 1 天、详情 7 天，只缓存成功的；对外请求 8 秒超时（504 网关超时）、连不上 502 错误网关、限流 429 请求太多；错误都带中文说明。一个来源出错不影响别的，所有来源都失败才返回第一个的状态码。
+     - **来源适配器**各一个文件，统一输出 `{source, sourceId, name, year?, image?, thumb?, subtitle?, fields, url}`，fields 的 key 是内置类型的字段 key：
+       - `tmdb.ts`：search/multi（不知道电影还是剧集时）或 search/movie、search/tv（知道时，排序也准）；movie / tv 详情 + `append_to_response=external_ids` 拿 IMDb；`find/{imdb}`。密钥 Worker secret `TMDB_API_KEY`：v4 读访问令牌（eyJ… 开头）走 Bearer，其余当 v3 key 走 `api_key`；没配置或密钥不对 → 503 服务不可用（`unconfigured`），界面写「TMDB 还没配置」。中文界面 zh-CN、英文 en-US。
+       - `douban.ts`（尽力而为）：建议接口 `movie.douban.com/j/subject_suggest`；详情先用手机版 JSON `m.douban.com/rexxar/api/v2/movie/<id>`（剧集 301 到 /tv/），不行再解析 subject 页面（会被跳去验证页）。拿不到算 `blocked`，静静降级。2026-10-16 沙箱实测建议接口和手机版 JSON 都通。豆瓣的结果只在中文界面列出。
+       - `openlibrary.ts`：search.json（少于 3 个字改按 `title:` 搜，否则 422）；详情 `q=key:/works/<id>`；封面 covers.openlibrary.org；作者只取 author_name 第一位（后面常是译者、插画师）。
+       - `steam.ts`：storesearch + appdetails（中文 l=schinese&cc=CN，英文 l=english&cc=US）；平台 windows → PC（Steam）、mac → macOS、linux → Linux / Steam Deck；官网进「更多链接」；图标用 header 图（卡片里方形裁）。
+     - **按 Rei 20 部真实数据试跑改的**（work/m4/tmdb_try.json：按 IMDb find 18/18 对，按中文名 search/multi 11/20 对）：搜之前去掉季 / 集标记（第三季、Season 2、S03、S02E03，复用 episode.ts，见 core `lookupSearchText`），带季标记的按剧集搜，季数由新建面板照旧填进「看到哪」；有 IMDb / 豆瓣编号先按编号取；影视资料「电影/剧集」已填时只搜那一种（`media`）；TMDB 按中文名没搜到时，用 `alt` 给的名字、再用豆瓣同名条目的原名（带豆瓣年份收窄）补搜（「海绵宝宝大电影·寻找方裤」→ The SpongeBob Movie: Search for SquarePants → TMDB「海绵宝宝：深海大冒险」）；按名字永远给候选让人选，不自动采用第一条。
+     - **core** `lookup.ts`：哪些类型能在线找（按内置 id：影视 / 书籍 / 游戏）、结果形状（与 Worker 的 `lookup/types.ts` 一致，两处一起改）、`lookupSearchText` / `lookupQueryOf`（按什么找）、`findLookupTwin`（库里已有的同一条：同来源编号、同 IMDb / 豆瓣编号、或同名且年份不冲突）、`planAutofill` / `applyAutofill`（逐项计划）、`itemOfLookup`。资料来源存在 `library_item.fields._source`（「tmdb:movie/693134」），**不加列、不动 schema**；下划线开头的键不是类型字段，不显示、不进搜索。
+     - **界面**：新建面板 / 详情「换一个」的选择框里，本地结果和「新建“xxx”」下面是「从 TMDB、豆瓣找」/「从 Open Library 找」/「从 Steam 找」（`components/library/Lookup.tsx` 的 `OnlineOptions`，防抖 350 毫秒、新输入取消旧请求、离线或没登录整块不出现，键盘上下和本地结果连着；粘贴 IMDb / 豆瓣链接按编号取；库里已有的同一条不重复列）。选中马上建资料（界面不等网络），后台补详情（IMDb 编号等）和封面，只补空缺（`lib/lookup.ts` 的 `createItemFromLookup`）；新建面板里选了又取消 / 换掉的、没有任务用到的资料，关掉面板时删掉。编辑资料底部「自动补全」：先按已填的 IMDb、再豆瓣编号取，都没有按名字给候选列表挑一条；然后逐项列出要填的值（勾选框 + 字段名 + 新值 +「现在：旧值」），空缺默认勾上，已有的默认不勾（勾上 = 覆盖），更多链接是合并；「填进去 N 项」才拉图、填进草稿，最后还是「保存」才落库。资料卡（详情大卡）和资料页名字下面「资料来自 TMDB」小字 + 链接。设置最下面「关于」：Mindough 图标与名字在前，TMDB 认可的 logo（blue_short，10px 高，比我们的标识不显眼，链到 https://www.themoviedb.org）+ 原文声明 “This product uses the TMDB API but is not endorsed or certified by TMDB.”，中文界面再附译文。样式在 `styles/lookup.css`。
+     - 测试：core `test/lookup.test.ts`；server `test/lookup.test.ts`（全部用 mock fetch：TMDB 两种密钥、没配置 503、超时 504、限流 429、豆瓣跳验证页降级、media 过滤、按原名补搜、拉图进 R2、缓存 TTL）；`e2e/real-lookup.test.ts`（`E2E_LOOKUP=1` 真实请求 Open Library、Steam、豆瓣、拉图进 R2，有 `TMDB_API_KEY` 时也试 TMDB）；client `lib/lookup.test.ts`。截图 work/screens/m4-lookup-*.png（脚本 work/shots-tool/m4lookup.mjs，mock 接口）。
+     - **待 Rei 确认**（我先这样定的）：
+       1. 来源存在 `fields._source`，不加 `library_item.source` 列（免得和别的分支的迁移撞号）；以后想要单独一列再迁移。
+       2. 没加 Google Books：沙箱里没法验证无 key 接口（被网关拦成 403），Cloudflare 出口 IP 也常被它限流；书只用 Open Library，中文书覆盖一般。
+       3. 豆瓣结果只在中文界面列出；英文界面只拿它给原名补搜 TMDB。
+       4. 选择框里在线结果放在「新建“xxx”」下面（位置稳定，结果晚到不会把「新建」挤走）；库里同名（年份不冲突）的条目视为同一条，在线列表里不再列，选中时用库里那条、只补空缺。
+       5. 按 IMDb / 豆瓣编号取到的直接进逐项确认（编号是精确的），按名字一定先给候选。
+       6. 「自动补全」和在线结果只在登录且在线时出现；没登录不提示（克制）。
+       7. 游戏图标用 Steam header 图（横图，方形裁中间），Steam 没有方形图标接口。
 - 资料合并（两条其实是同一部片）。
 - 导入导出 Markdown 文件夹。
 
