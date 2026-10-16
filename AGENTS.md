@@ -34,6 +34,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
+  typedef.ts            类型编辑器的纯逻辑：字段增改排序隐藏、删字段留墓碑（key 不变、值保留）、类型顺序（同步偏好 type_order）
   links.ts money.ts episode.ts  字段种类的逻辑：站点编号（IMDb / 豆瓣）与更多链接、金额 + 币种、看到第几季第几集
   store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）；applyRemote 合并拉下来的行（不进 outbox）；edges() / conflictEdges()
   sync/                 同步：protocol.ts（WireRow、SyncTransport、SyncHttpError）、engine.ts（SyncEngine：推、拉、第一次合并、状态）、memory-remote.ts（假云端 / 协议参考实现）
@@ -86,6 +87,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）
 - 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
 - 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
 - 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时一律用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
+- 类型编辑（M4）：取类型列表用 `store.pickableTypes()` / `orderedTypes()` / `editableTypes()`，不要自己按 sort 排；显示字段用 `shownFields` / `itemFieldsOf` / `taskFieldsOf`（不含隐藏、删掉的），别直接遍历 `type.fields` 去显示；删字段用 `removeField`（留墓碑），不要从数组里真删。
 - 新字段种类（多选、金额、站点编号、更多链接、看到哪）逻辑写在 core，界面在 `FieldInput` 里按 kind 分派；改内置类型定义就把 `BUILTIN_TYPES_REVISION` 加一，旧值的迁移写进 `planFieldMigration`（只动旧形状的值）。
 - 类型只管展示与新建模板，不替代正文；内置类型与自定义类型走同一套 layout + fields + body_template 机制，不要写死特例。
 - 任务没有标题字段，列表里显示 body_md 首行作预览。

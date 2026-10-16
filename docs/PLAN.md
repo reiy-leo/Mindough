@@ -295,7 +295,21 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
      - 演示数据按生成时的语言写（英文界面第一次打开就是英文演示数据）；已有的中文演示数据不会变成英文（是用户数据）。
 
 ### M4 更聪明
-- 自定义类型编辑器（字段、版式、图标、颜色、排序与隐藏）。
+- ✅ 自定义类型编辑器（2026-10-16，分支 m4-types）：设置 →「类型」一节和资料库页标签条末尾「编辑」打开同一个弹层（`components/TypeManager.tsx`，样式 `styles/types.css`）。
+  - 第一屏类型列表：拖动排序（也能用键盘拖）、显示 / 隐藏、「新建类型」、点进去编辑；不列「普通」（没有字段和版式）和「人物」（已从可选类型删掉，人物库不动）。
+  - 一个类型：名字（失焦保存；内置名字没改动不写回）、图标（lucide 网格 56 个 + 自己填一个 emoji；`lib/icons.ts` 的 `typeIcon` 认 emoji）、颜色（14 个色板 + 自己调）、资料库版式（竖版海报 2:3 / 方形 / 横幅 16:9 / 圆形——`TypeLayout` 加了 `round`，卡片、行缩略图、资料库都按它出圆图）、默认怎么算完成、新建时的正文、隐藏；自定义的没人用时能删。
+  - 字段：增（名字 + 种类：文字 / 数字 / 进度 / 日期 / 单选 / 多选 / 链接 / 更多链接 / 站点编号 / 图片 / 清单 / 金额 / 看到第几集）、行内改名、拖动排序（设置弹层里也有上移 / 下移）、隐藏、删除；设置弹层里改种类、资料字段 / 任务字段、单选多选的选项（选项改名连同资料和任务里存着的旧选项一起改：`Store.renameFieldOption`）、单位、站点、提示文字。主字段和图片字段固定是资料字段，不能隐藏、删除、改种类。
+  - 关键决定：字段 key 随机生成（`f` + 8 位）、永不随改名变；删字段只在定义里留墓碑 `removed: true`（值留在 JSON 里不显示），加回同名同种类的字段就翻回同一个 key、旧值又出现——墓碑也让 `withNewBuiltinFields` 不会把用户删掉的内置字段补回来；影视 r2 去掉的「平台」记在 `LEGACY_BUILTIN_FIELDS`，加回「平台」（文字）用回旧 key `platform`。隐藏字段 `hidden: true`：`itemFieldsOf` / `taskFieldsOf` / `shownFields` / `linkChips` 都不含它，改类型时要留的值用 `allTaskFieldsOf`（含隐藏、删掉的）。字段已经有值时不让改种类和归属（`Store.fieldHasData`），免得旧值对不上。
+  - 类型顺序存在同步偏好 `type_order`（id 列表，`orderTypes`；没写进去的按 sort 接后面），不改类型行——否则排一下顺序内置类型就变成「改过」，以后内置升级不再覆盖它。界面上取类型一律 `store.pickableTypes()`（新建 / 改类型 / 组默认类型）/ `store.orderedTypes()`（资料库标签条）/ `store.editableTypes()`（编辑器）。改名字、图标、字段、隐藏这些会写类型行：内置类型的 updated_at 变成真实 HLC，按 `ensureBuiltinTypes` 的老规矩不再整体替换（只补新字段）。
+  - 删类型（`Store.deleteType`）：内置的只能隐藏；自定义的没有任务和资料（未删除的）引用时才能删，顺带清掉以它为默认类型的组；有引用只能隐藏。两台设备一边删、一边用它新建任务：打开时 `reviveReferencedTypes` 把被引用的墓碑类型找回来并隐藏（两台各做一遍内容相同，LWW 后一致）。
+  - core：`typedef.ts`（纯函数 `addField` / `updateField` / `removeField` / `reorderFields` / `moveField` / `orderTypes` / `isEditableType`、`FIELD_KIND_LABEL`、`LIBRARY_LAYOUTS`），Store 的 `createType` / `updateType` / `setTypeFields` / `addTypeField` / `renameFieldOption` / `reorderTypes` / `moveType` / `typeUsage` / `canDeleteType` / `deleteType`；测试 `packages/core/test/typedef.test.ts`（类型增改、字段排序隐藏、删字段数据保留与加回、内置改过不被覆盖、排序不改内置行、删类型规则、选项改名、两端同步 LWW、一边删一边用找回）。没加表也没加列（字段定义本来就是 JSON），SQLite / Tauri 不用迁移。
+  - 截图 `work/screens/m4-types-*.png`（三皮肤桌面 + 手机，含暗色、英文）。
+  - 待 Rei 确认：
+    - 有引用的自定义类型只能隐藏，不做「把任务改成普通再删」——要不要加？
+    - 字段有值后锁定种类和归属（要换就新加一个字段），而不是自动迁移旧值。
+    - 新字段种类里不放「人物」（任务本身就能关联人物）。
+    - 编辑器里不出现「普通」：它的名字 / 图标 / 默认完成方式暂时不能改。
+    - 隐藏的类型在资料库标签条里也不显示（沿用原来的行为）；隐藏 / 改名等会让内置类型变成「改过」，以后内置定义大改时只补新字段、不整体替换。
 - 按名字自动补全资料（影视 TMDB / 豆瓣、游戏 Steam、书 Open Library；有 IMDb / 豆瓣编号时按编号取），展示时附来源。
 - 资料合并（两条其实是同一部片）。
 - 导入导出 Markdown 文件夹。
