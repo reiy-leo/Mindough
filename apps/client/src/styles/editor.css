@@ -210,3 +210,12 @@
   width: 36px;
   height: 34px;
 }
+
+/* 图片：最宽 90% 编辑器宽度，居中（Rei 2026-10-16） */
+.md-editor-root img {
+  display: block;
+  max-width: 90%;
+  height: auto;
+  margin: 8px auto;
+  border-radius: 8px;
+}
