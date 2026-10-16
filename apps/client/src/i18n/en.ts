@@ -599,4 +599,14 @@ export const EN: Record<string, EnValue> = {
   '本地数据库已交给另一个标签页': 'The local database moved to another tab',
   '以前的本地数据库需要跨源隔离的页面才能读出来': 'Reading the previous local database needs a cross-origin isolated page',
   '本地数据库打不开：{String}': 'Couldn’t open the local database: {String}',
+
+  // ── 深链接 ──
+  '这个链接打不开：{url}': 'Can’t open this link: {url}',
+  找不到这件任务: 'Couldn’t find that task',
+  '已新建「{title}」': 'Added “{title}”',
+  '「{title}」已经结束了': '“{title}” is already finished',
+  '「{title}」今天已经打过卡了': '“{title}” is already checked in today',
+  '「{title}」+{amount}，{value}/{target}{unit}': '“{title}” +{amount}, {value}/{target}{unit}',
+  '已完成「{title}」': 'Completed “{title}”',
+  '「{title}」打卡了': 'Checked in “{title}”',
 };

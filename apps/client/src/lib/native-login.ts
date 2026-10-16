@@ -7,6 +7,7 @@
  * 4. app 收到 deep link：POST /auth/exchange { code, verifier } → 会话，存本机，之后请求带 Bearer。
  * 别的 app 就算截到 deep link，没有 verifier 也换不走。
  */
+import { enqueueDeepLink, parseDeepLink } from './deeplink';
 import { API_BASE, refreshAccount, setNativeSession, showLoginError } from './account';
 import { isTauri } from '../store/sqlite-tauri';
 import { openExternal } from './external';
@@ -72,13 +73,19 @@ export async function handleDeepLink(raw: string, fetcher: typeof fetch = (...a)
   return true;
 }
 
-/** 启动时：监听 deep link，并处理冷启动时带进来的那个。 */
+/** 启动时：监听 deep link（登录回调自己处理，其余交给 lib/deeplink），并处理冷启动时带进来的那个。 */
 export async function initNativeLogin(): Promise<void> {
   if (!isTauri()) return;
   try {
     const { getCurrent, onOpenUrl } = await import('@tauri-apps/plugin-deep-link');
-    await onOpenUrl((urls) => urls.forEach((u) => void handleDeepLink(u)));
-    for (const u of (await getCurrent()) ?? []) await handleDeepLink(u);
+    const route = async (u: string) => {
+      if (await handleDeepLink(u)) return;
+      // 不是登录回调：task / view / new / checkin，排队等 App 挂上再做
+      const a = parseDeepLink(u);
+      if (a) enqueueDeepLink(a);
+    };
+    await onOpenUrl((urls) => urls.forEach((u) => void route(u)));
+    for (const u of (await getCurrent()) ?? []) await route(u);
   } catch (e) {
     console.warn('deep link 不可用', e);
   }

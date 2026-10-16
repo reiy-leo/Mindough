@@ -1,4 +1,4 @@
-# Mindough 深链接 mindough:// 方案（待审核，2026-10-16）
+# Mindough 深链接 mindough:// 方案（Rei 2026-10-16 已审）
 
 现状：scheme 是 `mindough://`，只注册并处理了 `auth`（登录回跳）。手机端（Android intent-filter）每个 host 要单独注册，iOS / 桌面只认 scheme。
 
@@ -37,8 +37,10 @@
 - Web 端同样的路径走 https://mindough.rei8t.dev/#/task/{id} 这种 hash 路由；以后要做 Universal Links / App Links（https 链接直接拉起 app），再单独审核。
 - 中文参数要 URL 编码（快捷指令会自动做）。
 
-## 五、请 Rei 定
+## 五、Rei 的决定（2026-10-16）
 
-1. 页面统一用 view/{页面}，还是每个页面一个 host（mindough://myday）？我建议 view/，手机端只需注册一个 host。
-2. 「做一件事」那组要不要先弹确认？我建议不弹，直接做 + 撤销提示，小组件按钮才能一下完成。
-3. 先做哪些：我建议先做 task、view、new、checkin，其余跟 M4 一起。
+1. 页面统一用 view/{页面}。
+2. 「做一件事」全部不弹确认框，直接做 + 提示里可以撤销。
+3. 第一批做 task、view、new、checkin（已做完：手机端注册了 auth、task、view、new、checkin 五个 host）；group、library、person、search、timer、done 跟 M4 一起做。
+
+实现备注：checkin 只对「打一下 / 计数」的任务直接打卡；计时、倒数日的任务改为打开详情。Web 对应写法：#/task/{id}、#/new?text=…、#/checkin-now/{id}（打卡页 #/checkin 已占用）。

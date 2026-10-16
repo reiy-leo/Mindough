@@ -54,6 +54,34 @@
           ],
           "host": "auth",
           "appLink": false
+        },
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "task",
+          "appLink": false
+        },
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "view",
+          "appLink": false
+        },
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "new",
+          "appLink": false
+        },
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "checkin",
+          "appLink": false
         }
       ]
     }

@@ -17,6 +17,7 @@ import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { SettingsPage } from './pages/Settings';
 import { TaskDetail } from './components/task/TaskDetail';
+import { DeepLinks } from './components/DeepLinks';
 import { TaskComposer } from './components/task/TaskComposer';
 import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
@@ -332,6 +333,7 @@ export function App() {
       <ReminderHost />
       <CommandPalette />
       <Toasts />
+      <DeepLinks />
     </>
   );
 }
