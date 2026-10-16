@@ -14,6 +14,8 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { $prose } from '@milkdown/kit/utils';
+import { liftListItem, sinkListItem } from '@milkdown/kit/prose/schema-list';
+import { goToNextCell } from '@milkdown/kit/prose/tables';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import type { Node as PMNode } from '@milkdown/kit/prose/model';
@@ -118,7 +120,29 @@ const keys = (opts: MdEditorOptions) =>
     () =>
       new Plugin({
         props: {
-          handleKeyDown(_view, event) {
+          handleKeyDown(view, event) {
+            // Tab / Shift+Tab：清单、表格里的缩进由前面的快捷键处理；到这里说明它们没接（第一项不能再缩、
+            // 不在清单里……），也要吃掉，免得浏览器把焦点移出编辑器。代码块里 Tab 插两个空格。
+            if (event.key === 'Tab' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+              event.preventDefault();
+              const { state } = view;
+              const { $from } = state.selection;
+              const dispatch = view.dispatch.bind(view);
+              const inside = (name: string) => {
+                for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === name) return true;
+                return false;
+              };
+              if ($from.parent.type.spec.code) {
+                if (!event.shiftKey) dispatch(state.tr.insertText('  ').scrollIntoView());
+              } else if (inside('table_cell') || inside('table_header')) {
+                goToNextCell(event.shiftKey ? -1 : 1)(state, dispatch);
+              } else {
+                const li = state.schema.nodes.list_item;
+                if (li && inside('list_item')) (event.shiftKey ? liftListItem(li) : sinkListItem(li))(state, dispatch);
+              }
+              view.focus();
+              return true;
+            }
             if (event.key === 'Escape' && opts.onEscape) {
               event.preventDefault();
               event.stopPropagation();

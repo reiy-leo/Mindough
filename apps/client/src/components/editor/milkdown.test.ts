@@ -48,3 +48,46 @@ describe('Markdown 编辑器往返', () => {
     expect(await roundTrip('')).toBe('');
   });
 });
+
+describe('Tab / Shift+Tab 不让焦点跑出编辑器', () => {
+  const press = async (md: string, shift: boolean, place: (doc: import('@milkdown/kit/prose/model').Node) => number) => {
+    const { createMdEditor } = await import('./milkdown');
+    const { TextSelection } = await import('@milkdown/kit/prose/state');
+    const { editorViewCtx } = await import('@milkdown/kit/core');
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    let out = md;
+    const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: (m) => (out = m) });
+    const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, place(view.state.doc))));
+    const ev = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: shift, bubbles: true, cancelable: true });
+    view.dom.dispatchEvent(ev);
+    const md2 = h.getMarkdown();
+    await h.destroy();
+    root.remove();
+    return { prevented: ev.defaultPrevented, md: md2, out };
+  };
+  const posOf = (text: string) => (doc: import('@milkdown/kit/prose/model').Node) => {
+    let at = 1;
+    doc.descendants((n, pos) => {
+      if (n.isText && n.text?.includes(text)) at = pos + 1;
+    });
+    return at;
+  };
+
+  it('第二项 Tab 缩进，焦点留着', async () => {
+    const r = await press('- a\n- b', false, posOf('b'));
+    expect(r.prevented).toBe(true);
+    expect(r.md).toMatch(/- a\n\s+- b/);
+  });
+  it('第一项缩不动、普通段落、Shift+Tab 到顶：也吃掉 Tab', async () => {
+    expect((await press('- a\n- b', false, posOf('a'))).prevented).toBe(true);
+    expect((await press('一段话', false, posOf('一段话'))).prevented).toBe(true);
+    expect((await press('一段话', true, posOf('一段话'))).prevented).toBe(true);
+  });
+  it('缩进的项 Shift+Tab 反缩进', async () => {
+    const r = await press('- a\n  - b', true, posOf('b'));
+    expect(r.prevented).toBe(true);
+    expect(r.md).toMatch(/^- a\n- b/);
+  });
+});
