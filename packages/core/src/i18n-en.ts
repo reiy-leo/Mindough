@@ -10,6 +10,29 @@ const pl = (n: unknown, one: string, other: string) => (new Intl.PluralRules('en
 const count = (n: unknown, one: string, other: string) => `${n} ${pl(n, one, other)}`;
 
 export const CORE_EN: Record<string, V> = {
+  // ── 导入导出（archive/） ──
+  无标题: 'Untitled',
+  未命名组: 'Untitled group',
+  其他: 'Other',
+  'id 写得不对，没导入': 'The id isn’t valid, so this file wasn’t imported',
+  '和别的文件 id 重复，没导入': 'Another file has the same id, so this one wasn’t imported',
+  '开头的属性（front matter）应该是「键: 值」的列表': 'The properties at the top (front matter) should be a list of “key: value” lines',
+  '开头的属性（front matter）第 {line} 行写得不对': 'The properties at the top (front matter) have a mistake on line {line}',
+  '开头的属性（front matter）写得不对': 'The properties at the top (front matter) can’t be read',
+  '开头的属性（front matter）没有用 --- 收尾': 'The properties at the top (front matter) don’t end with ---',
+  '找不到图片文件 {file}': 'Can’t find the image file {file}',
+  '找不到它挂的资料，没接上': 'Its library entry is missing, so it wasn’t linked',
+  '找不到它的类型，当普通任务导入': 'Its type is missing, so it was imported as a plain task',
+  '找不到它的类型，没导入': 'Its type is missing, so it wasn’t imported',
+  '找不到它的组，放进所在的文件夹': 'Its group is missing, so it went into the group of its folder',
+  '有 {n} 个人物找不到，没关联': (p) => `${count(p.n, 'person', 'people')} couldn’t be found and weren’t linked`,
+  '有 {n} 件关联的任务找不到，没连上': (p) => `${count(p.n, 'linked task', 'linked tasks')} couldn’t be found and weren’t connected`,
+  '有一条前后关系会绕成圈，没连上': 'One “do this first” link would make a loop, so it wasn’t added',
+  '这一条缺少必要的内容，没导入': 'This entry is missing required parts, so it wasn’t imported',
+  '这个 zip 打不开：{msg}': 'This zip can’t be opened: {msg}',
+  '这个文件读不出来（不是有效的 JSON），里面的内容没导入': 'This file can’t be read (not valid JSON), so nothing in it was imported',
+  '重复规则看不懂，当只做一次导入': 'The repeat rule couldn’t be understood, so it was imported as a one-time task',
+
   // ── 状态 ──
   '状态|待办': 'To Do',
   '状态|进行中': 'In Progress',
