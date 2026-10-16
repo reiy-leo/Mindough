@@ -67,18 +67,20 @@ export type FrontResult = { ok: true; data: Record<string, unknown> } | { ok: fa
 export function parseFrontMatter(front: string): FrontResult {
   if (!front.trim()) return { ok: true, data: {} };
   try {
-    const doc = parseDocument(front, { prettyErrors: false, uniqueKeys: false });
-    if (doc.errors.length) return { ok: false, error: tr('开头的属性（front matter）格式不对：{msg}', { msg: oneLine(doc.errors[0]!.message) }) };
+    const doc = parseDocument(front, { prettyErrors: true, uniqueKeys: false });
+    if (doc.errors.length) {
+      // 行号按整个文件算（前面还有一行 ---）；解析器的英文原话不给用户看
+      const line = doc.errors[0]!.linePos?.[0]?.line;
+      return { ok: false, error: line ? tr('开头的属性（front matter）第 {line} 行写得不对', { line: line + 1 }) : tr('开头的属性（front matter）写得不对') };
+    }
     const v: unknown = doc.toJS({ maxAliasCount: 50 });
     if (v === null || v === undefined) return { ok: true, data: {} };
     if (typeof v !== 'object' || Array.isArray(v)) return { ok: false, error: tr('开头的属性（front matter）应该是「键: 值」的列表') };
     return { ok: true, data: v as Record<string, unknown> };
-  } catch (e) {
-    return { ok: false, error: tr('开头的属性（front matter）格式不对：{msg}', { msg: oneLine(String((e as Error)?.message ?? e)) }) };
+  } catch {
+    return { ok: false, error: tr('开头的属性（front matter）写得不对') };
   }
 }
-
-const oneLine = (s: string) => s.split('\n')[0]!.slice(0, 160);
 
 /** front matter 里一个值，可以带一句行尾注释（给人看的名字：组名、片名…；导入时忽略）。 */
 export class Noted {

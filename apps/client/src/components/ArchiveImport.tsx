@@ -122,17 +122,16 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
   const existing = plan.entries.filter((e) => e.kind !== 'extra' && e.state === 'existing').length;
   const errors = plan.issues.filter((i) => i.level === 'error');
   const warnings = plan.issues.filter((i) => i.level === 'warning');
-  const kinds: Array<[keyof typeof s.byKind, string]> = [
-    ['task', tr('任务')],
-    ['group', tr('组')],
-    ['library', tr('资料')],
-    ['person', tr('人物')],
-    ['type', tr('类型')],
+  const kinds: Array<[keyof typeof s.byKind, (n: number) => string]> = [
+    ['task', (n) => tr('{n} 件任务', { n })],
+    ['group', (n) => tr('{n} 个组', { n })],
+    ['library', (n) => tr('{n} 条资料', { n })],
+    ['person', (n) => tr('{n} 位人物', { n })],
+    ['type', (n) => tr('{n} 个类型', { n })],
   ];
   const breakdown = kinds
-    .map(([k, label]) => [label, s.byKind[k].create + s.byKind[k].update] as const)
-    .filter(([, n]) => n > 0)
-    .map(([label, n]) => `${label} ${n}`)
+    .map(([k, label]) => label(s.byKind[k].create + s.byKind[k].update))
+    .filter((_, i) => s.byKind[kinds[i]![0]].create + s.byKind[kinds[i]![0]].update > 0)
     .join(' · ');
   return (
     <div className="import-preview">

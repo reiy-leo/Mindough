@@ -298,7 +298,20 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 自定义类型编辑器（字段、版式、图标、颜色、排序与隐藏）。
 - 按名字自动补全资料（影视 TMDB / 豆瓣、游戏 Steam、书 Open Library；有 IMDb / 豆瓣编号时按编号取），展示时附来源。
 - 资料合并（两条其实是同一部片）。
-- 导入导出 Markdown 文件夹。
+- ✅ 导入导出 Markdown 文件夹（2026-10-16，分支 m4-io；格式全文见 [docs/EXPORT.md](EXPORT.md)）
+  - 格式：一件任务一个 .md（YAML front matter：id、状态、日期、组、类型 / 资料、任务字段、完成方式与重复、提醒、人物、`after` 先做完这些、`related` 相关任务都用 id 引用，行尾 `# 名字` 注释给人看；打卡次数摘要在 front matter，完整事件在 `_meta/checkins.json`），正文就是 body_md；组 = 一层文件夹 + `_group.md`；资料 `library/<库名>/<名字>.md`、人物 `people/<名字>.md`；类型、打卡分类、组分类、偏好、图片清单在 `_meta/*.json`；图片进 `assets/`，正文引用改成相对路径。文件名由正文首行生成（安全化、同文件夹不分大小写去重），id 才是身份。
+  - 代码：core `archive/`（`text.ts` front matter / 文件名 / 路径 / base64、`export.ts`、`import.ts`、`zip.ts`），单独入口 `@mindough/core/archive`（yaml 2.9 + fflate 0.8，客户端按需加载，独立 chunk ≈ 46 KB gzip）。界面：设置 → 数据「导出」「导入」两行（`pages/Settings.tsx` 的 `ArchiveRows`）、导入面板 `components/ArchiveImport.tsx`（`styles/archive.css`）、浏览器那头 `lib/archive.ts`（取回网上图片、打 zip 下载、读 zip / 文件夹、登录时先把图片传 R2）。
+  - 导出：zip 下载 `Mindough YYYY-MM-DD.zip`（解开是同名文件夹）。asset 里的 data: 图直接写文件；网上的图片（R2、海报外链）先试着取回（8 秒超时、并发 4，跨域取不到的照原链接写，提示里说几张没取到）。
+  - 导入：选 zip 或文件夹 → 预览「新建 / 更新 / 跳过 / 出错」+「其中 N 件任务 · N 个组…」+ 出错列表（没导入的 / 没接上的）→ 确认后 `applyImport` 一批写入（一次进 outbox）→ 提示里「撤销」整批撤销（`undoImport`：新建的打墓碑、覆盖的写回原样）。自己的格式按 id：没有 → 建，内容一样 → 跳过，内容不同 → 默认跳过、可选「已有的用文件覆盖」（连前后关系 / 相关 / 人物一起按文件来；我的一天、打卡只补不删）。普通 markdown：每个 .md 一件任务，最上一层文件夹 → 组（同名已有组直接用），文件名补成标题，`- [ ]` 清单不拆，认 status / done / due 几个常见属性，`![[x.png]]` 换成图片。前后关系逐条过环检测，会成环的不连、记进「没接上」。
+  - 测试 `packages/core/test/archive.test.ts`：front matter 往返与畸形输入、文件名安全化与去重、相对路径、base64；导出结构；**导出 → zip → 解 zip → 导入空库，全部表等价**；再导一次全跳过、改过的默认跳过 / 选覆盖才改；整批撤销回到导入前且进 outbox；普通 markdown 文件夹（组、标题、清单、Obsidian 图片、再导一次跳过）；畸形文件（坏 YAML、没收尾、列表当属性、坏 JSON、找不到的引用、乱写的完成方式）只进出错列表、不崩。截图 work/screens/m4-io-*.png（三皮肤 × 桌面 / 手机，Apple 桌面英文）。
+  - **待 Rei 确认**（我先这样定的）：
+    1. Tauri 端也是 zip 下载，没有「选目录直接写文件夹」：dialog / fs 插件还没装，沙箱里没有 Rust 工具链没法 cargo check，就没动 Cargo.toml / capabilities。要的话装 `tauri-plugin-dialog` + `tauri-plugin-fs`，导出时 `save()` 选目录逐个写文件、导入时 `open({ directory: true })` 读。另外桌面 WebView 里 `<a download>` 能不能存到「下载」文件夹要在真机上看一眼（不行的话就得上 dialog 插件）。
+    2. 选进来的那一层文件夹本身不算组（zip 根文件夹、选文件夹时那个文件夹）；普通 markdown 里更深的子文件夹并进最上一层的组。
+    3. 普通 markdown 的任务 id 由「根文件夹名 + 路径」算出：同一个文件夹再导一次是跳过 / 可覆盖，不会重复；但把文件改名或挪位置再导，会当成新的一件。
+    4. Obsidian 的 `tags` 和其他不认识的属性不导入（Mindough 没有标签）；正文里的 `#标签` 原样留着。
+    5. 导入的图片：登录时先传到 R2，没登录用 data: 地址（和离线插图一样，行会大一些）。
+    6. 导入时类型、打卡分类也按 id 认：内置类型内容一样就跳过，不同（对方改过内置类型）默认跳过，选覆盖才会换成文件里的（之后这个内置类型就算「用户改过」，不再随内置版本升级）。
+    7. 文件名、库文件夹名按导出时的界面语言（英文界面导出是 `library/Movies & TV/`）；不影响再导入。
 
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
