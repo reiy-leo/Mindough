@@ -156,6 +156,20 @@ export const CORE_EN: Record<string, V> = {
 
   // ── 列表 / 预览 ──
   '、': ', ',
+
+  // ── 资料合并 ──
+  要留下的那条资料不在了: 'The item you’re keeping no longer exists',
+  至少选两条才能合并: 'Pick at least two to merge',
+  有一条资料已经不在了: 'One of these items no longer exists',
+  只有同一类的资料才能合并: 'Only items of the same kind can be merged',
+  要留下的那个人不在了: 'The person you’re keeping no longer exists',
+  有一个人已经不在了: 'One of these people no longer exists',
+  姓名: 'Name',
+  头像: 'Photo',
+  关系: 'Relationship',
+  生日: 'Birthday',
+  同名: 'Same name',
+  '{label} 编号相同': 'Same {label} ID',
   空白任务: 'Untitled',
   组: 'Group',
 

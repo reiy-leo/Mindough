@@ -216,6 +216,11 @@ export interface Person extends BaseRow {
   relation: string | null;
   birthday: DateKey | null;
   note_md: string;
+  /**
+   * 合并进了哪个人（M4 资料合并）：合并时来源打墓碑并记下目标 id，读的时候顺着它找到留下的那个人。SQLite 迁移 v5。
+   * 没合并过 = null（旧数据没有这一列，读入时补 null）。
+   */
+  merged_into?: string | null;
 }
 
 /**
@@ -230,6 +235,11 @@ export interface LibraryItem extends BaseRow {
   fields: Record<string, FieldValue>;
   note_md: string;
   created_at: Timestamp;
+  /**
+   * 合并进了哪条资料（M4 资料合并）：来源打墓碑并记下目标 id。别的设备离线新建、还指向旧 id 的任务，
+   * 读的时候顺着 merged_into 找到目标（Store.resolveItemId），同步后再改写过来。SQLite 迁移 v5。
+   */
+  merged_into?: string | null;
 }
 
 export interface TaskPerson extends BaseRow {

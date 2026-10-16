@@ -51,13 +51,13 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     default_completion_mode: 'text',
     sort: 'real',
   },
-  person: { name: 'text', avatar_asset_id: 'text?', relation: 'text?', birthday: 'text?', note_md: 'text' },
+  person: { name: 'text', avatar_asset_id: 'text?', relation: 'text?', birthday: 'text?', note_md: 'text', merged_into: 'text?' },
   task_person: { task_id: 'text', person_id: 'text' },
   my_day: { task_id: 'text', date: 'text', sort: 'real', added_at: 'text' },
   check_in: { task_id: 'text', period_key: 'text', kind: 'text', amount: 'real', at: 'text' },
   checkin_category: { name: 'text', icon: 'text', color: 'text', builtin: 'bool', hidden: 'bool', sort: 'real' },
   asset: { sha256: 'text', mime: 'text', width: 'int?', height: 'int?', r2_key: 'text?', url: 'text?' },
-  library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text' },
+  library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text', merged_into: 'text?' },
   task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
   pref: { key: 'text', value: 'json' },
 };
@@ -178,6 +178,14 @@ CREATE TABLE IF NOT EXISTS "pref" (
   "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
   "key" TEXT NOT NULL, "value" TEXT NOT NULL DEFAULT 'null'
 );
+`,
+  },
+  {
+    version: 5,
+    name: '资料合并（library_item.merged_into、person.merged_into）',
+    sql: `
+ALTER TABLE "library_item" ADD COLUMN "merged_into" TEXT;
+ALTER TABLE "person" ADD COLUMN "merged_into" TEXT;
 `,
   },
 ];

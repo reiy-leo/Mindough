@@ -24,8 +24,9 @@ import {
   taskFieldsOf,
   type LibraryEntry,
 } from './library';
+import { mergeCycleSurvivors, planItemMerge, planPersonMerge, resolveMerged, duplicateGroups, type DuplicateGroup, type MergeChoices } from './merge';
 import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
@@ -55,7 +56,47 @@ export interface ConflictEdge extends Edge {
   ids: string[];
 }
 
+/**
+ * 一次合并的撤销记录（合并后提示里的「撤销」用）：合并前的目标、来源，和改指过的任务 / 人物关联。
+ */
+export type MergeUndo =
+  | { kind: 'item'; target: LibraryItem; sources: LibraryItem[]; tasks: Array<{ id: string; library_item_id: string | null }> }
+  | {
+      kind: 'person';
+      target: Person;
+      sources: Person[];
+      /** 改过的人物关联（合并前的样子：person_id、deleted）。 */
+      links: TaskPerson[];
+      /** type_data 里写着人物的任务（合并前的 type_data）。 */
+      tasks: Array<{ id: string; type_data: Record<string, FieldValue> }>;
+    };
+
+export interface MergeResult {
+  /** 留下的那条（合并后的样子）。 */
+  targetId: string;
+  /** 并进去了几条。 */
+  merged: number;
+  /** 改指了几件任务。 */
+  movedTasks: number;
+  undo: MergeUndo;
+}
+
+/** 资料合并的错误（界面直接显示 message）。 */
+export class MergeError extends Error {
+  override name = 'MergeError';
+}
+
 export type NewTaskInput = Partial<Omit<Task, 'id' | 'updated_at' | 'deleted'>> & { id?: string };
+
+/** 用户点过「不是同一个」的重复组（pref，值是组签名数组）。 */
+export const NOT_DUPLICATES_PREF = 'library.not_duplicates';
+
+/** 同一行写了多次只留最后一次。 */
+function dedupeRows(rows: Array<{ table: TableName; row: BaseRow }>) {
+  const m = new Map<string, { table: TableName; row: BaseRow }>();
+  for (const r of rows) m.set(`${r.table}:${r.row.id}`, r);
+  return [...m.values()];
+}
 
 export class Store {
   private tables: Tables;
@@ -98,6 +139,8 @@ export class Store {
         if (t === 'task' && (row as Task).library_item_id === undefined) (row as Task).library_item_id = null;
         // v4 之前没有 remind_time：同上
         if (t === 'task' && (row as Task).remind_time === undefined) (row as Task).remind_time = null;
+        // v5 之前没有 merged_into：同上
+        if ((t === 'library_item' || t === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
         map.set(row.id, row);
         // 本地时钟不落后于已存数据
         if (row.updated_at && /^\d{13}-/.test(row.updated_at)) store.clock.receive(row.updated_at);
@@ -109,6 +152,7 @@ export class Store {
     store.migrateToLibrary();
     store.migrateFieldKinds();
     store.migratePersonTypeTasks();
+    store.settleMerges();
     await store.flush();
     return store;
   }
@@ -217,6 +261,8 @@ export class Store {
     if (!changes.length) return;
     const stamped: Change[] = changes.map((c) => {
       const row = { ...c.row, updated_at: this.clock.tick() };
+      // 资料 / 人物总带着 merged_into（没合并过 = null），和重开后读回的样子一致
+      if ((c.table === 'library_item' || c.table === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
       (this.tables[c.table] as Map<string, BaseRow>).set(row.id, row);
       return { table: c.table, row } as Change;
     });
@@ -276,6 +322,7 @@ export class Store {
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
       }
+      if ((c.table === 'library_item' || c.table === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
       table.set(row.id, row);
       applied.push({ table: c.table, row } as Change);
     }
@@ -285,6 +332,8 @@ export class Store {
     this.pending = this.pending
       .then(() => this.adapter.applyRemoteChanges(applied))
       .catch((err) => this.opts.onError?.(err));
+    // 拉下来的有合并（来源墓碑）或指向已合并资料的任务：解开成环的合并，把指着旧 id 的改写到目标
+    if (applied.some((c) => c.table === 'library_item' || c.table === 'person' || c.table === 'task' || c.table === 'task_person')) this.settleMerges();
     return applied.length;
   }
 
@@ -388,10 +437,17 @@ export class Store {
     const plan = planLibraryMigration(this.list('task'), this.list('task_type'), this.list('library_item'));
     if (!plan.tasks.length) return 0;
     const rows: Array<{ table: TableName; row: BaseRow }> = [];
-    for (const it of plan.items) rows.push({ table: 'library_item', row: { ...it, deleted: false, updated_at: '' } as BaseRow });
+    // 迁移出的确定 id 已经被合并掉了（别的设备迁移后又合并）：不复活那条墓碑，直接挂到合并后的那条
+    const redirect = new Map<string, string>();
+    for (const it of plan.items) {
+      const old = this.tables.library_item.get(it.id);
+      const to = old?.deleted && old.merged_into ? this.resolveItemId(it.id) : undefined;
+      if (to) redirect.set(it.id, to);
+      else rows.push({ table: 'library_item', row: { ...it, merged_into: null, deleted: false, updated_at: '' } as BaseRow });
+    }
     for (const p of plan.tasks) {
       const t = this.tables.task.get(p.id)!;
-      rows.push({ table: 'task', row: { ...t, library_item_id: p.library_item_id, type_data: p.type_data } as BaseRow });
+      rows.push({ table: 'task', row: { ...t, library_item_id: redirect.get(p.library_item_id) ?? p.library_item_id, type_data: p.type_data } as BaseRow });
     }
     this.write(rows);
     return plan.tasks.length;
@@ -401,7 +457,17 @@ export class Store {
 
   /** 任务挂着的资料（未删除）。 */
   itemOf(task: Pick<Task, 'library_item_id'> | null | undefined): LibraryItem | undefined {
-    return this.get('library_item', task?.library_item_id ?? null);
+    return resolveMerged((id) => this.tables.library_item.get(id), task?.library_item_id ?? null);
+  }
+
+  /** 资料 id → 现在该用的那条（合并过就顺着 merged_into 找到留下的；没了 = undefined）。 */
+  resolveItemId(id: string | null | undefined): string | undefined {
+    return resolveMerged((x) => this.tables.library_item.get(x), id)?.id;
+  }
+
+  /** 人物 id → 现在该用的那个人（合并过就顺着 merged_into 找到留下的）。 */
+  resolvePersonId(id: string | null | undefined): string | undefined {
+    return resolveMerged((x) => this.tables.person.get(x), id)?.id;
   }
 
   /** 任务显示用的完整字段：资料 + 任务自己的字段。 */
@@ -415,7 +481,7 @@ export class Store {
 
   /** 用到这条资料的任务（人物库：和这个人有关的任务）。 */
   tasksOfItem(itemId: string): Task[] {
-    return this.tasks().filter((t) => t.library_item_id === itemId);
+    return this.tasks().filter((t) => t.library_item_id && (t.library_item_id === itemId || this.resolveItemId(t.library_item_id) === itemId));
   }
 
   /** 一个库的全部条目（人物类型就是人物列表），带“最近用到”和用到次数，给选择框 / 资料库页用。 */
@@ -428,9 +494,9 @@ export class Store {
       const uses = new Map<string, number>();
       const key = type.fields.find((f) => f.primary)!.key;
       for (const t of this.list('task')) {
-        const ids = new Set(this.list('task_person').filter((x) => x.task_id === t.id).map((x) => x.person_id));
+        const ids = new Set(this.list('task_person').filter((x) => x.task_id === t.id).map((x) => this.resolvePersonId(x.person_id) ?? x.person_id));
         const v = t.type_data[key];
-        if (typeof v === 'string') ids.add(v);
+        if (typeof v === 'string') ids.add(this.resolvePersonId(v) ?? v);
         for (const id of ids) {
           last.set(id, Math.max(last.get(id) ?? 0, ms(t.created_at)));
           uses.set(id, (uses.get(id) ?? 0) + 1);
@@ -441,9 +507,10 @@ export class Store {
     const last = new Map<string, number>();
     const uses = new Map<string, number>();
     for (const t of this.list('task')) {
-      if (!t.library_item_id) continue;
-      last.set(t.library_item_id, Math.max(last.get(t.library_item_id) ?? 0, ms(t.created_at)));
-      uses.set(t.library_item_id, (uses.get(t.library_item_id) ?? 0) + 1);
+      const iid = t.library_item_id ? (this.resolveItemId(t.library_item_id) ?? t.library_item_id) : null;
+      if (!iid) continue;
+      last.set(iid, Math.max(last.get(iid) ?? 0, ms(t.created_at)));
+      uses.set(iid, (uses.get(iid) ?? 0) + 1);
     }
     return this.libraryItems(typeId).map((i) => entryOfItem(type, i, Math.max(last.get(i.id) ?? 0, ms(i.created_at)), uses.get(i.id) ?? 0));
   }
@@ -456,6 +523,7 @@ export class Store {
       fields: data.fields ?? {},
       note_md: data.note_md ?? '',
       created_at: this.now().toISOString(),
+      merged_into: null,
     });
   }
 
@@ -479,7 +547,7 @@ export class Store {
     const type = this.get('task_type', item.type_id);
     const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'library_item', row: { ...item, deleted: true } }];
     for (const t of this.list('task'))
-      if (t.library_item_id === id) rows.push({ table: 'task', row: { ...t, library_item_id: null, type_data: { ...itemData(type, item), ...t.type_data } } as BaseRow });
+      if (t.library_item_id && this.resolveItemId(t.library_item_id) === id) rows.push({ table: 'task', row: { ...t, library_item_id: null, type_data: { ...itemData(type, item), ...t.type_data } } as BaseRow });
     this.write(rows);
   }
 
@@ -513,6 +581,191 @@ export class Store {
     if (!split.name) return t;
     const item = this.findOrCreateLibraryItem(type.id, { name: split.name, image: split.image, fields: split.fields });
     return this.updateTask(t.id, { library_item_id: item.id, type_data: split.task });
+  }
+
+  // ───────────── 合并 ─────────────
+
+  /**
+   * 把几条资料并进一条（Rei M4：「两条其实是同一部片」）。同类型才能合并。
+   * 默认目标的非空值优先、空的用来源补；choices 选冲突字段用谁的值；备注拼接（不重复）；
+   * 用到来源的任务全部改指目标；来源打墓碑并记 merged_into = 目标。一次写入，返回撤销记录。
+   */
+  mergeLibraryItems(targetId: string, sourceIds: readonly string[], choices: MergeChoices = {}): MergeResult {
+    const target = this.get('library_item', targetId);
+    if (!target) throw new MergeError(tr('要留下的那条资料不在了'));
+    const ids = [...new Set(sourceIds)].filter((id) => id !== targetId);
+    if (!ids.length) throw new MergeError(tr('至少选两条才能合并'));
+    const sources = ids.map((id) => {
+      const s = this.get('library_item', id);
+      if (!s) throw new MergeError(tr('有一条资料已经不在了'));
+      if (s.type_id !== target.type_id) throw new MergeError(tr('只有同一类的资料才能合并'));
+      return s;
+    });
+    const plan = planItemMerge(this.get('task_type', target.type_id), target, sources, choices);
+    const merging = new Set(ids);
+    const rows: Array<{ table: TableName; row: BaseRow }> = [
+      { table: 'library_item', row: { ...target, name: plan.name, image: plan.image, fields: plan.fields, note_md: plan.note_md, deleted: false, merged_into: null } as BaseRow },
+    ];
+    for (const s of sources) rows.push({ table: 'library_item', row: { ...s, deleted: true, merged_into: targetId } as BaseRow });
+    const moved: Array<{ id: string; library_item_id: string | null }> = [];
+    for (const t of this.list('task')) {
+      const r = t.library_item_id ? this.resolveItemId(t.library_item_id) : undefined;
+      if (!r || !merging.has(r)) continue;
+      moved.push({ id: t.id, library_item_id: t.library_item_id });
+      rows.push({ table: 'task', row: { ...t, library_item_id: targetId } as BaseRow });
+    }
+    this.write(rows);
+    return { targetId, merged: sources.length, movedTasks: moved.length, undo: { kind: 'item', target: { ...target }, sources: sources.map((s) => ({ ...s })), tasks: moved } };
+  }
+
+  /**
+   * 人物合并：同上，人物关联（task_person）改指留下的人；同一件任务已经关联了留下的人，就去掉重复的那条；
+   * 任务字段里写着来源的人（旧的人物类型）也改过来。
+   */
+  mergePeople(targetId: string, sourceIds: readonly string[], choices: MergeChoices = {}): MergeResult {
+    const target = this.get('person', targetId);
+    if (!target) throw new MergeError(tr('要留下的那个人不在了'));
+    const ids = [...new Set(sourceIds)].filter((id) => id !== targetId);
+    if (!ids.length) throw new MergeError(tr('至少选两条才能合并'));
+    const sources = ids.map((id) => {
+      const s = this.get('person', id);
+      if (!s) throw new MergeError(tr('有一个人已经不在了'));
+      return s;
+    });
+    const plan = planPersonMerge(target, sources, choices);
+    const merging = new Set(ids);
+    const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'person', row: { ...target, ...plan.patch, deleted: false, merged_into: null } as BaseRow }];
+    for (const s of sources) rows.push({ table: 'person', row: { ...s, deleted: true, merged_into: targetId } as BaseRow });
+    const { links, tasks, rows: more, movedTasks } = this.repointPeople(merging, targetId);
+    rows.push(...more);
+    this.write(rows);
+    return { targetId, merged: sources.length, movedTasks, undo: { kind: 'person', target: { ...target }, sources: sources.map((s) => ({ ...s })), links, tasks } };
+  }
+
+  /** 把指着 from 里那些人的人物关联 / 任务字段改到 to（去重）；返回要写的行和改之前的样子。 */
+  private repointPeople(from: ReadonlySet<string>, to: string) {
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    const links: TaskPerson[] = [];
+    const tasks: Array<{ id: string; type_data: Record<string, FieldValue> }> = [];
+    const touched = new Set<string>();
+    const resolved = (pid: string) => this.resolvePersonId(pid) ?? pid;
+    const live = this.list('task_person');
+    const hasTarget = new Set(live.filter((x) => x.person_id === to).map((x) => x.task_id));
+    for (const x of live) {
+      if (x.person_id === to || !(from.has(x.person_id) || from.has(resolved(x.person_id)))) continue;
+      links.push({ ...x });
+      touched.add(x.task_id);
+      if (hasTarget.has(x.task_id)) rows.push({ table: 'task_person', row: { ...x, deleted: true } });
+      else {
+        hasTarget.add(x.task_id);
+        rows.push({ table: 'task_person', row: { ...x, person_id: to } as BaseRow });
+      }
+    }
+    for (const t of this.list('task')) {
+      const type = this.get('task_type', t.type_id);
+      let td: Record<string, FieldValue> | null = null;
+      for (const f of type?.fields ?? []) {
+        const v = t.type_data[f.key];
+        if (f.kind !== 'person' || typeof v !== 'string' || v === to || !(from.has(v) || from.has(resolved(v)))) continue;
+        td ??= { ...t.type_data };
+        td[f.key] = to;
+      }
+      if (td) {
+        tasks.push({ id: t.id, type_data: t.type_data });
+        touched.add(t.id);
+        rows.push({ table: 'task', row: { ...t, type_data: td } as BaseRow });
+      }
+    }
+    return { rows, links, tasks, movedTasks: touched.size };
+  }
+
+  /** 撤销一次合并：目标回到合并前，来源翻回来（不再指向目标），改指过、现在还指着目标的任务改回去。 */
+  undoMerge(undo: MergeUndo): void {
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    if (undo.kind === 'item') {
+      const cur = this.tables.library_item.get(undo.target.id);
+      if (cur) rows.push({ table: 'library_item', row: { ...cur, name: undo.target.name, image: undo.target.image, fields: undo.target.fields, note_md: undo.target.note_md } as BaseRow });
+      for (const s of undo.sources) {
+        const c = this.tables.library_item.get(s.id);
+        if (c) rows.push({ table: 'library_item', row: { ...c, name: s.name, image: s.image, fields: s.fields, note_md: s.note_md, deleted: false, merged_into: null } as BaseRow });
+      }
+      for (const m of undo.tasks) {
+        const t = this.get('task', m.id);
+        if (t && t.library_item_id === undo.target.id) rows.push({ table: 'task', row: { ...t, library_item_id: m.library_item_id } as BaseRow });
+      }
+    } else {
+      const cur = this.tables.person.get(undo.target.id);
+      const { id: _i, updated_at: _u, deleted: _d, merged_into: _m, ...prev } = undo.target;
+      if (cur) rows.push({ table: 'person', row: { ...cur, ...prev } as BaseRow });
+      for (const s of undo.sources) {
+        const c = this.tables.person.get(s.id);
+        if (c) rows.push({ table: 'person', row: { ...c, name: s.name, avatar_asset_id: s.avatar_asset_id, relation: s.relation, birthday: s.birthday, note_md: s.note_md, deleted: false, merged_into: null } as BaseRow });
+      }
+      for (const l of undo.links) {
+        const c = this.tables.task_person.get(l.id);
+        if (c) rows.push({ table: 'task_person', row: { ...c, person_id: l.person_id, deleted: l.deleted } as BaseRow });
+      }
+      for (const m of undo.tasks) {
+        const t = this.get('task', m.id);
+        if (t) rows.push({ table: 'task', row: { ...t, type_data: m.type_data } as BaseRow });
+      }
+    }
+    this.write(rows);
+  }
+
+  /**
+   * 合并之后的收尾（打开时、拉下来新行后各跑一次，没事可做就不写）：
+   * 1. 两台设备同时把 A 并进 B、B 并进 A：成环的墓碑留 id 最小的那条翻回来（各端一样）；
+   * 2. 任务 / 人物关联还指着已经并掉的旧 id（别的设备离线时新建的）：改写到留下的那条。
+   */
+  settleMerges(): void {
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const table of ['library_item', 'person'] as const) {
+      const map = this.tables[table] as Map<string, LibraryItem | Person>;
+      for (const id of mergeCycleSurvivors(map.values(), (x) => map.get(x))) {
+        const r = map.get(id)!;
+        const row = { ...r, deleted: false, merged_into: null } as unknown as BaseRow;
+        map.set(id, row as LibraryItem & Person);
+        rows.push({ table, row });
+      }
+    }
+    for (const t of this.tables.task.values()) {
+      if (t.deleted || !t.library_item_id) continue;
+      const raw = this.tables.library_item.get(t.library_item_id);
+      if (!raw?.deleted || !raw.merged_into) continue;
+      const to = this.resolveItemId(t.library_item_id);
+      if (to && to !== t.library_item_id) rows.push({ table: 'task', row: { ...t, library_item_id: to } as BaseRow });
+    }
+    // 先写这一批（人物那边可能也要改同一件任务，得在新行上改）
+    this.write(dedupeRows(rows));
+    rows.length = 0;
+    const merged = new Map<string, string>();
+    for (const p of this.tables.person.values()) {
+      if (!p.deleted || !p.merged_into) continue;
+      const to = this.resolvePersonId(p.id);
+      if (to) merged.set(p.id, to);
+    }
+    const byTarget = new Map<string, Set<string>>();
+    for (const [, to] of merged) if (!byTarget.has(to)) byTarget.set(to, new Set());
+    for (const [from, to] of merged) byTarget.get(to)!.add(from);
+    for (const [to, from] of byTarget) this.write(this.repointPeople(from, to).rows);
+  }
+
+  /** 资料库里可能重复的几组（同名 / 同一个站点编号），不含点过「不是同一个」的；人物库按名字。 */
+  duplicateGroups(typeId: string): DuplicateGroup[] {
+    const type = this.get('task_type', typeId);
+    if (!hasLibrary(type)) return [];
+    const dismissed = new Set(Array.isArray(this.pref(NOT_DUPLICATES_PREF)) ? (this.pref(NOT_DUPLICATES_PREF) as string[]) : []);
+    const uses = new Map(this.libraryEntries(typeId).map((e) => [e.id, e.uses]));
+    if (isPersonLibrary(type)) return duplicateGroups(null, this.list('person').map((p) => ({ id: p.id, name: p.name })), { uses, dismissed });
+    return duplicateGroups(type, this.libraryItems(typeId), { uses, dismissed });
+  }
+
+  /** 「不是同一个」：这一组以后不再提示（跟着账户同步）。 */
+  dismissDuplicateGroup(key: string): void {
+    const cur = this.pref(NOT_DUPLICATES_PREF);
+    const list = Array.isArray(cur) ? (cur as string[]) : [];
+    if (!list.includes(key)) this.setPref(NOT_DUPLICATES_PREF, [...list, key]);
   }
 
   // ───────────── 任务 ─────────────
@@ -730,22 +983,23 @@ export class Store {
   // ───────────── 人物 ─────────────
 
   linkPerson(taskId: string, personId: string): void {
-    if (this.list('task_person').some((x) => x.task_id === taskId && x.person_id === personId)) return;
+    personId = this.resolvePersonId(personId) ?? personId;
+    if (this.list('task_person').some((x) => x.task_id === taskId && (this.resolvePersonId(x.person_id) ?? x.person_id) === personId)) return;
     this.insert('task_person', { task_id: taskId, person_id: personId });
   }
 
   unlinkPerson(taskId: string, personId: string): void {
-    for (const x of this.list('task_person')) if (x.task_id === taskId && x.person_id === personId) this.remove('task_person', x.id);
+    for (const x of this.list('task_person')) if (x.task_id === taskId && (x.person_id === personId || this.resolvePersonId(x.person_id) === personId)) this.remove('task_person', x.id);
   }
 
   peopleOf(taskId: string): TableMap['person'][] {
-    const ids = new Set(this.list('task_person').filter((x) => x.task_id === taskId).map((x) => x.person_id));
+    const ids = new Set(this.list('task_person').filter((x) => x.task_id === taskId).map((x) => this.resolvePersonId(x.person_id) ?? x.person_id));
     // “人物”类型的人物字段也算关联
     const task = this.get('task', taskId);
     const type = this.get('task_type', task?.type_id);
     for (const f of type?.fields ?? []) {
       const v = task?.type_data[f.key];
-      if (f.kind === 'person' && typeof v === 'string') ids.add(v);
+      if (f.kind === 'person' && typeof v === 'string') ids.add(this.resolvePersonId(v) ?? v);
     }
     return [...ids].map((id) => this.get('person', id)).filter((p): p is TableMap['person'] => !!p);
   }
