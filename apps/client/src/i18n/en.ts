@@ -589,4 +589,6 @@ export const EN: Record<string, EnValue> = {
   未填: 'Empty',
   进度: 'Progress',
   '进度：{text}': 'Progress: {text}',
+  不选了: 'Clear',
+  '已不再关联「{name}」': 'Removed “{name}” from this task',
 };

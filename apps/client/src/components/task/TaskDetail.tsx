@@ -531,9 +531,20 @@ function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task:
   const copy = libraryCopy(type);
   const [query, setQuery] = useState('');
   const [sheet, setSheet] = useState<null | { edit: true } | { create: string }>(null);
-  const attach = (id: string) => {
-    if (person) store.updateTask(task.id, { type_data: { ...task.type_data, [key]: id } });
-    else store.setTaskItem(task.id, id);
+  const attach = (id: string | null) => {
+    if (person) {
+      const cur = store.get('task', task.id) ?? task;
+      const td = { ...cur.type_data };
+      if (id) td[key] = id;
+      else delete td[key];
+      store.updateTask(task.id, { type_data: td });
+    } else store.setTaskItem(task.id, id);
+  };
+  /** 不选了：回到什么都没选（资料本身还在库里），提示里可以撤销。 */
+  const detach = () => {
+    const prev = entryId;
+    attach(null);
+    ui.toast({ message: tr('已不再关联「{name}」', { name: entry?.name ?? '' }), actions: [{ label: tr('撤销'), onPress: () => attach(prev) }] }, 5000);
   };
   const picker = (close: () => void) => (
     <LibraryPicker
@@ -614,7 +625,19 @@ function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task:
                   </>
                 }
               />
-              <div className="lib-pop-head">{tr('换一个')}</div>
+              <div className="lib-pop-row">
+                <span className="lib-pop-head">{tr('换一个')}</span>
+                <RacButton
+                  className="link-btn lib-pop-clear"
+                  onPress={() => {
+                    close();
+                    detach();
+                  }}
+                >
+                  <X size={13} aria-hidden />
+                  {tr('不选了')}
+                </RacButton>
+              </div>
               {picker(close)}
             </div>
           ) : (
