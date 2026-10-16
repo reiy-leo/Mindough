@@ -264,6 +264,25 @@ describe('Store 资料库操作', () => {
     expect(s.libraryEntries('nope')).toEqual([]);
   });
 
+  it('「人物」类型删掉了：不能再选；老的人物类型任务打开时改成普通任务 + 人物关联，事由接到正文后', async () => {
+    const { isPickableType } = await import('../src/library');
+    expect(BUILTIN_TASK_TYPES.filter(isPickableType).map((t) => t.id)).not.toContain(T.person);
+    const ad = new MemoryAdapter();
+    const s1 = await Store.open(ad, { deviceId: 'd', now: () => new Date('2026-10-16T12:00:00Z') });
+    const mom = s1.insert('person', { name: '妈妈', avatar_asset_id: null, relation: '家人', birthday: null, note_md: '' });
+    const t = s1.insert('task', { ...mkTask('x'), body_md: '## 要聊什么', type_id: T.person, type_data: { person: mom.id, reason: '周末打电话' } });
+    await s1.flush();
+    const s2 = await Store.open(ad, { deviceId: 'd', now: () => new Date('2026-10-16T12:00:00Z') });
+    const after = s2.get('task', t.id)!;
+    expect(after.type_id).toBeNull();
+    expect(after.type_data).toEqual({});
+    expect(after.body_md).toBe('## 要聊什么\n\n周末打电话\n');
+    expect(s2.list('task_person').filter((x) => x.task_id === t.id).map((x) => x.person_id)).toEqual([mom.id]);
+    await s2.flush();
+    const s3 = await Store.open(ad, { deviceId: 'd', now: () => new Date('2026-10-16T12:00:00Z') });
+    expect(s3.list('task_person').filter((x) => x.task_id === t.id)).toHaveLength(1);
+  });
+
   it('内置类型旧定义（老的内置版本戳）打开时换成新定义；用户改过的保留', async () => {
     const ad = new MemoryAdapter();
     const oldMovie = { ...BUILTIN_TASK_TYPES.find((t) => t.id === T.movie)!, updated_at: '0000000000000-0000-builtin', fields: [{ key: 'title', label: '片名', kind: 'text' as const, primary: true }] };

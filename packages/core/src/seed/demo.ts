@@ -173,11 +173,8 @@ export function seedDemo(store: Store): void {
     done(tr('取快递（门口丰巢）'), 1, { scheduled_date: d(-1) });
     const broadband = closed(tr('退掉旧宽带（房东说网络随房子留下）'), 1, { scheduled_date: d(-1) });
     const c3 = closed(tr('去超市买菜（改成网上下单了）'), 0, { scheduled_date: d(0), done_at: new Date(now.getTime() - 3600_000).toISOString() });
-    const call = task(tr('## 要聊什么\n- 搬家的事\n- 国庆的照片\n'), {
-      type_id: T.person,
-      type_data: { person: mom.id, reason: tr('周末打电话') },
-      scheduled_date: d(2),
-    });
+    const call = task(tr('## 要聊什么\n- 搬家的事\n- 国庆的照片\n'), { scheduled_date: d(2) });
+    store.linkPerson(call.id, mom.id);
     task(tr('写周报'), { scheduled_date: d(1) });
     task(tr('预约年度体检'), { scheduled_date: d(5) });
     task(tr('## 想吃什么\n炸酱面 + 卤煮'), {

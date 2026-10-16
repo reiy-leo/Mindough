@@ -10,7 +10,6 @@ import { Avatar } from '../components/Avatar';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { NoteField } from '../components/library/NoteField';
-import { BUILTIN_TYPE_IDS } from '@mindough/core';
 
 import { tr } from '../lib/i18n';
 export function PersonDialog({ id, initialName, onClose }: { id?: string; initialName?: string; onClose: () => void }) {
@@ -98,7 +97,7 @@ export function PersonDetailPage({ id }: { id: string }) {
             {tr('编辑')}</Button>
           <Button
             variant="primary"
-            onPress={() => ui.openQuickCreate({ type_id: BUILTIN_TYPE_IDS.person, type_data: { person: id } })}
+            onPress={() => ui.openQuickCreate({}, { people: [id] })}
           >
             <Plus size={16} />
             {tr('新建相关任务')}</Button>

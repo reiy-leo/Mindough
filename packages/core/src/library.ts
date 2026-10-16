@@ -60,6 +60,11 @@ export function hasLibrary(type: Pick<TaskType, 'id' | 'fields'> | null | undefi
 }
 
 /** 人物类型：库就是 person 表。 */
+/** 新建 / 改类型时能选的类型：不含隐藏的，也不含「人物」（任务本身就能关联人物，Rei 2026-10-16 删掉了这个分类；人物库仍在）。 */
+export function isPickableType(t: Pick<TaskType, 'id' | 'hidden'>): boolean {
+  return !t.hidden && t.id !== BUILTIN_TYPE_IDS.person;
+}
+
 export function isPersonLibrary(type: Pick<TaskType, 'fields'> | null | undefined): boolean {
   return !!type?.fields.find((f) => f.primary)?.kind && type.fields.find((f) => f.primary)!.kind === 'person';
 }

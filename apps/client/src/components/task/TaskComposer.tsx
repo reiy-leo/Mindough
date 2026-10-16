@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, t
 import { Button as RacButton } from 'react-aria-components';
 import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
 import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { isPickableType } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -120,10 +121,10 @@ function Composer() {
   const store = useStore();
   const { skin } = useSettings();
   const req = ui.quickCreate!;
-  const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults), related: req.related ?? [] }));
+  const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults), related: req.related ?? [], people: req.people ?? [] }));
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
   const today = toDateKey(store.now());
-  const types = useMemo(() => store.list('task_type').filter((t) => !t.hidden).sort((a, b) => a.sort - b.sort), [store]);
+  const types = useMemo(() => store.list('task_type').filter(isPickableType).sort((a, b) => a.sort - b.sort), [store]);
   const type = store.get('task_type', d.typeId);
   const lib = hasLibrary(type) ? type : null;
   const person = !!lib && isPersonLibrary(lib);

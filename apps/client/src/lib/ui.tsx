@@ -22,7 +22,7 @@ interface UiCtx {
   openEditor: (taskId: string | null) => void;
   /** 新建任务面板：defaults 是预填值；after 表示“接在某个任务之后”（建好后连上前后关系）；related 预先勾上的相关任务。 */
   quickCreate: ComposerRequest | null;
-  openQuickCreate: (defaults?: NewTaskInput, opts?: { after?: string; related?: string[]; myDay?: boolean }) => void;
+  openQuickCreate: (defaults?: NewTaskInput, opts?: { after?: string; related?: string[]; myDay?: boolean; people?: string[] }) => void;
   closeQuickCreate: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
@@ -34,6 +34,8 @@ export interface ComposerRequest {
   /** 从「我的一天」新建：建好放进今天（别处新建默认进待安排）。 */
   myDay?: boolean;
   related?: string[];
+  /** 预先关联的人物（从人物页「新建相关任务」）。 */
+  people?: string[];
 }
 
 const Ctx = createContext<UiCtx | null>(null);
@@ -63,7 +65,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       editingId,
       openEditor: setEditingId,
       quickCreate,
-      openQuickCreate: (d = {}, opts = {}) => setQuickCreate({ defaults: d, ...(opts.after ? { after: opts.after } : {}), ...(opts.related?.length ? { related: opts.related } : {}), ...(opts.myDay ? { myDay: true } : {}) }),
+      openQuickCreate: (d = {}, opts = {}) => setQuickCreate({ defaults: d, ...(opts.after ? { after: opts.after } : {}), ...(opts.related?.length ? { related: opts.related } : {}), ...(opts.myDay ? { myDay: true } : {}), ...(opts.people?.length ? { people: opts.people } : {}) }),
       closeQuickCreate: () => setQuickCreate(null),
       paletteOpen,
       setPaletteOpen,

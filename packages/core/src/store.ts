@@ -9,7 +9,7 @@ import { backlogTasks } from './backlog';
 import { assertCanAddEdge, deriveAll, findCycleEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
 import { LinkedByDependencyError, SelfLinkError, canonicalPair, hasDependencyBetween, prefId, relatedIdsOf, taskLinkId, visibleLinks } from './related';
-import { BUILTIN_TASK_TYPES, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
+import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS, BUILTIN_TYPES_REVISION, PLAIN_TYPE_ID, isBuiltinStamp, withNewBuiltinFields } from './seed/builtin-types';
 import {
   entryOfItem,
   entryOfPerson,
@@ -108,6 +108,7 @@ export class Store {
     store.migrateLegacyStatuses();
     store.migrateToLibrary();
     store.migrateFieldKinds();
+    store.migratePersonTypeTasks();
     await store.flush();
     return store;
   }
@@ -319,6 +320,22 @@ export class Store {
       if (s !== t.status) rows.push({ table: 'task', row: { ...t, status: s } as BaseRow });
     }
     this.write(rows);
+  }
+
+  /**
+   * 「人物」类型不再能选（Rei 2026-10-16：和任务自带的「人物」重复）。还挂着这个类型的任务改成普通任务：
+   * 那个人改用任务的人物关联（确定的 id，两台设备各迁一遍也只有一条），「事由」接到正文末尾。
+   */
+  private migratePersonTypeTasks() {
+    for (const t of [...this.tables.task.values()]) {
+      if (t.deleted || t.type_id !== BUILTIN_TYPE_IDS.person) continue;
+      const pid = typeof t.type_data?.person === 'string' ? t.type_data.person : null;
+      const reason = typeof t.type_data?.reason === 'string' ? t.type_data.reason.trim() : '';
+      if (pid && this.get('person', pid) && !this.list('task_person').some((x) => x.task_id === t.id && x.person_id === pid))
+        this.insert('task_person', { id: `${t.id}-person-${pid}`, task_id: t.id, person_id: pid });
+      const body = reason && !t.body_md.includes(reason) ? `${t.body_md.replace(/\s+$/, '')}\n\n${reason}\n` : t.body_md;
+      this.update('task', t.id, { type_id: null, type_data: {}, body_md: body });
+    }
   }
 
   /** 补齐内置打卡分类（固定 id）；以后在种子里追加的新分类，老用户打开时也会补上。 */
