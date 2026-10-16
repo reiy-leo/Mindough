@@ -1353,3 +1353,102 @@
 .remind-off .link-btn {
   font-size: inherit;
 }
+
+/* 顶栏的完成方式小胶囊（方案 A，2026-10-16） */
+.completion-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px 0 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  white-space: nowrap;
+}
+.completion-pill[data-hovered] {
+  background: var(--surface-hover);
+}
+.completion-pill .ring-fill {
+  stroke: var(--accent);
+}
+.completion-pill.is-running {
+  color: var(--accent-soft-text);
+  background: var(--accent-soft);
+}
+.completion-pill.is-met .ring-fill {
+  stroke: var(--success);
+}
+.completion-pop {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 260px;
+}
+.completion-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* 属性里的资料、任务字段 */
+.prop-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.prop-entry-art {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: cover;
+  overflow: hidden;
+  font-size: 11px;
+}
+.prop-entry-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prop-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.prop-progress-bar {
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.prop-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.lib-pop {
+  display: grid;
+  gap: var(--space-3);
+}
+.lib-pop-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.prop-entry-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.prop-entry-art .art-initials {
+  font-size: 9px;
+}

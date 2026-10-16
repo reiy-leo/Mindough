@@ -583,4 +583,10 @@ export const EN: Record<string, EnValue> = {
   '加到今天…': 'Add to Today…',
   '小窗：置顶显示今天的事': 'Mini window — keeps today on top',
   打开小窗: 'Open Mini Window',
+
+  // ── 详情：完成方式胶囊、属性里的资料与任务字段 ──
+  未选: 'None',
+  未填: 'Empty',
+  进度: 'Progress',
+  '进度：{text}': 'Progress: {text}',
 };

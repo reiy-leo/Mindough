@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { AlertTriangle, Bell, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Search, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -22,6 +22,8 @@ import {
   libraryCopy,
   taskFieldsOf,
   toDateKey,
+  type FieldDef,
+  type FieldValue,
   type LibraryEntry,
   type Store,
   type Task,
@@ -30,7 +32,7 @@ import {
 } from '@mindough/core';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { navigate } from '../../lib/router';
-import { ItemCard, ItemSheet, LibraryPicker } from '../library/Library';
+import { ItemCard, ItemSheet, LibraryPicker, artShape, entryArt } from '../library/Library';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -42,7 +44,7 @@ import { AutoTextarea, Button, ConfirmDialog, OverflowMenu, PopoverPanel, Progre
 import { Markdown } from '../Markdown';
 import { AvatarStack } from '../Avatar';
 import { CategoryLabel, CategoryPicker } from '../CheckInCategory';
-import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
+import { CompletionChoice, CompletionSentence, FieldInput, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 
@@ -238,6 +240,130 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
   );
 }
 
+/**
+ * 顶栏的完成方式小胶囊（Rei 2026-10-16 方案 A：计时 / 计数 / 倒数日不再占正文下面一大块）：
+ * 「▶ 1:50 / 10 分钟」「3 / 5」「还有 12 天」，点开是完整的进度和开始 / 暂停。
+ */
+function CompletionPill({ store, task, today, primary, secondary }: { store: Store; task: Task; today: string; primary: Act | null; secondary: Act | null }) {
+  const p = store.progress(task.id, today);
+  const recurring = !!task.recurrence;
+  if (!p || (task.completion_mode === 'once' && !recurring)) return null;
+  let text = '';
+  switch (task.completion_mode) {
+    case 'once':
+      text = p.met ? tr('今天已打卡') : tr('今天还没打卡');
+      break;
+    case 'timer':
+      text = formatDuration(p.value) + (p.target ? ` / ${formatTarget(p.target)}` : '');
+      break;
+    case 'count':
+      text = `${p.value} / ${p.target ?? 1}${task.unit ? ` ${task.unit}` : ''}`;
+      break;
+    case 'countdown':
+      text = countdownPhrase(task.target_date, today);
+      break;
+  }
+  const ring = task.completion_mode === 'timer' || task.completion_mode === 'count';
+  const ModeIcon = MODE_ICON[task.completion_mode];
+  return (
+    <PopoverPanel
+      label={tr('进度')}
+      trigger={
+        <RacButton className={`completion-pill${p.running ? ' is-running' : ''}${p.met ? ' is-met' : ''}`} aria-label={tr('进度：{text}', { text })}>
+          {ring ? <ProgressRing value={p.ratio} size={16} stroke={2.5} /> : <ModeIcon size={13} aria-hidden />}
+          <span className="completion-pill-text">{text}</span>
+        </RacButton>
+      }
+    >
+      {(close) => (
+        <div className="pop-section completion-pop">
+          <Progress store={store} task={task} today={today} />
+          {(primary || secondary) && (
+            <div className="completion-pop-actions">
+              {secondary && (
+                <Button variant="secondary" className="btn-sm" onPress={secondary.onPress}>
+                  {secondary.icon}
+                  {secondary.label}
+                </Button>
+              )}
+              {primary && (
+                <Button
+                  variant="primary"
+                  className="btn-sm"
+                  isDisabled={!!primary.disabled}
+                  onPress={() => {
+                    primary.onPress();
+                    if (task.completion_mode === 'once' || task.completion_mode === 'countdown') close();
+                  }}
+                >
+                  {primary.icon}
+                  {primary.label}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </PopoverPanel>
+  );
+}
+
+/** 任务字段（看到哪、进度、出发日期…）在属性列表里显示成什么。 */
+function fieldText(def: FieldDef, v: FieldValue | undefined, today: string): string | null {
+  if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return null;
+  switch (def.kind) {
+    case 'episode':
+      return formatEpisode(v as never);
+    case 'date':
+      return friendlyDate(String(v), today);
+    case 'select':
+      return dataLabel(String(v));
+    case 'multiselect':
+      return (Array.isArray(v) ? v : [v]).map((x) => dataLabel(String(x))).join(tr('、'));
+    case 'number':
+    case 'progress':
+      return def.unit ? (def.unit === '%' ? `${v}%` : `${v} ${dataLabel(def.unit)}`) : String(v);
+    default:
+      return Array.isArray(v) ? v.join(tr('、')) : String(v);
+  }
+}
+
+/** 任务字段的一行：值（进度 % 带一条细进度条），点开改。 */
+function TaskFieldRow({ store, def, task, today, onChange }: { store: Store; def: FieldDef; task: Task; today: string; onChange: (v: FieldValue) => void }) {
+  const v = task.type_data[def.key];
+  const text = fieldText(def, v, today);
+  const FieldIcon = def.kind === 'progress' ? Gauge : def.kind === 'episode' ? Tv : def.kind === 'date' ? CalendarDays : def.kind === 'number' ? Hash : def.kind === 'select' || def.kind === 'multiselect' ? ListChecks : Type;
+  const pct = def.kind === 'progress' && def.unit === '%' && typeof v === 'number' ? Math.max(0, Math.min(100, v)) : null;
+  return (
+    <PropRow
+      icon={<FieldIcon size={15} />}
+      label={dataLabel(def.label)}
+      empty={!text}
+      wide={def.kind === 'episode' || def.kind === 'multiselect' || def.kind === 'money'}
+      value={
+        text ? (
+          pct !== null ? (
+            <span className="prop-progress">
+              <span className="prop-progress-bar" aria-hidden>
+                <span style={{ width: `${pct}%` }} />
+              </span>
+              {text}
+            </span>
+          ) : (
+            text
+          )
+        ) : (
+          tr('未填')
+        )
+      }
+    >
+      <div className="pop-section">
+        <FieldInput store={store} def={def} value={v} onChange={onChange} />
+      </div>
+    </PropRow>
+  );
+}
+
 /** 属性列表的一行：标签 + 值，点值弹出编辑。 */
 function PropRow({ icon, label, value, empty, children, wide }: { icon: ReactNode; label: string; value: ReactNode; empty?: boolean; children: ReactNode | ((close: () => void) => ReactNode); wide?: boolean }) {
   return (
@@ -392,11 +518,12 @@ function Relations({ store, task }: { store: Store; task: Task }) {
 }
 
 /**
- * 资料卡：这件任务用的是库里的哪一条（海报 + 名字 + 简介），可以「换一个」或「编辑资料」。
- * 资料改了，用到它的任务都会变（编辑弹层里会轻轻提一句）。
+ * 属性里的「资料」一行（Rei 2026-10-16 方案 A：不再压在标题上面）：没选时淡淡一行「未选」，点开搜索；
+ * 选了显示缩略图 + 名字，点开是资料卡（编辑资料、在库里看）和「换一个」。资料改了，用到它的任务都会变。
  */
-function LibraryHero({ store, type, task }: { store: Store; type: TaskType; task: Task }) {
+function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task: Task }) {
   const ui = useUi();
+  const LibIcon = typeIcon(type.icon);
   const person = isPersonLibrary(type);
   const key = type.fields.find((f) => f.primary)!.key;
   const entryId = person ? (typeof task.type_data[key] === 'string' ? (task.type_data[key] as string) : null) : task.library_item_id;
@@ -434,48 +561,67 @@ function LibraryHero({ store, type, task }: { store: Store; type: TaskType; task
     ui.openEditor(null);
     navigate(person ? { page: 'person', id: entryId } : { page: 'libitem', typeId: type.id, id: entryId });
   };
+  const label = dataLabel(type.name);
   return (
     <>
-      {entry ? (
-        <ItemCard
-          store={store}
-          type={type}
-          size="lg"
-          entry={entry}
-          actions={
-            <>
-              <PopoverPanel
-                label={tr('换一个')}
-                placement="bottom end"
-                className="is-wide"
-                trigger={<RacButton className="btn btn-secondary btn-sm">{tr('换一个')}</RacButton>}
-              >
-                {picker}
-              </PopoverPanel>
-              <Button variant="secondary" className="btn-sm" onPress={() => setSheet({ edit: true })}>
-                {tr('编辑资料')}</Button>
-              <RacButton className="link-btn item-card-open" onPress={open}>
-                {tr('在{name}里看', { name: copy.name })}
-                {entry.uses > 1 ? tr(' · {uses} 件任务', { uses: entry.uses }) : ''}
-                <ChevronRight size={13} aria-hidden />
-              </RacButton>
-            </>
-          }
-        />
-      ) : (
-        <PopoverPanel
-          label={copy.pick}
-          className="is-wide"
-          trigger={
-            <RacButton className="item-card-empty" style={{ '--chip-color': type.color } as CSSProperties}>
-              <Search size={16} aria-hidden />
-              {copy.pick}
-            </RacButton>
-          }
-        >
-          {picker}
-        </PopoverPanel>
-      )}
+      <PropRow
+        icon={<LibIcon size={15} />}
+        label={label}
+        empty={!entry}
+        wide
+        value={
+          entry ? (
+            <span className="prop-entry">
+              {entryArt(store, entry, artShape(type), 'prop-entry-art')}
+              <span className="prop-entry-name">{entry.name}</span>
+            </span>
+          ) : (
+            tr('未选')
+          )
+        }
+      >
+        {(close) =>
+          entry ? (
+            <div className="pop-section lib-pop">
+              <ItemCard
+                store={store}
+                type={type}
+                size="lg"
+                entry={entry}
+                actions={
+                  <>
+                    <Button
+                      variant="secondary"
+                      className="btn-sm"
+                      onPress={() => {
+                        close();
+                        setSheet({ edit: true });
+                      }}
+                    >
+                      {tr('编辑资料')}
+                    </Button>
+                    <RacButton
+                      className="link-btn item-card-open"
+                      onPress={() => {
+                        close();
+                        open();
+                      }}
+                    >
+                      {tr('在{name}里看', { name: copy.name })}
+                      {entry.uses > 1 ? tr(' · {uses} 件任务', { uses: entry.uses }) : ''}
+                      <ChevronRight size={13} aria-hidden />
+                    </RacButton>
+                  </>
+                }
+              />
+              <div className="lib-pop-head">{tr('换一个')}</div>
+              {picker(close)}
+            </div>
+          ) : (
+            picker(close)
+          )
+        }
+      </PropRow>
       {sheet && (
         <ItemSheet
           store={store}
@@ -560,6 +706,11 @@ function Detail({ task }: { task: Task }) {
           </div>
         )}
       </PropRow>
+      {lib && <LibraryRow store={store} type={lib} task={task} />}
+      {lib &&
+        taskFields.map((f) => (
+          <TaskFieldRow key={f.key} store={store} def={f} task={task} today={today} onChange={(v) => patch({ type_data: { ...task.type_data, [f.key]: v } })} />
+        ))}
       <PropRow icon={<ModeIcon size={15} />} label={tr('完成方式')} value={describeCompletion(task, today)} wide>
         <div className="pop-section">
           <CompletionChoice compact value={task.completion_mode} onChange={(m) => patch(modeDefaults(m, task))} />
@@ -665,7 +816,12 @@ function Detail({ task }: { task: Task }) {
         onOpenChange={(o) => !o && close()}
         title={title}
         titleHidden
-        headerStart={badge}
+        headerStart={
+          <>
+            {badge}
+            <CompletionPill store={store} task={task} today={today} primary={primary} secondary={secondary} />
+          </>
+        }
         headerEnd={
           <>
             <Tip content={inDay ? tr('移出我的一天') : tr('加入我的一天')}>
@@ -725,7 +881,6 @@ function Detail({ task }: { task: Task }) {
       >
         <div className={`detail${layout === 'mobile' ? ' is-mobile' : ''}`}>
           <div className="detail-main">
-            {lib && <LibraryHero store={store} type={lib} task={task} />}
             {!lib && typed && type && (
               <div className="detail-hero" style={{ '--chip-color': type.color } as CSSProperties}>
                 {media ? (
@@ -744,12 +899,6 @@ function Detail({ task }: { task: Task }) {
               </div>
             )}
             <Body store={store} task={task} placeholder={typed ? tr('添加笔记…') : tr('写点什么…')} />
-            <Progress store={store} task={task} today={today} />
-            {lib && taskFields.length > 0 && (
-              <div className="detail-taskfields">
-                <TypeFields bare store={store} type={{ ...lib, fields: taskFields }} data={task.type_data} onChange={(k, v) => patch({ type_data: { ...task.type_data, [k]: v } })} />
-              </div>
-            )}
             {!lib && typed && type && (
               <Disclosure className="type-disclosure" defaultExpanded={!hasPrimary}>
                 <Heading level={3} className="disclosure-head">
