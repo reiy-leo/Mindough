@@ -1,0 +1,118 @@
+/* 导入（设置 → 数据 → 导入…，components/ArchiveImport.tsx；随组件按需加载） */
+.import-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.import-pick p {
+  margin: 0;
+}
+.import-pick-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.import-busy,
+.import-failed {
+  margin: var(--space-2) 0;
+}
+.import-failed {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--danger);
+}
+.import-failed svg {
+  flex: none;
+  margin-top: 2px;
+}
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.import-source {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.import-source-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.import-source .muted {
+  flex: none;
+}
+.import-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.import-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.import-count-n {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.import-count-label {
+  font-size: var(--fs-small);
+  color: var(--text-2);
+}
+.import-count.is-zero .import-count-n {
+  color: var(--text-3);
+}
+.import-count.is-error:not(.is-zero) .import-count-n {
+  color: var(--danger);
+}
+.import-breakdown {
+  margin: 0;
+}
+.import-sheet .import-overwrite {
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--border);
+}
+.import-issues {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+  font-size: var(--fs-small);
+}
+.import-issues summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
+.import-issues ul {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.import-issues li {
+  display: flex;
+  flex-direction: column;
+}
+.import-issue-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+.import-issues li.is-error .import-issue-path {
+  color: var(--danger);
+}
+.import-issue-msg {
+  color: var(--text-2);
+}

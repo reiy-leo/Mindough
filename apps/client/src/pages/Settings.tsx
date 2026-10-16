@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AlertCircle, CloudCheck, CloudOff, LogIn, LogOut, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { loginUrl, logout, useAccount } from '../lib/account';
 import { syncNow, useSyncView, type SyncView } from '../lib/sync';
@@ -15,6 +15,9 @@ import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
 import { tr } from '../lib/i18n';
 import { useLocalePref } from '../lib/locale';
+import { exportToZip } from '../lib/archive';
+
+const ArchiveImportSheet = lazy(() => import('../components/ArchiveImport').then((m) => ({ default: m.ArchiveImportSheet })));
 import type { LocalePref } from '../lib/i18n';
 
 export function SettingsPage() {
@@ -138,6 +141,7 @@ export function SettingsPage() {
               </div>
             </div>
           </div>
+          <ArchiveRows />
           <div className="setting">
             <div className="setting-text">
               <div className="setting-name">{tr('重置演示数据')}</div>
@@ -162,6 +166,57 @@ export function SettingsPage() {
       </Section>
       <p className="muted small about">{tr('Mindough · 数据先存在这台设备上，离线也能用')}</p>
     </div>
+  );
+}
+
+/** 导出 / 导入 Markdown 文件夹（格式见 docs/EXPORT.md）。 */
+function ArchiveRows() {
+  const store = useStore();
+  const { toast } = useUi();
+  const [busy, setBusy] = useState<null | 'images' | 'zip'>(null);
+  const [importing, setImporting] = useState(false);
+  const doExport = async () => {
+    setBusy('zip');
+    try {
+      const c = await exportToZip(store, setBusy);
+      toast({
+        tone: 'success',
+        message: c.missedImages
+          ? tr('已导出 {n} 件任务；{m} 张网上的图片没取到，照原链接写着', { n: c.tasks, m: c.missedImages })
+          : tr('已导出 {n} 件任务', { n: c.tasks }),
+      });
+    } catch (e) {
+      toast({ tone: 'error', message: tr('没能导出：{msg}', { msg: e instanceof Error ? e.message : String(e) }) });
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('导出')}</div>
+          <div className="setting-hint">{tr('所有任务、资料库和人物存成 Markdown 文件夹（zip），Obsidian 能直接打开')}</div>
+        </div>
+        <Button variant="secondary" isDisabled={!!busy} onPress={() => void doExport()}>
+          {busy === 'images' ? tr('正在取图片…') : busy ? tr('正在打包…') : tr('导出…')}
+        </Button>
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('导入')}</div>
+          <div className="setting-hint">{tr('Mindough 导出的 zip，或任何 Markdown 文件夹；导入前先看一眼会改什么')}</div>
+        </div>
+        <Button variant="secondary" onPress={() => setImporting(true)}>
+          {tr('导入…')}
+        </Button>
+      </div>
+      {importing && (
+        <Suspense fallback={null}>
+          <ArchiveImportSheet isOpen={importing} onOpenChange={setImporting} />
+        </Suspense>
+      )}
+    </>
   );
 }
 
