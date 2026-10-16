@@ -380,5 +380,5 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 ## 待确认
 - Web 端风格：跟随访问者系统（默认），还是固定一种？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
-- 谁能登录：只 Rei 自己（`ALLOWED_EMAILS` 白名单，现默认 reiy.leoz@gmail.com），还是开放注册？代码已按白名单可配写好。
+- ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
 - iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？
