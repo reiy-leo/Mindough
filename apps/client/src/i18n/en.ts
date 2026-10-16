@@ -545,11 +545,9 @@ export const EN: Record<string, EnValue> = {
   未知系统: 'Unknown system',
 
   // ── 本地存储错误 ──
-  '本地数据库打不开（可能在另一个标签页里开着，关掉它再刷新）：{String}': 'Couldn’t open the local database (it may be open in another tab — close it and reload): {String}',
   'SQLite 启动失败：{String}': 'SQLite failed to start: {String}',
   '打不开本地数据：{error}': 'Couldn’t open local data: {error}',
   '浏览器不支持 OPFS': 'This browser doesn’t support OPFS',
-  '页面未跨源隔离（缺 COOP / COEP 响应头）': 'The page isn’t cross-origin isolated (missing COOP / COEP headers)',
 
   // ── 提醒 ──
   提醒: 'Reminder',
@@ -591,4 +589,14 @@ export const EN: Record<string, EnValue> = {
   '进度：{text}': 'Progress: {text}',
   不选了: 'Clear',
   '已不再关联「{name}」': 'Removed “{name}” from this task',
+
+  // ── 标签页锁、本地数据库 ──
+  'Mindough 已在另一个标签页打开': 'Mindough is open in another tab',
+  '你在另一个标签页里点了「在这里用」，这一页先停下了。': 'You chose “Use Here” in another tab, so this one has paused.',
+  '同一时间只能在一个标签页里用，免得两边的改动打架。': 'Mindough works in one tab at a time so changes don’t collide.',
+  在这里用: 'Use Here',
+  '浏览器不支持 Web Worker': 'This browser doesn’t support Web Workers',
+  '本地数据库已交给另一个标签页': 'The local database moved to another tab',
+  '以前的本地数据库需要跨源隔离的页面才能读出来': 'Reading the previous local database needs a cross-origin isolated page',
+  '本地数据库打不开：{String}': 'Couldn’t open the local database: {String}',
 };

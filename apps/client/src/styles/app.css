@@ -2900,3 +2900,25 @@ html[lang='en'] .heatmap {
 .mini-add-input::placeholder {
   color: var(--text-3);
 }
+
+/* 另一个标签页已打开（标签页锁） */
+.tab-blocked {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--space-4);
+}
+.tab-blocked-card {
+  max-width: 360px;
+  text-align: center;
+}
+.tab-blocked-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.tab-blocked-text {
+  margin: 0 0 20px;
+  color: var(--text-2);
+  line-height: 1.5;
+}

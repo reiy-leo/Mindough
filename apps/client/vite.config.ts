@@ -31,7 +31,7 @@ export default defineConfig({
   },
   preview: { port: 4173, headers: isolation },
   // wasm 包自带 worker 与 .wasm 资源，不让 vite 预打包
-  optimizeDeps: { exclude: ['@tursodatabase/database-wasm'] },
+  optimizeDeps: { exclude: ['@tursodatabase/database-wasm', '@sqlite.org/sqlite-wasm'] },
   worker: { format: 'es' },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
   build: {

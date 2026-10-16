@@ -226,7 +226,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - ✅ SQLite 存储：`packages/core/src/storage/sql.ts` 的 `SqlAdapter` 实现 `StorageAdapter`，底下换驱动。
   - schema（`storage/schema.ts`）与数据模型一一对应（每字段一列，JSON 列存文本、布尔 0/1），`COLUMNS` 的类型约束保证 types.ts 加字段时必须加列；`schema_version` 表 + 只追加的迁移列表；`outbox`（自增 seq）与 `meta` 表。
   - 写入：一批变更一个事务，`INSERT … ON CONFLICT DO UPDATE … WHERE excluded.updated_at > updated_at`（行级 LWW，相等保留已有），每行进 outbox；失败整批回滚。
-  - Web：Turso `@tursodatabase/database-wasm`（OPFS 文件 `mindough.db`）——选它是因为同步走 Turso Sync，以后可换同引擎的 sync-wasm。需要跨源隔离：COOP `same-origin` + COEP `credentialless`（不用 require-corp，外站图片才能显示）；vite dev / preview 与 `public/_headers`（Worker 静态资源）都带上。wasm 约 11.6 MB（gzip 4 MB），按需加载。不支持时（无 OPFS / 未隔离，如 Safari 不支持 credentialless）退回 localStorage；已用过 SQLite 的设备打不开时报错（多半是另一个标签页占着），不悄悄退回以免分叉数据。
+  - Web（2026-10-16 起，Rei：所有浏览器统一用 sqlite-wasm）：官方 `@sqlite.org/sqlite-wasm` 3.53 + opfs-sahpool VFS，跑在专用 worker（`store/sqlite.worker.ts`），库在 OPFS `.mindough-sahpool/`。单线程，不要 SharedArrayBuffer / 跨源隔离，Chrome 102+、Firefox 111+、Safari 16.4+；wasm 0.87 MB（gzip 0.4 MB）。同一时刻一个标签页（`store/tab-lock.ts`，Web Locks）：后开的只显示「已在另一个标签页打开」+「在这里用」（steal，原来那页先 flush 再停库、换成提示）。第一次启动把以前 Turso wasm 的 OPFS `mindough.db` 整份搬过来（`migrateFromTurso`，旧文件留作备份）；读旧文件还要 Turso 引擎和跨源隔离，所以 COOP / COEP 响应头暂时保留，等大家都迁完再去掉。无 OPFS（部分无痕模式）退回 localStorage。
   - 首次用上 SQLite 时把 localStorage 的数据原样迁过去（行、device_id、demo_seeded），只迁一次，旧数据留作备份。
   - Tauri 原生：`src-tauri/src/db.rs` 命令层（rusqlite bundled，单连接，`db_exec / db_run / db_all`），schema 与迁移仍在前端 core，与 Web 同一份。没用 tauri-plugin-sql：它是连接池，跨 invoke 的 BEGIN / COMMIT 不可靠。本机 `cargo check` 通过（Linux）。
   - 测试：同一套契约跑 内存 / localStorage / node:sqlite / Turso 引擎（`@tursodatabase/database`，与 wasm 同引擎）。

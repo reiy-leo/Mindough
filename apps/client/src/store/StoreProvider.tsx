@@ -3,7 +3,8 @@ import { DEMO_STAMP_META, SqlAdapter, Store, TABLES, WebStorageAdapter, migrateS
 import { bindSync } from '../lib/sync';
 import { installWindowSync, isMiniWindow } from '../lib/windows';
 import { installWidgetSnapshot } from '../lib/widget-snapshot';
-import { openWebSqlite, webSqliteSupported } from './sqlite-web';
+import { migrateFromTurso, openWebSqlite, terminateWebSqlite, webSqliteSupported } from './sqlite-web';
+import { acquireTabLock, type TabLock } from './tab-lock';
 import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
 import { tr } from '../lib/i18n';
@@ -24,8 +25,9 @@ export interface StorageInfo {
 export let storageInfo: StorageInfo = { engine: 'localStorage', detail: 'localStorage' };
 
 /**
- * 选存储：Tauri → 原生 SQLite；浏览器 → Turso wasm（OPFS）；都不行 → localStorage。
- * 第一次用上 SQLite 时，把 localStorage 里的旧数据迁过去（只迁一次，旧数据保留作备份）。
+ * 选存储：Tauri → 原生 SQLite；浏览器 → sqlite-wasm（OPFS）；都不行 → localStorage。
+ * 浏览器第一次用上新引擎时，把以前 Turso wasm 库里的数据搬过来；再往前用 localStorage 的，把 localStorage 搬过来
+ * （都只搬一次，旧数据保留作备份）。
  */
 async function openAdapter(): Promise<StorageAdapter> {
   const legacy = () => new WebStorageAdapter(window.localStorage);
@@ -35,15 +37,17 @@ async function openAdapter(): Promise<StorageAdapter> {
     if (driver) {
       const sql = new SqlAdapter(driver);
       await sql.schemaVersion();
-      const r = await migrateStorage(legacy(), sql);
+      let rows = 0;
+      if (!isTauri()) rows += await migrateFromTurso(sql);
+      rows += (await migrateStorage(legacy(), sql)).rows;
       localStorage.setItem(ENGINE_KEY, 'sqlite');
-      storageInfo = { engine: 'sqlite', detail: sql.kind, migratedRows: r.rows };
+      storageInfo = { engine: 'sqlite', detail: sql.kind, migratedRows: rows };
       return sql;
     }
     reason = webSqliteSupported().reason;
   } catch (e) {
     if (localStorage.getItem(ENGINE_KEY) === 'sqlite') {
-      throw new Error(tr('本地数据库打不开（可能在另一个标签页里开着，关掉它再刷新）：{String}', { String: String(e) }));
+      throw new Error(tr('本地数据库打不开：{String}', { String: String(e) }));
     }
     reason = tr('SQLite 启动失败：{String}', { String: String(e) });
     console.warn(reason);
@@ -70,15 +74,64 @@ export async function openWebStore(): Promise<Store> {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<Store | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 另一个标签页正开着（拿着标签页锁）：这一页只显示提示。 */
+  const [blocked, setBlocked] = useState<null | 'other' | 'taken'>(null);
+  const [attempt, setAttempt] = useState<{ steal: boolean } | null>({ steal: false });
   useEffect(() => {
-    openWebStore().then(setStore, (e: unknown) => setError(String(e)));
-  }, []);
+    if (!attempt) return;
+    let alive = true;
+    let opened: Store | null = null;
+    (async () => {
+      // 标签页锁只管浏览器；Tauri 的窗口之间另有办法（小窗不开库）
+      const lock: TabLock | null = isTauri() || isMiniWindow() ? { lost: new Promise<void>(() => {}) } : await acquireTabLock(attempt.steal);
+      if (!alive) return;
+      if (!lock) return setBlocked('other');
+      setBlocked(null);
+      const s = await openWebStore();
+      if (!alive) return;
+      opened = s;
+      setStore(s);
+      lock.lost.then(async () => {
+        // 被别的标签页「在这里用」抢走：先把手上的改动写下去，再停掉数据库，换成提示
+        await Promise.race([s.flush().catch(() => {}), new Promise((r) => setTimeout(r, 800))]);
+        terminateWebSqlite();
+        if (!alive) return;
+        setStore(null);
+        setBlocked('taken');
+      });
+    })().catch((e: unknown) => alive && setError(String(e)));
+    return () => {
+      alive = false;
+      void opened;
+    };
+  }, [attempt]);
   // 登录后多设备同步；退出登录就停（本机数据不动）
   // 同步只在主窗口跑（小窗的写入经窗口事件交给主窗口，主窗口照常推）
   useEffect(() => (store && !isMiniWindow() ? bindSync(store) : undefined), [store]);
   useEffect(() => (store ? installWindowSync(store) : undefined), [store]);
   useEffect(() => (store ? installWidgetSnapshot(store) : undefined), [store]);
   if (error) return <div className="boot-error">{tr('打不开本地数据：{error}', { error })}</div>;
+  if (blocked)
+    return (
+      <div className="tab-blocked" role="alert">
+        <div className="tab-blocked-card">
+          <div className="tab-blocked-title">{tr('Mindough 已在另一个标签页打开')}</div>
+          <p className="tab-blocked-text">
+            {blocked === 'taken' ? tr('你在另一个标签页里点了「在这里用」，这一页先停下了。') : tr('同一时间只能在一个标签页里用，免得两边的改动打架。')}
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setBlocked(null);
+              setAttempt({ steal: true });
+            }}
+          >
+            {tr('在这里用')}
+          </button>
+        </div>
+      </div>
+    );
   if (!store) return <div className="boot">Mindough</div>;
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
