@@ -27,7 +27,7 @@ import { imageUrl } from '../../lib/view';
 import { Button, Sheet } from '../../ui/primitives';
 import { ItemArt, LibraryPicker, artShape } from './Library';
 
-import { tr } from '../../lib/i18n';
+import { dataLabel, tr } from '../../lib/i18n';
 
 interface Candidate {
   id: string;
@@ -138,7 +138,7 @@ export function MergeSheet({
       footer={
         <>
           {extraActions}
-          {!extraActions && moving > 0 && <span className="foot-note">{tr('{n} 件任务会改用留下的这条', { n: moving })}</span>}
+          {!extraActions && moving > 0 && <span className="foot-note">{person ? tr('{n} 件任务会改关联留下的这个人', { n: moving }) : tr('{n} 件任务会改用留下的这条', { n: moving })}</span>}
           <span className="grow" />
           {!extraActions && (
             <Button variant="secondary" onPress={onClose}>
@@ -185,12 +185,12 @@ export function MergeSheet({
         </div>
         {conflicts.length > 0 ? (
           <div className="merge-conflicts">
-            <div className="merge-section-title">{tr('两边不一样，选一个')}</div>
+            <div className="merge-section-title">{tr('不一样的地方，各选一个')}</div>
             {conflicts.map((cf) => {
               const chosen = cf.options.find((o) => o.from === cf.chosen)?.value;
               return (
-                <div key={cf.key} className="merge-row" role="group" aria-label={cf.label}>
-                  <div className="merge-row-label">{cf.label}</div>
+                <div key={cf.key} className="merge-row" role="group" aria-label={cf.def ? dataLabel(cf.label) : cf.label}>
+                  <div className="merge-row-label">{cf.def ? dataLabel(cf.label) : cf.label}</div>
                   <div className="merge-grid" style={cols}>
                     {cands.map((c) => {
                       const v = c.values[cf.key];
@@ -239,7 +239,7 @@ export function MergeIntoSheet({ store, type, sourceId, onClose, onMerged }: { s
   if (target) return <MergeSheet store={store} type={type} ids={[target, sourceId]} onClose={onClose} {...(onMerged ? { onMerged } : {})} />;
   return (
     <Sheet isOpen onOpenChange={(o) => !o && onClose()} title={tr('合并到…')} className="modal-merge-pick">
-      <p className="merge-pick-hint">{tr('选{name}里的另一条，两条合成一条。', { name: copy.name })}</p>
+      <p className="merge-pick-hint">{isPersonLibrary(type) ? tr('选另一个人，两个合成一个。') : tr('选{name}里的另一条，两条合成一条。', { name: copy.name })}</p>
       <LibraryPicker store={store} type={type} query={query} onQueryChange={setQuery} exclude={sourceId} autoFocus allowCreate={false} onPick={(e) => setTarget(e.id)} onCreate={() => {}} />
     </Sheet>
   );

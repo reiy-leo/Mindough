@@ -678,7 +678,7 @@ function Detail({ task }: { task: Task }) {
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
   const types = store.list('task_type').filter(isPickableType).sort((a, b) => a.sort - b.sort);
   const group = store.get('group', task.group_id);
-  const linked = store.list('task_person').filter((x) => x.task_id === task.id).map((x) => x.person_id);
+  const linked = [...new Set(store.list('task_person').filter((x) => x.task_id === task.id).map((x) => store.resolvePersonId(x.person_id) ?? x.person_id))];
   const people = linked.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
   const inDay = store.isInMyDay(task.id, today);
   const finished = isFinished(task.status);

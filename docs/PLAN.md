@@ -297,7 +297,22 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 ### M4 更聪明
 - 自定义类型编辑器（字段、版式、图标、颜色、排序与隐藏）。
 - 按名字自动补全资料（影视 TMDB / 豆瓣、游戏 Steam、书 Open Library；有 IMDb / 豆瓣编号时按编号取），展示时附来源。
-- 资料合并（两条其实是同一部片）。
+- ✅ 资料合并（两条其实是同一部片）（2026-10-16，分支 m4-merge）
+  - core `merge.ts`（纯逻辑：`planItemMerge` / `planPersonMerge` 算合并后的值与冲突、`mergeNotes`、`duplicateGroups`、`resolveMerged`、`mergeCycleSurvivors`）+ `Store.mergeLibraryItems(targetId, sourceIds, choices?)` / `mergePeople` / `undoMerge` / `settleMerges` / `duplicateGroups` / `dismissDuplicateGroup`；测试 `packages/core/test/merge.test.ts`。
+  - 规则：同类型才能合并（不同类、只选一条、来源不在了抛 `MergeError`，不写入）。默认目标的非空值优先、空的按来源顺序补；`choices`（字段 key → 用哪条的 id）定冲突字段；主字段（名字）、图片也可选；「更多链接」不算冲突，按网址去重合并；类型里已经没有的旧字段同样目标优先补空、不丢。备注拼接：已包含的那段不重复。
+  - 数据：`library_item.merged_into`、`person.merged_into`（SQLite 迁移 v5；localStorage / 旧行读入时补 null，写入也总带上）。来源打墓碑 + `merged_into = 目标`，用到来源的任务一次写入里改指目标。读取一律顺着 `merged_into` 解析（`store.itemOf`、`resolveItemId`、`resolvePersonId`、`tasksOfItem`、`libraryEntries` 的用到次数、`peopleOf`、详情的资料行），所以别的设备离线新建、还指着旧 id 的任务同步后立刻显示成目标；`settleMerges()` 在打开时和每次 `applyRemote` 后把这些任务（和人物关联）改写到目标 id（没事做不写）。链式合并（A→B→C）解析到最后一条。
+  - 多设备：同时合并同一对 → 两边写的内容一样，LWW 收敛成一条；反方向同时合并（A 并进 B、B 并进 A）可能两条都成墓碑互相指着 → `settleMerges` 把每个环里 id 最小的那条翻回来（各端算出来一样），任务都解析到它。迁移出来的确定 id（`migratedItemId`）如果已经被并掉，旧任务迁移时直接挂到合并后的那条，不复活墓碑。
+  - 撤销：返回 `MergeUndo`（合并前的目标 / 来源 / 改指过的任务或人物关联）；`undoMerge` 让目标回到合并前、来源翻回来、改指过且现在还指着目标的任务指回去（是一次新写入，照常同步）。
+  - 人物：`task_person` 改指留下的人，同一件任务已经关联了留下的人就把重复那条打墓碑；旧人物类型任务 `type_data` 里写着的人也改过来。
+  - 可能重复：同类型里规范化名字相同（`normalizeName`），或任一站点编号（IMDb / 豆瓣，`siteIdOf`）相同，传递成组；每组按用到的任务多 → 建得早排，第一条建议留下。「不是同一个」把组签名（排序后的 id 用 | 连）记进同步的 pref `library.not_duplicates`；组里多了新的一条签名就变了，会重新提示。人物库按名字。
+  - 界面：`components/library/MergeSheet.tsx`（`MergeSheet` 并排对比：上面一排卡片选「留下」，下面只列有冲突的字段，每格是那条的值，点一格用它；`MergeIntoSheet`「合并到…」先挑同库另一条；`DuplicatesSheet` 一组一组：不是同一个 / 跳过 / 合并）。资料详情、人物详情的 ··· 里「合并到…」；资料库页工具栏「选择」进入多选（⌘ / Ctrl 点、手机长按也能进），「已选 N 条」+「合并」「完成」；「可能重复 N 组」小链接。合并后提示「已合并到「X」」+「撤销」。`LibraryPicker` 加 `allowCreate`。样式 `styles/library.css` 末尾「资料合并」、皮肤差异 `skin/skins.css`。截图 `work/screens/m4-merge-*.png`。
+  - 待 Rei 确认：
+    - 「更多链接」合并时两边合起来（不让选）；其余冲突字段让选。
+    - 反方向同时合并成环时留 id 小的那条（合并时目标上合出来的字段可能丢一部分，任务不丢）；两边各自留下时（各自的目标都赢了）两条都在、任务对调，下次「可能重复」会再提示。
+    - 改写离线任务（`settleMerges`）是整行 LWW：极少数情况下，另一台设备同时在改那件任务的正文，可能被这次改写盖掉（读取本来就会解析，不改写也显示正确）。要更稳可以只在打开时改写。
+    - 「不是同一个」记在同步的 pref 里（跟着账户走）。
+    - 合并入口只放在资料 / 人物详情的 ···，没放进「编辑资料」弹层（那里没有 ···）。
+    - 「可能重复」只认同名和站点编号，不做模糊名字（「沙丘 2」≠「Dune: Part Two」，除非编号相同）。
 - 导入导出 Markdown 文件夹。
 
 ### M5 项目视角
