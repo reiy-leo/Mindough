@@ -16,6 +16,7 @@ export * from './describe';
 export * from './search';
 export * from './library';
 export * from './typedef';
+export * from './merge';
 export * from './links';
 export * from './money';
 export * from './episode';

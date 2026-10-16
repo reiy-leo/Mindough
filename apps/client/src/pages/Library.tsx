@@ -2,9 +2,9 @@
  * 资料库：每个类型一个库（影视库、书库…、人物），按库切换；卡片网格（海报竖版 / 方形图标 / 横幅 / 圆形头像），
  * 搜索、添加；点开一条看它的资料和用到它的任务。文案见 docs/COPY.md「资料库」。
  */
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Button as RacButton, Input, SearchField } from 'react-aria-components';
-import { ChevronLeft, ExternalLink, Library as LibraryIcon, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Check, ChevronLeft, Copy, ExternalLink, Library as LibraryIcon, Merge, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import {
   BUILTIN_TYPE_IDS,
   factFieldsOf,
@@ -31,6 +31,7 @@ import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { ItemArt, ItemSheet, artShape, entryArt } from '../components/library/Library';
 import { LinkChips } from '../components/library/LinkFields';
+import { DuplicatesSheet, MergeIntoSheet, MergeSheet } from '../components/library/MergeSheet';
 import { PersonDialog } from './People';
 import { imageUrl } from '../lib/view';
 
@@ -40,11 +41,42 @@ function useLibraries(): TaskType[] {
   return store.orderedTypes().filter((t) => !t.hidden && hasLibrary(t));
 }
 
-function Tile({ entry, type, onPress }: { entry: LibraryEntry; type: TaskType; onPress: () => void }) {
+/**
+ * 资料卡。选择模式下点一下勾选；平时 ⌘ / Ctrl 点、或长按（手机）进入选择模式并选上这张。
+ */
+function Tile({ entry, type, onPress, selected, onSelect }: { entry: LibraryEntry; type: TaskType; onPress: () => void; selected?: boolean | undefined; onSelect: () => void }) {
   const store = useStore();
   const shape = artShape(type);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const long = useRef(false);
+  const selecting = selected !== undefined;
   return (
-    <RacButton className={`lib-tile shape-${shape}`} onPress={onPress}>
+    <RacButton
+      className={`lib-tile shape-${shape}${selecting ? ' is-selecting' : ''}${selected ? ' is-selected' : ''}`}
+      {...(selecting ? { 'aria-pressed': selected } : {})}
+      onPressStart={(e) => {
+        long.current = false;
+        if (e.pointerType !== 'touch' || selecting) return;
+        timer.current = setTimeout(() => {
+          long.current = true;
+          onSelect();
+        }, 480);
+      }}
+      onPressEnd={() => {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = null;
+      }}
+      onPress={(e) => {
+        if (long.current) return;
+        if (selecting || e.metaKey || e.ctrlKey) onSelect();
+        else onPress();
+      }}
+    >
+      {selecting && (
+        <span className={`lib-tile-check${selected ? ' is-on' : ''}`} aria-hidden>
+          {selected && <Check size={13} strokeWidth={3} />}
+        </span>
+      )}
       {entryArt(store, entry, shape, 'lib-tile-art')}
       <span className="lib-tile-text">
         <span className="lib-tile-name">{entry.name}</span>
@@ -67,10 +99,16 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
+  // 多选（合并用）：null = 不在选择模式
+  const [selection, setSelection] = useState<string[] | null>(null);
+  const [merging, setMerging] = useState<string[] | null>(null);
+  const [dupes, setDupes] = useState(false);
   const entries = useMemo(() => (type ? store.libraryEntries(type.id) : []), [store, store.version, type?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // 资料库页按名字排；搜索时按匹配度
   const shown = useMemo(() => (query.trim() ? searchLibrary(entries, query, 500) : [...entries].sort((a, b) => b.recency - a.recency)), [entries, query]);
+  const groups = useMemo(() => (type ? store.duplicateGroups(type.id) : []), [store, store.version, type?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!type) return null;
+  const toggle = (id: string) => setSelection((s) => (s ?? []).includes(id) ? (s ?? []).filter((x) => x !== id) : [...(s ?? []), id]);
   const copy = libraryCopy(type);
   const person = isPersonLibrary(type);
   const shape = artShape(type);
@@ -131,10 +169,36 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
             </RacButton>
           )}
         </SearchField>
-        <span className="lib-toolbar-count">
-          {entries.length ? copy.count(entries.length) : ''}
-        </span>
-        {mobile && (
+        {selection ? (
+          <div className="lib-select-bar">
+            <span className="lib-select-count">{selection.length ? tr('已选 {n} 条', { n: selection.length }) : tr('选几条来合并')}</span>
+            <Button variant="primary" isDisabled={selection.length < 2} onPress={() => setMerging(selection)}>
+              <Merge size={15} />
+              {tr('合并')}
+            </Button>
+            <Button variant="secondary" onPress={() => setSelection(null)}>
+              {tr('完成')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {groups.length > 0 && (
+              <RacButton className="lib-dupes" onPress={() => setDupes(true)}>
+                <Copy size={13} aria-hidden />
+                {tr('可能重复 {n} 组', { n: groups.length })}
+              </RacButton>
+            )}
+            <span className="lib-toolbar-count">
+              {entries.length ? copy.count(entries.length) : ''}
+            </span>
+            {entries.length > 1 && (
+              <RacButton className="lib-select-btn" onPress={() => setSelection([])}>
+                {tr('选择')}
+              </RacButton>
+            )}
+          </>
+        )}
+        {mobile && !selection && (
           <RacButton className="icon-btn lib-add-mobile" aria-label={tr('添加到{name}', { name: copy.name })} onPress={() => add(query.trim())}>
             <Plus size={20} />
           </RacButton>
@@ -163,11 +227,28 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
       ) : (
         <div className={`lib-grid shape-${shape}`}>
           {shown.map((e) => (
-            <Tile key={e.id} entry={e} type={type} onPress={() => open(e)} />
+            <Tile
+              key={e.id}
+              entry={e}
+              type={type}
+              onPress={() => open(e)}
+              selected={selection ? selection.includes(e.id) : undefined}
+              onSelect={() => (selection ? toggle(e.id) : setSelection([e.id]))}
+            />
           ))}
         </div>
       )}
 
+      {merging && (
+        <MergeSheet
+          store={store}
+          type={type}
+          ids={merging}
+          onClose={() => setMerging(null)}
+          onMerged={() => setSelection(null)}
+        />
+      )}
+      {dupes && <DuplicatesSheet store={store} type={type} onClose={() => setDupes(false)} />}
       {adding !== null &&
         (person ? (
           <PersonDialog initialName={adding} onClose={() => setAdding(null)} />
@@ -183,6 +264,7 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
   const ui = useUi();
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [mergeInto, setMergeInto] = useState(false);
   const item = store.get('library_item', id);
   const type = store.get('task_type', item?.type_id ?? typeId);
   if (!item || !type)
@@ -242,7 +324,12 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
             <Button variant="secondary" onPress={() => setEditing(true)}>
               <Pencil size={15} />
               {tr('编辑资料')}</Button>
-            <OverflowMenu items={[{ id: 'delete', label: tr('删除…'), icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirm(true) }]} />
+            <OverflowMenu
+              items={[
+                ...(store.libraryItems(type.id).length > 1 ? [{ id: 'merge', label: tr('合并到…'), icon: <Merge size={16} />, onAction: () => setMergeInto(true) }] : []),
+                { id: 'delete', label: tr('删除…'), icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirm(true) },
+              ]}
+            />
           </div>
         </div>
       </header>
@@ -259,6 +346,15 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
         )}
       </Section>
       {editing && <ItemSheet store={store} type={type} itemId={id} onClose={() => setEditing(false)} />}
+      {mergeInto && (
+        <MergeIntoSheet
+          store={store}
+          type={type}
+          sourceId={id}
+          onClose={() => setMergeInto(false)}
+          onMerged={(r) => r.targetId !== id && navigate({ page: 'libitem', typeId: type.id, id: r.targetId })}
+        />
+      )}
       <ConfirmDialog
         isOpen={confirm}
         onOpenChange={setConfirm}

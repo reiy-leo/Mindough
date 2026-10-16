@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Cake, ChevronLeft, ImagePlus, Plus } from 'lucide-react';
-import { formatDateZh } from '@mindough/core';
+import { Cake, ChevronLeft, ImagePlus, Merge, Plus } from 'lucide-react';
+import { BUILTIN_TYPE_IDS, formatDateZh } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { saveImageAsset } from '../lib/upload';
 import { href, navigate } from '../lib/router';
-import { Button, Empty, Field, Section, Sheet } from '../ui/primitives';
+import { Button, Empty, Field, OverflowMenu, Section, Sheet } from '../ui/primitives';
+import { MergeIntoSheet } from '../components/library/MergeSheet';
 import { Avatar } from '../components/Avatar';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
@@ -70,7 +71,9 @@ export function PersonDetailPage({ id }: { id: string }) {
   const store = useStore();
   const ui = useUi();
   const [editing, setEditing] = useState(false);
+  const [mergeInto, setMergeInto] = useState(false);
   const p = store.get('person', id);
+  const personType = store.get('task_type', BUILTIN_TYPE_IDS.person);
   if (!p) return <Empty title={tr('找不到这个人')} />;
   const tasks = store.tasksOfPerson(id);
   return (
@@ -101,6 +104,7 @@ export function PersonDetailPage({ id }: { id: string }) {
           >
             <Plus size={16} />
             {tr('新建相关任务')}</Button>
+          {personType && store.list('person').length > 1 && <OverflowMenu items={[{ id: 'merge', label: tr('合并到…'), icon: <Merge size={16} />, onAction: () => setMergeInto(true) }]} />}
         </div>
       </header>
       {p.note_md && <Markdown source={p.note_md} className="card note-card" />}
@@ -113,6 +117,9 @@ export function PersonDetailPage({ id }: { id: string }) {
         </div>
       </Section>
       {editing && <PersonDialog id={id} onClose={() => setEditing(false)} />}
+      {mergeInto && personType && (
+        <MergeIntoSheet store={store} type={personType} sourceId={id} onClose={() => setMergeInto(false)} onMerged={(r) => r.targetId !== id && navigate({ page: 'person', id: r.targetId })} />
+      )}
     </div>
   );
 }
