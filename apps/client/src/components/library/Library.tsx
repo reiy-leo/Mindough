@@ -4,18 +4,21 @@
  */
 import { useEffect, useId, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { ImagePlus, Plus, Search } from 'lucide-react';
+import { ImagePlus, Plus, Search, Sparkles } from 'lucide-react';
 import {
   extraItemFieldsOf,
+  findLookupTwin,
   findSameName,
   isPersonLibrary,
   itemSubtitle,
   libraryCopy,
   linkChips,
+  lookupKindOf,
   placeholderArt,
   searchLibrary,
   type FieldValue,
   type LibraryEntry,
+  type LookupResult,
   type Store,
   type TaskType,
 } from '@mindough/core';
@@ -25,6 +28,8 @@ import { Button, Field, Sheet } from '../../ui/primitives';
 import { FieldInput } from '../task/pickers';
 import { LinkChips } from './LinkFields';
 import { NoteField } from './NoteField';
+import { AutofillPanel, OnlineOptions, SourceNote } from './Lookup';
+import { useLookupAvailable, useOnlineSearch } from '../../lib/lookup';
 
 import { dataLabel, tr } from '../../lib/i18n';
 export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
@@ -73,6 +78,7 @@ export function LibraryPicker({
   className,
   searchText,
   allowCreate = true,
+  onPickOnline,
 }: {
   store: Store;
   type: TaskType;
@@ -80,6 +86,8 @@ export function LibraryPicker({
   onQueryChange: (q: string) => void;
   onPick: (e: LibraryEntry) => void;
   onCreate: (name: string) => void;
+  /** 选中一条在线结果（TMDB / Open Library / Steam…）；不给就不在线找。 */
+  onPickOnline?: (r: LookupResult) => void;
   autoFocus?: boolean;
   /** 不列出（详情里“换一个”时排除当前这条）。 */
   exclude?: string | null;
@@ -96,7 +104,16 @@ export function LibraryPicker({
   const results = useMemo(() => searchLibrary(all, q, 40), [all, q]);
   const same = q ? findSameName(all, q) : undefined;
   const canCreate = allowCreate && !!q && !same;
-  const count = results.length + (canCreate ? 1 : 0);
+  // 在线结果：在本地结果和「新建」下面；库里已有的同一条不再列出
+  const kind = onPickOnline ? lookupKindOf(type) : null;
+  // 在线找用输入框里的原文：季标记由在线搜索自己认（去掉、按剧集搜）
+  const online = useOnlineSearch(kind, query);
+  const onlineResults = useMemo(() => {
+    const items = store.list('library_item');
+    return online.results.filter((r) => !findLookupTwin(items, type.id, r));
+  }, [online.results, store, store.version, type.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onlineStart = results.length + (canCreate ? 1 : 0);
+  const count = onlineStart + onlineResults.length;
   const [active, setActive] = useState(0);
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +130,7 @@ export function LibraryPicker({
 
   const choose = (i: number) => {
     if (i < results.length) onPick(results[i]!);
+    else if (i >= onlineStart) onPickOnline?.(onlineResults[i - onlineStart]!);
     else if (canCreate) onCreate(q);
   };
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -196,6 +214,9 @@ export function LibraryPicker({
               <span className="lib-option-sub">{tr('加到{name}，下次直接选', { name: copy.name })}</span>
             </span>
           </li>
+        )}
+        {kind && q && (
+          <OnlineOptions kind={kind} state={online} results={onlineResults} start={onlineStart} active={active} shape={shape} optId={optId} onHover={setActive} onChoose={choose} />
         )}
         {empty && !q && <li className="lib-picker-empty">{tr('{name}还是空的，输入名字就能新建。', { name: copy.name })}</li>}
         {!empty && q && results.length === 0 && !canCreate && <li className="lib-picker-empty">{tr('没有找到')}</li>}
@@ -324,7 +345,7 @@ export function saveDraft(store: Store, type: TaskType, d: ItemDraft, existingId
 }
 
 /** 选中的资料：缩略图 + 名字 + 一行简介，右边放操作。 */
-export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: Store; type: TaskType; entry: Pick<LibraryEntry, 'name' | 'image' | 'subtitle' | 'links'>; actions?: ReactNode; size?: 'md' | 'lg' }) {
+export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: Store; type: TaskType; entry: Pick<LibraryEntry, 'name' | 'image' | 'subtitle' | 'links'> & Partial<Pick<LibraryEntry, 'source'>>; actions?: ReactNode; size?: 'md' | 'lg' }) {
   const shape = artShape(type);
   return (
     <div className={`item-card shape-${shape} size-${size}`} style={{ '--chip-color': type.color } as CSSProperties}>
@@ -333,6 +354,7 @@ export function ItemCard({ store, type, entry, actions, size = 'md' }: { store: 
         <div className="item-card-name">{entry.name}</div>
         {entry.subtitle && <div className="item-card-sub">{entry.subtitle}</div>}
         {size === 'lg' && <LinkChips links={entry.links} className="item-card-links" />}
+        {size === 'lg' && <SourceNote source={entry.source} className="item-card-source" />}
         {size === 'lg' && actions && <div className="item-card-actions">{actions}</div>}
       </div>
       {size !== 'lg' && actions && <div className="item-card-actions">{actions}</div>}
@@ -369,8 +391,12 @@ export function ItemSheet({
   const copy = libraryCopy(type);
   const uses = itemId ? (person ? store.tasksOfPerson(itemId).length : store.tasksOfItem(itemId).length) : 0;
   const ok = d.name.trim() !== '';
+  // 自动补全：影视 / 书 / 游戏，登录且在线时才有
+  const lookupOn = useLookupAvailable();
+  const canLookup = !!lookupKindOf(type) && lookupOn;
+  const [filling, setFilling] = useState(false);
   const save = () => {
-    if (!ok) return;
+    if (!ok || filling) return;
     const id = saveDraft(store, type, d, itemId);
     onSaved?.(id);
     onClose();
@@ -388,7 +414,14 @@ export function ItemSheet({
         }
       }}
       footer={
+        filling ? undefined : (
         <>
+          {canLookup && (
+            <Button variant="quiet" className="item-autofill" onPress={() => setFilling(true)}>
+              <Sparkles size={15} aria-hidden />
+              {tr('自动补全')}
+            </Button>
+          )}
           {uses > 1 && <span className="foot-note">{tr('改动会同步到用到它的 {uses} 件任务', { uses })}</span>}
           <span className="grow" />
           <Button variant="secondary" onPress={onClose}>
@@ -397,9 +430,23 @@ export function ItemSheet({
             {itemId ? tr('保存') : tr('添加')}
           </Button>
         </>
+        )
       }
     >
-      <ItemEditor store={store} type={type} value={d} onChange={setD} autoFocusName showNote />
+      {filling ? (
+        <AutofillPanel
+          store={store}
+          type={type}
+          draft={d}
+          onCancel={() => setFilling(false)}
+          onApply={(next) => {
+            setD(next);
+            setFilling(false);
+          }}
+        />
+      ) : (
+        <ItemEditor store={store} type={type} value={d} onChange={setD} autoFocusName showNote />
+      )}
     </Sheet>
   );
 }

@@ -1,0 +1,275 @@
+/* 在线找资料（M4）：选择框里的在线结果、来源小字、自动补全、设置 · 关于。只用令牌变量。 */
+
+/* ───────── 选择框里的在线结果 ───────── */
+.lib-online-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--border);
+}
+.lib-online-head svg {
+  opacity: 0.8;
+}
+.lib-online-spin {
+  width: 9px;
+  height: 9px;
+  margin-left: 2px;
+  border: 1.5px solid var(--text-3);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: lib-online-spin 0.8s linear infinite;
+}
+@keyframes lib-online-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lib-online-spin {
+    animation: none;
+  }
+}
+.lib-online-note {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.lib-option-online .lib-option-meta {
+  letter-spacing: 0.01em;
+}
+
+/* ───────── 来源小字（资料卡、资料页） ───────── */
+.source-note {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.source-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 2px;
+}
+.source-note a:hover {
+  color: var(--text-2);
+}
+.item-card-source {
+  margin-top: 6px;
+}
+.lib-hero-source {
+  margin-top: 8px;
+}
+
+/* ───────── 自动补全 ───────── */
+.item-autofill {
+  gap: 6px;
+  color: var(--accent);
+}
+.autofill {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 160px;
+}
+.autofill-head {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.autofill-note {
+  color: var(--text-2);
+  font-size: 14px;
+  padding: 8px 0;
+}
+.autofill-note.small {
+  padding: 0;
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+.autofill-pick {
+  list-style: none;
+  margin: 0 -8px;
+  padding: 0;
+  max-height: 360px;
+  overflow: auto;
+}
+.autofill-pick-btn {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.autofill-pick-btn[data-hovered],
+.autofill-pick-btn[data-focus-visible] {
+  background: var(--surface-hover);
+}
+.autofill-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.autofill-result-art {
+  width: 52px;
+}
+.autofill-result-art.art-poster {
+  width: 44px;
+}
+.autofill-result-art.art-banner,
+.autofill-result-art.art-square {
+  width: 72px;
+}
+.autofill-result-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.autofill-result-name {
+  font-weight: 650;
+  font-size: 16px;
+}
+.autofill-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 0.5px solid var(--border);
+}
+.autofill-rows li {
+  border-bottom: 0.5px solid var(--border);
+}
+.autofill-row {
+  display: grid;
+  grid-template-columns: 18px 88px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 2px;
+  cursor: pointer;
+}
+.autofill-check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  color: #fff;
+}
+.autofill-row[data-selected] .autofill-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.autofill-row[data-focus-visible] .autofill-check {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.autofill-label {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.autofill-values {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.autofill-next {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.autofill-row:not([data-selected]) .autofill-next {
+  color: var(--text-3);
+}
+.autofill-old {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+.autofill-tag {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.autofill-row[data-selected] .autofill-tag {
+  color: var(--accent);
+}
+.autofill-image {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.autofill-thumb {
+  width: 34px;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+  aspect-ratio: 1;
+}
+.autofill-thumb.art-poster {
+  aspect-ratio: 2 / 3;
+  width: 30px;
+}
+.autofill-thumb.art-banner {
+  aspect-ratio: 16 / 9;
+  width: 54px;
+}
+.autofill-thumb.is-old {
+  opacity: 0.45;
+}
+.autofill-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.autofill-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-2);
+}
+
+/* ───────── 设置 · 关于 ───────── */
+.about {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.about p {
+  margin: 0;
+}
+.about-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  margin-bottom: 2px;
+}
+.about-name {
+  font-weight: 650;
+  font-size: 15px;
+}
+.about-credits {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-4, 16px);
+}
+.about-tmdb {
+  display: inline-flex;
+  opacity: 0.85;
+}
+.about-tmdb img {
+  height: 10px;
+  width: auto;
+  display: block;
+}
+.about-credit-text {
+  max-width: 440px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-3);
+}

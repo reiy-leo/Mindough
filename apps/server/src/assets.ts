@@ -30,8 +30,8 @@ const json = (data: unknown, status = 200) =>
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
-/** 上传者：会话或同步凭据，都要在白名单里。 */
-async function uploader(req: Request, env: AssetEnv): Promise<string | Response> {
+/** 请求者：会话（cookie / Bearer）或同步凭据，都要在白名单里；不是就返回 401 / 403 的响应。在线找资料（lookup）也用它。 */
+export async function requestUser(req: Request, env: AssetEnv): Promise<string | Response> {
   const s = await currentSession(req, env);
   if (s.status === 200) return s.user.email.toLowerCase();
   if (s.status === 403) return json({ error: '403 无权限' }, 403);
@@ -42,7 +42,7 @@ async function uploader(req: Request, env: AssetEnv): Promise<string | Response>
 }
 
 export async function handleAssetUpload(req: Request, env: AssetEnv): Promise<Response> {
-  const who = await uploader(req, env);
+  const who = await requestUser(req, env);
   if (who instanceof Response) return who;
   if (!env.FILES) return json({ error: '503 服务不可用：图片存储还没配置' }, 503);
   const mime = (req.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
@@ -52,12 +52,24 @@ export async function handleAssetUpload(req: Request, env: AssetEnv): Promise<Re
   const buf = await req.arrayBuffer();
   if (buf.byteLength === 0) return json({ error: '400 请求有误：空文件' }, 400);
   if (buf.byteLength > MAX_ASSET_BYTES) return json({ error: '413 内容太大：图片不能超过 10 MB' }, 413);
+  return json(await storeAsset(env.FILES, who, buf, mime, new URL(req.url).origin));
+}
+
+export interface StoredAsset {
+  url: string;
+  r2_key: string;
+  sha256: string;
+  mime: string;
+  size: number;
+}
+
+/** 存进 R2：key = 用户哈希 / 内容 SHA-256，同一张图只存一份。 */
+export async function storeAsset(files: AssetBucket, who: string, buf: ArrayBuffer, mime: string, origin: string): Promise<StoredAsset> {
   const sha = hex(await crypto.subtle.digest('SHA-256', buf));
   const owner = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(who))).slice(0, 16);
   const key = `${owner}/${sha}`;
-  if (!(await env.FILES.head(key))) await env.FILES.put(key, buf, { httpMetadata: { contentType: mime } });
-  const origin = new URL(req.url).origin;
-  return json({ url: `${origin}/api/assets/${key}`, r2_key: key, sha256: sha, mime, size: buf.byteLength });
+  if (!(await files.head(key))) await files.put(key, buf, { httpMetadata: { contentType: mime } });
+  return { url: `${origin}/api/assets/${key}`, r2_key: key, sha256: sha, mime, size: buf.byteLength };
 }
 
 export async function handleAssetGet(key: string, env: AssetEnv): Promise<Response> {

@@ -76,6 +76,10 @@
 | IMDb / 豆瓣 | IMDb 编号 / 豆瓣 ID | 影视的资料字段标签；占位「tt0816692，或粘贴链接」「1889243，或粘贴链接」；格式不对轻提示「IMDb 编号是 tt 加数字，比如 tt0816692」「豆瓣编号是一串数字，在链接 subject/ 后面」；对了就在输入框右端出现「打开」（外链图标，读屏「在 IMDb 打开」，悬停提示「打开」），下面一行显示可点的链接；都开新标签页 |
 | 更多链接 | 外部链接 / 相关链接 | 资料字段；最后一行占位「粘贴链接，比如烂番茄、EXT、TMDB」，有了以后「再粘贴一条链接」；名字空着就按网址自动认（EXT、烂番茄、TMDB、Letterboxd、B 站、爱奇艺、腾讯视频、优酷、Netflix、YouTube、维基百科 / Wikipedia、Steam、Epic、GOG、PlayStation Store、Xbox、Microsoft Store、Nintendo eShop、App Store、Google Play、itch.io、IGDB、Metacritic、小黑盒、TapTap），不认识的用域名；按钮「上移」「下移」「去掉」；不像链接时「这不像链接，以 https:// 开头试试」 |
 | 链接小标签 | 打开链接 | 资料卡和资料页名字下面一排：IMDb、豆瓣在前，再是更多链接；点开新标签页 |
+| 从 TMDB、豆瓣找 / 从 Open Library 找 / 从 Steam 找 | 在线搜索 / 网络结果 | 选择框里本地结果下方的分组标题；每行「2024 · 电影 · 原名」，右边来源名；还在找「正在找…」，没有「在线也没有找到」；没配置「TMDB 还没配置」；出错「暂时找不到（502 网关错误）」/「Open Library 暂时连不上（504 网关超时）」（豆瓣连不上不提）。来源名只写 TMDB / The Movie Database、豆瓣、Open Library、Steam |
+| 资料来自 TMDB | 数据来源：TMDB / Powered by | 资料卡、资料页名字下面的小字，来源名可点开 |
+| 自动补全 | 智能填充 / 一键获取 | 编辑资料底部的按钮（只在登录且在线时出现）；面板里「选一条来补全」→ 逐项「片名 沙丘2 现在：星际穿越 已有，不动 / 覆盖」，按钮「换一条」「不用了」「填进去 N 项」（拉图时「正在拉图片…」）；没有可补的「没有要补的，资料都已经填好了」；没名字「先填名字，或者 IMDb / 豆瓣编号」；按编号没取到「按编号没取到：TMDB 还没配置」 |
+| 关于 | — | 设置最下面：Mindough、一句「数据先存在这台设备上，离线也能用」；TMDB logo + 原文 “This product uses the TMDB API but is not endorsed or certified by TMDB.”，中文界面附「本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。」 |
 | 平台（游戏） | — | 多选；选项写法：PC（Steam）、PC（Epic）、PC（其他）、PlayStation 5、PlayStation 4、Xbox Series X\|S、Xbox One、Nintendo Switch、Switch 2、iOS、Android、macOS、Linux / Steam Deck、网页、其他；没选时显示「不选」；多个用「、」连 |
 | 价格 + 币种 | 金额 / 货币 | 好物的资料字段：金额框 + 币种下拉（按钮显示「S$ SGD」，列表「符号 中文名 代码」，搜索框占位「搜币种：美元、USD、$」，搜不到「没有这个币种」）；显示用系统格式（「¥1,299」「US$12.50」「JP¥1,200」「£59.90」），整数不补 .00；不换算；金额里写了字时提示「金额只写数字就好」 |
 | 看到哪 | 季集进度 | 影视的任务字段；占位「第 2 季第 3 集，或 S02E03」；认出的统一显示成「第 2 季第 3 集」「第 3 集」「第 2 季」 |

@@ -20,6 +20,7 @@ export * from './merge';
 export * from './links';
 export * from './money';
 export * from './episode';
+export * from './lookup';
 export * from './store';
 export * from './storage/adapter';
 export * from './storage/memory';

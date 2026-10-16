@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
 import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
@@ -14,6 +14,7 @@ import { AvatarStack } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
 import { titleOf } from '../../lib/view';
 import { ItemCard, ItemEditor, LibraryPicker, draftEntry, emptyDraft, saveDraft, type ItemDraft } from '../library/Library';
+import { createItemFromLookup } from '../../lib/lookup';
 import { CompletionChoice, CompletionSentence, GroupList, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults, type CompletionValue } from './pickers';
 import { DatePanel } from './DatePanel';
 import { TaskSearch } from './TaskSearch';
@@ -123,6 +124,14 @@ function Composer() {
   const req = ui.quickCreate!;
   const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults), related: req.related ?? [], people: req.people ?? [] }));
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
+  // 从在线结果建的资料：关掉面板时还没有任务用到的（取消了、或换了一个）就删掉，不在库里留下没用的条目
+  const onlineCreated = useRef<string[]>([]);
+  useEffect(
+    () => () => {
+      for (const id of onlineCreated.current) if (store.tasksOfItem(id).length === 0) store.deleteLibraryItem(id);
+    },
+    [store],
+  );
   const today = toDateKey(store.now());
   const types = useMemo(() => store.pickableTypes(), [store]);
   const type = store.get('task_type', d.typeId);
@@ -295,6 +304,12 @@ function Composer() {
               autoFocus
               onPick={(e) => {
                 set({ entryId: e.id, query: '', ...withEp(d.typeData) });
+                focusBody();
+              }}
+              onPickOnline={(r) => {
+                const { id, created } = createItemFromLookup(store, lib, r);
+                if (created) onlineCreated.current.push(id);
+                set({ entryId: id, query: '', ...withEp(d.typeData) });
                 focusBody();
               }}
               onCreate={(name) => {

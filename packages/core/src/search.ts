@@ -1,6 +1,7 @@
 /** 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、资料库、人物、组。 */
 import { fieldText, taskTitle } from './preview';
 import { itemSubtitle, mergedData } from './library';
+import { isHiddenFieldKey } from './lookup';
 import { isFinished, type Group, type LibraryItem, type Person, type Task, type TaskPerson, type TaskType } from './types';
 
 import { tr } from './i18n';
@@ -63,7 +64,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
   for (const it of itemById.values()) {
     const type = typeById.get(it.type_id);
     const sub = itemSubtitle(type, it.fields);
-    const s = scoreText(`${it.name} ${Object.values(it.fields).map(fieldText).join(' ')} ${it.note_md}`, terms);
+    const s = scoreText(`${it.name} ${Object.entries(it.fields).filter(([k]) => !isHiddenFieldKey(k)).map(([, v]) => fieldText(v)).join(' ')} ${it.note_md}`, terms);
     if (s > 0) hits.push({ kind: 'item', id: it.id, title: it.name, snippet: sub, score: s + (scoreText(it.name, terms) > 0 ? 6 : 0), item: it, type });
   }
   for (const t0 of input.tasks) {
@@ -73,6 +74,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     const t = item ? { ...t0, type_data: mergedData(type, t0, item) } : t0;
     const fields = Object.entries(t.type_data)
       .map(([k, v]) => {
+        if (isHiddenFieldKey(k)) return '';
         const def = type?.fields.find((f) => f.key === k);
         if (def?.kind === 'person' && typeof v === 'string') return personById.get(v)?.name ?? '';
         if (def?.kind === 'image') return '';
