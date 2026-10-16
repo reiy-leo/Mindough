@@ -16,16 +16,18 @@ import {
   findSameName,
   hasLibrary,
   isPersonLibrary,
+  isPickableType,
   itemData,
   mergedData,
   planLibraryMigration,
   planFieldMigration,
   splitTypeData,
-  taskFieldsOf,
+  allTaskFieldsOf,
   type LibraryEntry,
 } from './library';
+import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTypes, updateField, type NewFieldInput } from './typedef';
 import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type TableMap, type TableName, type Task, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
@@ -109,6 +111,7 @@ export class Store {
     store.migrateToLibrary();
     store.migrateFieldKinds();
     store.migratePersonTypeTasks();
+    store.reviveReferencedTypes();
     await store.flush();
     return store;
   }
@@ -499,7 +502,7 @@ export class Store {
     const next = typeId === PLAIN_TYPE_ID ? null : typeId;
     if (next === t.type_id) return t;
     const nt = this.get('task_type', next);
-    const keep = new Set(taskFieldsOf(nt).map((f) => f.key));
+    const keep = new Set(allTaskFieldsOf(nt).map((f) => f.key));
     const data = Object.fromEntries(Object.entries(t.type_data).filter(([k]) => keep.has(k)));
     const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: dataLabel(nt.body_template) } : {};
     return this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
@@ -809,7 +812,183 @@ export class Store {
     return this.insert('checkin_category', { name, icon, color, builtin: false, hidden: false, sort });
   }
 
-  // ───────────── 类型 ─────────────
+  // ───────────── 类型（M4 类型编辑器，纯逻辑见 typedef.ts） ─────────────
+
+  /** 类型按选择器里的顺序（同步的偏好 type_order，没排过的按 sort 接后面）。含隐藏的。 */
+  orderedTypes(): TableMap['task_type'][] {
+    const order = this.pref(TYPE_ORDER_PREF);
+    return orderTypes(this.list('task_type'), Array.isArray(order) ? (order as unknown[]).filter((x): x is string => typeof x === 'string') : null);
+  }
+
+  /** 新建 / 改类型时能选的类型（不含隐藏、人物），按顺序。 */
+  pickableTypes(): TableMap['task_type'][] {
+    return this.orderedTypes().filter(isPickableType);
+  }
+
+  /** 类型编辑器里列出的类型（含隐藏的；不含普通、人物），按顺序。 */
+  editableTypes(): TableMap['task_type'][] {
+    return this.orderedTypes().filter(isEditableType);
+  }
+
+  /** 用到这个类型的任务、资料各几条（未删除的）。 */
+  typeUsage(typeId: string): { tasks: number; items: number } {
+    let tasks = 0;
+    let items = 0;
+    for (const t of this.tables.task.values()) if (!t.deleted && t.type_id === typeId) tasks++;
+    for (const i of this.tables.library_item.values()) if (!i.deleted && i.type_id === typeId) items++;
+    return { tasks, items };
+  }
+
+  /** 新建自定义类型：自带「名字」主字段和「图片」字段（固定，不能删），排在最后。 */
+  createType(input: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template'>> = {}): TableMap['task_type'] {
+    const sort = this.list('task_type').reduce((m, t) => Math.max(m, t.sort), 0) + 1;
+    const t = this.insert('task_type', {
+      name: input.name?.trim() || tr('新类型'),
+      icon: input.icon ?? 'star',
+      color: input.color ?? '#5e5ce6',
+      layout: input.layout ?? 'icon_name',
+      fields: [
+        { key: 'name', label: tr('名字'), kind: 'text', primary: true },
+        { key: 'image', label: tr('图片'), kind: 'image', media: true },
+      ],
+      body_template: input.body_template ?? '',
+      builtin: false,
+      hidden: false,
+      default_completion_mode: input.default_completion_mode ?? 'once',
+      sort,
+    });
+    const order = this.orderedTypes().map((x) => x.id);
+    this.setPref(TYPE_ORDER_PREF, order);
+    return t;
+  }
+
+  /**
+   * 改类型的名字、图标、颜色、版式、默认完成方式、正文模板、隐藏。
+   * 内置类型改过之后 updated_at 是真实 HLC，以后内置升级不再整体替换它（只补新字段，见 ensureBuiltinTypes）。
+   */
+  updateType(id: string, patch: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template' | 'hidden'>>): TableMap['task_type'] {
+    const cur = this.get('task_type', id);
+    if (!cur) throw new Error(tr('类型不存在'));
+    const p = { ...patch };
+    if (p.name !== undefined && !p.name.trim()) delete p.name;
+    else if (p.name !== undefined) p.name = p.name.trim();
+    const changed = (Object.keys(p) as Array<keyof typeof p>).some((k) => JSON.stringify(cur[k]) !== JSON.stringify(p[k]));
+    return changed ? this.update('task_type', id, p) : cur;
+  }
+
+  /** 换一个类型的整张字段表（字段纯函数见 typedef.ts：addField / updateField / removeField / reorderFields）。 */
+  setTypeFields(id: string, fields: FieldDef[]): TableMap['task_type'] {
+    const cur = this.get('task_type', id);
+    if (!cur) throw new Error(tr('类型不存在'));
+    if (JSON.stringify(cur.fields) === JSON.stringify(fields)) return cur;
+    return this.update('task_type', id, { fields });
+  }
+
+  /** 加字段（同名同种类的删掉的字段会翻回来，旧值又能看到），返回 key。 */
+  addTypeField(id: string, input: NewFieldInput): string {
+    const cur = this.get('task_type', id);
+    if (!cur) throw new Error(tr('类型不存在'));
+    const legacy = LEGACY_BUILTIN_FIELDS[id];
+    const r = addField(cur.fields, input, legacy ? { legacy } : {});
+    this.setTypeFields(id, r.fields);
+    return r.key;
+  }
+
+  /** 这个字段在资料或任务里有没有值（有值时不让改种类、改资料 / 任务归属，免得旧值对不上）。 */
+  fieldHasData(typeId: string, key: string): boolean {
+    const has = (v: FieldValue | undefined) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+    for (const i of this.tables.library_item.values()) if (!i.deleted && i.type_id === typeId && has(i.fields[key])) return true;
+    for (const t of this.tables.task.values()) if (!t.deleted && t.type_id === typeId && has(t.type_data[key])) return true;
+    return false;
+  }
+
+  /**
+   * 单选 / 多选的选项改名：字段定义和所有资料、任务里存的旧选项一起改（值存的是选项文字）。
+   */
+  renameFieldOption(typeId: string, key: string, from: string, to: string): void {
+    const type = this.get('task_type', typeId);
+    const def = type?.fields.find((f) => f.key === key);
+    const next = to.trim();
+    if (!type || !def?.options || !next || from === next || !def.options.includes(from)) return;
+    const fields = updateField(type.fields, key, { options: def.options.map((o) => (o === from ? next : o)) });
+    const swap = (v: FieldValue | undefined): FieldValue | undefined => {
+      if (v === from) return next;
+      if (Array.isArray(v) && (v as unknown[]).includes(from)) return cleanOptions((v as string[]).map((x) => (x === from ? next : x)));
+      return undefined;
+    };
+    const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'task_type', row: { ...type, fields } as BaseRow }];
+    for (const i of this.list('library_item')) {
+      const v = i.type_id === typeId ? swap(i.fields[key]) : undefined;
+      if (v !== undefined) rows.push({ table: 'library_item', row: { ...i, fields: { ...i.fields, [key]: v } } as BaseRow });
+    }
+    for (const t of this.list('task')) {
+      const v = t.type_id === typeId ? swap(t.type_data[key]) : undefined;
+      if (v !== undefined) rows.push({ table: 'task', row: { ...t, type_data: { ...t.type_data, [key]: v } } as BaseRow });
+    }
+    this.write(rows);
+  }
+
+  /** 选择器里的顺序：按给定 id 顺序存进同步偏好 type_order（不改类型行）。 */
+  reorderTypes(ids: readonly string[]): void {
+    const all = this.orderedTypes().map((t) => t.id);
+    const picked = ids.filter((id) => all.includes(id));
+    const rest = all.filter((id) => !picked.includes(id));
+    // 没列到的（普通、人物…）保持原来的相对位置：普通在最前，其余接在后面
+    const head = rest.filter((id) => id === PLAIN_TYPE_ID);
+    this.setPref(TYPE_ORDER_PREF, [...head, ...picked, ...rest.filter((id) => id !== PLAIN_TYPE_ID)]);
+  }
+
+  /** 编辑器列表里上移 / 下移一位。 */
+  moveType(id: string, delta: -1 | 1): void {
+    const ids = this.editableTypes().map((t) => t.id);
+    const i = ids.indexOf(id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    this.reorderTypes(ids);
+  }
+
+  /** 能不能直接删：自定义的、没有任务和资料用它。 */
+  canDeleteType(id: string): boolean {
+    const t = this.get('task_type', id);
+    if (!t || t.builtin) return false;
+    const u = this.typeUsage(id);
+    return u.tasks === 0 && u.items === 0;
+  }
+
+  /**
+   * 删类型：只有没人用的自定义类型能删（墓碑）；顺带清掉把它当默认类型的组。
+   * 内置的、或还有任务 / 资料在用的，抛错（界面上只给「隐藏」）。
+   * 两台设备同时一边删、一边用它新建任务时，打开时 reviveReferencedTypes 会把它找回来（隐藏着）。
+   */
+  deleteType(id: string): void {
+    const t = this.get('task_type', id);
+    if (!t) return;
+    if (t.builtin) throw new Error(tr('内置类型不能删，可以隐藏'));
+    const u = this.typeUsage(id);
+    if (u.tasks + u.items > 0) throw new Error(tr('还有 {n} 件任务或资料在用，只能隐藏', { n: u.tasks + u.items }));
+    const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'task_type', row: { ...t, deleted: true } }];
+    for (const g of this.list('group')) if (g.default_type_id === id) rows.push({ table: 'group', row: { ...g, default_type_id: null } as BaseRow });
+    this.write(rows);
+    const order = this.pref(TYPE_ORDER_PREF);
+    if (Array.isArray(order) && (order as unknown[]).includes(id)) this.setPref(TYPE_ORDER_PREF, (order as string[]).filter((x) => x !== id));
+  }
+
+  /**
+   * 删掉的类型还有任务或资料在用（多端同时一边删、一边用）：把它找回来、隐藏着，任务和资料照常显示。
+   * 每次打开都跑；无事可做是空操作。两台设备各找回一次，内容一样，LWW 后一致。
+   */
+  private reviveReferencedTypes() {
+    const used = new Set<string>();
+    for (const t of this.tables.task.values()) if (!t.deleted && t.type_id) used.add(t.type_id);
+    for (const i of this.tables.library_item.values()) if (!i.deleted) used.add(i.type_id);
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const id of used) {
+      const t = this.tables.task_type.get(id);
+      if (t?.deleted) rows.push({ table: 'task_type', row: { ...t, deleted: false, hidden: true } as BaseRow });
+    }
+    this.write(rows);
+  }
 
   /** 复制一个类型（内置类型也可复制后修改）。 */
   duplicateType(typeId: string, name?: string): TableMap['task_type'] {
@@ -819,3 +998,6 @@ export class Store {
     return this.insert('task_type', { ...rest, name: name ?? tr('{name} 副本', { name: src.name }), builtin: false, sort: this.list('task_type').length });
   }
 }
+
+/** 类型顺序的同步偏好 key。 */
+export const TYPE_ORDER_PREF = 'type_order';

@@ -149,11 +149,13 @@ export interface Category extends BaseRow {
   color: string;
 }
 
-export type TypeLayout = 'poster' | 'icon_name' | 'banner' | 'text';
+/** 版式（也决定资料库里图的形状）：poster 竖版海报 2:3、icon_name 方形、banner 横幅 16:9、round 圆形（M4 加）、text 纯文字（普通）。 */
+export type TypeLayout = 'poster' | 'icon_name' | 'banner' | 'round' | 'text';
 export const TYPE_LAYOUT_LABEL: Record<TypeLayout, string> = {
-  get poster() { return tr('海报'); },
-  get icon_name() { return tr('图标+名称'); },
+  get poster() { return tr('竖版海报'); },
+  get icon_name() { return tr('方形'); },
   get banner() { return tr('横幅'); },
+  get round() { return tr('圆形'); },
   get text() { return tr('纯文字'); },
 };
 
@@ -183,6 +185,10 @@ export interface FieldDef {
    * 省略视作 'item'；主字段（primary）与图片字段（media）总是资料字段。
    */
   scope?: 'item' | 'task';
+  /** 隐藏：编辑器里还在，新建 / 详情 / 资料页不显示，值保留（M4 类型编辑器）。 */
+  hidden?: boolean;
+  /** 删掉了：只留这条墓碑（key 不再分给别的字段），值留在数据里不显示；加回同名同种类的字段就翻回来。见 typedef.ts。 */
+  removed?: boolean;
 }
 
 export interface TaskType extends BaseRow {

@@ -71,8 +71,30 @@ export const CORE_EN: Record<string, V> = {
   // ── 类型样式 ──
   海报: 'Poster',
   '图标+名称': 'Icon + Name',
+  竖版海报: 'Poster',
+  方形: 'Square',
   横幅: 'Banner',
+  圆形: 'Round',
   纯文字: 'Text Only',
+
+  // ── 字段种类（类型编辑器） ──
+  文字: 'Text',
+  数字: 'Number',
+  进度: 'Progress',
+  日期: 'Date',
+  链接: 'Link',
+  图片: 'Image',
+  单选: 'Single Choice',
+  多选: 'Multiple Choice',
+  金额: 'Amount',
+  看到第几集: 'Episode',
+  清单: 'Checklist',
+  站点编号: 'Site ID',
+  更多链接: 'More Links',
+  名字: 'Name',
+  新类型: 'New Type',
+  '内置类型不能删，可以隐藏': 'Built-in types can’t be deleted, but you can hide them',
+  '还有 {n} 件任务或资料在用，只能隐藏': (p) => `${count(p.n, 'task or entry uses', 'tasks or entries use')} this type — you can only hide it`,
 
   // ── 季 / 集 ──
   '第 {s} 季第 {e} 集': 'Season {s}, Episode {e}',

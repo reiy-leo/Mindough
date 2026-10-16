@@ -10,6 +10,7 @@ import { BUILTIN_TYPE_IDS, PLAIN_TYPE_ID } from './seed/builtin-types';
 import { fieldText } from './preview';
 import { isLinkField, linkChips, matchOptions, type LinkChip } from './links';
 import { DEFAULT_CURRENCY, moneyOf } from './money';
+import { isShownField } from './typedef';
 import type { FieldDef, FieldValue, LibraryItem, Person, Task, TaskType } from './types';
 
 import { dataLabel, tr } from './i18n';
@@ -69,11 +70,18 @@ export function isPersonLibrary(type: Pick<TaskType, 'fields'> | null | undefine
   return !!type?.fields.find((f) => f.primary)?.kind && type.fields.find((f) => f.primary)!.kind === 'person';
 }
 
+/** 显示的资料字段（不含隐藏、删掉的；见 typedef.ts）。 */
 export function itemFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined): FieldDef[] {
-  return (type?.fields ?? []).filter(isItemField);
+  return (type?.fields ?? []).filter((f) => isShownField(f) && isItemField(f));
 }
 
+/** 显示的任务字段（不含隐藏、删掉的）。改类型时要留的值用 allTaskFieldsOf。 */
 export function taskFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined): FieldDef[] {
+  return (type?.fields ?? []).filter((f) => isShownField(f) && isTaskField(f));
+}
+
+/** 全部任务字段（含隐藏、删掉的）：数据保留用。 */
+export function allTaskFieldsOf(type: Pick<TaskType, 'fields'> | null | undefined): FieldDef[] {
   return (type?.fields ?? []).filter(isTaskField);
 }
 

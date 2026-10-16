@@ -171,7 +171,7 @@ export function linkChips(fieldsDef: readonly FieldDef[] | null | undefined, dat
     seen.add(url);
     out.push({ key, label, url });
   };
-  const defs = fieldsDef ?? [];
+  const defs = (fieldsDef ?? []).filter((f) => !f.hidden && !f.removed);
   for (const f of defs) {
     if (f.kind !== 'site_id' || !f.site) continue;
     const id = siteIdOf(f.site, data[f.key]);
