@@ -7,6 +7,7 @@ import {
   itemOfLookup,
   lookupKindOf,
   lookupQueryOf,
+  lookupSearchText,
   parseSourceRef,
   planAutofill,
   sourceOfFields,
@@ -69,6 +70,13 @@ describe('在线补全：类型与来源', () => {
     expect(findLookupTwin(items, T.book, dune)).toBeNull();
     expect(findLookupTwin([{ ...items[0]!, deleted: true }], T.movie, dune)).toBeNull();
   });
+
+  it('同名（规范化后）且年份不冲突也算同一条；记着别的来源的不算', () => {
+    expect(findLookupTwin([item({ id: 'n', name: '沙丘 2', fields: { year: 2024 } })], T.movie, dune)).toBe('n');
+    expect(findLookupTwin([item({ id: 'n', name: '沙丘·2' })], T.movie, dune)).toBe('n');
+    expect(findLookupTwin([item({ id: 'n', name: '沙丘2', fields: { year: 1984 } })], T.movie, dune)).toBeNull();
+    expect(findLookupTwin([item({ id: 'n', name: '沙丘2', fields: { [SOURCE_KEY]: 'douban:1' } })], T.movie, dune)).toBeNull();
+  });
 });
 
 describe('在线补全：按什么找', () => {
@@ -76,8 +84,40 @@ describe('在线补全：按什么找', () => {
     expect(lookupQueryOf(movie, { name: '沙丘', fields: { imdb: 'imdb.com/title/tt15239678', douban: '35575567' } })).toEqual({ by: 'id', source: 'imdb', id: 'tt15239678' });
     expect(lookupQueryOf(movie, { name: '沙丘', fields: { douban: 'https://movie.douban.com/subject/35575567/' } })).toEqual({ by: 'id', source: 'douban', id: '35575567' });
     expect(lookupQueryOf(movie, { name: ' 沙丘 ', fields: { imdb: '乱写' } })).toEqual({ by: 'name', q: '沙丘' });
+    // 电影只搜电影
+    expect(lookupQueryOf(movie, { name: '末日', fields: { kind: '电影' } })).toEqual({ by: 'name', q: '末日', media: 'movie' });
+    // 季标记去掉，当剧集搜
+    expect(lookupQueryOf(movie, { name: '末日地堡 第三季', fields: {} })).toEqual({ by: 'name', q: '末日地堡', media: 'tv', season: 3 });
+    expect(lookupQueryOf(movie, { name: '鱿鱼游戏 第三季', fields: { kind: '剧集' } })).toEqual({ by: 'name', q: '鱿鱼游戏', media: 'tv', season: 3 });
+    // 书不管电影 / 剧集
+    expect(lookupQueryOf(book, { name: '三体', fields: {} })).toEqual({ by: 'name', q: '三体' });
     expect(lookupQueryOf(book, { name: '', fields: {} })).toBeNull();
     expect(lookupQueryOf(type(T.meal), { name: '红烧肉', fields: {} })).toBeNull();
+  });
+});
+
+describe('在线补全：输入框里的字', () => {
+  it('去掉各种季标记（试跑里的 7 部剧）', () => {
+    const cases: Array<[string, string, number]> = [
+      ['末日地堡 第三季', '末日地堡', 3],
+      ['七国骑士 第一季', '七国骑士', 1],
+      ['IT：欢迎来到德里镇 第一季', 'IT：欢迎来到德里镇', 1],
+      ['异形：地球 第一季', '异形：地球', 1],
+      ['中国奇谭 第二季', '中国奇谭', 2],
+      ['Severance Season 2', 'Severance', 2],
+      ['The Bear S03', 'The Bear', 3],
+    ];
+    for (const [text, q, season] of cases) expect(lookupSearchText(text)).toEqual({ by: 'name', q: q.normalize('NFKC'), media: 'tv', season });
+    expect(lookupSearchText('绝命毒师 S02E03')).toEqual({ by: 'name', q: '绝命毒师', media: 'tv', season: 2 });
+    expect(lookupSearchText('封神第二部：战火西岐')).toEqual({ by: 'name', q: '封神第二部：战火西岐' });
+    expect(lookupSearchText('  ')).toBeNull();
+  });
+
+  it('粘贴编号或链接：按编号取', () => {
+    expect(lookupSearchText('tt0816692')).toEqual({ by: 'id', source: 'imdb', id: 'tt0816692' });
+    expect(lookupSearchText('https://www.imdb.com/title/tt0816692/?ref_=x')).toEqual({ by: 'id', source: 'imdb', id: 'tt0816692' });
+    expect(lookupSearchText('https://movie.douban.com/subject/1889243/')).toEqual({ by: 'id', source: 'douban', id: '1889243' });
+    expect(lookupSearchText('1917')).toEqual({ by: 'name', q: '1917' });
   });
 });
 

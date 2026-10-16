@@ -13,7 +13,8 @@ import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
-import { tr } from '../lib/i18n';
+import { getLocale, tr } from '../lib/i18n';
+import tmdbLogo from '../assets/tmdb-logo.svg';
 import { useLocalePref } from '../lib/locale';
 import type { LocalePref } from '../lib/i18n';
 
@@ -160,8 +161,28 @@ export function SettingsPage() {
           </div>
         </div>
       </Section>
-      <p className="muted small about">{tr('Mindough · 数据先存在这台设备上，离线也能用')}</p>
+      <AboutSection />
     </div>
+  );
+}
+
+/**
+ * 关于：Mindough 自己的标识在前；TMDB 的署名按它的要求放（认可的 logo、比我们的标识不显眼、原文声明、链接到 themoviedb.org）。
+ */
+function AboutSection() {
+  return (
+    <section className="about" aria-label={tr('关于')}>
+      <img src="/favicon.svg" alt="" className="about-icon" width={36} height={36} />
+      <div className="about-name">Mindough</div>
+      <p className="muted small">{tr('数据先存在这台设备上，离线也能用')}</p>
+      <div className="about-credits">
+        <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="about-tmdb" aria-label="TMDB">
+          <img src={tmdbLogo} alt="TMDB" height={10} />
+        </a>
+        <p className="about-credit-text">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+        {getLocale() === 'zh' && <p className="about-credit-text">{tr('本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。')}</p>}
+      </div>
+    </section>
   );
 }
 

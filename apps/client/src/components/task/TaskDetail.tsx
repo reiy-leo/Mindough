@@ -25,6 +25,7 @@ import {
   type FieldDef,
   type FieldValue,
   type LibraryEntry,
+  type LookupResult,
   type Store,
   type Task,
   type TaskType,
@@ -34,6 +35,7 @@ import { isPickableType } from '@mindough/core';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { navigate } from '../../lib/router';
 import { ItemCard, ItemSheet, LibraryPicker, artShape, entryArt } from '../library/Library';
+import { createItemFromLookup } from '../../lib/lookup';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -566,6 +568,13 @@ function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task:
         setQuery('');
         setSheet({ create: name });
       }}
+      {...(person ? {} : {
+        onPickOnline: (r: LookupResult) => {
+          attach(createItemFromLookup(store, type, r).id);
+          setQuery('');
+          close();
+        },
+      })}
     />
   );
   const open = () => {

@@ -136,6 +136,39 @@ describe('TMDB', () => {
     expect(calls[0]!.url.searchParams.get('language')).toBe('en-US');
   });
 
+  it('只要电影：用 /search/movie，豆瓣的剧集也过滤掉（试跑：《末日》被排成剧集《末日地堡》）', async () => {
+    const calls = mockFetch({
+      'https://api.themoviedb.org/3/search/movie': () => Response.json({ results: [{ id: 1, title: '末日', release_date: '2024-01-01' }] }),
+      'https://movie.douban.com/j/subject_suggest': () => Response.json([{ id: '1', title: '末日地堡', year: '2023', type: 'movie', episode: '10' }, { id: '2', title: '末日2', year: '2024', type: 'movie', episode: '' }]),
+    });
+    const res = await call('/api/lookup/search?kind=movie&q=%E6%9C%AB%E6%97%A5&media=movie', baseEnv({ TMDB_API_KEY: V3 }));
+    const body = (await res.json()) as { results: Array<{ source: string; name: string; fields: Record<string, unknown> }> };
+    expect(calls.some((c) => c.url.pathname === '/3/search/multi')).toBe(false);
+    expect(body.results.map((r) => r.name)).toEqual(['末日', '末日2']);
+    expect(body.results[0]!.fields.kind).toBe('电影');
+  });
+
+  it('中文名在 TMDB 搜不到：用豆瓣给的原名（带年份）补搜；alt 参数也会试', async () => {
+    const tmdbQueries: string[] = [];
+    mockFetch({
+      'https://api.themoviedb.org/3/search/movie': (u) => {
+        tmdbQueries.push(`${u.searchParams.get('query')}|${u.searchParams.get('primary_release_year') ?? ''}`);
+        return Response.json({ results: u.searchParams.get('query') === 'The SpongeBob Movie: Search for SquarePants' ? [{ id: 9, title: '海绵宝宝：深海大冒险', release_date: '2025-12-19' }] : [] });
+      },
+      'https://movie.douban.com/j/subject_suggest': () => Response.json([{ id: '3', title: '海绵宝宝大电影·寻找方裤', sub_title: 'The SpongeBob Movie: Search for SquarePants', year: '2025', type: 'movie' }]),
+    });
+    const res = await call(`/api/lookup/search?kind=movie&q=${encodeURIComponent('海绵宝宝大电影·寻找方裤')}&media=movie`, baseEnv({ TMDB_API_KEY: V3 }));
+    const body = (await res.json()) as { results: Array<{ source: string; name: string }> };
+    expect(tmdbQueries).toEqual(['海绵宝宝大电影·寻找方裤|', 'The SpongeBob Movie: Search for SquarePants|2025']);
+    expect(body.results.map((r) => `${r.source}:${r.name}`)).toEqual(['tmdb:海绵宝宝：深海大冒险', 'douban:海绵宝宝大电影·寻找方裤']);
+    // 英文界面：豆瓣只拿来补搜，不列出；alt 先试
+    tmdbQueries.length = 0;
+    const en = await call(`/api/lookup/search?kind=movie&q=${encodeURIComponent('海绵宝宝大电影·寻找方裤')}&media=movie&lang=en&alt=Nope`, baseEnv({ TMDB_API_KEY: V3 }));
+    const enBody = (await en.json()) as { results: Array<{ source: string }> };
+    expect(tmdbQueries[1]).toBe('Nope|');
+    expect(enBody.results.map((r) => r.source)).toEqual(['tmdb']);
+  });
+
   it('详情带 IMDb；按 IMDb 编号 find；剧集从 external_ids 拿', async () => {
     mockFetch({
       'https://api.themoviedb.org/3/movie/693134': () => Response.json({ id: 693134, title: '沙丘2', release_date: '2024-02-27', poster_path: '/p2.jpg', imdb_id: 'tt15239678' }),

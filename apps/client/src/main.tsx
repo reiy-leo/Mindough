@@ -17,6 +17,7 @@ import './skin/tokens.css';
 import './styles/app.css';
 import './styles/task.css';
 import './styles/library.css';
+import './styles/lookup.css';
 import './styles/editor.css';
 import './skin/skins.css';
 

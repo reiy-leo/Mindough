@@ -74,12 +74,21 @@ function toResult(m: TmdbMedia, mediaType: 'movie' | 'tv', imdb?: string | null)
   };
 }
 
-export async function searchTmdb(env: LookupEnv, q: string, lang: Lang): Promise<LookupResult[]> {
-  const data = await tmdb<{ results?: TmdbMedia[] }>(env, '/search/multi', { query: q, language: language(lang), include_adult: 'false', page: '1' });
+export type Media = 'movie' | 'tv';
+
+/**
+ * 搜影视。知道是电影还是剧集时用 /search/movie 或 /search/tv（只要那一种，排序也更准）；不知道用 /search/multi（去掉人物）。
+ * year：只要那一年的（按原名补搜时用豆瓣给的年份收窄）。
+ */
+export async function searchTmdb(env: LookupEnv, q: string, lang: Lang, opts: { media?: Media; year?: number } = {}): Promise<LookupResult[]> {
+  const params: Record<string, string> = { query: q, language: language(lang), include_adult: 'false', page: '1' };
+  if (opts.media && opts.year) params[opts.media === 'movie' ? 'primary_release_year' : 'first_air_date_year'] = String(opts.year);
+  const data = await tmdb<{ results?: TmdbMedia[] }>(env, opts.media ? `/search/${opts.media}` : '/search/multi', params);
   return (data.results ?? [])
-    .filter((m) => m.media_type === 'movie' || m.media_type === 'tv')
+    .map((m) => ({ m, t: (opts.media ?? m.media_type) as Media | 'person' | undefined }))
+    .filter((x): x is { m: TmdbMedia; t: Media } => x.t === 'movie' || x.t === 'tv')
     .slice(0, 8)
-    .map((m) => toResult(m, m.media_type as 'movie' | 'tv'));
+    .map(({ m, t }) => toResult(m, t));
 }
 
 /** id：「movie/550」「tv/1399」。 */

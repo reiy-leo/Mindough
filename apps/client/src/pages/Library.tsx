@@ -16,6 +16,7 @@ import {
   isPersonLibrary,
   libraryCopy,
   searchLibrary,
+  sourceOfFields,
   type LibraryEntry,
   type TaskType,
 } from '@mindough/core';
@@ -29,6 +30,7 @@ import { PageHeader } from '../components/PageHeader';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { ItemArt, ItemSheet, artShape, entryArt } from '../components/library/Library';
+import { SourceNote } from '../components/library/Lookup';
 import { LinkChips } from '../components/library/LinkFields';
 import { PersonDialog } from './People';
 import { imageUrl } from '../lib/view';
@@ -231,6 +233,7 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
             </dl>
           )}
           <LinkChips links={links} className="lib-hero-links" />
+          <SourceNote source={sourceOfFields(item.fields)} className="lib-hero-source" />
           <div className="lib-hero-actions">
             <Button variant="primary" onPress={() => ui.openQuickCreate({ type_id: type.id, library_item_id: id })}>
               <Plus size={16} />

@@ -10,6 +10,8 @@
 import { BUILTIN_TYPE_IDS } from './seed/builtin-types';
 import { fieldText } from './preview';
 import { linksOf, normalizeUrl, siteIdOf } from './links';
+import { normalizeName } from './library';
+import { stripEpisode } from './episode';
 import { tr } from './i18n';
 import type { FieldDef, FieldValue, LibraryItem, LinkValue, TaskType } from './types';
 
@@ -107,24 +109,62 @@ export function sourceOfFields(fields: Record<string, FieldValue> | null | undef
   return parseSourceRef(fields?.[SOURCE_KEY]);
 }
 
-/** 资料库里已经有的同一条（同来源同编号，或同一个 IMDb / 豆瓣编号）：选中在线结果时直接用它，不再新建。 */
-export function findLookupTwin(items: readonly Pick<LibraryItem, 'id' | 'type_id' | 'fields' | 'deleted'>[], typeId: string, r: Pick<LookupResult, 'source' | 'sourceId' | 'fields'>): string | null {
+/**
+ * 资料库里已经有的同一条：同来源同编号、同一个 IMDb / 豆瓣编号，或同名（规范化后）且年份不冲突、也没记着别的来源。
+ * 选中在线结果时直接用它（只补空缺），不再新建；选择框里也不再重复列出。
+ */
+export function findLookupTwin(items: readonly Pick<LibraryItem, 'id' | 'type_id' | 'name' | 'fields' | 'deleted'>[], typeId: string, r: Pick<LookupResult, 'source' | 'sourceId' | 'fields' | 'name' | 'year'>): string | null {
   const ref = sourceRef(r);
   const imdb = siteIdOf('imdb', r.fields.imdb);
   const douban = siteIdOf('douban', r.fields.douban);
+  const name = normalizeName(r.name);
+  let byName: string | null = null;
   for (const it of items) {
     if (it.deleted || it.type_id !== typeId) continue;
     if (it.fields[SOURCE_KEY] === ref) return it.id;
     if (imdb && siteIdOf('imdb', it.fields.imdb) === imdb) return it.id;
     if (douban && siteIdOf('douban', it.fields.douban) === douban) return it.id;
+    if (byName || !name || normalizeName(it.name) !== name || typeof it.fields[SOURCE_KEY] === 'string') continue;
+    const y = typeof it.fields.year === 'number' ? it.fields.year : null;
+    if (y === null || !r.year || y === r.year) byName = it.id;
   }
-  return null;
+  return byName;
 }
 
 // ───────────── 自动补全 ─────────────
 
-/** 按什么去找：先认已填的 IMDb、再豆瓣编号（精确），都没有就按名字搜。 */
-export type LookupQuery = { by: 'id'; source: 'imdb' | 'douban'; id: string } | { by: 'name'; q: string };
+export type LookupMedia = 'movie' | 'tv';
+
+/** 按什么去找：先认已填的 IMDb、再豆瓣编号（精确），都没有就按名字搜（去掉季标记、知道是电影还是剧集就只搜那一种）。 */
+export type LookupQuery = { by: 'id'; source: 'imdb' | 'douban'; id: string } | { by: 'name'; q: string; media?: LookupMedia; season?: number };
+
+/**
+ * 输入框里的字 → 拿去在线找的样子（真实数据试跑：带「第三季」的剧名在 TMDB 一部都搜不到，Rei 2026-10-16）：
+ * - 粘贴的是 IMDb / 豆瓣编号或链接：按编号直接取；
+ * - 去掉季 / 集标记（第二季、Season 2、S03、S02E03…，复用 episode.ts），带季标记的就是剧集。
+ */
+export function lookupSearchText(text: string): LookupQuery | null {
+  const raw = text.trim();
+  if (!raw) return null;
+  if (/^(tt\d{7,10}|https?:\/\/\S*imdb\.com\/\S*)$/i.test(raw)) {
+    const imdb = siteIdOf('imdb', raw);
+    if (imdb) return { by: 'id', source: 'imdb', id: imdb };
+  }
+  if (/^https?:\/\/\S*douban\.com\/\S*$/i.test(raw)) {
+    const douban = siteIdOf('douban', raw);
+    if (douban) return { by: 'id', source: 'douban', id: douban };
+  }
+  const { rest, match } = stripEpisode(raw);
+  const q = rest.trim();
+  if (!q) return null;
+  if (!match) return { by: 'name', q };
+  return { by: 'name', q, media: 'tv', ...(match.value.season !== undefined ? { season: match.value.season } : {}) };
+}
+
+/** 影视资料的「电影/剧集」→ 只搜那一种（试跑里电影《末日》被排成了剧集《末日地堡》）。 */
+function mediaOfKind(v: FieldValue | undefined): LookupMedia | undefined {
+  return v === '电影' ? 'movie' : v === '剧集' ? 'tv' : undefined; // i18n-ignore 选项值（数据）
+}
 
 export function lookupQueryOf(type: Pick<TaskType, 'id' | 'fields'>, draft: { name: string; fields: Record<string, FieldValue> }): LookupQuery | null {
   const kind = lookupKindOf(type);
@@ -137,8 +177,10 @@ export function lookupQueryOf(type: Pick<TaskType, 'id' | 'fields'>, draft: { na
     const douban = doubanDef ? siteIdOf('douban', draft.fields[doubanDef.key]) : null;
     if (douban) return { by: 'id', source: 'douban', id: douban };
   }
-  const q = draft.name.trim();
-  return q ? { by: 'name', q } : null;
+  const q = lookupSearchText(draft.name);
+  if (!q || q.by === 'id') return q;
+  const media = kind === 'movie' ? (mediaOfKind(draft.fields.kind) ?? q.media) : undefined;
+  return { by: 'name', q: q.q, ...(media ? { media } : {}), ...(q.season !== undefined ? { season: q.season } : {}) };
 }
 
 export interface FillRow {
