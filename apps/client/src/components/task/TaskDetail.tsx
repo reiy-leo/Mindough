@@ -721,7 +721,7 @@ function Detail({ task }: { task: Task }) {
               types={types}
               value={task.type_id ?? PLAIN_TYPE_ID}
               onChange={(id) => {
-                // 改类型时保留已填字段（资料抄回任务，新类型没有的先藏起来不删）；正文为空时套用模板
+                // 改类型清空原来的资料（Rei 2026-10-16），新类型从「未选」开始；正文为空时套用模板
                 store.changeTaskType(task.id, id);
                 c();
               }}

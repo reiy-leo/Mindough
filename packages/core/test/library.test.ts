@@ -233,14 +233,20 @@ describe('Store 资料库操作', () => {
     expect(s.taskData(after)).toMatchObject({ title: '三体 I', author: '刘慈欣', pages: 10 });
   });
 
-  it('改类型：资料抄回 type_data，再按新类型挂资料', async () => {
+  it('改类型：清空原来的资料，不在新类型库里找同名或新建；同 key 的任务字段保留', async () => {
     const s = await open();
-    const t = s.createTask({ type_id: T.movie, type_data: { title: '沙丘 2', year: 2024 } });
+    const book = s.createLibraryItem(T.book, { name: '沙丘' });
+    const t = s.createTask({ type_id: T.book, library_item_id: book.id, type_data: { pages: 12 } });
+    const movie = s.changeTaskType(t.id, T.movie);
+    expect(movie.library_item_id).toBeNull();
+    expect(movie.type_data).toEqual({});
+    expect(s.libraryItems(T.movie)).toEqual([]);
+    expect(s.libraryItems(T.book).map((i) => i.name)).toEqual(['沙丘']);
     const plain = s.changeTaskType(t.id, null);
     expect(plain.library_item_id).toBeNull();
-    expect(plain.type_data).toMatchObject({ title: '沙丘 2', year: 2024 });
-    const back = s.changeTaskType(t.id, T.movie);
-    expect(back.library_item_id).toBe(t.library_item_id);
+    expect(plain.type_data).toEqual({});
+    const g = s.createTask({ type_id: T.game, type_data: { progress: 40 } });
+    expect(s.changeTaskType(g.id, T.book).type_data).toEqual({});
   });
 
   it('libraryEntries：最近用到在前，带用到次数；人物库就是人物列表', async () => {

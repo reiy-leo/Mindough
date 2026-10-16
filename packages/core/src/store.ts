@@ -21,6 +21,7 @@ import {
   planLibraryMigration,
   planFieldMigration,
   splitTypeData,
+  taskFieldsOf,
   type LibraryEntry,
 } from './library';
 import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
@@ -471,7 +472,9 @@ export class Store {
   }
 
   /**
-   * 改任务类型：原来的资料抄回 type_data（“改类型时保留已填字段”），再按新类型重新挂资料。
+   * 改任务类型（Rei 2026-10-16：「切换类别后就要清空之前类别的状态」）：
+   * 原来挂的资料取消（资料本身留在库里），资料字段不抄回、也不在新类型的库里找同名或新建；
+   * 只留下新类型也有的任务字段（同 key）。新类型的资料从「未选」开始。
    */
   changeTaskType(taskId: string, typeId: string | null): Task {
     const t = this.get('task', taskId);
@@ -479,10 +482,10 @@ export class Store {
     const next = typeId === PLAIN_TYPE_ID ? null : typeId;
     if (next === t.type_id) return t;
     const nt = this.get('task_type', next);
-    const data = this.taskData(t);
+    const keep = new Set(taskFieldsOf(nt).map((f) => f.key));
+    const data = Object.fromEntries(Object.entries(t.type_data).filter(([k]) => keep.has(k)));
     const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: dataLabel(nt.body_template) } : {};
-    const patched = this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
-    return this.attachLibrary(patched);
+    return this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
   }
 
   /** 任务的 type_data 里写着资料（有主字段名字）却没挂资料：找同名或新建一条挂上，type_data 只留任务字段。 */
