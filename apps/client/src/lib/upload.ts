@@ -4,8 +4,9 @@
  */
 import type { Store } from '@mindough/core';
 import { API_BASE, authInit, getAccount } from './account';
+import { normalizeImage, type ArtShape } from './image';
 
-export function readFileAsDataUrl(file: File): Promise<string> {
+export function readFileAsDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));
@@ -33,10 +34,11 @@ export async function uploadImage(file: File | Blob, fetcher: typeof fetch = (..
   }
 }
 
-/** 存一张图，返回 asset id。 */
-export async function saveImageAsset(store: Store, file: File): Promise<string> {
-  const up = await uploadImage(file);
-  if (up) return store.insert('asset', { sha256: up.sha256, mime: up.mime, width: null, height: null, r2_key: up.r2_key, url: up.url }).id;
-  const data = await readFileAsDataUrl(file);
-  return store.insert('asset', { sha256: '', mime: file.type, width: null, height: null, r2_key: null, url: data }).id;
+/** 存一张图，返回 asset id。先按形状统一宽高（shape 为 null：不裁，只限长边），再上传；离线存 data: 地址。 */
+export async function saveImageAsset(store: Store, file: Blob, shape: ArtShape | null = null): Promise<string> {
+  const { blob, width, height } = await normalizeImage(file, shape);
+  const up = await uploadImage(blob);
+  if (up) return store.insert('asset', { sha256: up.sha256, mime: up.mime, width, height, r2_key: up.r2_key, url: up.url }).id;
+  const data = await readFileAsDataUrl(blob);
+  return store.insert('asset', { sha256: '', mime: blob.type, width, height, r2_key: null, url: data }).id;
 }

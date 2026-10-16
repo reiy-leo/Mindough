@@ -32,19 +32,8 @@ import { AutofillPanel, OnlineOptions, SourceNote } from './Lookup';
 import { useLookupAvailable, useOnlineSearch } from '../../lib/lookup';
 
 import { dataLabel, tr } from '../../lib/i18n';
-export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
-
-/** 类型版式 → 图片形状：海报竖版、图标方形、横幅、人物圆形。 */
-export function artShape(type: Pick<TaskType, 'layout' | 'fields'> | null | undefined): ArtShape {
-  if (!type) return 'square';
-  if (isPersonLibrary(type)) return 'round';
-  return layoutShape(type.layout);
-}
-
-/** 版式 → 图的形状：竖版海报 2:3、横幅 16:9、圆形，其余方形。 */
-export function layoutShape(layout: string): ArtShape {
-  return layout === 'poster' ? 'poster' : layout === 'banner' ? 'banner' : layout === 'round' ? 'round' : 'square';
-}
+export { artShape, layoutShape, type ArtShape } from '../../lib/image';
+import { artShape, type ArtShape } from '../../lib/image';
 
 /** 资料的图：有图显示图，没有就是按名字生成的渐变 + 缩写。宽度由外层给，高度按形状比例。 */
 export function ItemArt({ src, name, shape, className, style }: { src: string | null; name: string; shape: ArtShape; className?: string; style?: CSSProperties }) {
@@ -245,8 +234,8 @@ export function draftOfEntry(store: Store, e: Pick<LibraryEntry, 'kind' | 'id'>)
   return { name: it?.name ?? '', image: it?.image ?? null, fields: { ...(it?.fields ?? {}) }, note_md: it?.note_md ?? '' };
 }
 
-/** 登录在线时上传到 R2，否则存 data: 地址（lib/upload.ts）。 */
-const saveImage = (store: Store, file: File): Promise<string> => saveImageAsset(store, file);
+/** 先按形状统一宽高（lib/image.ts），登录在线时上传到 R2，否则存 data: 地址（lib/upload.ts）。 */
+const saveImage = (store: Store, file: File, shape: ArtShape): Promise<string> => saveImageAsset(store, file, shape);
 
 /** 图片：点一下上传，也能直接粘贴图片或图片链接。 */
 function ArtUpload({ store, value, name, shape, label, onChange }: { store: Store; value: string | null; name: string; shape: ArtShape; label: string; onChange: (v: string | null) => void }) {
@@ -255,7 +244,7 @@ function ArtUpload({ store, value, name, shape, label, onChange }: { store: Stor
     const f = [...e.clipboardData.files].find((x) => x.type.startsWith('image/'));
     if (f) {
       e.preventDefault();
-      onChange(await saveImage(store, f));
+      onChange(await saveImage(store, f, shape));
       return;
     }
     const text = e.clipboardData.getData('text').trim();
@@ -281,7 +270,7 @@ function ArtUpload({ store, value, name, shape, label, onChange }: { store: Stor
         hidden
         onChange={async (e) => {
           const f = e.target.files?.[0];
-          if (f) onChange(await saveImage(store, f));
+          if (f) onChange(await saveImage(store, f, shape));
           e.target.value = '';
         }}
       />

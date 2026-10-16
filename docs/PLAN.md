@@ -341,6 +341,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
     5. 导入的图片：登录时先传到 R2，没登录用 data: 地址（和离线插图一样，行会大一些）。
     6. 导入时类型、打卡分类也按 id 认：内置类型内容一样就跳过，不同（对方改过内置类型）默认跳过，选覆盖才会换成文件里的（之后这个内置类型就算「用户改过」，不再随内置版本升级）。
     7. 文件名、库文件夹名按导出时的界面语言（英文界面导出是 `library/Movies & TV/`）；不影响再导入。
+   - ✅ 图片统一宽高（Rei 2026-10-16：「上传前要统一宽高」）：apps/client/src/lib/image.ts。按版式：海报 600×900、方形 / 圆形（含头像）600×600、横幅 1280×720，居中裁切，WebP 0.85（编不了 WebP 退 PNG / JPEG）；小图也放大到统一尺寸；普通图片字段只限长边 1600。在线封面经 `POST /api/lookup/image {url, raw:true}` 代拉原图 → 本机裁 → `/api/assets`，代拉失败退回 Worker 直接存原图。Markdown 文件夹导入的图保持原样（是自己导出的）；粘贴的图片链接仍只存链接；已存的旧图不回头重裁。
    - ✅ 按名字 / 编号在线找资料（分支 m4-lookup）：
      - **Worker**（`apps/server/src/lookup/`，都要登录：会话或同步凭据，同 /api/assets）：`GET /api/lookup/search?kind=movie|book|game&q=&lang=zh|en[&media=movie|tv][&alt=]`、`GET /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb&id=`、`POST /api/lookup/image {url}`（把选中的封面拉进 R2 `mindough-assets`，key 同 /api/assets，资料里存 asset 引用，不热链；只拉 image.tmdb.org、covers.openlibrary.org、*.steamstatic.com、img*.doubanio.com，豆瓣带 Referer）。Cache API：每个来源的搜索 1 天、详情 7 天，只缓存成功的；对外请求 8 秒超时（504 网关超时）、连不上 502 错误网关、限流 429 请求太多；错误都带中文说明。一个来源出错不影响别的，所有来源都失败才返回第一个的状态码。
      - **来源适配器**各一个文件，统一输出 `{source, sourceId, name, year?, image?, thumb?, subtitle?, fields, url}`，fields 的 key 是内置类型的字段 key：

@@ -26,7 +26,7 @@ describe('在线找资料（客户端）', () => {
     await flush();
     await flush();
     expect(fetchItem).toHaveBeenCalledWith('tmdb', 'movie/693134');
-    expect(importImage).toHaveBeenCalledWith(store, r.image);
+    expect(importImage).toHaveBeenCalledWith(store, r.image, 'poster');
     expect(store.get('library_item', id)).toMatchObject({ image: 'asset-1', fields: { imdb: 'tt15239678' } });
   });
 

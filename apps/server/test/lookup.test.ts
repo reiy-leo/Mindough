@@ -305,6 +305,15 @@ describe('Open Library 与 Steam', () => {
 });
 
 describe('封面拉进 R2', () => {
+  it('raw：只代拉原图字节，不存 R2（没配 FILES 也行）', async () => {
+    const jpg = new Uint8Array([255, 216, 255, 1, 2]);
+    mockFetch({ 'https://image.tmdb.org/': () => new Response(jpg, { headers: { 'content-type': 'image/jpeg' } }) });
+    const res = await call('/api/lookup/image', baseEnv(), { method: 'POST', body: JSON.stringify({ url: 'https://image.tmdb.org/t/p/w780/a.jpg', raw: true }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/jpeg');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(jpg);
+  });
+
   it('只拉来源图床的 https 图片', () => {
     expect(allowedImageHost('https://image.tmdb.org/t/p/w780/a.jpg')).toBe(true);
     expect(allowedImageHost('https://covers.openlibrary.org/b/id/1-L.jpg')).toBe(true);
@@ -337,6 +346,7 @@ describe('封面拉进 R2', () => {
     expect((await handle(new Request(up.url), env)).status).toBe(200);
     expect((await call('/api/lookup/image', env, { method: 'POST', body: JSON.stringify({ url: 'https://image.tmdb.org/t/p/w780/a.jpg' }) })).status).toBe(415);
     expect((await call('/api/lookup/image', env, { method: 'POST', body: JSON.stringify({ url: 'https://example.com/a.jpg' }) })).status).toBe(400);
+    expect((await call('/api/lookup/image', env, { method: 'POST', body: JSON.stringify({ url: 'https://example.com/a.jpg', raw: true }) })).status).toBe(400);
     expect((await call('/api/lookup/image', env, { method: 'POST', body: 'x' })).status).toBe(400);
     expect((await call('/api/lookup/image', baseEnv(), { method: 'POST', body: JSON.stringify({ url: 'https://image.tmdb.org/a.jpg' }) })).status).toBe(503);
     expect((await call('/api/lookup/image', env, { method: 'POST', body: '{}' }, false)).status).toBe(401);

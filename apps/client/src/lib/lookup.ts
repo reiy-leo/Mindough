@@ -19,6 +19,8 @@ import {
   type TaskType,
 } from '@mindough/core';
 import { API_BASE, authInit, getAccount, subscribeAccount } from './account';
+import { artShape, normalizeImage, type ArtShape } from './image';
+import { uploadImage } from './upload';
 
 export class LookupHttpError extends Error {
   constructor(
@@ -72,9 +74,24 @@ export function fetchLookupItem(source: LookupSource | 'imdb', id: string, signa
   return getJson(`/api/lookup/item?source=${source}&id=${encodeURIComponent(id)}&lang=${lang()}`, signal, fetcher);
 }
 
-/** 让 Worker 把封面拉进 R2，存一行 asset，返回 asset id；不行就 null（不退回热链）。 */
-export async function importLookupImage(store: Store, url: string, fetcher: typeof fetch = (...a) => fetch(...a)): Promise<string | null> {
+/**
+ * 把选中结果的封面存进 R2，返回 asset id；不行就 null（不退回热链）。
+ * 先经 Worker 代拉原图（raw，豆瓣防盗链要服务端带 Referer），在本机按版式统一宽高后上传；
+ * 代拉失败时退回让 Worker 直接存原图。
+ */
+export async function importLookupImage(store: Store, url: string, shape: ArtShape = 'square', fetcher: typeof fetch = (...a) => fetch(...a)): Promise<string | null> {
   if (!lookupAvailable()) return null;
+  try {
+    const res = await fetcher(`${API_BASE}/api/lookup/image`, authInit({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, raw: true }) }));
+    if (res.ok) {
+      const blob = await res.blob();
+      const { blob: out, width, height } = await normalizeImage(blob.type ? blob : new Blob([blob], { type: res.headers.get('content-type') ?? '' }), shape);
+      const up = await uploadImage(out, fetcher);
+      if (up) return store.insert('asset', { sha256: up.sha256, mime: up.mime, width, height, r2_key: up.r2_key, url: up.url }).id;
+    }
+  } catch {
+    /* 退回下面直接存原图 */
+  }
   try {
     const res = await fetcher(`${API_BASE}/api/lookup/image`, authInit({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) }));
     if (!res.ok) return null;
@@ -113,7 +130,7 @@ async function enrich(store: Store, type: TaskType, id: string, r: LookupResult,
     /* 详情拿不到就用搜索结果 */
   }
   const image = full.image ?? r.image;
-  const asset = image ? await importImage(store, image) : null;
+  const asset = image ? await importImage(store, image, artShape(type)) : null;
   const cur = store.get('library_item', id);
   if (!cur || cur.deleted) return;
   const fields = { ...cur.fields };

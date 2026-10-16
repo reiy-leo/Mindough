@@ -10,6 +10,7 @@
  * - GET  /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb&id=…&lang=zh|en → LookupResult
  *        source=imdb：按 IMDb 编号经 TMDB find 直接取。
  * - POST /api/lookup/image { url } → 把选中结果的封面拉进 R2（mindough-assets），返回同 POST /api/assets 的 { url, r2_key, sha256, mime, size }。
+ *   { url, raw: true } → 只代拉原图字节回去（不存）：客户端先按版式统一宽高，再自己 POST /api/assets。
  *        只拉这几个来源的图床（防止拿 Worker 去请求任意地址）。
  * 缓存：Cache API（caches.default），每个来源的搜索结果 1 天、详情 7 天；只缓存成功的。对外请求 8 秒超时（504 网关超时）。
  */
@@ -175,13 +176,15 @@ export function allowedImageHost(url: string): boolean {
 }
 
 async function importImage(req: Request, env: LookupWorkerEnv, who: string): Promise<Response> {
-  if (!env.FILES) return json({ error: '503 服务不可用：图片存储还没配置' }, 503);
-  let body: { url?: unknown };
+  let body: { url?: unknown; raw?: unknown };
   try {
-    body = (await req.json()) as { url?: unknown };
+    body = (await req.json()) as { url?: unknown; raw?: unknown };
   } catch {
     return json({ error: '400 请求有误：要 JSON { url }' }, 400);
   }
+  // raw：只代拉原图回给客户端（客户端统一裁成版式尺寸后再走 POST /api/assets），不存 R2
+  const raw = body.raw === true;
+  if (!raw && !env.FILES) return json({ error: '503 服务不可用：图片存储还没配置' }, 503);
   const url = typeof body.url === 'string' ? body.url : '';
   if (!allowedImageHost(url)) return json({ error: '400 请求有误：只能拉 TMDB、豆瓣、Open Library、Steam 的图片' }, 400);
   let res: Response;
@@ -199,7 +202,8 @@ async function importImage(req: Request, env: LookupWorkerEnv, who: string): Pro
   const buf = await res.arrayBuffer();
   if (buf.byteLength === 0) return json({ error: '502 错误网关：拉到的是空文件' }, 502);
   if (buf.byteLength > MAX_ASSET_BYTES) return json({ error: '413 内容太大：图片不能超过 10 MB' }, 413);
-  return json(await storeAsset(env.FILES, who, buf, mime, new URL(req.url).origin));
+  if (raw) return new Response(buf, { headers: { 'content-type': mime, 'cache-control': 'no-store' } });
+  return json(await storeAsset(env.FILES!, who, buf, mime, new URL(req.url).origin));
 }
 
 export async function handleLookup(req: Request, env: LookupWorkerEnv, url: URL): Promise<Response> {

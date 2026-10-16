@@ -52,7 +52,7 @@ export function PersonDialog({ id, initialName, onClose }: { id?: string; initia
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              void saveImageAsset(store, f).then(setAvatar);
+              void saveImageAsset(store, f, 'round').then(setAvatar);
             }}
           />
         </label>

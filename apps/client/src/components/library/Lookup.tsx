@@ -243,7 +243,7 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
     setBusy(true);
     const imgRow = phase.rows.find((r) => r.def.media && !r.def.primary);
     let asset: string | null = null;
-    if (imgRow && phase.chosen.has(imgRow.key) && typeof imgRow.next === 'string') asset = await importLookupImage(store, imgRow.next);
+    if (imgRow && phase.chosen.has(imgRow.key) && typeof imgRow.next === 'string') asset = await importLookupImage(store, imgRow.next, artShape(type));
     setBusy(false);
     onApply(applyAutofill(draft, phase.rows, phase.chosen, phase.result, asset));
   };
