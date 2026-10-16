@@ -612,6 +612,7 @@ export const EN: Record<string, EnValue> = {
   // ── 资料合并（M4） ──
   '已合并到「{name}」': 'Merged into “{name}”',
   合并资料: 'Merge Items',
+  合并人物: 'Merge People',
   '{n} 件任务会改用留下的这条': (p) => `${n(p.n, 'task', 'tasks')} will use the one you keep`,
   合并: 'Merge',
   '选另一个人，两个合成一个。': 'Pick another person to combine the two.',

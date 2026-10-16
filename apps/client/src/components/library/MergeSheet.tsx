@@ -132,7 +132,7 @@ export function MergeSheet({
     <Sheet
       isOpen
       onOpenChange={(o) => !o && onClose()}
-      title={title ?? tr('合并资料')}
+      title={title ?? (person ? tr('合并人物') : tr('合并资料'))}
       className="modal-merge"
       wide={cands.length > 2}
       footer={
