@@ -43,26 +43,35 @@ jobs:
         run: |
           if [ ! -d src-tauri/gen/apple ]; then pnpm tauri ios init --ci; fi
 
-      - name: 前端
-        working-directory: apps/client
-        run: pnpm build
-
-      # 不签名直接编（签名交给 Sideloadly）；Xcode 工程里的构建脚本会调 tauri ios xcode-script 编 Rust
-      - name: 编 .app（Release，不签名）
+      # Xcode 工程里的构建脚本（tauri ios xcode-script）要 `tauri ios build` 在跑时才能编 Rust，不能直接 xcodebuild。
+      # 做法：工程里关掉签名（签名交给 Sideloadly），照常 `tauri ios build`：归档（archive）能成，导出 ipa 那步要签名会失败，
+      # 失败不管，直接从 .xcarchive 里拿 .app 自己打成 ipa。
+      - name: 工程关掉签名
         working-directory: apps/client/src-tauri/gen/apple
         run: |
-          PROJ=$(ls -d *.xcodeproj | head -1)
-          SCHEME=$(xcodebuild -list -project "$PROJ" -json | python3 -c 'import json,sys; s=json.load(sys.stdin)["project"]["schemes"]; print(next((x for x in s if x.endswith("_iOS")), s[0]))')
-          echo "工程 $PROJ，scheme $SCHEME"
-          xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration release -sdk iphoneos \
-            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/dd" \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ARCHS=arm64 build
+          for p in *.xcodeproj/project.pbxproj; do
+            perl -0pi -e 's/buildSettings = \{/buildSettings = {\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;\n\t\t\t\tCODE_SIGN_IDENTITY = "";/g' "$p"
+            grep -c "CODE_SIGNING_ALLOWED = NO" "$p"
+          done
+
+      - name: tauri ios build（归档，不签名）
+        working-directory: apps/client
+        env:
+          # 随便一个占位团队号，免得 CLI 找团队；签名已关，不会用到
+          APPLE_DEVELOPMENT_TEAM: AAAAAAAAAA
+        run: |
+          set +e
+          pnpm tauri ios build --ci --target aarch64 2>&1 | tee "$RUNNER_TEMP/build.log"
+          echo "tauri ios build 退出码 ${PIPESTATUS[0]}（导出那步失败是预期的）"
+          exit 0
 
       - name: 打成 ipa
         run: |
-          APP=$(find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 2 -name '*.app' -path '*iphoneos*' | head -1)
+          APP=$(find apps/client/src-tauri/gen/apple "$HOME/Library/Developer/Xcode" -maxdepth 8 -path '*.xcarchive/Products/Applications/*.app' -type d 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "没找到归档里的 .app，构建日志最后 80 行："; tail -80 "$RUNNER_TEMP/build.log"; exit 1
+          fi
           echo "app: $APP"
-          test -n "$APP"
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
           cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/Mindough-unsigned.ipa" Payload
