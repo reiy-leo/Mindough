@@ -10,6 +10,7 @@ import { BUILTIN_TYPE_IDS, PLAIN_TYPE_ID } from './seed/builtin-types';
 import { fieldText } from './preview';
 import { isLinkField, linkChips, matchOptions, type LinkChip } from './links';
 import { DEFAULT_CURRENCY, moneyOf } from './money';
+import { isHiddenFieldKey, sourceOfFields, type ItemSource } from './lookup';
 import type { FieldDef, FieldValue, LibraryItem, Person, Task, TaskType } from './types';
 
 import { dataLabel, tr } from './i18n';
@@ -152,6 +153,8 @@ export interface LibraryEntry {
   uses: number;
   /** 资料上的链接（IMDb、豆瓣、更多链接…），按显示顺序。 */
   links?: LinkChip[];
+  /** 在线补全来的资料：来源（「资料来自 TMDB」）。 */
+  source?: ItemSource | null;
 }
 
 /** 一行简介：取前三个有值的简单资料字段。 */
@@ -179,10 +182,11 @@ export function entryOfItem(type: TaskType | undefined, item: LibraryItem, recen
     name: item.name,
     image: item.image,
     subtitle: itemSubtitle(type, item.fields),
-    keywords: Object.values(item.fields).map(fieldText).join(' '),
+    keywords: Object.entries(item.fields).filter(([k]) => !isHiddenFieldKey(k)).map(([, v]) => fieldText(v)).join(' '),
     recency,
     uses,
     links: linkChips(type?.fields, item.fields),
+    source: sourceOfFields(item.fields),
   };
 }
 

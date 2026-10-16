@@ -1,5 +1,5 @@
 // Mindough Worker（本地开发配置；线上用 wrangler.deploy.jsonc）：Google 登录、同步 API、图片、托管 Web 端静态资源。
-// 密钥用 `wrangler secret put` 配：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS、TURSO_DB_URL、TURSO_DB_TOKEN。
+// 密钥用 `wrangler secret put` 配：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS、TURSO_DB_URL、TURSO_DB_TOKEN；在线找影视另要 TMDB_API_KEY（v3 key 或 v4 读访问令牌，可不配）。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mindough",

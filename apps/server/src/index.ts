@@ -1,5 +1,5 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud）、图片（R2）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud）、图片（R2）、在线找资料（lookup/）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
@@ -7,8 +7,10 @@ import { currentSession, handleCallback, handleLogin, handleLogout } from './aut
 import { handlePull, handlePush, handleSyncToken, type SyncEnv } from './sync';
 import { handleExchange, issueNativeCode } from './native';
 import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
+import { handleLookup } from './lookup';
+import type { LookupEnv } from './lookup/types';
 
-export interface Env extends SyncEnv, AssetEnv {
+export interface Env extends SyncEnv, AssetEnv, LookupEnv {
   /** wrangler assets 绑定（apps/client/dist）；本地单测里没有。 */
   ASSETS?: { fetch(req: Request): Promise<Response> };
   /** 线上：Web 静态文件放 R2（wrangler.deploy.jsonc） */
@@ -79,6 +81,9 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
     return handleAssetUpload(request, env);
   }
   if (pathname.startsWith('/api/assets/') && method === 'GET') return handleAssetGet(pathname.slice('/api/assets/'.length), env);
+
+  // 在线找资料（TMDB / 豆瓣 / Open Library / Steam），要登录
+  if (pathname.startsWith('/api/lookup/')) return handleLookup(request, env, url);
 
   if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) return json({ error: '404 未找到' }, 404);
   if (env.ASSETS) return env.ASSETS.fetch(request);

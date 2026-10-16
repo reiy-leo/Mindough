@@ -12,3 +12,5 @@ APP_ORIGINS=http://localhost:1420
 # 同步数据库（Turso）。本地开发可以连线上库，也可以 `turso dev` 起本地 libSQL（http://127.0.0.1:8080，token 随便填）
 TURSO_DB_URL=
 TURSO_DB_TOKEN=
+# 在线找影视（可不配；不配时界面显示「TMDB 还没配置」）：themoviedb.org → 设置 → API，v3 API key 或 v4 读访问令牌都行
+TMDB_API_KEY=
