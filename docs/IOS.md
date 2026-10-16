@@ -38,3 +38,6 @@ Rei 2026-10-16 定：不交 Apple Developer Program 年费，不走 TestFlight�
 
 ## 装好后要试的
 登录同步、提醒通知（首次会问权限）、mindough:// 深链接、外链打开、拍照/选图。结果记回 PLAN「真机待验」。
+
+## 已知问题
+- 2026-10-17：iOS 包 CI 已能出 ipa（f9b1359）。Sideloadly 报 `GSA returned a non-plist response (HTTP 503)`：苹果从 2026-09 起拦冒充 Xcode 的登录请求。对策：升 Sideloadly v0.70.1+；不行就设置里 Anisette 换 Fake Anisette、关代理；再不行用 AltServer 1.7.6+。
