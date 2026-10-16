@@ -1,0 +1,75 @@
+# iOS：打未签名的 ipa（Rei 2026-10-16：免费 Apple ID 自用，不走 TestFlight）。
+# Rei 的 2018 Intel Mac 只能到 Xcode 26.3，iPhone 已是 iOS 27，所以在 Actions 的 Apple 芯片 runner 上用最新 Xcode 打包，
+# 下载 artifact 后在 Mac 上用 Sideloadly 拿免费 Apple ID 签名安装（7 天有效）。步骤见 docs/IOS.md。
+# 只手动触发（Actions → Build iOS → Run workflow），不跟 v* 标签。
+name: Build iOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: iOS（未签名 ipa）
+    # Xcode 27 镜像（GitHub 公开预览，Apple 芯片）；iOS 27 真机要 Xcode 27 的 SDK
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode 版本
+        run: xcodebuild -version
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/client/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      # gen/ 不进仓库，CI 里现生成 Xcode 工程
+      - name: tauri ios init
+        working-directory: apps/client
+        run: |
+          if [ ! -d src-tauri/gen/apple ]; then pnpm tauri ios init --ci; fi
+
+      - name: 前端
+        working-directory: apps/client
+        run: pnpm build
+
+      # 不签名直接编（签名交给 Sideloadly）；Xcode 工程里的构建脚本会调 tauri ios xcode-script 编 Rust
+      - name: 编 .app（Release，不签名）
+        working-directory: apps/client/src-tauri/gen/apple
+        run: |
+          PROJ=$(ls -d *.xcodeproj | head -1)
+          SCHEME=$(xcodebuild -list -project "$PROJ" -json | python3 -c 'import json,sys; s=json.load(sys.stdin)["project"]["schemes"]; print(next((x for x in s if x.endswith("_iOS")), s[0]))')
+          echo "工程 $PROJ，scheme $SCHEME"
+          xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ARCHS=arm64 build
+
+      - name: 打成 ipa
+        run: |
+          APP=$(find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 2 -name '*.app' -path '*iphoneos*' | head -1)
+          echo "app: $APP"
+          test -n "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/Mindough-unsigned.ipa" Payload
+          ls -la "$GITHUB_WORKSPACE/Mindough-unsigned.ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mindough-ios-unsigned
+          if-no-files-found: error
+          path: Mindough-unsigned.ipa

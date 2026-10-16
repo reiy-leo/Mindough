@@ -10,7 +10,14 @@ Rei 2026-10-16 定：不交 Apple Developer Program 年费，不走 TestFlight�
 ## Rei 的 Mac：2018 款 Intel MacBook Pro（2026-10-16）
 - 最高只能升 macOS Sequoia 15 → 最高 Xcode 26.3（26.4 起要 Tahoe 26.2；Xcode 27 只支持 Apple 芯片）。
 - iPhone 还在 iOS 26：照下面步骤用 Xcode 26.3 直接装。
-- iPhone 已是 iOS 27：Xcode 26.3 可能装不上（未验证）。备选：GitHub Actions 的 xcode-27 runner 打未签名 ipa，Mac 上用 Sideloadly 拿免费 Apple ID 签名安装（同样 7 天）。待 Rei 说 iOS 版本后定。
+- Rei 的 iPhone 13 已是 iOS 27 → 走 Actions + Sideloadly（下面「推荐做法」）；本地 Xcode 那套留作备用。
+
+## 推荐做法：Actions 打包 + Sideloadly 安装
+1. GitHub 仓库 → Actions → 「Build iOS」→ Run workflow（只手动触发，`.github/workflows/ios.yml`，runner `xcode-27`）。私有仓库 macOS 分钟按 10 倍计，一次大约 15–25 分钟。
+2. 跑完下载 artifact `mindough-ios-unsigned`，解压得 `Mindough-unsigned.ipa`。
+3. Mac 上装 Sideloadly（sideloadly.io），iPhone 用线连上，拖进 ipa，填免费 Apple ID，Start。
+4. iPhone：设置 → 隐私与安全性 → 开发者模式打开；设置 → 通用 → VPN 与设备管理 → 信任你的 Apple ID。
+5. 7 天后：Sideloadly 再装一次同一个 ipa（或新跑一次拿最新版），数据还在。Sideloadly 有自动续签，Mac 和 iPhone 同一 Wi-Fi 时可以开。
 
 ## 第一次（在 Mac 上）
 1. 装 Xcode（App Store），打开一次同意协议；终端 `xcode-select --install`。
