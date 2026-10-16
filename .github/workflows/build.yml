@@ -1,5 +1,5 @@
 # 打原生安装包（未签名）：macOS（universal）、Windows（msi / nsis）、Linux（AppImage / deb）、Android（debug APK）。
-# 手动触发，或推 v* 标签；产物上传为 Actions artifacts，推标签时另建 Release 草稿。
+# 手动触发，或推 v* 标签；产物上传为 Actions artifacts，推标签时另建 Release 草稿（alpha 也建，预发布），APK 一并挂上；iOS 见 ios.yml（手动）。
 name: Build apps
 
 on:
@@ -138,3 +138,22 @@ jobs:
           name: mindough-android-debug
           if-no-files-found: error
           path: apps/client/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+  # 推标签时，把 APK 也挂到桌面端建好的 Release 草稿上（alpha 也建 Release，Rei 2026-10-17 定）
+  release-android:
+    name: APK 挂到 Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mindough-android-debug
+          path: apk
+      - name: 上传
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          f=$(find apk -name '*.apk' | head -1)
+          cp "$f" "Mindough-${GITHUB_REF_NAME}-android-arm64-debug.apk"
+          gh release upload "$GITHUB_REF_NAME" "Mindough-${GITHUB_REF_NAME}-android-arm64-debug.apk" --clobber -R "$GITHUB_REPOSITORY"
