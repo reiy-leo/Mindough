@@ -279,7 +279,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - 🟡 Android：app 写快照 ✅（`lib/widget-snapshot.ts` → Rust `widget_snapshot` → app 数据目录 `widget-snapshot.json`，有测试）；AppWidget 的 Kotlin + 布局写在 `src-tauri/mobile/android-widget/`，**没接进构建**（gen/android 由 CI 生成、本机没 SDK 验证不了；接入步骤在 WIDGETS.md）。
    - 🟡 iOS：WidgetKit 脚手架（`src-tauri/mobile/ios-widget/MindoughWidget.swift`）+ 步骤（要 App Group，快照得写到共享容器）；待 Rei 在 Mac 上接。
 4. ✅ 桌面 app 外链用系统浏览器打开（Tauri opener）：`lib/external.ts` 在 document 上捕获 click / auxclick，指向别的源的 http(s) 和 mailto / tel 链接一律交给 `openUrl`（Markdown 渲染的链接、资料卡小标签、编辑器里的链接都不用各自处理）；Web 端照常新标签页；权限沿用 `opener:default`（只放行 http / https / mailto / tel）。真机待验。
-5. 🟡 各平台安装包：版本 0.1.0、macOS ad-hoc 签名、notification npm 与 crate 对齐；已推标签 v0.1.0-alpha.1 触发 build.yml（macOS / Windows / Linux / Android debug），结果由 Rei 在 Actions 查看；iOS 分发方式待 Rei 定。
+5. 🟡 各平台安装包：版本 0.1.0、macOS ad-hoc 签名、notification npm 与 crate 对齐；已推标签 v0.1.0-alpha.1 触发 build.yml（macOS / Windows / Linux / Android debug），结果由 Rei 在 Actions 查看；iOS 用免费 Apple ID + Xcode 直装（docs/IOS.md）。
 6. ✅ 界面收尾：
    - ✅ 27 个打卡分类改「常用 6 个 + 更多」：常用 = 重复任务用得最多的（件数一样按最近），不够用 健康 / 运动 / 学习 / 读书 / 饮食 / 作息 补齐（core `pickFrequentCategories`、`Store.frequentCheckInCategories`）；当前选中的总在第一屏；「更多 · 21」展开搜索框和其余分类；分类改成随宽度换行的小胶囊。
    - ✅ 手机端细节：弹层底部轻提示（「改动会同步到用到它的 N 件任务」）放不下时自己占一行，不再把「保存」挤到下一行；更多链接每条一张小卡（上面名字 + 上移 / 下移 / 去掉，下面整行网址）；IMDb / 豆瓣预览链接太长时省略号。
@@ -381,4 +381,4 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - Web 端风格：跟随访问者系统（默认），还是固定一种？
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
-- iOS 分发：自用 TestFlight / 开发证书，还是上 App Store？
+- ✅ iOS 分发（Rei 2026-10-16 定）：免费 Apple ID + Xcode 个人团队装自己 iPhone（7 天重装，不走 TestFlight），步骤见 docs/IOS.md；小组件要 App Group，先不接。
