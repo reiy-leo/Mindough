@@ -16,6 +16,7 @@ import {
   findSameName,
   hasLibrary,
   isPersonLibrary,
+  isArchivedType,
   isPickableType,
   itemData,
   mergedData,
@@ -777,7 +778,8 @@ export class Store {
     const now = this.now();
     const type = this.get('task_type', input.type_id ?? null);
     const group = this.get('group', input.group_id ?? null);
-    const typeId = input.type_id !== undefined ? input.type_id : (group?.default_type_id ?? null);
+    // 组的默认类型归档了：不生效，退回普通
+    const typeId = input.type_id !== undefined ? input.type_id : this.effectiveDefaultTypeId(group);
     const resolvedType = type ?? this.get('task_type', typeId);
     const maxSort = this.list('task').reduce((m, t) => Math.max(m, t.sort), 0);
     const created = this.insert('task', {
@@ -1068,20 +1070,39 @@ export class Store {
 
   // ───────────── 类型（M4 类型编辑器，纯逻辑见 typedef.ts） ─────────────
 
-  /** 类型按选择器里的顺序（同步的偏好 type_order，没排过的按 sort 接后面）。含隐藏的。 */
-  orderedTypes(): TableMap['task_type'][] {
+  /** 全部类型（含归档的）按顺序（同步的偏好 type_order，没排过的按 sort 接后面）。只给排序 / 写顺序偏好用。 */
+  private allOrderedTypes(): TableMap['task_type'][] {
     const order = this.pref(TYPE_ORDER_PREF);
     return orderTypes(this.list('task_type'), Array.isArray(order) ? (order as unknown[]).filter((x): x is string => typeof x === 'string') : null);
   }
 
-  /** 新建 / 改类型时能选的类型（不含隐藏、人物），按顺序。 */
+  /** 类型按选择器里的顺序，不含归档的（资料库标签条等用）。 */
+  orderedTypes(): TableMap['task_type'][] {
+    return this.allOrderedTypes().filter((t) => !isArchivedType(t));
+  }
+
+  /** 新建 / 改类型 / 组默认类型时能选的类型（不含归档的、人物），按顺序。 */
   pickableTypes(): TableMap['task_type'][] {
     return this.orderedTypes().filter(isPickableType);
   }
 
-  /** 类型编辑器里列出的类型（含隐藏的；不含普通、人物），按顺序。 */
+  /** 类型编辑器主列表里的类型（不含归档的、普通、人物），按顺序。 */
   editableTypes(): TableMap['task_type'][] {
     return this.orderedTypes().filter(isEditableType);
+  }
+
+  /** 归档了的类型（类型编辑器底部「已归档 N 个」，可取消归档），按顺序。不含普通、人物。 */
+  archivedTypes(): TableMap['task_type'][] {
+    return this.allOrderedTypes().filter((t) => isArchivedType(t) && isEditableType(t));
+  }
+
+  /**
+   * 组的默认类型里真正生效的那个：类型归档了就不生效（新建任务退回普通），组上存的 id 不动——
+   * 取消归档后又生效，也不用为此多写一行组。
+   */
+  effectiveDefaultTypeId(group: Pick<TableMap['group'], 'default_type_id'> | null | undefined): string | null {
+    const t = this.get('task_type', group?.default_type_id ?? null);
+    return t && !isArchivedType(t) ? t.id : null;
   }
 
   /** 用到这个类型的任务、资料各几条（未删除的）。 */
@@ -1111,19 +1132,20 @@ export class Store {
       default_completion_mode: input.default_completion_mode ?? 'once',
       sort,
     });
-    const order = this.orderedTypes().map((x) => x.id);
+    const order = this.allOrderedTypes().map((x) => x.id);
     this.setPref(TYPE_ORDER_PREF, order);
     return t;
   }
 
   /**
-   * 改类型的名字、图标、颜色、版式、默认完成方式、正文模板、隐藏。
+   * 改类型的名字、图标、颜色、版式、默认完成方式、正文模板（归档用 archiveType / unarchiveType）。
    * 内置类型改过之后 updated_at 是真实 HLC，以后内置升级不再整体替换它（只补新字段，见 ensureBuiltinTypes）。
    */
-  updateType(id: string, patch: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template' | 'hidden'>>): TableMap['task_type'] {
+  updateType(id: string, patch: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template'>>): TableMap['task_type'] {
     const cur = this.get('task_type', id);
     if (!cur) throw new Error(tr('类型不存在'));
-    const p = { ...patch };
+    // 归档只走 archiveType / unarchiveType；旧调用方传来的 hidden 忽略
+    const { hidden: _hidden, ...p } = patch as typeof patch & { hidden?: unknown };
     if (p.name !== undefined && !p.name.trim()) delete p.name;
     else if (p.name !== undefined) p.name = p.name.trim();
     const changed = (Object.keys(p) as Array<keyof typeof p>).some((k) => JSON.stringify(cur[k]) !== JSON.stringify(p[k]));
@@ -1184,7 +1206,7 @@ export class Store {
 
   /** 选择器里的顺序：按给定 id 顺序存进同步偏好 type_order（不改类型行）。 */
   reorderTypes(ids: readonly string[]): void {
-    const all = this.orderedTypes().map((t) => t.id);
+    const all = this.allOrderedTypes().map((t) => t.id);
     const picked = ids.filter((id) => all.includes(id));
     const rest = all.filter((id) => !picked.includes(id));
     // 没列到的（普通、人物…）保持原来的相对位置：普通在最前，其余接在后面
@@ -1202,34 +1224,27 @@ export class Store {
     this.reorderTypes(ids);
   }
 
-  /** 能不能直接删：自定义的、没有任务和资料用它。 */
-  canDeleteType(id: string): boolean {
-    const t = this.get('task_type', id);
-    if (!t || t.builtin) return false;
-    const u = this.typeUsage(id);
-    return u.tasks === 0 && u.items === 0;
-  }
-
   /**
-   * 删类型：只有没人用的自定义类型能删（墓碑）；顺带清掉把它当默认类型的组。
-   * 内置的、或还有任务 / 资料在用的，抛错（界面上只给「隐藏」）。
-   * 两台设备同时一边删、一边用它新建任务时，打开时 reviveReferencedTypes 会把它找回来（隐藏着）。
+   * 归档类型（Rei 2026-10-17：类型创建后只能改和归档，不支持删除；内置、自定义一样）。
+   * 归档后任何选择器、资料库标签条、搜索、类型编辑器主列表里都不出现；引用它的任务和资料照常显示、能编辑字段值。
+   * 存在 hidden 列（整行 LWW 同步）。组的默认类型不清，只是不生效（见 effectiveDefaultTypeId）。
    */
-  deleteType(id: string): void {
+  archiveType(id: string): TableMap['task_type'] | undefined {
     const t = this.get('task_type', id);
-    if (!t) return;
-    if (t.builtin) throw new Error(tr('内置类型不能删，可以隐藏'));
-    const u = this.typeUsage(id);
-    if (u.tasks + u.items > 0) throw new Error(tr('还有 {n} 件任务或资料在用，只能隐藏', { n: u.tasks + u.items }));
-    const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'task_type', row: { ...t, deleted: true } }];
-    for (const g of this.list('group')) if (g.default_type_id === id) rows.push({ table: 'group', row: { ...g, default_type_id: null } as BaseRow });
-    this.write(rows);
-    const order = this.pref(TYPE_ORDER_PREF);
-    if (Array.isArray(order) && (order as unknown[]).includes(id)) this.setPref(TYPE_ORDER_PREF, (order as string[]).filter((x) => x !== id));
+    if (!t || !isEditableType(t) || t.hidden) return t;
+    return this.update('task_type', id, { hidden: true });
+  }
+
+  /** 取消归档：回到原来的顺序位置（顺序偏好里一直留着它）。 */
+  unarchiveType(id: string): TableMap['task_type'] | undefined {
+    const t = this.get('task_type', id);
+    if (!t || !t.hidden) return t;
+    return this.update('task_type', id, { hidden: false });
   }
 
   /**
-   * 删掉的类型还有任务或资料在用（多端同时一边删、一边用）：把它找回来、隐藏着，任务和资料照常显示。
+   * 删掉的类型还有任务或资料在用：把它找回来、归档着，任务和资料照常显示。
+   * 现在类型不能删了（Rei 2026-10-17），这里兜的是以前版本留下的类型墓碑，和还没升级的旧客户端同步过来的删除。
    * 每次打开都跑；无事可做是空操作。两台设备各找回一次，内容一样，LWW 后一致。
    */
   private reviveReferencedTypes() {

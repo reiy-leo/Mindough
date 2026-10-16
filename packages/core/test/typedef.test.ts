@@ -4,7 +4,8 @@ import { MemoryAdapter } from '../src/storage/memory';
 import { SyncEngine } from '../src/sync/engine';
 import { MemoryRemote } from '../src/sync/memory-remote';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS as T, BUILTIN_TYPES_REVISION } from '../src/seed/builtin-types';
-import { itemFieldsOf, taskFieldsOf, linkChips, isPickableType } from '../src/index';
+import { itemFieldsOf, taskFieldsOf, linkChips, isPickableType, isArchivedType, search } from '../src/index';
+import { applyImport, exportArchive, planImport } from '../src/archive';
 import {
   addField,
   isEditableType,
@@ -198,28 +199,102 @@ describe('Store 类型编辑', () => {
     expect(after.indexOf(T.book)).toBe(ids.indexOf(T.book) - 1);
     expect(store.get('task_type', T.book)!.updated_at).toBe(BUILTIN_TYPES_REVISION);
     expect(store.pickableTypes()[0]!.id).toBe(T.plain);
-    store.updateType(T.game, { hidden: true });
-    expect(store.pickableTypes().map((t) => t.id)).not.toContain(T.game);
-    expect(store.editableTypes().map((t) => t.id)).toContain(T.game);
+    store.archiveType(T.game);
     expect(store.pickableTypes().every(isPickableType)).toBe(true);
+    // 取消归档回到原来的位置
+    store.unarchiveType(T.game);
+    expect(store.editableTypes().map((t) => t.id)).toEqual(after);
   });
 
-  it('删类型：内置的不能删；有任务或资料在用的不能删；没人用的自定义类型能删，组的默认类型清掉', async () => {
+  it('类型不能删（Rei 2026-10-17）：Store 上没有删类型的入口，只有归档', async () => {
     const { store } = await open();
-    expect(() => store.deleteType(T.book)).toThrow();
-    expect(store.canDeleteType(T.book)).toBe(false);
+    const api = store as unknown as Record<string, unknown>;
+    expect(api.deleteType).toBeUndefined();
+    expect(api.canDeleteType).toBeUndefined();
+    expect(typeof store.archiveType).toBe('function');
+    expect(typeof store.unarchiveType).toBe('function');
+    // updateType 不再管归档（归档只走 archiveType）
     const t = store.createType({ name: '播客' });
-    const item = store.createLibraryItem(t.id, { name: '忽左忽右' });
-    expect(store.typeUsage(t.id)).toEqual({ tasks: 0, items: 1 });
-    expect(store.canDeleteType(t.id)).toBe(false);
-    expect(() => store.deleteType(t.id)).toThrow();
-    store.deleteLibraryItem(item.id);
-    const g = store.insert('group', { name: '听', icon: '🎧', start_at: null, end_at: null, category_id: null, default_type_id: t.id });
-    expect(store.canDeleteType(t.id)).toBe(true);
-    store.deleteType(t.id);
-    expect(store.get('task_type', t.id)).toBeUndefined();
-    expect(store.get('group', g.id)!.default_type_id).toBeNull();
-    expect(store.orderedTypes().map((x) => x.id)).not.toContain(t.id);
+    store.updateType(t.id, { hidden: true } as never);
+    expect(isArchivedType(store.get('task_type', t.id))).toBe(false);
+  });
+
+  it('归档：内置和自定义都一样，不在 pickable / ordered / editable 里，在 archivedTypes 里；取消归档回来', async () => {
+    const { store } = await open();
+    const t = store.createType({ name: '播客' });
+    for (const id of [T.game, t.id]) {
+      store.archiveType(id);
+      expect(isArchivedType(store.get('task_type', id))).toBe(true);
+      expect(store.pickableTypes().map((x) => x.id)).not.toContain(id);
+      expect(store.orderedTypes().map((x) => x.id)).not.toContain(id);
+      expect(store.editableTypes().map((x) => x.id)).not.toContain(id);
+    }
+    expect(store.archivedTypes().map((x) => x.id)).toEqual([T.game, t.id]);
+    // 归档不是删：行还在
+    expect(store.get('task_type', t.id)).toMatchObject({ deleted: false, name: '播客' });
+    store.unarchiveType(t.id);
+    expect(store.pickableTypes().map((x) => x.id)).toContain(t.id);
+    expect(store.archivedTypes().map((x) => x.id)).toEqual([T.game]);
+    // 普通、人物不能归档
+    store.archiveType(T.plain);
+    expect(isArchivedType(store.get('task_type', T.plain))).toBe(false);
+  });
+
+  it('引用归档类型的任务和资料照常解析：图标、名字、字段、资料、完成方式；能改字段值；搜索里只剩任务', async () => {
+    const { store } = await open();
+    const t = store.createType({ name: '播客', icon: 'mic', default_completion_mode: 'count' });
+    const host = store.addTypeField(t.id, { label: '主播', kind: 'text' });
+    const ep = store.addTypeField(t.id, { label: '听到哪', kind: 'episode', scope: 'task' });
+    const task = store.createTask({ type_id: t.id, type_data: { name: '忽左忽右', [host]: '程衍樑', [ep]: { episode: 3 } } });
+    store.archiveType(t.id);
+    const cur = store.get('task', task.id)!;
+    expect(cur.type_id).toBe(t.id);
+    expect(cur.completion_mode).toBe('count');
+    const type = store.get('task_type', cur.type_id)!;
+    expect(type).toMatchObject({ name: '播客', icon: 'mic' });
+    expect(store.itemOf(cur)!.fields[host]).toBe('程衍樑');
+    expect(store.taskData(cur)[ep]).toEqual({ episode: 3 });
+    expect(store.libraryEntries(t.id).map((e) => e.name)).toEqual(['忽左忽右']);
+    store.updateTask(task.id, { type_data: { ...cur.type_data, [ep]: { episode: 4 } } });
+    expect(store.get('task', task.id)!.type_data[ep]).toEqual({ episode: 4 });
+    const hits = search({ tasks: store.list('task'), types: store.list('task_type'), people: [], groups: [], taskPeople: [], items: store.list('library_item') }, '忽左忽右');
+    expect(hits.map((h) => h.kind)).toEqual(['task']);
+  });
+
+  it('组的默认类型归档了：新建任务退回普通，组上存的 id 不动，取消归档后又生效', async () => {
+    const { store } = await open();
+    const g = store.insert('group', { name: '听', icon: '🎧', start_at: null, end_at: null, category_id: null, default_type_id: T.book });
+    store.archiveType(T.book);
+    expect(store.effectiveDefaultTypeId(g)).toBeNull();
+    expect(store.createTask({ group_id: g.id }).type_id).toBeNull();
+    expect(store.get('group', g.id)!.default_type_id).toBe(T.book);
+    store.unarchiveType(T.book);
+    expect(store.createTask({ group_id: g.id }).type_id).toBe(T.book);
+  });
+
+  it('旧数据兼容：hidden=true（以前的「隐藏」）读出来就是归档；导出写 archived，导入认旧文件的 hidden', async () => {
+    const adapter = new MemoryAdapter();
+    const { store } = await open(adapter);
+    const t = store.createType({ name: '播客' });
+    store.update('task_type', t.id, { hidden: true }); // 旧版本「隐藏」写下的行
+    await store.flush();
+    const { store: again } = await open(adapter, 'dev1', local(2026, 10, 17, 10).getTime());
+    expect(again.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    expect(again.pickableTypes().map((x) => x.id)).not.toContain(t.id);
+
+    const { files } = exportArchive(again);
+    const meta = files.find((f) => f.path === '_meta/types.json')!;
+    const rows = JSON.parse(new TextDecoder().decode(meta.data)) as Array<Record<string, unknown>>;
+    const row = rows.find((r) => r.id === t.id)!;
+    expect(row.archived).toBe(true);
+    expect('hidden' in row).toBe(false);
+    // 旧导出文件：写的是 hidden
+    const old = files.map((f) => (f === meta ? { ...f, data: new TextEncoder().encode(JSON.stringify(rows.map(({ archived, ...r }) => ({ ...r, hidden: archived })))) } : f));
+    for (const input of [files, old]) {
+      const { store: fresh } = await open(new MemoryAdapter(), 'dev2');
+      applyImport(fresh, planImport(fresh, input));
+      expect(isArchivedType(fresh.get('task_type', t.id))).toBe(true);
+    }
   });
 
   it('选项改名：资料和任务里存的旧选项一起改', async () => {
@@ -289,7 +364,7 @@ describe('类型编辑的同步', () => {
     expect(A.store.editableTypes().map((x) => x.id)).toEqual(B.store.editableTypes().map((x) => x.id));
   });
 
-  it('A 删了类型，B 同时用它建了任务：同步后重开，类型找回来并隐藏着，任务照常显示', async () => {
+  it('两端同步归档：后写的赢（A 归档、B 后来取消归档 → 两边都没归档）', async () => {
     const remote = new MemoryRemote();
     const t0 = local(2026, 10, 16, 10).getTime();
     const A = await device(remote, 'devA', t0);
@@ -298,7 +373,33 @@ describe('类型编辑的同步', () => {
     await A.sync();
     await B.sync();
     A.advance(1000);
-    A.store.deleteType(t.id);
+    A.store.archiveType(t.id);
+    await A.sync();
+    await B.sync();
+    expect(B.store.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    B.advance(3000);
+    B.store.unarchiveType(t.id);
+    A.advance(1000);
+    A.store.updateType(t.id, { color: '#111111' }); // 比 B 早：整行 LWW，B 的取消归档赢
+    await A.sync();
+    await B.sync();
+    await A.sync();
+    for (const s of [A.store, B.store]) {
+      expect(isArchivedType(s.get('task_type', t.id))).toBe(false);
+      expect(s.pickableTypes().map((x) => x.id)).toContain(t.id);
+    }
+  });
+
+  it('旧版本删掉的类型（墓碑）还有任务在用：同步后重开，类型找回来、是归档状态，任务照常显示', async () => {
+    const remote = new MemoryRemote();
+    const t0 = local(2026, 10, 16, 10).getTime();
+    const A = await device(remote, 'devA', t0);
+    const B = await device(remote, 'devB', t0);
+    const t = A.store.createType({ name: '播客' });
+    await A.sync();
+    await B.sync();
+    A.advance(1000);
+    A.store.remove('task_type', t.id); // 旧客户端的「删类型」：打墓碑
     B.advance(500);
     B.store.createTask({ type_id: t.id, type_data: { name: '忽左忽右' } });
     await A.sync();
@@ -309,6 +410,20 @@ describe('类型编辑的同步', () => {
     const { store: A2 } = await open(A.adapter, 'devA', t0 + 5000);
     const back = A2.get('task_type', t.id)!;
     expect(back).toMatchObject({ deleted: false, hidden: true, name: '播客' });
+    expect(isArchivedType(back)).toBe(true);
+    expect(A2.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    expect(A2.pickableTypes().map((x) => x.id)).not.toContain(t.id);
     expect(A2.libraryEntries(t.id).map((e) => e.name)).toEqual(['忽左忽右']);
+  });
+
+  it('没人引用的旧墓碑不复活', async () => {
+    const adapter = new MemoryAdapter();
+    const { store } = await open(adapter);
+    const t = store.createType({ name: '播客' });
+    store.remove('task_type', t.id);
+    await store.flush();
+    const { store: again } = await open(adapter, 'dev1', local(2026, 10, 17, 10).getTime());
+    expect(again.get('task_type', t.id)).toBeUndefined();
+    expect(again.archivedTypes()).toEqual([]);
   });
 });

@@ -95,7 +95,7 @@ Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自
 ## 任务类型（显示变体 + 创建模板）
 任务可选一个“类型”。类型决定两件事：在列表、组、依赖图节点里怎么显示（显示变体），以及新建时给出什么模板（要填的字段 + 预填的 markdown 正文）。正文仍是 markdown、仍无标题。
 - 默认类型“普通”：就是一段没有标题的 markdown 文本，无字段、无模板，显示正文首行，新建即写。
-- 内置类型（先做这些，均可修改、复制、隐藏）：
+- 内置类型（先做这些，均可修改、复制、归档；类型不能删，Rei 2026-10-17）：
 
 | 类型 | 显示 | 字段 | 正文模板 |
 |---|---|---|---|
@@ -296,20 +296,27 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 
 ### M4 更聪明
 - ✅ 自定义类型编辑器（2026-10-16，分支 m4-types）：设置 →「类型」一节和资料库页标签条末尾「编辑」打开同一个弹层（`components/TypeManager.tsx`，样式 `styles/types.css`）。
-  - 第一屏类型列表：拖动排序（也能用键盘拖）、显示 / 隐藏、「新建类型」、点进去编辑；不列「普通」（没有字段和版式）和「人物」（已从可选类型删掉，人物库不动）。
-  - 一个类型：名字（失焦保存；内置名字没改动不写回）、图标（lucide 网格 56 个 + 自己填一个 emoji；`lib/icons.ts` 的 `typeIcon` 认 emoji）、颜色（14 个色板 + 自己调）、资料库版式（竖版海报 2:3 / 方形 / 横幅 16:9 / 圆形——`TypeLayout` 加了 `round`，卡片、行缩略图、资料库都按它出圆图）、默认怎么算完成、新建时的正文、隐藏；自定义的没人用时能删。
+  - 第一屏类型列表：拖动排序（也能用键盘拖）、归档、「新建类型」、点进去编辑；最底下一行不显眼的「已归档 N 个」，点开可「取消归档」；不列「普通」（没有字段和版式）和「人物」（已从可选类型删掉，人物库不动）。
+  - 一个类型：名字（失焦保存；内置名字没改动不写回）、图标（lucide 网格 56 个 + 自己填一个 emoji；`lib/icons.ts` 的 `typeIcon` 认 emoji）、颜色（14 个色板 + 自己调）、资料库版式（竖版海报 2:3 / 方形 / 横幅 16:9 / 圆形——`TypeLayout` 加了 `round`，卡片、行缩略图、资料库都按它出圆图）、默认怎么算完成、新建时的正文、归档（不能删）。
   - 字段：增（名字 + 种类：文字 / 数字 / 进度 / 日期 / 单选 / 多选 / 链接 / 更多链接 / 站点编号 / 图片 / 清单 / 金额 / 看到第几集）、行内改名、拖动排序（设置弹层里也有上移 / 下移）、隐藏、删除；设置弹层里改种类、资料字段 / 任务字段、单选多选的选项（选项改名连同资料和任务里存着的旧选项一起改：`Store.renameFieldOption`）、单位、站点、提示文字。主字段和图片字段固定是资料字段，不能隐藏、删除、改种类。
   - 关键决定：字段 key 随机生成（`f` + 8 位）、永不随改名变；删字段只在定义里留墓碑 `removed: true`（值留在 JSON 里不显示），加回同名同种类的字段就翻回同一个 key、旧值又出现——墓碑也让 `withNewBuiltinFields` 不会把用户删掉的内置字段补回来；影视 r2 去掉的「平台」记在 `LEGACY_BUILTIN_FIELDS`，加回「平台」（文字）用回旧 key `platform`。隐藏字段 `hidden: true`：`itemFieldsOf` / `taskFieldsOf` / `shownFields` / `linkChips` 都不含它，改类型时要留的值用 `allTaskFieldsOf`（含隐藏、删掉的）。字段已经有值时不让改种类和归属（`Store.fieldHasData`），免得旧值对不上。
-  - 类型顺序存在同步偏好 `type_order`（id 列表，`orderTypes`；没写进去的按 sort 接后面），不改类型行——否则排一下顺序内置类型就变成「改过」，以后内置升级不再覆盖它。界面上取类型一律 `store.pickableTypes()`（新建 / 改类型 / 组默认类型）/ `store.orderedTypes()`（资料库标签条）/ `store.editableTypes()`（编辑器）。改名字、图标、字段、隐藏这些会写类型行：内置类型的 updated_at 变成真实 HLC，按 `ensureBuiltinTypes` 的老规矩不再整体替换（只补新字段）。
-  - 删类型（`Store.deleteType`）：内置的只能隐藏；自定义的没有任务和资料（未删除的）引用时才能删，顺带清掉以它为默认类型的组；有引用只能隐藏。两台设备一边删、一边用它新建任务：打开时 `reviveReferencedTypes` 把被引用的墓碑类型找回来并隐藏（两台各做一遍内容相同，LWW 后一致）。
-  - core：`typedef.ts`（纯函数 `addField` / `updateField` / `removeField` / `reorderFields` / `moveField` / `orderTypes` / `isEditableType`、`FIELD_KIND_LABEL`、`LIBRARY_LAYOUTS`），Store 的 `createType` / `updateType` / `setTypeFields` / `addTypeField` / `renameFieldOption` / `reorderTypes` / `moveType` / `typeUsage` / `canDeleteType` / `deleteType`；测试 `packages/core/test/typedef.test.ts`（类型增改、字段排序隐藏、删字段数据保留与加回、内置改过不被覆盖、排序不改内置行、删类型规则、选项改名、两端同步 LWW、一边删一边用找回）。没加表也没加列（字段定义本来就是 JSON），SQLite / Tauri 不用迁移。
-  - 截图 `work/screens/m4-types-*.png`（三皮肤桌面 + 手机，含暗色、英文）。
+  - 类型顺序存在同步偏好 `type_order`（id 列表，`orderTypes`；没写进去的按 sort 接后面），不改类型行——否则排一下顺序内置类型就变成「改过」，以后内置升级不再覆盖它。界面上取类型一律 `store.pickableTypes()`（新建 / 改类型 / 组默认类型）/ `store.orderedTypes()`（资料库标签条）/ `store.editableTypes()`（编辑器）/ `store.archivedTypes()`（编辑器底部已归档），前三个都不含归档的。改名字、图标、字段、归档这些会写类型行：内置类型的 updated_at 变成真实 HLC，按 `ensureBuiltinTypes` 的老规矩不再整体替换（只补新字段）。
+  - ✅ 类型只能改和归档、不能删（Rei 2026-10-17：「类型创建后只能修改和归档，不支持删除，归档的类型不再可见，但旧的引用它的任务不破坏。」）。取代原来的「隐藏」+「没人用的自定义类型能删」。
+    - 存储沿用 `task_type.hidden` 列（不加列、不加迁移），语义改成归档；旧数据里 `hidden = true`（以前的「隐藏」）读出来就是归档。导出的 `_meta/types.json` 写 `archived`，导入兼容旧文件的 `hidden`。`isArchivedType`（library.ts）、`Store.archiveType` / `unarchiveType` / `archivedTypes` / `effectiveDefaultTypeId`；`deleteType` / `canDeleteType` 删掉了，`updateType` 不再改归档。内置、自定义一样；「普通」「人物」不能归档。
+    - 归档的不出现在：新建 / 改类型 / 组默认类型的选择器、资料库标签条、⌘K 搜索里该类型的资料（任务照常能搜到）、类型编辑器主列表、深链 `new?type=`（退回普通）；资料详情页不再给「用它新建任务」。
+    - 旧任务不破坏：任务和资料照常显示该类型的图标、名字、字段、资料行、完成方式，能改字段值；详情「类型」一行照常显示当前值，只是选择器里没有它；从任务详情点资料行仍能进资料页。
+    - 组的默认类型是归档的：组上存的 id 不动，只是不生效（`effectiveDefaultTypeId`：新建任务退回普通，组页副标题不显示默认类型）；取消归档后又生效。选这个是因为不用多写组行、取消归档能完全复原。
+    - 以前版本删掉的类型（墓碑）：被任务 / 资料引用的，打开时 `reviveReferencedTypes` 照旧找回来，找回来就是归档状态（两台各做一遍内容相同，LWW 后一致）；没人引用的墓碑留着不动。还没升级的旧客户端同步过来的删除也走这条。
+  - core：`typedef.ts`（纯函数 `addField` / `updateField` / `removeField` / `reorderFields` / `moveField` / `orderTypes` / `isEditableType`、`FIELD_KIND_LABEL`、`LIBRARY_LAYOUTS`），Store 的 `createType` / `updateType` / `setTypeFields` / `addTypeField` / `renameFieldOption` / `reorderTypes` / `moveType` / `typeUsage` / `archiveType` / `unarchiveType` / `archivedTypes`；测试 `packages/core/test/typedef.test.ts`（类型增改、字段排序隐藏、删字段数据保留与加回、内置改过不被覆盖、排序不改内置行、不能删、归档后不在 pickable / ordered / editable、引用归档类型的任务照常解析、组默认类型不生效、旧 hidden 兼容与导出导入、选项改名、两端同步 LWW、复活的墓碑是归档状态）。没加表也没加列（字段定义本来就是 JSON），SQLite / Tauri 不用迁移。
+  - 截图 `work/screens/m4-types-*.png`（三皮肤桌面 + 手机，含暗色、英文）；归档 `work/screens/m4-archive-*.png`。
   - 待 Rei 确认：
-    - 有引用的自定义类型只能隐藏，不做「把任务改成普通再删」——要不要加？
+    - ~~有引用的自定义类型只能隐藏，不做「把任务改成普通再删」——要不要加？~~ 已定（Rei 2026-10-17）：类型不能删，只能改和归档，见上。
+    - 编辑器列表底部「已归档 N 个」→ 取消归档（为了能恢复，代理加的）；归档不弹确认，提示里能撤销。
+    - ⌘K 搜索不出归档类型的资料（任务照常能搜到）；资料详情页对归档类型不给「用它新建任务」。
     - 字段有值后锁定种类和归属（要换就新加一个字段），而不是自动迁移旧值。
     - 新字段种类里不放「人物」（任务本身就能关联人物）。
     - 编辑器里不出现「普通」：它的名字 / 图标 / 默认完成方式暂时不能改。
-    - 隐藏的类型在资料库标签条里也不显示（沿用原来的行为）；隐藏 / 改名等会让内置类型变成「改过」，以后内置定义大改时只补新字段、不整体替换。
+    - 归档 / 改名等会让内置类型变成「改过」，以后内置定义大改时只补新字段、不整体替换。
 - 按名字自动补全资料（影视 TMDB / 豆瓣、游戏 Steam、书 Open Library；有 IMDb / 豆瓣编号时按编号取），展示时附来源。
 - ✅ 资料合并（两条其实是同一部片）（2026-10-16，分支 m4-merge）
   - core `merge.ts`（纯逻辑：`planItemMerge` / `planPersonMerge` 算合并后的值与冲突、`mergeNotes`、`duplicateGroups`、`resolveMerged`、`mergeCycleSurvivors`）+ `Store.mergeLibraryItems(targetId, sourceIds, choices?)` / `mergePeople` / `undoMerge` / `settleMerges` / `duplicateGroups` / `dismissDuplicateGroup`；测试 `packages/core/test/merge.test.ts`。

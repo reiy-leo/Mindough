@@ -12,7 +12,7 @@
 Mindough 2026-10-16/              zip 里的根文件夹（导入时自动去掉这一层）
   _meta/
     mindough.json                 格式标记：{ "format": "mindough-markdown", "version": 1, exported_at, device, counts }
-    types.json                    任务类型（内置 + 自定义，整行，不含 updated_at / deleted）
+    types.json                    任务类型（内置 + 自定义，含归档的；整行，不含 updated_at / deleted；归档写 "archived": true，导入也认旧文件的 "hidden"）
     checkin-categories.json       打卡分类（含隐藏的）
     categories.json               组的分类（名字 + 颜色）
     checkins.json                 打卡记录（每条 start / pause / resume / stop / add 事件，带 id）

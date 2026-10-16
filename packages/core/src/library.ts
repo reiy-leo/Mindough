@@ -62,9 +62,17 @@ export function hasLibrary(type: Pick<TaskType, 'id' | 'fields'> | null | undefi
 }
 
 /** 人物类型：库就是 person 表。 */
-/** 新建 / 改类型时能选的类型：不含隐藏的，也不含「人物」（任务本身就能关联人物，Rei 2026-10-16 删掉了这个分类；人物库仍在）。 */
+/**
+ * 归档的类型（Rei 2026-10-17：类型只能改、能归档，不能删）。存储沿用 task_type.hidden 列（不加列、不加迁移），
+ * 语义是「归档」：任何选择器、资料库标签条、搜索、类型编辑器主列表里都不出现；引用它的任务和资料照常显示。
+ */
+export function isArchivedType(t: Pick<TaskType, 'hidden'> | null | undefined): boolean {
+  return !!t?.hidden;
+}
+
+/** 新建 / 改类型时能选的类型：不含归档的，也不含「人物」（任务本身就能关联人物，Rei 2026-10-16 删掉了这个分类；人物库仍在）。 */
 export function isPickableType(t: Pick<TaskType, 'id' | 'hidden'>): boolean {
-  return !t.hidden && t.id !== BUILTIN_TYPE_IDS.person;
+  return !isArchivedType(t) && t.id !== BUILTIN_TYPE_IDS.person;
 }
 
 export function isPersonLibrary(type: Pick<TaskType, 'fields'> | null | undefined): boolean {

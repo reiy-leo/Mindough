@@ -280,7 +280,8 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
         fields: t.fields,
         body_template: str(t.body_template) ?? '',
         builtin: t.builtin === true,
-        hidden: t.hidden === true,
+        // 归档：新文件写 archived，旧文件（M4 初版）写 hidden
+        hidden: (t as { archived?: unknown }).archived === true || t.hidden === true,
         default_completion_mode: COMPLETION_MODES.includes(t.default_completion_mode) ? t.default_completion_mode : 'once',
         sort: num(t.sort) ?? 0,
       };

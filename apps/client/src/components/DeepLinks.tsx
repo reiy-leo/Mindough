@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isFinished, shouldJoinMyDay, toDateKey, type Store } from '@mindough/core';
+import { isArchivedType, isFinished, shouldJoinMyDay, toDateKey, type Store } from '@mindough/core';
 import { drainDeepLinks, enqueueDeepLink, onDeepLink, parseHashLink, type DeepLinkAction } from '../lib/deeplink';
 import { navigate } from '../lib/router';
 import { useUi } from '../lib/ui';
@@ -43,7 +43,9 @@ export function runDeepLink(store: Store, ui: Ui, a: DeepLinkAction): void {
       return;
     }
     case 'new': {
-      const typeId = a.typeId && store.get('task_type', a.typeId) ? a.typeId : undefined;
+      // 归档的类型不能再用来新建（退回普通）
+      const linkType = a.typeId ? store.get('task_type', a.typeId) : undefined;
+      const typeId = linkType && !isArchivedType(linkType) ? linkType.id : undefined;
       const groupId = a.groupId && store.get('group', a.groupId) ? a.groupId : undefined;
       const defaults = { ...(typeId ? { type_id: typeId } : {}), ...(groupId ? { group_id: groupId } : {}), ...(a.date ? { scheduled_date: a.date } : {}) };
       // 没写内容：打开新建面板，参数预填好

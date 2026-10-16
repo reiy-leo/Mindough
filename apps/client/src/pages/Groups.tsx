@@ -136,7 +136,8 @@ export function GroupDetailPage({ id }: { id: string }) {
   const c = store.get('category', g.category_id);
   const open = tasks.filter((t) => !isFinished(t.status));
   const ended = tasks.filter((t) => isFinished(t.status));
-  const defType = store.get('task_type', g.default_type_id);
+  // 默认类型归档了：不生效，也不显示（组上存的 id 不动，取消归档后又生效）
+  const defType = store.get('task_type', store.effectiveDefaultTypeId(g));
   return (
     <div className="page">
       <PageHeader

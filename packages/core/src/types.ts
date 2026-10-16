@@ -200,6 +200,10 @@ export interface TaskType extends BaseRow {
   fields: FieldDef[];
   body_template: string;
   builtin: boolean;
+  /**
+   * 归档（Rei 2026-10-17：类型不能删，只能改、能归档）。列名沿用 M4 初版的 hidden（不加列、不加迁移），
+   * 旧数据里 hidden=true（以前的「隐藏」）读出来就是归档。导出 JSON 写 archived，导入兼容 hidden。见 library.ts isArchivedType。
+   */
   hidden: boolean;
   default_completion_mode: CompletionMode;
   sort: number;

@@ -287,7 +287,19 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
   // ── _meta ──
   const counts: ExportCounts = { tasks: tasks.length, groups: groups.length, library: items.length, people: people.length, images: images.files.size };
   files.push({ path: MANIFEST_PATH, data: json({ format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, exported_at: now.toISOString(), device: store.deviceId, counts }) });
-  files.push({ path: '_meta/types.json', data: json(store.list('task_type').sort((a, b) => a.sort - b.sort || (a.id < b.id ? -1 : 1)).map(strip)) });
+  // 类型的 hidden 列语义是「归档」（Rei 2026-10-17），文件里写 archived；导入兼容旧文件的 hidden
+  files.push({
+    path: '_meta/types.json',
+    data: json(
+      store
+        .list('task_type')
+        .sort((a, b) => a.sort - b.sort || (a.id < b.id ? -1 : 1))
+        .map((t) => {
+          const { hidden, ...rest } = strip(t);
+          return { ...rest, archived: hidden };
+        }),
+    ),
+  });
   files.push({ path: '_meta/checkin-categories.json', data: json(store.checkInCategories(true).map(strip)) });
   files.push({ path: '_meta/categories.json', data: json(store.list('category').map(strip)) });
   files.push({ path: '_meta/prefs.json', data: json(store.list('pref').map(strip)) });

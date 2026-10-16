@@ -1,12 +1,15 @@
 /**
  * 类型编辑器（M4）：设置 →「类型」、资料库页标签条末尾「编辑」都打开它（同一个弹层）。
- * 第一屏是类型列表（拖动排序、隐藏、新建）；点进一个类型改名字、图标、颜色、资料库版式、默认完成方式、字段、正文模板。
- * 纯逻辑在 core 的 typedef.ts 与 Store（updateType / setTypeFields / addTypeField / deleteType…）。
+ * 第一屏是类型列表（拖动排序、归档、新建）；点进一个类型改名字、图标、颜色、资料库版式、默认完成方式、字段、正文模板。
+ * 类型不能删，只能改和归档（Rei 2026-10-17）：归档的不在主列表里，列表最底下一行「已归档 N 个」点开可取消归档。
+ * 纯逻辑在 core 的 typedef.ts 与 Store（updateType / setTypeFields / addTypeField / archiveType / unarchiveType…）。
  * 「普通」「人物」不在这里出现（人物类型已删，人物库保留）。文案见 docs/COPY.md「类型编辑器」。
  */
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { GridList, GridListItem, Input, TextField, useDragAndDrop, Button as RacButton } from 'react-aria-components';
 import {
+  Archive,
+  ArchiveRestore,
   ArrowDown,
   ArrowUp,
   Banknote,
@@ -43,6 +46,7 @@ import {
   LIBRARY_LAYOUTS,
   SITES,
   TYPE_LAYOUT_LABEL,
+  isArchivedType,
   isFixedField,
   liveFields,
   moveField,
@@ -137,16 +141,36 @@ export function TypeManager({ isOpen, onOpenChange, initialTypeId }: { isOpen: b
         )
       }
     >
-      {type ? <TypeEditor key={type.id} type={type} onDeleted={() => setEditing(null)} /> : <TypeList onOpen={setEditing} />}
+      {type ? <TypeEditor key={type.id} type={type} onArchived={() => setEditing(null)} /> : <TypeList onOpen={setEditing} />}
     </Sheet>
   );
 }
 
 // ───────────── 类型列表 ─────────────
 
+/** 归档一个类型：提示里可撤销。 */
+function useArchive() {
+  const store = useStore();
+  const ui = useUi();
+  return (t: TaskType) => {
+    store.archiveType(t.id);
+    ui.toast({
+      message: tr('已归档「{name}」', { name: dataLabel(t.name) }),
+      actions: [{ label: tr('撤销'), onPress: () => store.unarchiveType(t.id) }],
+    });
+  };
+}
+
+function usageText(u: { tasks: number; items: number }): string {
+  return [u.tasks ? tr('{n} 件任务', { n: u.tasks }) : '', u.items ? tr('资料 {n} 条', { n: u.items }) : ''].filter(Boolean).join(' · ');
+}
+
 function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
   const store = useStore();
   const types = store.editableTypes();
+  const archived = store.archivedTypes();
+  const [showArchived, setShowArchived] = useState(false);
+  const archive = useArchive();
   const { dragAndDropHooks } = useDragAndDrop({
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
     onReorder: (e) => {
@@ -159,33 +183,64 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
     },
   });
   return (
-    <GridList aria-label={trc('类型编辑器', '类型')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => onOpen(String(k))}>
-      {(t) => {
-        const Icon = typeIcon(t.icon);
-        const u = store.typeUsage(t.id);
-        const name = dataLabel(t.name);
-        return (
-          <GridListItem id={t.id} textValue={name} className={`type-row${t.hidden ? ' is-hidden' : ''}`}>
-            <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
-              <GripVertical size={14} />
-            </RacButton>
-            <span className="type-row-icon" style={{ '--chip-color': t.color } as CSSProperties} aria-hidden>
-              <Icon size={16} />
-            </span>
-            <span className="type-row-text">
-              <span className="type-row-name">{name}</span>
-              <span className="type-row-sub">
-                {[t.hidden ? tr('已隐藏') : '', u.tasks ? tr('{n} 件任务', { n: u.tasks }) : '', u.items ? tr('资料 {n} 条', { n: u.items }) : ''].filter(Boolean).join(' · ') || (t.builtin ? tr('内置') : tr('自定义'))}
+    <>
+      <GridList aria-label={trc('类型编辑器', '类型')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => onOpen(String(k))}>
+        {(t) => {
+          const Icon = typeIcon(t.icon);
+          const name = dataLabel(t.name);
+          return (
+            <GridListItem id={t.id} textValue={name} className="type-row">
+              <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
+                <GripVertical size={14} />
+              </RacButton>
+              <span className="type-row-icon" style={{ '--chip-color': t.color } as CSSProperties} aria-hidden>
+                <Icon size={16} />
               </span>
-            </span>
-            <IconButton label={t.hidden ? tr('显示「{name}」', { name }) : tr('隐藏「{name}」', { name })} onPress={() => store.updateType(t.id, { hidden: !t.hidden })}>
-              {t.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-            </IconButton>
-            <ChevronRight size={16} className="type-row-chevron" aria-hidden />
-          </GridListItem>
-        );
-      }}
-    </GridList>
+              <span className="type-row-text">
+                <span className="type-row-name">{name}</span>
+                <span className="type-row-sub">{usageText(store.typeUsage(t.id)) || (t.builtin ? tr('内置') : tr('自定义'))}</span>
+              </span>
+              <IconButton label={tr('归档「{name}」', { name })} onPress={() => archive(t)}>
+                <Archive size={16} />
+              </IconButton>
+              <ChevronRight size={16} className="type-row-chevron" aria-hidden />
+            </GridListItem>
+          );
+        }}
+      </GridList>
+      {archived.length > 0 && (
+        <div className="type-archived">
+          <RacButton className="type-archived-toggle" aria-expanded={showArchived} onPress={() => setShowArchived((v) => !v)}>
+            <Archive size={13} aria-hidden />
+            {tr('已归档 {n} 个', { n: archived.length })}
+            <ChevronRight size={13} className={`type-archived-chevron${showArchived ? ' is-open' : ''}`} aria-hidden />
+          </RacButton>
+          {showArchived && (
+            <ul className="type-archived-list" aria-label={tr('已归档的类型')}>
+              {archived.map((t) => {
+                const Icon = typeIcon(t.icon);
+                const name = dataLabel(t.name);
+                return (
+                  <li key={t.id} className="type-row is-archived">
+                    <span className="type-row-icon" style={{ '--chip-color': t.color } as CSSProperties} aria-hidden>
+                      <Icon size={16} />
+                    </span>
+                    <span className="type-row-text">
+                      <span className="type-row-name">{name}</span>
+                      <span className="type-row-sub">{usageText(store.typeUsage(t.id)) || (t.builtin ? tr('内置') : tr('自定义'))}</span>
+                    </span>
+                    <Button variant="secondary" onPress={() => store.unarchiveType(t.id)}>
+                      <ArchiveRestore size={15} />
+                      {tr('取消归档')}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -204,15 +259,13 @@ function useCommitted(stored: string, save: (v: string) => void) {
   return { value: v, setValue: setV, commit };
 }
 
-function TypeEditor({ type, onDeleted }: { type: TaskType; onDeleted: () => void }) {
+function TypeEditor({ type, onArchived }: { type: TaskType; onArchived: () => void }) {
   const store = useStore();
-  const ui = useUi();
+  const archive = useArchive();
   const { layout } = useSettings();
   const name = useCommitted(type.name, (n) => store.updateType(type.id, { name: n }));
   const tpl = useCommitted(type.body_template, (n) => store.updateType(type.id, { body_template: n }));
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const usage = store.typeUsage(type.id);
-  const canDelete = store.canDeleteType(type.id);
+  const archived = isArchivedType(type);
   const Icon = typeIcon(type.icon);
   return (
     <div className="type-editor" style={{ '--chip-color': type.color } as CSSProperties}>
@@ -280,38 +333,28 @@ function TypeEditor({ type, onDeleted }: { type: TaskType; onDeleted: () => void
       </Section>
 
       <div className="type-danger">
-        {type.builtin ? (
-          <span className="foot-note">{tr('内置类型不能删，不想看到就隐藏。')}</span>
-        ) : canDelete ? (
-          <span className="foot-note">{tr('没有任务和资料在用，可以删掉。')}</span>
-        ) : (
-          <span className="foot-note">{tr('还有 {tasks} 件任务、{items} 条资料在用，只能隐藏。', { tasks: usage.tasks, items: usage.items })}</span>
-        )}
+        <span className="foot-note">
+          {archived ? tr('已归档：新建任务时选不到它，用过它的任务和资料照常显示。') : tr('类型不能删。不再用了就归档：新建任务时选不到它，用过它的任务和资料照常显示。')}
+        </span>
         <span className="grow" />
-        <Button variant="secondary" onPress={() => store.updateType(type.id, { hidden: !type.hidden })}>
-          {type.hidden ? <Eye size={15} /> : <EyeOff size={15} />}
-          {type.hidden ? tr('显示这个类型') : tr('隐藏这个类型')}
-        </Button>
-        {canDelete && (
-          <Button variant="danger" onPress={() => setConfirmDelete(true)}>
-            <Trash2 size={15} />
-            {tr('删除类型')}
+        {archived ? (
+          <Button variant="secondary" onPress={() => store.unarchiveType(type.id)}>
+            <ArchiveRestore size={15} />
+            {tr('取消归档')}
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            onPress={() => {
+              archive(type);
+              onArchived();
+            }}
+          >
+            <Archive size={15} />
+            {tr('归档这个类型')}
           </Button>
         )}
       </div>
-      <ConfirmDialog
-        isOpen={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title={tr('删除「{name}」？', { name: dataLabel(type.name) })}
-        message={tr('这个类型和它的空资料库会一起删掉。')}
-        confirmLabel={tr('删除')}
-        danger
-        onConfirm={() => {
-          store.deleteType(type.id);
-          ui.toast({ message: tr('已删除类型「{name}」', { name: dataLabel(type.name) }) });
-          onDeleted();
-        }}
-      />
     </div>
   );
 }

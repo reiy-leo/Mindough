@@ -177,7 +177,7 @@ function TypesSection() {
   const store = useStore();
   const [open, setOpen] = useState(false);
   const types = store.editableTypes();
-  const hidden = types.filter((t) => t.hidden).length;
+  const archived = store.archivedTypes().length;
   return (
     <Section title={trc('类型编辑器', '类型')}>
       <div className="card settings-card">
@@ -185,7 +185,7 @@ function TypesSection() {
           <div className="setting-text">
             <div className="setting-name">{tr('任务类型')}</div>
             <div className="setting-hint">
-              {hidden ? tr('{n} 种，隐藏了 {h} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length, h: hidden }) : tr('{n} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length })}
+              {archived ? tr('{n} 种，另有 {h} 种已归档。改字段、图标、版式，或新建自己的类型。', { n: types.length, h: archived }) : tr('{n} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length })}
             </div>
           </div>
           <Button variant="secondary" onPress={() => setOpen(true)}>

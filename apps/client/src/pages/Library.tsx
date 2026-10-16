@@ -12,6 +12,7 @@ import {
   fieldDisplay,
   fieldText,
   hasLibrary,
+  isArchivedType,
   isFinished,
   isPersonLibrary,
   libraryCopy,
@@ -40,7 +41,8 @@ import { imageUrl } from '../lib/view';
 import { dataLabel, tr } from '../lib/i18n';
 function useLibraries(): TaskType[] {
   const store = useStore();
-  return store.orderedTypes().filter((t) => !t.hidden && hasLibrary(t));
+  // orderedTypes 已不含归档的类型
+  return store.orderedTypes().filter((t) => hasLibrary(t));
 }
 
 /**
@@ -321,9 +323,12 @@ export function LibraryItemPage({ typeId, id }: { typeId: string; id: string }) 
           <LinkChips links={links} className="lib-hero-links" />
           <SourceNote source={sourceOfFields(item.fields)} className="lib-hero-source" />
           <div className="lib-hero-actions">
-            <Button variant="primary" onPress={() => ui.openQuickCreate({ type_id: type.id, library_item_id: id })}>
-              <Plus size={16} />
-              {tr('用它新建任务')}</Button>
+            {/* 类型归档了：资料照常能看、能改，但不再用它新建任务 */}
+            {!isArchivedType(type) && (
+              <Button variant="primary" onPress={() => ui.openQuickCreate({ type_id: type.id, library_item_id: id })}>
+                <Plus size={16} />
+                {tr('用它新建任务')}</Button>
+            )}
             <Button variant="secondary" onPress={() => setEditing(true)}>
               <Pencil size={15} />
               {tr('编辑资料')}</Button>

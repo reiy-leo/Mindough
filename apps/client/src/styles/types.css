@@ -98,11 +98,6 @@
   color: var(--text-3);
   flex: none;
 }
-.type-row.is-hidden .type-row-icon,
-.type-row.is-hidden .type-row-name {
-  opacity: 0.45;
-}
-
 /* 一个类型 */
 .type-editor {
   display: flex;
@@ -581,4 +576,52 @@
 .field-settings .field[data-disabled] .select-btn {
   opacity: 0.55;
   cursor: default;
+}
+
+/* 已归档的类型：列表最底下一行，不显眼；点开可取消归档（Rei 2026-10-17：类型不能删，只能归档） */
+.type-archived {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+.type-archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  outline: none;
+}
+.type-archived-toggle[data-hovered] {
+  color: var(--text-2);
+  background: var(--surface-hover);
+}
+.type-archived-toggle[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.type-archived-chevron {
+  transition: transform 0.15s ease;
+}
+.type-archived-chevron.is-open {
+  transform: rotate(90deg);
+}
+.type-archived-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.type-row.is-archived {
+  cursor: default;
+  padding-left: 6px;
+}
+.type-row.is-archived .type-row-icon,
+.type-row.is-archived .type-row-name {
+  opacity: 0.55;
 }

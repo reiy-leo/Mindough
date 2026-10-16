@@ -118,8 +118,6 @@ export const CORE_EN: Record<string, V> = {
   名字: 'Name',
   图片: 'Image',
   新类型: 'New Type',
-  '内置类型不能删，可以隐藏': 'Built-in types can’t be deleted, but you can hide them',
-  '还有 {n} 件任务或资料在用，只能隐藏': (p) => `${count(p.n, 'task or entry uses', 'tasks or entries use')} this type — you can only hide it`,
 
   // ── 季 / 集 ──
   '第 {s} 季第 {e} 集': 'Season {s}, Episode {e}',
