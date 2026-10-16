@@ -256,7 +256,7 @@ describe('豆瓣（尽力而为）', () => {
 });
 
 describe('Open Library 与 Steam', () => {
-  it('Open Library：短查询按书名搜；作者只取第一位；封面', async () => {
+  it('Open Library：短查询按书名搜；作者只取第一位；不给封面（书的封面纯手填）', async () => {
     const calls = mockFetch({
       'https://openlibrary.org/search.json': () =>
         Response.json({ docs: [{ key: '/works/OL17267881W', title: '三体', author_name: ['刘慈欣', 'Vincent Schmitt'], first_publish_year: 2008, cover_i: 9157544, number_of_pages_median: 417 }, { key: '/books/OL1M', title: '不是作品' }] }),
@@ -270,15 +270,47 @@ describe('Open Library 与 Steam', () => {
         sourceId: 'OL17267881W',
         name: '三体',
         year: 2008,
-        image: 'https://covers.openlibrary.org/b/id/9157544-L.jpg',
-        thumb: 'https://covers.openlibrary.org/b/id/9157544-M.jpg',
         subtitle: '刘慈欣',
-        fields: { author: '刘慈欣', total_pages: 417 },
+        fields: { author: '刘慈欣', year: 2008, total_pages: 417 },
         url: 'https://openlibrary.org/works/OL17267881W',
       },
     ]);
+    expect(calls[0]!.url.searchParams.get('fields')).not.toContain('cover_i');
     await call('/api/lookup/search?kind=book&q=three%20body', baseEnv());
     expect(calls[1]!.url.searchParams.get('q')).toBe('three body');
+  });
+
+  it('Open Library 按 ISBN 取那一版：出版社、出版年份、页数、ISBN；这一版没写作者就用作品的第一位；不给封面', async () => {
+    const calls = mockFetch({
+      'https://openlibrary.org/isbn/': () =>
+        Response.json({ key: '/books/OL25840916M', title: '三体', publishers: ['Chongqing Press', 'Chong Qing Chu Ban She'], publish_date: '2008', number_of_pages: 302, covers: [10246665], works: [{ key: '/works/OL17267881W' }] }),
+      'https://openlibrary.org/works/OL17267881W.json': () => Response.json({ authors: [{ author: { key: '/authors/OL7044246A' } }, { author: { key: '/authors/OL1A' } }] }),
+      'https://openlibrary.org/authors/OL7044246A.json': () => Response.json({ name: '刘慈欣' }),
+    });
+    const res = await call('/api/lookup/item?source=isbn&id=978-7-5366-9293-0', baseEnv());
+    expect(res.status).toBe(200);
+    expect(calls[0]!.url.pathname).toBe('/isbn/9787536692930.json');
+    expect(await res.json()).toEqual({
+      source: 'openlibrary',
+      sourceId: 'OL25840916M',
+      name: '三体',
+      year: 2008,
+      subtitle: '刘慈欣 · Chongqing Press',
+      fields: { author: '刘慈欣', publisher: 'Chongqing Press', year: 2008, isbn: '9787536692930', total_pages: 302 },
+      url: 'https://openlibrary.org/books/OL25840916M',
+    });
+  });
+
+  it('Open Library 某一版（OL…M）：这一版自己写了作者就用它；ISBN 校验位错是 400', async () => {
+    mockFetch({
+      'https://openlibrary.org/books/OL1017798M.json': () => Response.json({ key: '/books/OL1017798M', title: 'The adventures of Tom Sawyer', authors: [{ key: '/authors/OL18319A' }], publishers: ['Signet Classic'], publish_date: 'May 1997', isbn_10: ['0451526538'] }),
+      'https://openlibrary.org/authors/OL18319A.json': () => Response.json({ name: 'Mark Twain' }),
+    });
+    const r = (await (await call('/api/lookup/item?source=openlibrary&id=OL1017798M', baseEnv())).json()) as Record<string, unknown>;
+    expect(r).toMatchObject({ sourceId: 'OL1017798M', name: 'The adventures of Tom Sawyer', fields: { author: 'Mark Twain', publisher: 'Signet Classic', year: 1997, isbn: '0451526538' } });
+    expect(r.image).toBeUndefined();
+    const bad = await call('/api/lookup/item?source=isbn&id=9787536692931', baseEnv());
+    expect(bad.status).toBe(400);
   });
 
   it('Steam：中文 schinese/CN，英文 english/US；平台映射；官网进更多链接', async () => {
@@ -316,7 +348,8 @@ describe('封面拉进 R2', () => {
 
   it('只拉来源图床的 https 图片', () => {
     expect(allowedImageHost('https://image.tmdb.org/t/p/w780/a.jpg')).toBe(true);
-    expect(allowedImageHost('https://covers.openlibrary.org/b/id/1-L.jpg')).toBe(true);
+    // 书的封面不对接任何平台（Rei 2026-10-17）：Open Library 的图床不再放行
+    expect(allowedImageHost('https://covers.openlibrary.org/b/id/1-L.jpg')).toBe(false);
     expect(allowedImageHost('https://shared.akamai.steamstatic.com/h.jpg')).toBe(true);
     expect(allowedImageHost('https://img9.doubanio.com/view/photo/l/public/p.jpg')).toBe(true);
     expect(allowedImageHost('http://image.tmdb.org/a.jpg')).toBe(false);

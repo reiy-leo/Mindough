@@ -4,12 +4,13 @@
  * - 哪些类型能在线找（影视 / 书籍 / 游戏这三种内置类型；按类型 id，用户改过名也认）；
  * - Worker 返回的结果形状（与 apps/server/src/lookup/types.ts 一致，两处一起改）；
  * - 资料的来源：存在 library_item.fields 的保留键 `_source`（「tmdb:movie/550」），不加列，界面上显示「资料来自 TMDB」；
- * - 自动补全的逐项计划：哪些字段会填、哪些已经有值（默认只填空缺，勾选才覆盖）。
+ * - 自动补全的逐项计划：哪些字段会填、哪些已经有值（默认只填空缺，勾选才覆盖）；
+ * - 哪些来源带封面：书的封面不对接任何平台，只能手动上传 / 粘贴（Rei 2026-10-17），Open Library 只补书名、作者、年份、页数。
  * 界面叫法见 docs/COPY.md「资料库 · 在线找」。
  */
 import { BUILTIN_TYPE_IDS } from './seed/builtin-types';
 import { fieldText } from './preview';
-import { linksOf, normalizeUrl, siteIdOf } from './links';
+import { isbnOf, linksOf, normalizeUrl, siteIdOf } from './links';
 import { normalizeName } from './library';
 import { stripEpisode } from './episode';
 import { tr } from './i18n';
@@ -21,7 +22,7 @@ export type LookupSource = 'tmdb' | 'douban' | 'openlibrary' | 'steam';
 /** Worker 返回的一条结果。fields 的 key 是内置类型的字段 key（year、kind、imdb、author…）。 */
 export interface LookupResult {
   source: LookupSource;
-  /** 来源里的编号：tmdb 是「movie/550」「tv/1399」，豆瓣是数字，Open Library 是「OL45804W」，Steam 是 appid。 */
+  /** 来源里的编号：tmdb 是「movie/550」「tv/1399」，豆瓣是数字，Open Library 是作品「OL45804W」或某一版「OL25840916M」（按 ISBN 取到的），Steam 是 appid。 */
   sourceId: string;
   name: string;
   year?: number;
@@ -55,15 +56,26 @@ export interface LookupSourceDef {
   label: string;
   home: string;
   kinds: LookupKind[];
+  /** 封面 / 图片用不用这个来源的（false = 不填图片字段、不拉图、候选列表也只显示占位图）。 */
+  covers: boolean;
   url(sourceId: string): string;
 }
 
 export const LOOKUP_SOURCES: Record<LookupSource, LookupSourceDef> = {
-  tmdb: { label: 'TMDB', home: 'https://www.themoviedb.org', kinds: ['movie'], url: (id) => `https://www.themoviedb.org/${id}` },
-  douban: { get label() { return tr('豆瓣'); }, home: 'https://movie.douban.com', kinds: ['movie'], url: (id) => `https://movie.douban.com/subject/${id}/` },
-  openlibrary: { label: 'Open Library', home: 'https://openlibrary.org', kinds: ['book'], url: (id) => `https://openlibrary.org/works/${id}` },
-  steam: { label: 'Steam', home: 'https://store.steampowered.com', kinds: ['game'], url: (id) => `https://store.steampowered.com/app/${id}/` },
+  tmdb: { label: 'TMDB', home: 'https://www.themoviedb.org', kinds: ['movie'], covers: true, url: (id) => `https://www.themoviedb.org/${id}` },
+  douban: { get label() { return tr('豆瓣'); }, home: 'https://movie.douban.com', kinds: ['movie'], covers: true, url: (id) => `https://movie.douban.com/subject/${id}/` },
+  openlibrary: { label: 'Open Library', home: 'https://openlibrary.org', kinds: ['book'], covers: false, url: (id) => `https://openlibrary.org/${/M$/.test(id) ? 'books' : 'works'}/${id}` },
+  steam: { label: 'Steam', home: 'https://store.steampowered.com', kinds: ['game'], covers: true, url: (id) => `https://store.steampowered.com/app/${id}/` },
 };
+
+/**
+ * 这条结果能用的封面（原图 / 列表小图）。书的封面纯手填（Rei 2026-10-17）：Open Library 的结果一律没有图，
+ * 就算 Worker（旧版本、缓存）还带着 image / thumb 也不用。
+ */
+export function lookupCover(r: Pick<LookupResult, 'source' | 'image' | 'thumb'>): { image?: string; thumb?: string } {
+  if (!LOOKUP_SOURCES[r.source]?.covers) return {};
+  return { ...(r.image ? { image: r.image } : {}), ...(r.thumb ? { thumb: r.thumb } : {}) };
+}
 
 /** 各种类型在界面上列出的来源（「从 TMDB 找」）：豆瓣是尽力而为，不写在标题里。 */
 export const PRIMARY_SOURCE: Record<LookupKind, LookupSource> = { movie: 'tmdb', book: 'openlibrary', game: 'steam' };
@@ -117,6 +129,7 @@ export function findLookupTwin(items: readonly Pick<LibraryItem, 'id' | 'type_id
   const ref = sourceRef(r);
   const imdb = siteIdOf('imdb', r.fields.imdb);
   const douban = siteIdOf('douban', r.fields.douban);
+  const isbn = siteIdOf('isbn', r.fields.isbn);
   const name = normalizeName(r.name);
   let byName: string | null = null;
   for (const it of items) {
@@ -124,6 +137,7 @@ export function findLookupTwin(items: readonly Pick<LibraryItem, 'id' | 'type_id
     if (it.fields[SOURCE_KEY] === ref) return it.id;
     if (imdb && siteIdOf('imdb', it.fields.imdb) === imdb) return it.id;
     if (douban && siteIdOf('douban', it.fields.douban) === douban) return it.id;
+    if (isbn && siteIdOf('isbn', it.fields.isbn) === isbn) return it.id;
     if (byName || !name || normalizeName(it.name) !== name || typeof it.fields[SOURCE_KEY] === 'string') continue;
     const y = typeof it.fields.year === 'number' ? it.fields.year : null;
     if (y === null || !r.year || y === r.year) byName = it.id;
@@ -135,17 +149,26 @@ export function findLookupTwin(items: readonly Pick<LibraryItem, 'id' | 'type_id
 
 export type LookupMedia = 'movie' | 'tv';
 
-/** 按什么去找：先认已填的 IMDb、再豆瓣编号（精确），都没有就按名字搜（去掉季标记、知道是电影还是剧集就只搜那一种）。 */
-export type LookupQuery = { by: 'id'; source: 'imdb' | 'douban'; id: string } | { by: 'name'; q: string; media?: LookupMedia; season?: number };
+/**
+ * 按什么去找：影视先认已填的 IMDb、再豆瓣编号，书认 ISBN（精确，取那一版），都没有就按名字搜
+ * （去掉季标记、知道是电影还是剧集就只搜那一种；书按名字得到的是作品，只有作品级的字段）。
+ */
+export type LookupQuery = { by: 'id'; source: 'imdb' | 'douban' | 'isbn'; id: string } | { by: 'name'; q: string; media?: LookupMedia; season?: number };
 
 /**
  * 输入框里的字 → 拿去在线找的样子（真实数据试跑：带「第三季」的剧名在 TMDB 一部都搜不到，Rei 2026-10-16）：
  * - 粘贴的是 IMDb / 豆瓣编号或链接：按编号直接取；
+ * - 书（kind = 'book'）：输入或粘贴的是 ISBN-10 / 13（可带连字符、空格）或 openlibrary.org/isbn/ 链接：按 ISBN 取那一版（Rei 2026-10-17）；
  * - 去掉季 / 集标记（第二季、Season 2、S03、S02E03…，复用 episode.ts），带季标记的就是剧集。
  */
-export function lookupSearchText(text: string): LookupQuery | null {
+export function lookupSearchText(text: string, kind?: LookupKind | null): LookupQuery | null {
   const raw = text.trim();
   if (!raw) return null;
+  if (kind === 'book') {
+    const isbn = isbnOf(raw);
+    if (isbn) return { by: 'id', source: 'isbn', id: isbn };
+    if (/^\S*openlibrary\.org\/isbn\//i.test(raw)) return null; // 链接里的 ISBN 不对：不拿网址当书名搜
+  }
   if (/^(tt\d{7,10}|https?:\/\/\S*imdb\.com\/\S*)$/i.test(raw)) {
     const imdb = siteIdOf('imdb', raw);
     if (imdb) return { by: 'id', source: 'imdb', id: imdb };
@@ -177,7 +200,12 @@ export function lookupQueryOf(type: Pick<TaskType, 'id' | 'fields'>, draft: { na
     const douban = doubanDef ? siteIdOf('douban', draft.fields[doubanDef.key]) : null;
     if (douban) return { by: 'id', source: 'douban', id: douban };
   }
-  const q = lookupSearchText(draft.name);
+  if (kind === 'book') {
+    const isbnDef = type.fields.find((f) => f.kind === 'site_id' && f.site === 'isbn');
+    const isbn = isbnDef ? siteIdOf('isbn', draft.fields[isbnDef.key]) : null;
+    if (isbn) return { by: 'id', source: 'isbn', id: isbn };
+  }
+  const q = lookupSearchText(draft.name, kind);
   if (!q || q.by === 'id') return q;
   const media = kind === 'movie' ? (mediaOfKind(draft.fields.kind) ?? q.media) : undefined;
   return { by: 'name', q: q.q, ...(media ? { media } : {}), ...(q.season !== undefined ? { season: q.season } : {}) };
@@ -225,7 +253,7 @@ function mergeLinks(cur: FieldValue | undefined, add: FieldValue): LinkValue[] {
 /**
  * 自动补全的逐项计划：结果里有、类型里也有的资料字段，一项一行。
  * 值一样的不列；空缺的默认勾上，已有值的默认不勾（勾上 = 覆盖）。
- * 图片那一行的 next 是结果的原图地址（真正填进去前由 Worker 拉进 R2）。
+ * 图片那一行的 next 是结果的原图地址（真正填进去前由 Worker 拉进 R2）；不带封面的来源（书）没有这一行。
  */
 export function planAutofill(type: Pick<TaskType, 'fields'>, draft: { name: string; image: string | null; fields: Record<string, FieldValue> }, r: LookupResult): FillRow[] {
   const rows: FillRow[] = [];
@@ -238,7 +266,7 @@ export function planAutofill(type: Pick<TaskType, 'fields'>, draft: { name: stri
       next = r.name;
     } else if (def.media) {
       current = draft.image;
-      next = r.image ?? null;
+      next = lookupCover(r).image ?? null;
     } else {
       current = draft.fields[def.key];
       next = r.fields[def.key];

@@ -101,7 +101,7 @@ Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自
 |---|---|---|---|
 | 影视 | 竖版海报 + 片名 | 片名、海报、年份、电影/剧集、季集进度、平台 | 想看理由 / 观后感 |
 | 游戏 | 方形图标 + 游戏名 | 游戏名、图标、平台、进度（%） | 目标 / 心得 |
-| 书籍 | 书封 + 书名 | 书名、封面、作者、页数进度 | 摘录 / 笔记 |
+| 书籍 | 书封 + 书名 | 书名、封面（只能手动上传 / 粘贴）、作者、出版社、出版年份、ISBN、页数、页数进度 | 摘录 / 笔记 |
 | 项目 | 项目图标 + 项目名 | 项目名、图标、仓库或链接 | 目标 / 下一步清单 |
 | 课程 | 图标 + 课程名 | 课程名、平台、链接、课时进度 | 笔记 |
 | 旅行 | 横幅照片 + 目的地 | 目的地、照片、出发/返回日期 | 行程 / 待办清单 |
@@ -347,7 +347,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
      - **来源适配器**各一个文件，统一输出 `{source, sourceId, name, year?, image?, thumb?, subtitle?, fields, url}`，fields 的 key 是内置类型的字段 key：
        - `tmdb.ts`：search/multi（不知道电影还是剧集时）或 search/movie、search/tv（知道时，排序也准）；movie / tv 详情 + `append_to_response=external_ids` 拿 IMDb；`find/{imdb}`。密钥 Worker secret `TMDB_API_KEY`：v4 读访问令牌（eyJ… 开头）走 Bearer，其余当 v3 key 走 `api_key`；没配置或密钥不对 → 503 服务不可用（`unconfigured`），界面写「TMDB 还没配置」。中文界面 zh-CN、英文 en-US。
        - `douban.ts`（尽力而为）：建议接口 `movie.douban.com/j/subject_suggest`；详情先用手机版 JSON `m.douban.com/rexxar/api/v2/movie/<id>`（剧集 301 到 /tv/），不行再解析 subject 页面（会被跳去验证页）。拿不到算 `blocked`，静静降级。2026-10-16 沙箱实测建议接口和手机版 JSON 都通。豆瓣的结果只在中文界面列出。
-       - `openlibrary.ts`：search.json（少于 3 个字改按 `title:` 搜，否则 422）；详情 `q=key:/works/<id>`；封面 covers.openlibrary.org；作者只取 author_name 第一位（后面常是译者、插画师）。
+       - `openlibrary.ts`：search.json（少于 3 个字改按 `title:` 搜，否则 422）；详情 `q=key:/works/<id>`；作者只取 author_name 第一位（后面常是译者、插画师）。按名字得到的是作品（OL…W），只有作品级字段：作者、首版年份、页数。按 ISBN（`/api/lookup/item?source=isbn&id=`）：`/isbn/<isbn>.json`（302 到那一版 `/books/OL…M.json`），取书名、出版社 publishers[0]、出版年份（publish_date 里的年）、页数 number_of_pages、ISBN；作者先看这一版的 authors，没有（常见）就取作品的第一位，再查 `/authors/<id>.json` 的名字；ISBN 校验位不对 400。不给封面（见下）。
        - `steam.ts`：storesearch + appdetails（中文 l=schinese&cc=CN，英文 l=english&cc=US）；平台 windows → PC（Steam）、mac → macOS、linux → Linux / Steam Deck；官网进「更多链接」；图标用 header 图（卡片里方形裁）。
      - **按 Rei 20 部真实数据试跑改的**（work/m4/tmdb_try.json：按 IMDb find 18/18 对，按中文名 search/multi 11/20 对）：搜之前去掉季 / 集标记（第三季、Season 2、S03、S02E03，复用 episode.ts，见 core `lookupSearchText`），带季标记的按剧集搜，季数由新建面板照旧填进「看到哪」；有 IMDb / 豆瓣编号先按编号取；影视资料「电影/剧集」已填时只搜那一种（`media`）；TMDB 按中文名没搜到时，用 `alt` 给的名字、再用豆瓣同名条目的原名（带豆瓣年份收窄）补搜（「海绵宝宝大电影·寻找方裤」→ The SpongeBob Movie: Search for SquarePants → TMDB「海绵宝宝：深海大冒险」）；按名字永远给候选让人选，不自动采用第一条。
      - **core** `lookup.ts`：哪些类型能在线找（按内置 id：影视 / 书籍 / 游戏）、结果形状（与 Worker 的 `lookup/types.ts` 一致，两处一起改）、`lookupSearchText` / `lookupQueryOf`（按什么找）、`findLookupTwin`（库里已有的同一条：同来源编号、同 IMDb / 豆瓣编号、或同名且年份不冲突）、`planAutofill` / `applyAutofill`（逐项计划）、`itemOfLookup`。资料来源存在 `library_item.fields._source`（「tmdb:movie/693134」），**不加列、不动 schema**；下划线开头的键不是类型字段，不显示、不进搜索。
@@ -361,6 +361,8 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
        5. 按 IMDb / 豆瓣编号取到的直接进逐项确认（编号是精确的），按名字一定先给候选。
        6. 「自动补全」和在线结果只在登录且在线时出现；没登录不提示（克制）。
        7. 游戏图标用 Steam header 图（横图，方形裁中间），Steam 没有方形图标接口。
+     - ✅ **书的封面不对接任何平台，纯手填（Rei 2026-10-17 定）**：只去掉书的封面，Open Library 仍补书名、作者、年份、页数等。Worker 的 openlibrary 适配器不取 cover_i、不输出 image / thumb；`/api/lookup/image` 白名单去掉 covers.openlibrary.org（现在只拉 image.tmdb.org、*.steamstatic.com、img*.doubanio.com）。core 的来源表加 `covers`（Open Library 为 false）和 `lookupCover(r)`：自动补全不列图片那行、选中在线结果建资料不拉图、候选列表里书一律用占位图——就算旧 Worker / 缓存还带着封面地址也不用。书的封面只走现有的手动图片字段（上传 / 粘贴，照旧按海报 600×900 统一裁切）。已经拉进 R2 的旧封面不动。
+     - ✅ **书按 ISBN 精确取那一版（Rei 2026-10-17 同意）**：书籍类型加三个资料字段 出版社（publisher，文字）、出版年份（year，数字）、ISBN（isbn，站点编号 `site: 'isbn'`，链到 openlibrary.org/isbn/…），插在作者和页数之间；内置版本升到 r3（`BUILTIN_TYPES_REVISION` 0003），没改过的内置书籍直接换新定义，改过的照 `withNewBuiltinFields` 只补这三个新字段、已有的不动。core `links.ts` 的 `isbnOf`：ISBN-10 / 13，容许连字符、空格、「ISBN」前缀，也认 openlibrary.org/isbn/ 链接，校验位不对的不认（免得把一串数字当 ISBN）。选择框里输入 / 粘贴 ISBN（只在书里认）就按 ISBN 取一条候选；编辑资料「自动补全」先认已填的 ISBN（名字栏里粘的 ISBN 也认），取到的直接进逐项确认（同 IMDb 编号）；按书名找到的是作品，逐项确认上面说明「只补作者、首版年份、页数；要出版社和 ISBN，先填 ISBN 再自动补全」。按 ISBN 取到的来源记成这一版（`openlibrary:OL25840916M`，链接到 /books/）；同一 ISBN 算库里的同一本。仍然不带封面。2026-10-17 沙箱实测 978-7-5366-9293-0 → 三体 · 刘慈欣 · Chongqing Press · 2008 · 302 页。
 
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。

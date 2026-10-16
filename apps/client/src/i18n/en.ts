@@ -749,6 +749,8 @@ export const EN: Record<string, EnValue> = {
   资料来自: 'Details from',
   '{source} 上没有找到这一条': 'Not found on {source}',
   '先填名字，或者 IMDb / 豆瓣编号': 'Enter a name, or an IMDb / Douban ID, first',
+  '先填书名，或者 ISBN': 'Enter a title or an ISBN first',
+  '按书名找到的是作品，只补作者、首版年份、页数；要出版社和 ISBN，先填 ISBN 再自动补全': 'A title search finds the work, so only the author, first-published year and page count are filled. For the publisher and ISBN, enter the ISBN and autofill again',
   '没有找到「{name}」': 'Nothing found for “{name}”',
   '；': '; ',
   '按编号没取到：{why}': 'Couldn’t look up the ID: {why}',

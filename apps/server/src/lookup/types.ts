@@ -1,7 +1,7 @@
 /**
  * 在线找资料：各来源适配器共用的结果形状与请求工具。
  * LookupResult 与 packages/core/src/lookup.ts 的同名类型一致（Worker 不依赖 core，两处一起改）。
- * fields 的 key 是内置类型的字段 key：影视 year / kind（电影、剧集）/ imdb / douban；书 author / total_pages；游戏 platform / links。
+ * fields 的 key 是内置类型的字段 key：影视 year / kind（电影、剧集）/ imdb / douban；书 author / publisher / year / isbn / total_pages（按名字只有作品级的 author / year / total_pages）；游戏 platform / links。
  */
 export type FieldValue = string | number | boolean | string[] | Array<{ url: string; label?: string }> | null;
 export type LookupKind = 'movie' | 'book' | 'game';

@@ -11,6 +11,7 @@ import {
   applyAutofill,
   fieldText,
   linksOf,
+  lookupCover,
   lookupKindOf,
   lookupQueryOf,
   planAutofill,
@@ -44,13 +45,17 @@ export function onlineSubtitle(r: LookupResult): string {
   return [r.year ? String(r.year) : '', kind, r.subtitle ?? ''].filter(Boolean).join(' · ');
 }
 
-/** 在线结果的小图：只在列表里显示（选中后封面由 Worker 拉进 R2）。豆瓣的图不带 Referer 才给看。 */
+/**
+ * 在线结果的小图：只在列表里显示（选中后封面由 Worker 拉进 R2）。豆瓣的图不带 Referer 才给看。
+ * 不带封面的来源（书：封面纯手填，Rei 2026-10-17）一律用占位图。
+ */
 function OnlineArt({ r, shape, className = 'lib-option-art' }: { r: LookupResult; shape: ArtShape; className?: string }) {
   const [failed, setFailed] = useState(false);
-  if (!r.thumb || failed) return <ItemArt src={null} name={r.name} shape={shape} className={className} />;
+  const thumb = lookupCover(r).thumb;
+  if (!thumb || failed) return <ItemArt src={null} name={r.name} shape={shape} className={className} />;
   return (
     <span className={`art art-${shape} has-image ${className}`} aria-hidden>
-      <img src={r.thumb} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+      <img src={thumb} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setFailed(true)} />
     </span>
   );
 }
@@ -176,7 +181,8 @@ function errorText(e: unknown, source?: string): string {
 }
 
 /**
- * 编辑资料里的「自动补全」：按已填的 IMDb / 豆瓣编号直接取，没有就按名字搜、挑一条；
+ * 编辑资料里的「自动补全」：按已填的 IMDb / 豆瓣编号、书的 ISBN 直接取，没有就按名字搜、挑一条
+ * （书按名字找到的是作品，只补书名、作者、首版年份、页数，并提示出版社、ISBN 要按 ISBN 取那一版）；
  * 然后逐项列出要填进去的值，空缺的默认勾上，已有值的默认不勾（勾上就覆盖）。
  */
 export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store: Store; type: TaskType; draft: ItemDraft; onApply: (d: ItemDraft) => void; onCancel: () => void }) {
@@ -185,6 +191,7 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
   const [phase, setPhase] = useState<Phase>({ at: 'loading' });
   const [busy, setBusy] = useState(false);
   const ctrl = useRef<AbortController | null>(null);
+  const emptyHint = kind === 'book' ? tr('先填书名，或者 ISBN') : tr('先填名字，或者 IMDb / 豆瓣编号');
 
   const review = async (r: LookupResult, fromPick: LookupResult[] | null) => {
     setPhase({ at: 'loading' });
@@ -205,9 +212,10 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
     const c = new AbortController();
     ctrl.current = c;
     const byName = async (raw: string, note?: string) => {
-      const nq = lookupQueryOf(type, { name: raw, fields: { ...draft.fields, imdb: null, douban: null } });
+      const nq = lookupQueryOf(type, { name: raw, fields: { ...draft.fields, imdb: null, douban: null, isbn: null } });
       const name = nq?.by === 'name' ? nq.q : '';
-      if (!name) return setPhase({ at: 'message', text: note ?? tr('先填名字，或者 IMDb / 豆瓣编号') });
+      if (nq?.by === 'id') return setPhase({ at: 'message', text: note ?? emptyHint });
+      if (!name) return setPhase({ at: 'message', text: note ?? emptyHint });
       try {
         const res = await searchOnline(kind, name, c.signal, undefined, nq?.by === 'name' && nq.media ? { media: nq.media } : {});
         if (c.signal.aborted) return;
@@ -220,7 +228,7 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
       }
     };
     (async () => {
-      if (!q) return setPhase({ at: 'message', text: tr('先填名字，或者 IMDb / 豆瓣编号') });
+      if (!q) return setPhase({ at: 'message', text: emptyHint });
       if (q.by === 'id') {
         try {
           const r = await fetchLookupItem(q.source, q.id, c.signal);
@@ -230,7 +238,7 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
         } catch (e) {
           if (c.signal.aborted) return;
           // 按编号取不到（TMDB 没配置、豆瓣要验证）：退回按名字找
-          const label = q.source === 'imdb' ? 'TMDB' : tr('豆瓣');
+          const label = q.source === 'imdb' ? 'TMDB' : q.source === 'isbn' ? 'Open Library' : tr('豆瓣');
           await byName(draft.name.trim(), tr('按编号没取到：{why}', { why: errorText(e, label) }));
         }
       } else await byName(draft.name);
@@ -292,6 +300,7 @@ export function AutofillPanel({ store, type, draft, onApply, onCancel }: { store
             <SourceNote source={{ source: r.source, sourceId: r.sourceId, label: sourceLabel(r.source), url: r.url }} />
           </div>
         </div>
+        {kind === 'book' && r.source === 'openlibrary' && /W$/.test(r.sourceId) && <div className="autofill-note small">{tr('按书名找到的是作品，只补作者、首版年份、页数；要出版社和 ISBN，先填 ISBN 再自动补全')}</div>}
         {phase.rows.length === 0 ? (
           <div className="autofill-note">{tr('没有要补的，资料都已经填好了')}</div>
         ) : (

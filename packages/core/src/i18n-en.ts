@@ -194,6 +194,8 @@ export const CORE_EN: Record<string, V> = {
   豆瓣: 'Douban',
   '1889243，或粘贴链接': '1889243, or paste a link',
   '豆瓣编号是一串数字，在链接 subject/ 后面': 'A Douban ID is the number after subject/ in the link',
+  '9787536692930，或粘贴链接': '9787536692930, or paste a link',
+  'ISBN 是 10 位或 13 位，可以带连字符': 'An ISBN has 10 or 13 digits; hyphens are fine',
 
   // ── 我的一天 ──
   今天到期: 'Due Today',

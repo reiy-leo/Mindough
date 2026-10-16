@@ -3,7 +3,7 @@ import { Store } from '../src/store';
 import { MemoryAdapter } from '../src/storage/memory';
 import { BUILTIN_TASK_TYPES, BUILTIN_TYPE_IDS as T, GAME_PLATFORMS, withNewBuiltinFields } from '../src/seed/builtin-types';
 import { seedDemo } from '../src/seed/demo';
-import { SITES, detectLinkLabel, linkChips, linksOf, matchOptions, multiValuesOf, normalizeUrl, siteIdOf, siteUrlOf } from '../src/links';
+import { SITES, detectLinkLabel, isbnOf, linkChips, linksOf, matchOptions, multiValuesOf, normalizeUrl, siteIdOf, siteUrlOf } from '../src/links';
 import { factFieldsOf, itemSubtitle, planFieldMigration } from '../src/library';
 import { fieldText } from '../src/preview';
 import type { LibraryItem, TaskType } from '../src/types';
@@ -254,5 +254,37 @@ describe('填了编号就是链接（回归：Rei「添加 IMDb 和豆瓣号后�
     const cur = [{ key: 'a', label: 'A', kind: 'text' as const }, { key: 'x', label: '自己加的', kind: 'text' as const }];
     const next = [{ key: 'a', label: 'A2', kind: 'text' as const }, { key: 'b', label: 'B', kind: 'text' as const }, { key: 'c', label: 'C', kind: 'text' as const }];
     expect(withNewBuiltinFields(cur, next).map((f) => `${f.key}:${f.label}`)).toEqual(['a:A', 'b:B', 'c:C', 'x:自己加的']);
+  });
+});
+
+describe('书籍 r3：ISBN、出版社、出版年份（Rei 2026-10-17）', () => {
+  const book = BUILTIN_TASK_TYPES.find((t) => t.id === T.book)!;
+
+  it('认 ISBN-10 / 13：容许连字符、空格、ISBN 前缀，也认 openlibrary.org/isbn/ 链接；校验位不对的不认', () => {
+    expect(isbnOf('9787536692930')).toBe('9787536692930');
+    expect(isbnOf('978-7-5366-9293-0')).toBe('9787536692930');
+    expect(isbnOf('ISBN 7 5366 9293 5')).toBe('7536692935');
+    expect(isbnOf('isbn：0-8044-2957-x')).toBe('080442957X');
+    expect(isbnOf('https://openlibrary.org/isbn/9787536692930')).toBe('9787536692930');
+    expect(isbnOf('openlibrary.org/isbn/0451526538.json')).toBe('0451526538');
+    expect(isbnOf('9787536692931')).toBeNull(); // 校验位错
+    expect(isbnOf('1917')).toBeNull();
+    expect(isbnOf('三体')).toBeNull();
+    expect(siteUrlOf('isbn', '978-7-5366-9293-0')).toBe('https://openlibrary.org/isbn/9787536692930');
+  });
+
+  it('书籍类型：作者后面是出版社、出版年份、ISBN，再是页数', () => {
+    expect(book.fields.map((f) => f.key)).toEqual(['title', 'cover', 'author', 'publisher', 'year', 'isbn', 'total_pages', 'pages']);
+    expect(book.fields.find((f) => f.key === 'isbn')).toMatchObject({ kind: 'site_id', site: 'isbn' });
+  });
+
+  it('打开时：r2 的内置书籍换成新定义；用户改过的只补新字段（插在原位置，已有字段不动）', async () => {
+    const ad = new MemoryAdapter();
+    const r2 = book.fields.filter((f) => !['publisher', 'year', 'isbn'].includes(f.key));
+    await ad.applyChanges([{ table: 'task_type', row: { ...book, updated_at: '0000000000000-0002-builtin', fields: r2 } }]);
+    const s = await Store.open(ad, { deviceId: 'd', now });
+    expect(s.get('task_type', T.book)!.fields.map((f) => f.key)).toEqual(book.fields.map((f) => f.key));
+    const mine = r2.map((f) => (f.key === 'author' ? { ...f, label: '著者' } : f));
+    expect(withNewBuiltinFields(mine, book.fields).map((f) => `${f.key}:${f.label}`)).toEqual(['title:书名', 'cover:封面', 'author:著者', 'publisher:出版社', 'year:出版年份', 'isbn:ISBN', 'total_pages:页数', 'pages:读到第几页']);
   });
 });

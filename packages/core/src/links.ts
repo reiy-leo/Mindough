@@ -54,7 +54,42 @@ export const SITES: Record<string, SiteDef> = {
     },
     url: (id) => `https://movie.douban.com/subject/${id}/`,
   },
+  isbn: {
+    label: 'ISBN',
+    get placeholder() { return tr('9787536692930，或粘贴链接'); },
+    get hint() { return tr('ISBN 是 10 位或 13 位，可以带连字符'); },
+    parse: (input) => isbnOf(input),
+    url: (id) => `https://openlibrary.org/isbn/${id}`,
+  },
 };
+
+/** ISBN-10 / 13 的校验位对不对（已去掉连字符、空格，X 大写）。 */
+function isbnChecksum(s: string): boolean {
+  let sum = 0;
+  if (/^\d{9}[\dX]$/.test(s)) {
+    for (let i = 0; i < 10; i++) sum += (s[i] === 'X' ? 10 : Number(s[i])) * (10 - i);
+    return sum % 11 === 0;
+  }
+  if (/^97[89]\d{10}$/.test(s)) {
+    for (let i = 0; i < 13; i++) sum += Number(s[i]) * (i % 2 ? 3 : 1);
+    return sum % 10 === 0;
+  }
+  return false;
+}
+
+/**
+ * 认 ISBN：10 位或 13 位，容许连字符、空格（978-7-5366-9293-0、ISBN 7 5366 9293 5），也认 openlibrary.org/isbn/… 链接。
+ * 校验位不对的不认（免得把一串普通数字当成 ISBN）。返回去掉连字符、空格的写法（X 大写）。
+ */
+export function isbnOf(input: string): string | null {
+  const s = clean(input);
+  if (!s) return null;
+  const link = /openlibrary\.org\/isbn\/([\dXx][\dXx -]{8,20})/.exec(s);
+  const body = link ? link[1]! : s.replace(/^isbn(?:-1[03])?[:：\s]*/i, '');
+  if (!link && !/^[\dXx -]+$/.test(body)) return null;
+  const digits = body.replace(/[\s-]/g, '').toUpperCase();
+  return isbnChecksum(digits) ? digits : null;
+}
 
 /** 一个站点编号字段的值 → 编号（认不出 = null）。 */
 export function siteIdOf(site: string | undefined, v: FieldValue | undefined): string | null {

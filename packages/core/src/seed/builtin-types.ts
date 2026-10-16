@@ -24,9 +24,10 @@ export const BUILTIN_TYPE_IDS = {
 /**
  * 内置定义的版本戳。改了内置类型的定义（如资料库拆分 资料字段 / 任务字段）就把序号加一：
  * 打开时，存着的内置类型若仍是更早的内置版本（用户没改过），自动换成新定义；用户改过的（真实 HLC）不动。
- * r1 = 资料库（2026-10-15）；r2 = 影视去掉「平台」、加 IMDb / 豆瓣 / 更多链接，游戏「平台」改多选、加更多链接，购物「价格」改金额 + 币种，「看到哪」认 S02E03 / 第二季第三集（2026-10-15）。
+ * r1 = 资料库（2026-10-15）；r2 = 影视去掉「平台」、加 IMDb / 豆瓣 / 更多链接，游戏「平台」改多选、加更多链接，购物「价格」改金额 + 币种，「看到哪」认 S02E03 / 第二季第三集（2026-10-15）；
+ * r3 = 书籍加出版社、出版年份、ISBN（按 ISBN 在线取那一版，Rei 2026-10-17）。
  */
-export const BUILTIN_TYPES_REVISION = '0000000000000-0002-builtin';
+export const BUILTIN_TYPES_REVISION = '0000000000000-0003-builtin';
 
 /** 游戏平台的选项（多选；界面文案见 docs/COPY.md）。 */
 export const GAME_PLATFORMS = [
@@ -111,6 +112,9 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
       { key: 'title', label: '书名', kind: 'text', primary: true },
       { key: 'cover', label: '封面', kind: 'image', media: true },
       { key: 'author', label: '作者', kind: 'text' },
+      { key: 'publisher', label: '出版社', kind: 'text' },
+      { key: 'year', label: '出版年份', kind: 'number' },
+      { key: 'isbn', label: 'ISBN', kind: 'site_id', site: 'isbn' },
       { key: 'total_pages', label: '页数', kind: 'number', unit: '页' },
       { key: 'pages', label: '读到第几页', kind: 'progress', unit: '页', scope: 'task' },
     ],

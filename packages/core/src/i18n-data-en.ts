@@ -33,6 +33,8 @@ export const DATA_EN: Record<string, string> = {
   书名: 'Title',
   封面: 'Cover',
   作者: 'Author',
+  出版社: 'Publisher',
+  出版年份: 'Year Published',
   页数: 'Pages',
   页: 'pages',
   读到第几页: 'Current Page',

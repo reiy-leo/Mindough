@@ -5,6 +5,7 @@ import {
   applyAutofill,
   findLookupTwin,
   itemOfLookup,
+  lookupCover,
   lookupKindOf,
   lookupQueryOf,
   lookupSearchText,
@@ -91,8 +92,36 @@ describe('在线补全：按什么找', () => {
     expect(lookupQueryOf(movie, { name: '鱿鱼游戏 第三季', fields: { kind: '剧集' } })).toEqual({ by: 'name', q: '鱿鱼游戏', media: 'tv', season: 3 });
     // 书不管电影 / 剧集
     expect(lookupQueryOf(book, { name: '三体', fields: {} })).toEqual({ by: 'name', q: '三体' });
+    // 书：已填 ISBN（或名字栏里粘的是 ISBN）就按 ISBN 取那一版
+    expect(lookupQueryOf(book, { name: '三体', fields: { isbn: '978-7-5366-9293-0' } })).toEqual({ by: 'id', source: 'isbn', id: '9787536692930' });
+    expect(lookupQueryOf(book, { name: '三体', fields: { isbn: '乱写' } })).toEqual({ by: 'name', q: '三体' });
+    expect(lookupQueryOf(book, { name: 'https://openlibrary.org/isbn/7536692935', fields: {} })).toEqual({ by: 'id', source: 'isbn', id: '7536692935' });
     expect(lookupQueryOf(book, { name: '', fields: {} })).toBeNull();
     expect(lookupQueryOf(type(T.meal), { name: '红烧肉', fields: {} })).toBeNull();
+  });
+});
+
+describe('在线补全：书的 ISBN（Rei 2026-10-17）', () => {
+  it('选择框里输入 / 粘贴 ISBN：按 ISBN 取；只在书里认，影视里照旧按名字', () => {
+    expect(lookupSearchText('978 7 5366 9293 0', 'book')).toEqual({ by: 'id', source: 'isbn', id: '9787536692930' });
+    expect(lookupSearchText('ISBN 7-5366-9293-5', 'book')).toEqual({ by: 'id', source: 'isbn', id: '7536692935' });
+    expect(lookupSearchText('openlibrary.org/isbn/9787536692931', 'book')).toBeNull(); // 链接里的校验位错：不当书名搜
+    expect(lookupSearchText('9787536692930', 'movie')).toEqual({ by: 'name', q: '9787536692930' });
+    expect(lookupSearchText('三体', 'book')).toEqual({ by: 'name', q: '三体' });
+  });
+
+  it('某一版（OL…M）的来源链接指向 /books/，作品指向 /works/；同一 ISBN 算库里的同一本', () => {
+    expect(parseSourceRef('openlibrary:OL25840916M')?.url).toBe('https://openlibrary.org/books/OL25840916M');
+    const ed: LookupResult = { source: 'openlibrary', sourceId: 'OL25840916M', name: '三体', fields: { isbn: '9787536692930', publisher: 'Chongqing Press' }, url: '' };
+    const items = [item({ id: 'b1', type_id: T.book, name: '三体（典藏版）', fields: { isbn: '978-7-5366-9293-0' } })];
+    expect(findLookupTwin(items, T.book, ed)).toBe('b1');
+  });
+
+  it('按 ISBN 取到的一版：逐项列出出版社、出版年份、ISBN、页数，没有封面那行', () => {
+    const ed: LookupResult = { source: 'openlibrary', sourceId: 'OL25840916M', name: '三体', year: 2008, fields: { author: '刘慈欣', publisher: 'Chongqing Press', year: 2008, isbn: '9787536692930', total_pages: 302 }, url: '' };
+    const rows = planAutofill(book, { name: '三体', image: null, fields: { isbn: '978-7-5366-9293-0' } }, ed);
+    expect(rows.map((r) => r.key).sort()).toEqual(['author', 'publisher', 'total_pages', 'year']);
+    expect(itemOfLookup(book, ed).fields).toEqual({ author: '刘慈欣', publisher: 'Chongqing Press', year: 2008, isbn: '9787536692930', total_pages: 302, [SOURCE_KEY]: 'openlibrary:OL25840916M' });
   });
 });
 
@@ -146,6 +175,31 @@ describe('在线补全：逐项计划', () => {
     expect(links.next).toEqual([{ url: 'https://example.com/' }, { url: 'https://store.steampowered.com/app/1/' }]);
     // 已经有了就不列
     expect(planAutofill(game, { name: 'X', image: null, fields: { links: [{ url: 'https://store.steampowered.com/app/1' }] } }, r).find((x) => x.key === 'links')).toBeUndefined();
+  });
+
+  it('书的封面纯手填（Rei 2026-10-17）：Open Library 的结果不列图片那行，书名、作者、年份照填', () => {
+    // 就算 Worker（旧版本 / 缓存）还带着封面地址，也不用
+    const three: LookupResult = {
+      source: 'openlibrary',
+      sourceId: 'OL17267881W',
+      name: '三体',
+      year: 2008,
+      image: 'https://covers.openlibrary.org/b/id/9157544-L.jpg',
+      thumb: 'https://covers.openlibrary.org/b/id/9157544-M.jpg',
+      fields: { author: '刘慈欣', total_pages: 417 },
+      url: 'https://openlibrary.org/works/OL17267881W',
+    };
+    expect(lookupCover(three)).toEqual({});
+    const rows = planAutofill(book, { name: '', image: null, fields: {} }, three);
+    expect(rows.some((r) => r.def.media && !r.def.primary)).toBe(false);
+    expect(rows.map((r) => r.next)).toEqual(expect.arrayContaining(['三体', '刘慈欣']));
+    // 已有手动上传的封面：不动
+    const draft = { name: '', image: 'asset-mine', fields: {} };
+    const out = applyAutofill(draft, planAutofill(book, draft, three), new Set(rows.map((r) => r.key)), three, 'asset-x');
+    expect(out.image).toBe('asset-mine');
+    expect(out.name).toBe('三体');
+    // 别的来源照旧带封面
+    expect(lookupCover(dune)).toEqual({ image: dune.image });
   });
 
   it('任务字段（看到哪）不填', () => {

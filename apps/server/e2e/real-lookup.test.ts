@@ -21,7 +21,18 @@ describe.skipIf(!on)('真实来源', () => {
     expect(hit.fields.author).toContain('刘慈欣');
     const item = await lookupItem(env, 'openlibrary', hit.sourceId, 'zh');
     expect(item.name).toBe(hit.name);
+    expect(item.image).toBeUndefined(); // 书的封面纯手填
     console.log('openlibrary', JSON.stringify(item));
+  }, 30000);
+
+  it('Open Library 按 ISBN：三体（重庆出版社 2008）', async () => {
+    const item = await lookupItem(env, 'isbn', '978-7-5366-9293-0', 'zh');
+    console.log('isbn', JSON.stringify(item));
+    expect(item.sourceId).toMatch(/^OL\d+M$/);
+    expect(item.fields.isbn).toBe('9787536692930');
+    expect(item.fields.author).toBe('刘慈欣');
+    expect(item.fields.publisher).toBeTruthy();
+    expect(item.image).toBeUndefined();
   }, 30000);
 
   it('Steam：艾尔登法环（中文）/ Elden Ring（英文）', async () => {
@@ -56,13 +67,12 @@ describe.skipIf(!on)('真实来源', () => {
     expect(item.fields.imdb).toBe('tt15239678');
   }, 30000);
 
-  it('封面真的拉得进 R2（Open Library 会跳到 archive.org、Steam、豆瓣带 Referer）', async () => {
+  it('封面真的拉得进 R2（Steam、豆瓣带 Referer；书的封面纯手填，不拉 Open Library）', async () => {
     const data = new Map<string, ArrayBuffer>();
     const FILES: AssetBucket = { get: async () => null, head: async (k) => (data.has(k) ? {} : null), put: async (k, v) => (data.set(k, v), {}) };
     const SESSION_SECRET = 'e2e-secret';
     const auth = `Bearer ${await sign({ sub: 's', email: 'e2e@mindough.test', name: 'e', picture: null, exp: Date.now() + 60000 }, SESSION_SECRET)}`;
     for (const url of [
-      'https://covers.openlibrary.org/b/id/9157544-L.jpg',
       'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg',
       'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2902227445.jpg',
     ]) {

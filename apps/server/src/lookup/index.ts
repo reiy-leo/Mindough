@@ -7,8 +7,8 @@
  *        TMDB 按这个名字没搜到：再用 alt 给的名字、豆瓣同名条目的原名（如英文名）补搜，原名带豆瓣的年份收窄
  *        （试跑：「海绵宝宝大电影·寻找方裤」在 TMDB 叫「海绵宝宝：深海大冒险」）。永远只给候选，不替人选。
  *        所有来源都失败时返回第一个失败的状态码（如 TMDB 没配置 → 503 服务不可用）。
- * - GET  /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb&id=…&lang=zh|en → LookupResult
- *        source=imdb：按 IMDb 编号经 TMDB find 直接取。
+ * - GET  /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb|isbn&id=…&lang=zh|en → LookupResult
+ *        source=imdb：按 IMDb 编号经 TMDB find 直接取；source=isbn：按 ISBN-10 / 13 经 Open Library 取那一版（容许连字符、空格）。
  * - POST /api/lookup/image { url } → 把选中结果的封面拉进 R2（mindough-assets），返回同 POST /api/assets 的 { url, r2_key, sha256, mime, size }。
  *   { url, raw: true } → 只代拉原图字节回去（不存）：客户端先按版式统一宽高，再自己 POST /api/assets。
  *        只拉这几个来源的图床（防止拿 Worker 去请求任意地址）。
@@ -16,7 +16,7 @@
  */
 import { requestUser, storeAsset, MAX_ASSET_BYTES, type AssetEnv } from '../assets';
 import { doubanItem, searchDouban, DOUBAN_IMAGE_HEADERS } from './douban';
-import { openLibraryItem, searchOpenLibrary } from './openlibrary';
+import { openLibraryByIsbn, openLibraryItem, searchOpenLibrary } from './openlibrary';
 import { searchSteam, steamItem } from './steam';
 import { searchTmdb, tmdbByImdb, tmdbItem, type Media } from './tmdb';
 import { LookupError, upstream, type Lang, type LookupEnv, type LookupKind, type LookupResult, type LookupSource, type LookupSourceStatus } from './types';
@@ -155,14 +155,16 @@ export function lookupItem(env: LookupEnv, source: string, id: string, lang: Lan
       return cached(key, ITEM_TTL, () => doubanItem(id));
     case 'openlibrary':
       return cached(key, ITEM_TTL, () => openLibraryItem(id));
+    case 'isbn':
+      return cached(`item/isbn/${encodeURIComponent(id.replace(/[\s-]/g, '').toUpperCase())}`, ITEM_TTL, () => openLibraryByIsbn(id));
     case 'steam':
       return cached(key, ITEM_TTL, () => steamItem(id, lang));
     default:
-      return Promise.reject(new LookupError(400, '400 请求有误：source 只能是 tmdb、douban、openlibrary、steam、imdb'));
+      return Promise.reject(new LookupError(400, '400 请求有误：source 只能是 tmdb、douban、openlibrary、steam、imdb、isbn'));
   }
 }
 
-/** 能拉进 R2 的图床（来源的官方图片域名）。 */
+/** 能拉进 R2 的图床（来源的官方图片域名）。没有 Open Library：书的封面纯手填（Rei 2026-10-17）。 */
 export function allowedImageHost(url: string): boolean {
   let u: URL;
   try {
@@ -172,7 +174,7 @@ export function allowedImageHost(url: string): boolean {
   }
   if (u.protocol !== 'https:') return false;
   const h = u.hostname.toLowerCase();
-  return h === 'image.tmdb.org' || h === 'covers.openlibrary.org' || h.endsWith('.steamstatic.com') || /^img\d+\.doubanio\.com$/.test(h);
+  return h === 'image.tmdb.org' || h.endsWith('.steamstatic.com') || /^img\d+\.doubanio\.com$/.test(h);
 }
 
 async function importImage(req: Request, env: LookupWorkerEnv, who: string): Promise<Response> {
@@ -186,7 +188,7 @@ async function importImage(req: Request, env: LookupWorkerEnv, who: string): Pro
   const raw = body.raw === true;
   if (!raw && !env.FILES) return json({ error: '503 服务不可用：图片存储还没配置' }, 503);
   const url = typeof body.url === 'string' ? body.url : '';
-  if (!allowedImageHost(url)) return json({ error: '400 请求有误：只能拉 TMDB、豆瓣、Open Library、Steam 的图片' }, 400);
+  if (!allowedImageHost(url)) return json({ error: '400 请求有误：只能拉 TMDB、豆瓣、Steam 的图片' }, 400);
   let res: Response;
   try {
     res = await upstream('图床', url, { headers: new URL(url).hostname.endsWith('doubanio.com') ? DOUBAN_IMAGE_HEADERS : {} }, 10000);

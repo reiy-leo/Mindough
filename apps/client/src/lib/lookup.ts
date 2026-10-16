@@ -1,13 +1,15 @@
 /**
  * 在线找资料（M4）：调 Worker 的 /api/lookup/*（要登录）。离线或没登录时整块不出现，界面永不等网络：
  * - 选中一条在线结果：先用搜索结果马上建好资料，再在后台补详情（IMDb 编号等）和封面（Worker 拉进 R2，存 asset 引用，不热链）；
- * - 自动补全：先取结果，逐项给人看，确认后才填（图片也是这时才拉）。
+ * - 自动补全：先取结果，逐项给人看，确认后才填（图片也是这时才拉）；
+ * - 书的封面不对接任何平台，纯手填（Rei 2026-10-17）：Open Library 的结果不填图、不拉图（core 的 lookupCover）。
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   findLookupTwin,
   getLocale,
   itemOfLookup,
+  lookupCover,
   lookupSearchText,
   type FieldValue,
   type LookupKind,
@@ -69,8 +71,8 @@ export function searchOnline(kind: LookupKind, q: string, signal?: AbortSignal, 
   return getJson(`/api/lookup/search?kind=${kind}&q=${encodeURIComponent(q)}&lang=${lang()}${extra}`, signal, fetcher);
 }
 
-/** source 可以是 imdb（按 IMDb 编号经 TMDB 取）。 */
-export function fetchLookupItem(source: LookupSource | 'imdb', id: string, signal?: AbortSignal, fetcher?: typeof fetch): Promise<LookupResult> {
+/** source 可以是 imdb（按 IMDb 编号经 TMDB 取）、isbn（按 ISBN 经 Open Library 取那一版）。 */
+export function fetchLookupItem(source: LookupSource | 'imdb' | 'isbn', id: string, signal?: AbortSignal, fetcher?: typeof fetch): Promise<LookupResult> {
   return getJson(`/api/lookup/item?source=${source}&id=${encodeURIComponent(id)}&lang=${lang()}`, signal, fetcher);
 }
 
@@ -129,7 +131,7 @@ async function enrich(store: Store, type: TaskType, id: string, r: LookupResult,
   } catch {
     /* 详情拿不到就用搜索结果 */
   }
-  const image = full.image ?? r.image;
+  const image = lookupCover(full).image ?? lookupCover(r).image;
   const asset = image ? await importImage(store, image, artShape(type)) : null;
   const cur = store.get('library_item', id);
   if (!cur || cur.deleted) return;
@@ -158,13 +160,13 @@ const IDLE: OnlineSearchState = { status: 'idle', results: [], sources: [] };
 
 /**
  * 边打字边在线找：防抖 350 毫秒，新的输入取消上一次请求；离线、没登录、空查询都不找。
- * 输入框里的原文进来：季标记（第三季、S03）去掉、按剧集搜；粘贴的 IMDb / 豆瓣编号或链接直接按编号取（也只是一条候选，要人点）。
+ * 输入框里的原文进来：季标记（第三季、S03）去掉、按剧集搜；粘贴的 IMDb / 豆瓣编号或链接、书的 ISBN 直接按编号取（也只是一条候选，要人点）。
  */
 export function useOnlineSearch(kind: LookupKind | null, text: string, delay = 350): OnlineSearchState {
   const available = useLookupAvailable();
   const [state, setState] = useState<OnlineSearchState>(IDLE);
   const seq = useRef(0);
-  const parsed = lookupSearchText(text);
+  const parsed = lookupSearchText(text, kind);
   const key = parsed ? JSON.stringify(parsed) : '';
   useEffect(() => {
     const my = ++seq.current;
@@ -177,8 +179,8 @@ export function useOnlineSearch(kind: LookupKind | null, text: string, delay = 3
     setState((s) => ({ ...s, status: 'loading' }));
     const run = (): Promise<LookupSearchResponse> => {
       if (q.by === 'name') return searchOnline(kind, q.q, ctrl.signal, undefined, q.media ? { media: q.media } : {});
-      if (kind !== 'movie') return searchOnline(kind, text.trim(), ctrl.signal);
-      const source: LookupSource = q.source === 'imdb' ? 'tmdb' : 'douban';
+      if (q.source === 'isbn' ? kind !== 'book' : kind !== 'movie') return searchOnline(kind, text.trim(), ctrl.signal);
+      const source: LookupSource = q.source === 'imdb' ? 'tmdb' : q.source === 'isbn' ? 'openlibrary' : 'douban';
       return fetchLookupItem(q.source, q.id, ctrl.signal).then(
         (r) => ({ results: [r], sources: [{ source, status: 'ok' as const }] }),
         (e: unknown) => {
