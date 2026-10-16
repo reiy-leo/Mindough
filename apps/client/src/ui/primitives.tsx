@@ -427,16 +427,19 @@ export function Select({
   onChange,
   options,
   className,
+  isDisabled,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: Option[];
   className?: string;
+  isDisabled?: boolean;
 }) {
   return (
     <RacSelect
       className={`field${className ? ` ${className}` : ''}`}
+      {...(isDisabled ? { isDisabled } : {})}
       selectedKey={value}
       onSelectionChange={(k: Key | null) => k !== null && onChange(String(k))}
     >

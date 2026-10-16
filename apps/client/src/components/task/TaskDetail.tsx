@@ -30,7 +30,7 @@ import {
   type TaskType,
   canRemind,
 } from '@mindough/core';
-import { isPickableType } from '@mindough/core';
+import { shownFields } from '@mindough/core';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { navigate } from '../../lib/router';
 import { ItemCard, ItemSheet, LibraryPicker, artShape, entryArt } from '../library/Library';
@@ -670,12 +670,12 @@ function Detail({ task }: { task: Task }) {
   const close = () => ui.openEditor(null);
   const { primary, secondary, today, complete } = useActions(store, task, close);
   const type = store.get('task_type', task.type_id);
-  const typed = !!type && type.id !== PLAIN_TYPE_ID && type.fields.length > 0;
+  const typed = !!type && type.id !== PLAIN_TYPE_ID && shownFields(type).length > 0;
   const title = titleOf(store, task);
   const lib = hasLibrary(type) ? type : null;
   const taskFields = lib ? taskFieldsOf(lib) : [];
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
-  const types = store.list('task_type').filter(isPickableType).sort((a, b) => a.sort - b.sort);
+  const types = store.pickableTypes();
   const group = store.get('group', task.group_id);
   const linked = store.list('task_person').filter((x) => x.task_id === task.id).map((x) => x.person_id);
   const people = linked.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);

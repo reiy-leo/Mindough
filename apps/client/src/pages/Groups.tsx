@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarRange, LayoutGrid, List, Network, Plus, Shapes } from 'lucide-react';
 import { formatDateZh, isFinished, toDateKey, type Group, type Task } from '@mindough/core';
-import { isPickableType } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -61,7 +60,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
           label={tr('默认类型')}
           value={type}
           onChange={setType}
-          options={[{ id: '__none', label: tr('普通') }, ...store.list('task_type').filter((t) => t.layout !== 'text' && isPickableType(t)).map((t) => ({ id: t.id, label: dataLabel(t.name) }))]}
+          options={[{ id: '__none', label: tr('普通') }, ...store.pickableTypes().filter((t) => t.layout !== 'text').map((t) => ({ id: t.id, label: dataLabel(t.name) }))]}
         />
       </div>
     </Sheet>

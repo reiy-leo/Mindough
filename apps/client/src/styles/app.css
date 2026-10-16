@@ -850,6 +850,11 @@ button {
   height: 32px;
   border-radius: var(--radius-sm);
 }
+.thumb-round {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
 .thumb-avatar {
   width: 30px;
   height: 30px;
@@ -1149,22 +1154,28 @@ button {
 .layout-banner .task-card-media {
   aspect-ratio: 12 / 5;
 }
-.layout-icon_name {
+.layout-icon_name,
+.layout-round {
   flex-direction: row;
   align-items: center;
   padding: var(--space-3);
   gap: var(--space-3);
 }
-.layout-icon_name .task-card-media {
+.layout-icon_name .task-card-media,
+.layout-round .task-card-media {
   width: 52px;
   height: 52px;
   border-radius: var(--radius-md);
   flex: none;
 }
+.layout-round .task-card-media {
+  border-radius: 50%;
+}
 .layout-icon_name .task-card-media img.is-avatar {
   border-radius: 50%;
 }
-.layout-icon_name .task-card-body {
+.layout-icon_name .task-card-body,
+.layout-round .task-card-body {
   padding: 0;
 }
 .task-card-body {

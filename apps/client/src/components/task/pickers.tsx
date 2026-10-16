@@ -38,7 +38,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType, weekdayLabel } from '@mindough/core';
+  type TaskType, weekdayLabel, shownFields } from '@mindough/core';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -469,7 +469,7 @@ export function FieldInput({ store, def, value, onChange }: { store: Store; def:
 /** 类型字段卡片：主字段在前、占满一行，其余两列。bare：不带标题和底色（详情里放进折叠区时用）。 */
 export function TypeFields({ store, type, data, onChange, bare }: { store: Store; type: TaskType; data: Record<string, FieldValue>; onChange: (key: string, v: FieldValue) => void; bare?: boolean }) {
   const Icon = typeIcon(type.icon);
-  const fields = [...type.fields].sort((a, b) => Number(!!b.primary) - Number(!!a.primary));
+  const fields = shownFields(type).sort((a, b) => Number(!!b.primary) - Number(!!a.primary));
   return (
     <section className={`type-fields${bare ? ' is-bare' : ''}`} style={{ '--chip-color': type.color } as CSSProperties} aria-label={tr('{name}信息', { name: dataLabel(type.name) })}>
       {!bare && (

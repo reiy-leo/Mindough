@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Lock } from 'lucide-react';
-import { TASK_STATUS_LABEL, fieldText, isLinkField, type Store, type Task } from '@mindough/core';
+import { TASK_STATUS_LABEL, fieldText, isLinkField, shownFields, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 import { AvatarStack } from './Avatar';
-import { ItemArt } from './library/Library';
+import { ItemArt, layoutShape } from './library/Library';
 
 import { dataLabel, tr } from '../lib/i18n';
 /** 按类型版式显示的卡片：海报 / 图标+名称 / 横幅 / 纯文字。 */
@@ -15,7 +15,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
   const v = viewOf(store, task);
   const layout = v.type?.layout ?? 'text';
   const Icon = typeIcon(v.type?.icon);
-  const facts = (v.type?.fields ?? [])
+  const facts = shownFields(v.type)
     .filter((f) => !f.primary && !f.media && f.kind !== 'image' && f.kind !== 'link' && f.kind !== 'person' && !isLinkField(f))
     .map((f) => {
       const val = fieldText(v.data[f.key]);
@@ -27,7 +27,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
     <RacButton className={`task-card layout-${layout} ${STATE_CLASS[v.derived?.state ?? ''] ?? ''}${task.status === '完成' ? ' is-done' : ''}${task.status === '关闭' ? ' is-closed' : ''}`} onPress={() => ui.openEditor(task.id)}>
       {layout !== 'text' && (
         <div className="task-card-media" style={{ '--type-color': v.type?.color } as CSSProperties}>
-          {v.media ? <img src={v.media} alt="" className={v.mediaIsAvatar ? 'is-avatar' : undefined} /> : v.artName ? <ItemArt src={null} name={v.artName} shape={layout === 'poster' ? 'poster' : layout === 'banner' ? 'banner' : 'square'} className="task-card-art" /> : <Icon size={layout === 'poster' ? 32 : 22} />}
+          {v.media ? <img src={v.media} alt="" className={v.mediaIsAvatar ? 'is-avatar' : undefined} /> : v.artName ? <ItemArt src={null} name={v.artName} shape={layoutShape(layout)} className="task-card-art" /> : <Icon size={layout === 'poster' ? 32 : 22} />}
         </div>
       )}
       <div className="task-card-body">

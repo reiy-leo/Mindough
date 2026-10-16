@@ -8,7 +8,7 @@ import { STATE_CLASS, viewOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
 import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
-import { ItemArt } from './library/Library';
+import { ItemArt, layoutShape } from './library/Library';
 
 import { dataLabel, tr } from '../lib/i18n';
 export interface TaskRowProps {
@@ -29,7 +29,7 @@ export function TaskThumb({ media, layout, isAvatar, color, icon, name }: { medi
   if (media) return <img className={`thumb thumb-${isAvatar ? 'avatar' : layout}`} src={media} alt="" />;
   if (layout === 'text') return null;
   // 资料没有图：按名字生成的渐变占位
-  if (name) return <ItemArt src={null} name={name} shape={layout === 'poster' ? 'poster' : layout === 'banner' ? 'banner' : 'square'} className={`thumb thumb-${layout}`} />;
+  if (name) return <ItemArt src={null} name={name} shape={layoutShape(layout)} className={`thumb thumb-${layout}`} />;
   return (
     <span className="thumb thumb-icon" style={{ color }}>
       <Icon size={16} />

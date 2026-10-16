@@ -33,9 +33,12 @@ export type ArtShape = 'poster' | 'square' | 'banner' | 'round';
 export function artShape(type: Pick<TaskType, 'layout' | 'fields'> | null | undefined): ArtShape {
   if (!type) return 'square';
   if (isPersonLibrary(type)) return 'round';
-  if (type.layout === 'poster') return 'poster';
-  if (type.layout === 'banner') return 'banner';
-  return 'square';
+  return layoutShape(type.layout);
+}
+
+/** 版式 → 图的形状：竖版海报 2:3、横幅 16:9、圆形，其余方形。 */
+export function layoutShape(layout: string): ArtShape {
+  return layout === 'poster' ? 'poster' : layout === 'banner' ? 'banner' : layout === 'round' ? 'round' : 'square';
 }
 
 /** 资料的图：有图显示图，没有就是按名字生成的渐变 + 缩写。宽度由外层给，高度按形状比例。 */

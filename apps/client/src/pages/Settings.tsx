@@ -9,11 +9,12 @@ import { resetSyncState, syncedAgo } from '@mindough/core';
 import { Button, Section, Segmented, Switch } from '../ui/primitives';
 import { notifyPermission, onReminderSettings, remindersEnabled, requestNotifyPermission, setRemindersEnabled, type NotifyPermission } from '../lib/reminders';
 import { PageHeader } from '../components/PageHeader';
+import { TypeManager } from '../components/TypeManager';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
-import { tr } from '../lib/i18n';
+import { tr, trc } from '../lib/i18n';
 import { useLocalePref } from '../lib/locale';
 import type { LocalePref } from '../lib/i18n';
 
@@ -32,6 +33,7 @@ export function SettingsPage() {
       <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
       <AccountSection />
       <ReminderSection />
+      <TypesSection />
       <Section title={tr('外观')}>
         <div className="card settings-card">
           <div className="setting">
@@ -162,6 +164,31 @@ export function SettingsPage() {
       </Section>
       <p className="muted small about">{tr('Mindough · 数据先存在这台设备上，离线也能用')}</p>
     </div>
+  );
+}
+
+/** 类型：影视、书籍…与自定义类型。打开类型编辑器（和资料库页标签条末尾的「编辑」是同一个）。 */
+function TypesSection() {
+  const store = useStore();
+  const [open, setOpen] = useState(false);
+  const types = store.editableTypes();
+  const hidden = types.filter((t) => t.hidden).length;
+  return (
+    <Section title={trc('类型编辑器', '类型')}>
+      <div className="card settings-card">
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-name">{tr('任务类型')}</div>
+            <div className="setting-hint">
+              {hidden ? tr('{n} 种，隐藏了 {h} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length, h: hidden }) : tr('{n} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length })}
+            </div>
+          </div>
+          <Button variant="secondary" onPress={() => setOpen(true)}>
+            {tr('编辑类型')}</Button>
+        </div>
+      </div>
+      <TypeManager isOpen={open} onOpenChange={setOpen} />
+    </Section>
   );
 }
 

@@ -11,7 +11,7 @@
  * - 主字段（名字）与图片字段固定是资料字段，不能隐藏、不能删、不能改种类。
  */
 import { BUILTIN_TYPE_IDS, PLAIN_TYPE_ID } from './seed/builtin-types';
-import { tr } from './i18n';
+import { trc } from './i18n';
 import type { FieldDef, FieldKind, TaskType, TypeLayout } from './types';
 
 /** 资料库版式（编辑器里能选的四种）：竖版海报 2:3、方形、横幅 16:9、圆形。 */
@@ -21,20 +21,20 @@ export const LIBRARY_LAYOUTS: readonly TypeLayout[] = ['poster', 'icon_name', 'b
 export const EDITABLE_FIELD_KINDS: readonly FieldKind[] = ['text', 'number', 'progress', 'date', 'select', 'multiselect', 'link', 'links', 'site_id', 'image', 'list', 'money', 'episode'];
 
 export const FIELD_KIND_LABEL: Record<FieldKind, string> = {
-  get text() { return tr('文字'); },
-  get number() { return tr('数字'); },
-  get progress() { return tr('进度'); },
-  get date() { return tr('日期'); },
-  get link() { return tr('链接'); },
-  get image() { return tr('图片'); },
-  get select() { return tr('单选'); },
-  get multiselect() { return tr('多选'); },
-  get money() { return tr('金额'); },
-  get episode() { return tr('看到第几集'); },
-  get person() { return tr('人物'); },
-  get list() { return tr('清单'); },
-  get site_id() { return tr('站点编号'); },
-  get links() { return tr('更多链接'); },
+  get text() { return trc('字段种类', '文字'); },
+  get number() { return trc('字段种类', '数字'); },
+  get progress() { return trc('字段种类', '进度'); },
+  get date() { return trc('字段种类', '日期'); },
+  get link() { return trc('字段种类', '链接'); },
+  get image() { return trc('字段种类', '图片'); },
+  get select() { return trc('字段种类', '单选'); },
+  get multiselect() { return trc('字段种类', '多选'); },
+  get money() { return trc('字段种类', '金额'); },
+  get episode() { return trc('字段种类', '看到第几集'); },
+  get person() { return trc('字段种类', '人物'); },
+  get list() { return trc('字段种类', '清单'); },
+  get site_id() { return trc('字段种类', '站点编号'); },
+  get links() { return trc('字段种类', '更多链接'); },
 };
 
 /** 类型编辑器里出现的类型：不含「普通」（没有字段和版式）和「人物」（已从可选类型删掉，人物库保留）。 */

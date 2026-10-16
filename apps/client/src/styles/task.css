@@ -864,6 +864,9 @@
 .hero-media.layout-banner {
   width: 96px;
 }
+.hero-media.layout-round {
+  border-radius: 50%;
+}
 .hero-icon {
   flex: none;
   width: 48px;

@@ -26,6 +26,7 @@ import { href, navigate } from '../lib/router';
 import { typeIcon } from '../lib/icons';
 import { Button, ConfirmDialog, OverflowMenu, Section } from '../ui/primitives';
 import { PageHeader } from '../components/PageHeader';
+import { TypeManager } from '../components/TypeManager';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { ItemArt, ItemSheet, artShape, entryArt } from '../components/library/Library';
@@ -36,10 +37,7 @@ import { imageUrl } from '../lib/view';
 import { dataLabel, tr } from '../lib/i18n';
 function useLibraries(): TaskType[] {
   const store = useStore();
-  return store
-    .list('task_type')
-    .filter((t) => !t.hidden && hasLibrary(t))
-    .sort((a, b) => a.sort - b.sort);
+  return store.orderedTypes().filter((t) => !t.hidden && hasLibrary(t));
 }
 
 function Tile({ entry, type, onPress }: { entry: LibraryEntry; type: TaskType; onPress: () => void }) {
@@ -68,6 +66,7 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
   const type = libs.find((t) => t.id === typeId) ?? libs[0];
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
+  const [managing, setManaging] = useState(false);
   const entries = useMemo(() => (type ? store.libraryEntries(type.id) : []), [store, store.version, type?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // 资料库页按名字排；搜索时按匹配度
   const shown = useMemo(() => (query.trim() ? searchLibrary(entries, query, 500) : [...entries].sort((a, b) => b.recency - a.recency)), [entries, query]);
@@ -95,6 +94,7 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
               ),
             })}
       />
+      <div className="lib-tabs-row">
       <nav className="lib-tabs" aria-label={tr('资料库')}>
         {libs.map((t) => {
           const TIcon = typeIcon(t.icon);
@@ -117,6 +117,10 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
           );
         })}
       </nav>
+        <RacButton className="btn btn-quiet filter-edit lib-tabs-edit" onPress={() => setManaging(true)}>
+          {tr('编辑')}</RacButton>
+      </div>
+      <TypeManager isOpen={managing} onOpenChange={setManaging} />
       <div className="lib-toolbar">
         <SearchField aria-label={tr('在{name}里搜索', { name: copy.name })} className="lib-search" value={query} onChange={setQuery}>
           <Search size={15} className="lib-search-icon" aria-hidden />
