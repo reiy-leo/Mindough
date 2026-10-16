@@ -949,3 +949,22 @@
   height: 24px;
   background: var(--accent-contrast);
 }
+
+/* 资料合并：WinUI 的勾选框是方的、合并卡片圆角小；Material 选中用 secondary container */
+[data-skin='winui'] .lib-tile-check {
+  border-radius: var(--radius-xs);
+}
+[data-skin='winui'] .merge-cand.is-target {
+  box-shadow: none;
+  border-width: 2px;
+  padding: 11px 9px 9px;
+}
+[data-skin='material'] .merge-cand {
+  border-radius: 16px;
+}
+[data-skin='material'] .merge-cand.is-target {
+  box-shadow: none;
+}
+[data-skin='material'] .merge-cell {
+  border-radius: 8px;
+}

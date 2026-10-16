@@ -69,6 +69,7 @@ export function LibraryPicker({
   exclude,
   className,
   searchText,
+  allowCreate = true,
 }: {
   store: Store;
   type: TaskType;
@@ -82,6 +83,8 @@ export function LibraryPicker({
   className?: string;
   /** 实际拿去搜 / 新建的名字（如去掉了「S02E03」）；不给就用输入框里的字。 */
   searchText?: string;
+  /** 最后一行「新建“xxx”」（合并时挑目标不要）。 */
+  allowCreate?: boolean;
 }) {
   const copy = libraryCopy(type);
   const shape = artShape(type);
@@ -89,7 +92,7 @@ export function LibraryPicker({
   const q = (searchText ?? query).trim();
   const results = useMemo(() => searchLibrary(all, q, 40), [all, q]);
   const same = q ? findSameName(all, q) : undefined;
-  const canCreate = !!q && !same;
+  const canCreate = allowCreate && !!q && !same;
   const count = results.length + (canCreate ? 1 : 0);
   const [active, setActive] = useState(0);
   const listId = useId();

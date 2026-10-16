@@ -527,7 +527,8 @@ function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task:
   const LibIcon = typeIcon(type.icon);
   const person = isPersonLibrary(type);
   const key = type.fields.find((f) => f.primary)!.key;
-  const entryId = person ? (typeof task.type_data[key] === 'string' ? (task.type_data[key] as string) : null) : task.library_item_id;
+  // 合并过的资料 / 人物：顺着 merged_into 找到留下的那条
+  const entryId = person ? (typeof task.type_data[key] === 'string' ? (store.resolvePersonId(task.type_data[key] as string) ?? (task.type_data[key] as string)) : null) : (store.itemOf(task)?.id ?? task.library_item_id);
   const entry = entryId ? store.libraryEntries(type.id).find((e) => e.id === entryId) : undefined;
   const copy = libraryCopy(type);
   const [query, setQuery] = useState('');
