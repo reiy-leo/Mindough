@@ -358,6 +358,25 @@ export const CORE_EN: Record<string, V> = {
   周六大扫除: 'Saturday deep clean',
   '冥想 10 分钟': 'Meditate for 10 minutes',
   '对账、记一下上月开销': 'Reconcile last month’s spending',
+  // ── 日记（journal.ts） ──
+  开心: 'Happy',
+  兴奋: 'Excited',
+  感恩: 'Grateful',
+  满足: 'Content',
+  平静: 'Calm',
+  一般: 'Okay',
+  无聊: 'Bored',
+  疲惫: 'Tired',
+  焦虑: 'Anxious',
+  难过: 'Sad',
+  烦躁: 'Irritated',
+  生气: 'Angry',
+  '这天还没到，还不能写': 'This day hasn’t come yet, so you can’t write in it',
+  没有这一天: 'That day doesn’t exist',
+  '另一台设备上同时写的 · {time}': 'Also written on another device · {time}',
+  '今天过得怎么样？写几句吧': 'How was today? Jot a few lines.',
+  '日期写得不对，没导入': 'The date isn’t valid, so it wasn’t imported',
+  'id 和日期对不上，按日期导入': 'The id doesn’t match the date; imported by date',
 };
 
 function ordinal(n: number): string {

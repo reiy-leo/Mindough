@@ -311,6 +311,24 @@ export interface Pref extends BaseRow {
   value: FieldValue;
 }
 
+/**
+ * 日记（Rei 2026-10-17）：一天一篇，id 由日期算（journal.ts 的 journalEntryId）。SQLite 迁移 v6。
+ * 正文整段后写赢，另加一道保护：两台设备都改了同一天、互相没看到对方那版时，输掉的那版收进末尾折叠块（见 journal.ts）。
+ */
+export interface JournalEntry extends BaseRow {
+  /** 本地日期（按「一天从几点开始」算的那一天）。 */
+  date: DateKey;
+  body_md: string;
+  /** 心情的稳定 id（journal.ts 的 MOOD_IDS），可空；不认识的（新版本加的）原样保留。 */
+  mood: string | null;
+  /**
+   * 这一版是在哪一版「别的设备写的」内容上改的（那一版的 updated_at）；从没见过别的设备的版本时为 null。
+   * 同一台设备连着改不变。拉下来的一版 base_at 早于本机这版 = 它没看到本机写的，触发同步保护。
+   */
+  base_at: Hlc | null;
+  created_at: Timestamp;
+}
+
 export interface TableMap {
   task: Task;
   dependency: Dependency;
@@ -326,6 +344,7 @@ export interface TableMap {
   asset: Asset;
   library_item: LibraryItem;
   pref: Pref;
+  journal_entry: JournalEntry;
 }
 
 export type TableName = keyof TableMap;
@@ -344,6 +363,7 @@ export const TABLES: readonly TableName[] = [
   'library_item',
   'task_link',
   'pref',
+  'journal_entry',
 ];
 
 /** 写入时调用方提供的部分：id / updated_at / deleted 由存储层补齐。 */

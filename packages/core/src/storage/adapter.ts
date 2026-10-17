@@ -60,6 +60,7 @@ export function emptySnapshot(): Snapshot {
     library_item: [],
     task_link: [],
     pref: [],
+    journal_entry: [],
   };
 }
 

@@ -14,6 +14,7 @@ export * from './reminders';
 export * from './preview';
 export * from './describe';
 export * from './search';
+export * from './journal';
 export * from './library';
 export * from './typedef';
 export * from './merge';

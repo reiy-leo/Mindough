@@ -12,6 +12,7 @@ import { normalizeName } from '../library';
 import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
 import { tr } from '../i18n';
+import { isDateKey, journalEntryId } from '../journal';
 import {
   COMPLETION_MODES,
   TASK_STATUSES,
@@ -26,6 +27,7 @@ import {
   type Group,
   type LibraryItem,
   type Person,
+  type JournalEntry,
   type Pref,
   type TableName,
   type Task,
@@ -55,8 +57,8 @@ import {
 } from './text';
 
 /** 预览里分开数的几种东西（打卡记录、图片、分类这些跟着走，不单独数）。 */
-export type ImportKind = 'task' | 'group' | 'library' | 'person' | 'type';
-export const IMPORT_KINDS: readonly ImportKind[] = ['task', 'group', 'library', 'person', 'type'];
+export type ImportKind = 'task' | 'group' | 'library' | 'person' | 'type' | 'journal';
+export const IMPORT_KINDS: readonly ImportKind[] = ['task', 'group', 'library', 'person', 'type', 'journal'];
 
 /** new = 库里没有（或已删除）；existing = 有，内容不同；same = 有，内容一样（总是跳过）。 */
 export type EntryState = 'new' | 'existing' | 'same';
@@ -195,6 +197,8 @@ const content = (r: BaseRow) => {
   const { updated_at: _u, deleted: _d, ...rest } = r as BaseRow & { merged_into?: string | null };
   // merged_into 只在被并掉的墓碑上有值；活的行是 null，文件里不写，比较时当没有
   if (rest.merged_into == null) delete rest.merged_into;
+  // 日记的 base_at 是同步用的记号，不算内容
+  delete (rest as { base_at?: unknown }).base_at;
   return stableJson(rest);
 };
 
@@ -371,6 +375,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
   const top = (path: string) => (path.includes('/') ? path.split('/')[0]! : '');
   const isLib = (p: Parsed) => format === 'mindough' && p.path.startsWith('library/');
   const isPerson = (p: Parsed) => format === 'mindough' && p.path.startsWith('people/');
+  const isJournal = (p: Parsed) => format === 'mindough' && p.path.startsWith('journal/');
   const isGroupFile = (p: Parsed) => baseOf(p.path) === '_group.md' && dirOf(p.path) !== '' && !dirOf(p.path).includes('/');
 
   // 组
@@ -458,9 +463,30 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     add('person', 'person', p.path, name, row);
   }
 
+  // 日记：按日期认（id 由日期算，文件里的 id 只是核对）
+  for (const p of parsed.filter(isJournal)) {
+    const date = dateKey(p.fm.date) ?? (/^\d{4}-\d{2}-\d{2}$/.test(stemOf(p.path)) ? stemOf(p.path) : null);
+    if (!date || !isDateKey(date)) {
+      err(p.path, tr('日期写得不对，没导入'));
+      continue;
+    }
+    const id = journalEntryId(date);
+    if (p.fm.id !== undefined && (!isId(p.fm.id) || p.fm.id.trim() !== id)) warn(p.path, tr('id 和日期对不上，按日期导入'));
+    const mood = str(p.fm.mood)?.trim() || null;
+    const row = fresh<Omit<JournalEntry, 'updated_at' | 'deleted'>>({
+      id,
+      date,
+      body_md: body(p.body, p.path),
+      mood,
+      base_at: null,
+      created_at: iso(p.fm.created) ?? now.toISOString(),
+    });
+    add('journal', 'journal_entry', p.path, date, row);
+  }
+
   // 任务
   let sort = store.list('task').reduce((m, t) => Math.max(m, t.sort), 0);
-  const taskFiles = parsed.filter((p) => !isGroupFile(p) && !isLib(p) && !isPerson(p));
+  const taskFiles = parsed.filter((p) => !isGroupFile(p) && !isLib(p) && !isPerson(p) && !isJournal(p));
   for (const p of taskFiles) if (own(p) && isId(p.fm.id)) archiveTasks.add(p.fm.id.trim());
   for (const p of taskFiles) {
     const fm = p.fm;
@@ -594,7 +620,7 @@ export function applyImport(store: Store, plan: ImportPlan, opts: { overwrite?: 
   const active = new Set<string>();
   for (const e of plan.entries) {
     const write = e.state === 'new' || (overwrite && e.state === 'existing');
-    if (write) put(e.table, { ...e.row, updated_at: '', deleted: false });
+    if (write) put(e.table, e.table === 'journal_entry' ? ({ ...e.row, updated_at: '', deleted: false, base_at: store.journalBaseOf(e.id) } as BaseRow) : { ...e.row, updated_at: '', deleted: false });
     if (e.table === 'task' && (e.state === 'new' || overwrite)) active.add(e.id);
   }
   const planned = new Set(plan.entries.map((e) => `${e.table}:${e.id}`));

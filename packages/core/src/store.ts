@@ -33,6 +33,9 @@ import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, ty
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
+import { parseHlc } from './hlc';
+import { FutureJournalError, JOURNAL_PREFS, canWriteJournal, conflictSummary, isDateKey, isJournalConflict, journalEntryId, journalToday, mergeJournalConflict, normalizeDayStart, type MoodId } from './journal';
+import type { JournalEntry } from './types';
 export interface StoreOptions {
   deviceId?: string;
   now?: () => Date;
@@ -313,6 +316,8 @@ export class Store {
    */
   applyRemote(changes: readonly Change[]): number {
     const applied: Change[] = [];
+    /** 日记同步保护：拉下来的一版没看到本机那版，合好的新一版（作为本机写入）。 */
+    const journalMerges: JournalEntry[] = [];
     for (const c of changes) {
       const table = this.tables[c.table] as Map<string, BaseRow> | undefined;
       if (!table || !c.row?.id || typeof c.row.updated_at !== 'string') continue;
@@ -320,6 +325,16 @@ export class Store {
       if (/^\d{13}-/.test(c.row.updated_at)) this.clock.receive(c.row.updated_at);
       if (cur && !(c.row.updated_at > cur.updated_at)) continue;
       const row = { ...c.row } as BaseRow;
+      if (c.table === 'journal_entry') {
+        const j = row as JournalEntry;
+        if (j.mood === undefined) j.mood = null;
+        if (j.base_at === undefined) j.base_at = null;
+        if (typeof j.body_md !== 'string') j.body_md = '';
+        if (cur && isJournalConflict(cur as JournalEntry, j)) {
+          const merged = mergeJournalConflict(j.body_md, (cur as JournalEntry).body_md, conflictSummary(cur.updated_at));
+          if (merged !== null) journalMerges.push({ ...j, body_md: merged, base_at: j.updated_at });
+        }
+      }
       if (c.table === 'task') {
         const t = row as Task;
         if (t.checkin_category_id === undefined) t.checkin_category_id = null;
@@ -338,6 +353,8 @@ export class Store {
       .catch((err) => this.opts.onError?.(err));
     // 拉下来的有合并（来源墓碑）或指向已合并资料的任务：解开成环的合并，把指着旧 id 的改写到目标
     if (applied.some((c) => c.table === 'library_item' || c.table === 'person' || c.table === 'task' || c.table === 'task_person')) this.settleMerges();
+    // 日记：赢家内容 + 末尾折叠块收着本机那版，作为一次新的本机写入推上去（另一台看到的 base_at 就是赢家，不会再合）
+    if (journalMerges.length) this.write(journalMerges.map((row) => ({ table: 'journal_entry' as const, row })));
     return applied.length;
   }
 
@@ -1028,6 +1045,64 @@ export class Store {
     if (cur && JSON.stringify(cur.value) === JSON.stringify(value)) return;
     if (this.raw('pref', id)) this.update('pref', id, { value, deleted: false });
     else this.insert('pref', { id, key, value });
+  }
+
+  // ───────────── 日记 ─────────────
+
+  /** 「一天从几点开始」（同步的偏好，默认 5 点）。 */
+  journalDayStart(): number {
+    return normalizeDayStart(this.pref(JOURNAL_PREFS.dayStart));
+  }
+
+  /** 「今天的日记」是哪天（按「一天从几点开始」）。 */
+  journalToday(now: Date = this.now()): string {
+    return journalToday(now, this.journalDayStart());
+  }
+
+  /** 那天的日记（没写过 / 删了是 undefined）。 */
+  journalOf(date: string): JournalEntry | undefined {
+    return isDateKey(date) ? this.get('journal_entry', journalEntryId(date)) : undefined;
+  }
+
+  /**
+   * 写那天的日记（正文和 / 或心情）。没有就建（同一天总是同一行，删过的墓碑翻回来）；将来的日子抛 FutureJournalError。
+   * 什么都没变不写；新的一天正文空、没心情也不建。base_at：上一版是别的设备写的就记它，自己写的沿用它的 base_at。
+   */
+  setJournal(date: string, patch: { body_md?: string; mood?: MoodId | string | null }): JournalEntry | undefined {
+    if (!isDateKey(date)) throw new Error(tr('没有这一天'));
+    if (!canWriteJournal(date, this.journalToday())) throw new FutureJournalError();
+    const id = journalEntryId(date);
+    const cur = this.tables.journal_entry.get(id);
+    const alive = cur && !cur.deleted ? cur : undefined;
+    const body = patch.body_md ?? alive?.body_md ?? '';
+    const mood = patch.mood !== undefined ? patch.mood : (alive?.mood ?? null);
+    if (alive && alive.body_md === body && alive.mood === mood) return alive;
+    if (!alive && !body.trim() && !mood) return undefined;
+    const base = this.journalBaseOf(id);
+    const row: JournalEntry = {
+      id,
+      updated_at: '',
+      deleted: false,
+      date,
+      body_md: body,
+      mood,
+      base_at: base ?? null,
+      created_at: alive?.created_at ?? this.now().toISOString(),
+    };
+    this.write([{ table: 'journal_entry', row }]);
+    return this.tables.journal_entry.get(id);
+  }
+
+  /** 改这一行日记时该记的 base_at：上一版是别的设备写的就是它，自己写的沿用它的 base_at，没有就是 null。 */
+  journalBaseOf(id: string): string | null {
+    const cur = this.tables.journal_entry.get(id);
+    if (!cur) return null;
+    return parseHlc(cur.updated_at).deviceId === this.deviceId ? (cur.base_at ?? null) : cur.updated_at;
+  }
+
+  /** 删掉那天的日记（墓碑）。 */
+  deleteJournal(date: string): void {
+    if (isDateKey(date)) this.remove('journal_entry', journalEntryId(date));
   }
 
   // ───────────── 打卡分类 ─────────────

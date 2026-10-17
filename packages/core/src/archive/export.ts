@@ -1,7 +1,7 @@
 /**
  * 导出成 Markdown 文件夹（格式见 docs/EXPORT.md）：一件任务一个 .md（YAML front matter + 正文），
  * 组 = 一层文件夹（_group.md 记组的属性），资料库 library/<库名>/<名字>.md，人物 people/<名字>.md，
- * 类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
+ * 日记 journal/YYYY/MM/YYYY-MM-DD.md（front matter 只有 id、date、mood、created），类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
  * id 才是身份：文件名只给人看，改名不影响再导入。
  */
 import type { Store } from '../store';
@@ -29,7 +29,7 @@ import {
 export const ARCHIVE_FORMAT = 'mindough-markdown';
 export const ARCHIVE_VERSION = 1;
 /** 归档根下保留的文件夹（不当成组）。 */
-export const RESERVED_DIRS = ['_meta', 'library', 'people', 'assets'] as const;
+export const RESERVED_DIRS = ['_meta', 'library', 'people', 'assets', 'journal'] as const;
 export const MANIFEST_PATH = '_meta/mindough.json';
 
 export interface ExportImage {
@@ -48,6 +48,8 @@ export interface ExportCounts {
   groups: number;
   library: number;
   people: number;
+  /** 日记篇数。 */
+  journal: number;
   images: number;
 }
 
@@ -284,8 +286,19 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
     files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(p.note_md, path)) });
   }
 
+  // ── 日记：journal/YYYY/MM/YYYY-MM-DD.md（「这一天」汇总是算出来的，不导出） ──
+  const journal = store
+    .list('journal_entry')
+    .filter((e) => e.body_md.trim() || e.mood)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  for (const e of journal) {
+    const path = `journal/${e.date.slice(0, 4)}/${e.date.slice(5, 7)}/${e.date}.md`;
+    const fm = { id: e.id, date: e.date, mood: e.mood ?? undefined, created: e.created_at };
+    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(e.body_md, path)) });
+  }
+
   // ── _meta ──
-  const counts: ExportCounts = { tasks: tasks.length, groups: groups.length, library: items.length, people: people.length, images: images.files.size };
+  const counts: ExportCounts = { tasks: tasks.length, groups: groups.length, library: items.length, people: people.length, journal: journal.length, images: images.files.size };
   files.push({ path: MANIFEST_PATH, data: json({ format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, exported_at: now.toISOString(), device: store.deviceId, counts }) });
   // 类型的 hidden 列语义是「归档」（Rei 2026-10-17），文件里写 archived；导入兼容旧文件的 hidden
   files.push({

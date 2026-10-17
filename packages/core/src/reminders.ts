@@ -6,6 +6,7 @@
  *   countdown  倒数日：目标日那天 remind_time 提醒「就是今天」
  *   checkin    定期打卡：每个要打卡的日子 remind_time 提醒（这个周期已经达标就不提醒）
  *   timer      正在计时、有目标时长：到点提醒（不用设 remind_time，总会提醒）
+ *   journal    每天写日记（Rei 2026-10-17：晚上 9 点，不论是不是已经写了）：不属于任务，taskId 是空串，见 journalReminders
  * 已完成 / 已关闭 / 删除的任务不提醒。remind_time 是本机（或传入的 timeZone）的墙上时间「HH:MM」；
  * 夏令时跳过的时刻（如纽约 3 月 02:30）顺延到跳过后的同一刻，重复的时刻取第一次。
  *
@@ -17,7 +18,7 @@ import { isDueOn, parseRecurrence } from './recurrence';
 import { isFinished, type CheckIn, type DateKey, type Task } from './types';
 import { tr } from './i18n';
 
-export type ReminderKind = 'due' | 'countdown' | 'checkin' | 'timer';
+export type ReminderKind = 'due' | 'countdown' | 'checkin' | 'timer' | 'journal';
 
 export interface Reminder {
   id: string;
@@ -170,6 +171,34 @@ export function upcomingReminders(tasks: readonly Task[], checkIns: readonly Che
   return out.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
 }
 
+/**
+ * 日记提醒：每天 time（「HH:MM」）响一次，写没写都响（Rei 2026-10-17）。范围、已响过、稍后再提醒同 upcomingReminders。
+ * id = journal:journal:{那天}，taskId 为空串。
+ */
+export function journalReminders(time: string | null | undefined, opts: ReminderOptions): Reminder[] {
+  const hhmm = normalizeRemindTime(time);
+  if (!hhmm) return [];
+  const nowMs = opts.now.getTime();
+  const from = nowMs - (opts.graceMs ?? 15 * 60_000);
+  const to = nowMs + (opts.horizonMs ?? 48 * 3_600_000);
+  const tz = opts.timeZone;
+  const fired = opts.fired ?? new Set<string>();
+  const snoozed = opts.snoozed ?? new Map<string, number>();
+  const out: Reminder[] = [];
+  for (let day = dateKeyIn(from, tz); day <= dateKeyIn(to, tz); day = addDays(day, 1)) {
+    const id = reminderId('journal', 'journal', day);
+    const s = snoozed.get(id);
+    if (s !== undefined) {
+      if (s >= from && s <= to) out.push({ id, taskId: '', kind: 'journal', at: s, date: day, snoozed: true });
+      continue;
+    }
+    if (fired.has(id)) continue;
+    const at = wallTimeToEpoch(day, hhmm, tz);
+    if (at >= from && at <= to) out.push({ id, taskId: '', kind: 'journal', at, date: day, snoozed: false });
+  }
+  return out;
+}
+
 /** 已到点（at ≤ now）的提醒。 */
 export function dueReminders(list: readonly Reminder[], now: Date): Reminder[] {
   return list.filter((r) => r.at <= now.getTime());
@@ -186,6 +215,8 @@ export function reminderBody(r: Pick<Reminder, 'kind'>, task: Pick<Task, 'target
       return tr('该打卡了');
     case 'timer':
       return tr('计时到了：{duration}', { duration: formatDuration(task.target_value ?? 0) });
+    case 'journal':
+      return tr('今天过得怎么样？写几句吧');
   }
 }
 

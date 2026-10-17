@@ -60,6 +60,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   library_item: { type_id: 'text', name: 'text', image: 'text?', fields: 'json', note_md: 'text', created_at: 'text', merged_into: 'text?' },
   task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
   pref: { key: 'text', value: 'json' },
+  journal_entry: { date: 'text', body_md: 'text', mood: 'text?', base_at: 'text?', created_at: 'text' },
 };
 
 /** SQL 标识符加引号（"group" 是关键字）。 */
@@ -186,6 +187,17 @@ CREATE TABLE IF NOT EXISTS "pref" (
     sql: `
 ALTER TABLE "library_item" ADD COLUMN "merged_into" TEXT;
 ALTER TABLE "person" ADD COLUMN "merged_into" TEXT;
+`,
+  },
+  {
+    version: 6,
+    name: '日记（journal_entry）',
+    sql: `
+CREATE TABLE IF NOT EXISTS "journal_entry" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "date" TEXT NOT NULL, "body_md" TEXT NOT NULL DEFAULT '', "mood" TEXT, "base_at" TEXT, "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "journal_entry_date" ON "journal_entry" ("date");
 `,
   },
 ];
