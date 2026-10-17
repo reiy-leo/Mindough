@@ -10,6 +10,7 @@
  * - 链接（Rei 2026-10-17）：点一下是打开（不进编辑）；悬停 / 光标落在链接里时通知外面显示小浮层（看地址、编辑、去掉）；
  *   改地址按 mark 的范围 removeMark + addMark，不再 toggle 掉。手打 [文字](网址) 打完右括号就变成链接（![图](…) 不算）。
  * - GitHub 提示块 `> [!NOTE]`、数学公式 `$…$` / `$$…$$`（KaTeX）见 gh-syntax.ts（Rei 2026-10-17）。
+ * - 折叠块 `<details><summary>标题</summary>…</details>` 见 details.ts（Rei 2026-10-17）。
  * - Tab 不让焦点跑出编辑器：弹层（React Aria FocusScope contain）在 document 上自己接 Tab 挪焦点、不看 defaultPrevented，
  *   所以编辑器根节点上把 Tab 的冒泡拦下来。
  */
@@ -29,6 +30,7 @@ import type { Mark, MarkType, NodeType, Node as PMNode } from '@milkdown/kit/pro
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { remoteImagePaste, remoteImageView } from './remote-image';
 import { ghSyntax, mathSafeText } from './gh-syntax';
+import { detailsAt, detailsSyntax, toggleDetails } from './details';
 
 const ZW = '\u200b';
 
@@ -50,7 +52,7 @@ export function finishMarkdown(md: string): string {
 /** 两段 markdown 是否只是格式差异（末尾空白）。 */
 export const sameMarkdown = (a: string, b: string) => a.replace(/\s+$/, '') === b.replace(/\s+$/, '');
 
-export type MdCommand = 'bold' | 'italic' | 'strike' | 'code' | 'h1' | 'h2' | 'h3' | 'text' | 'bullet' | 'ordered' | 'task' | 'quote' | 'codeblock' | 'table' | 'link';
+export type MdCommand = 'bold' | 'italic' | 'strike' | 'code' | 'h1' | 'h2' | 'h3' | 'text' | 'bullet' | 'ordered' | 'task' | 'quote' | 'codeblock' | 'table' | 'link' | 'details';
 
 /** 文档里的一段链接：[from, to) 与地址。 */
 export interface LinkRange {
@@ -422,6 +424,7 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     .use(commonmark)
     .use(gfm)
     .use(ghSyntax)
+    .use(detailsSyntax)
     .use(history)
     .use(listener)
     .use(remoteImagePaste)
@@ -511,6 +514,11 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
           return void call(createCodeBlockCommand.key);
         case 'table':
           return void call(insertTableCommand.key, { row: 3, col: 2 });
+        case 'details': {
+          const v = view();
+          toggleDetails(v.state, v.dispatch.bind(v));
+          return;
+        }
         case 'link': {
           const v = view();
           const href = (arg ?? '').trim();
@@ -578,6 +586,7 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
       if (st.schema.marks.strike_through && has('strike_through')) out.add('strike');
       if (has('inlineCode')) out.add('code');
       if (has('link')) out.add('link');
+      if (detailsAt(st)) out.add('details');
       for (let d = $from.depth; d >= 0; d--) {
         const n = $from.node(d);
         if (n.type.name === 'heading') out.add(`h${Math.min(3, n.attrs.level as number)}` as MdCommand);

@@ -188,6 +188,11 @@ export const EN: Record<string, EnValue> = {
   小心: 'Caution',
   脚注: 'Footnotes',
   '回到引用 {0}': 'Back to reference {0}',
+  // 折叠块（<details><summary>，Rei 2026-10-17）
+  折叠块: 'Collapsible',
+  折叠块标题: 'Summary',
+  展开折叠块: 'Expand',
+  收起折叠块: 'Collapse',
 
   // ── 日期面板 ──
   不设日期: 'No Date',

@@ -1805,11 +1805,6 @@ button {
   background: var(--surface-2);
   flex-wrap: wrap;
 }
-.editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
 .editor-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -2055,12 +2050,48 @@ button {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+/* 折叠块 <details>（Rei 2026-10-17）：左边一个小三角（展开时转 90°），正文和标题对齐缩进；编辑器里同一套（editor.css .md-details） */
 .md details {
   margin: 6px 0;
 }
 .md summary {
+  position: relative;
+  display: block;
+  list-style: none;
+  padding-left: 20px;
+  font-weight: 500;
   cursor: pointer;
-  color: var(--text-2);
+  user-select: none;
+}
+.md summary::-webkit-details-marker {
+  display: none;
+}
+.md summary::before,
+.md .md-details-toggle::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: calc(0.5lh - 7px);
+  width: 14px;
+  height: 14px;
+  background: var(--text-3);
+  -webkit-mask: var(--chevron) center / 14px no-repeat;
+  mask: var(--chevron) center / 14px no-repeat;
+  transition: transform 0.15s ease;
+}
+.md details[open] > summary::before,
+.md .md-details.is-open > .md-details-toggle::before {
+  transform: rotate(90deg);
+}
+.md summary:hover::before,
+.md .md-details-toggle:hover::before {
+  background: var(--text-2);
+}
+.md details > :not(summary) {
+  margin-left: 20px;
+}
+.md {
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
 }
 .md hr {
   border: 0;

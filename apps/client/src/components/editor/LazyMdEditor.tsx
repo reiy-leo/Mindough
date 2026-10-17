@@ -16,7 +16,7 @@ export function LazyMdEditor(props: MdEditorProps) {
     <Suspense
       fallback={
         <div className={`md-editor is-loading${props.className ? ` ${props.className}` : ''}`}>
-          <div className="md-editor-root">{props.value.trim() ? <Markdown source={props.value} /> : <div className="md md-editor-content"><p className="md-placeholder" data-placeholder={props.placeholder ?? ''} /></div>}</div>
+          <div className="md-editor-root">{props.value.trim() ? <Markdown source={props.value} className="md-editor-content" /> : <div className="md md-editor-content"><p className="md-placeholder" data-placeholder={props.placeholder ?? ''} /></div>}</div>
         </div>
       }
     >

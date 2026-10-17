@@ -2,7 +2,7 @@
  * Markdown 所见即所得编辑器（任务内容、资料 / 人物备注）。写的时候就是排好版的样子，存的还是 markdown。
  *
  * - 写法：直接打 markdown 也会变（「# 」标题、「- 」列表、「[ ] 」清单、「> 」引用、「```」代码、**粗体**…）。
- * - 工具栏：编辑时在下方出现一排小按钮（放下面，点进来时文字不跳）（标题 / 粗体 / 斜体 / 删除线 / 清单 / 列表 / 编号 / 引用 / 代码 / 链接 / 表格），
+ * - 工具栏：编辑时在下方出现一排小按钮（放下面，点进来时文字不跳）（标题 / 粗体 / 斜体 / 删除线 / 清单 / 列表 / 编号 / 引用 / 代码 / 折叠块 / 链接 / 表格），
  *   按钮不抢焦点；悬停提示带快捷键。⌘K / Ctrl+K 加链接，Esc 收起。
  * - 链接（Rei 2026-10-17「放上去就展示吧，点一下是访问链接」）：点一下打开（Web 新标签页，App 交给系统浏览器）；
  *   鼠标移到链接上出现小浮层：原地址 +「编辑」（预填原地址，回车保存）「去掉链接」，鼠标能移进浮层，移开收起。
@@ -11,7 +11,7 @@
  * 这个文件按需加载（LazyMdEditor），加载完之前显示排好版的预览。
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Bold, Code, Heading, Italic, Link2, List, ListChecks, ListOrdered, Quote, Strikethrough, Table } from 'lucide-react';
+import { Bold, Code, Heading, Italic, Link2, List, ListChecks, ListCollapse, ListOrdered, Quote, Strikethrough, Table } from 'lucide-react';
 import { Button as RacButton, Input, TextField } from 'react-aria-components';
 import { Tip } from '../../ui/primitives';
 import { tr } from '../../lib/i18n';
@@ -57,6 +57,7 @@ const TOOLS: Tool[][] = [
     { cmd: 'ordered', icon: <ListOrdered size={16} />, label: () => tr('编号列表'), keys: `${mod}${alt}7` },
     { cmd: 'quote', icon: <Quote size={16} />, label: () => tr('引用'), keys: `${mod}${shift}B` },
     { cmd: 'codeblock', icon: <Code size={16} />, label: () => tr('代码'), keys: `${mod}${alt}C` },
+    { cmd: 'details', icon: <ListCollapse size={16} />, label: () => tr('折叠块') },
   ],
   [
     { cmd: 'link', icon: <Link2 size={16} />, label: () => tr('链接'), keys: `${mod}K` },

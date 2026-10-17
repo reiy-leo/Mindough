@@ -360,10 +360,52 @@
   margin: 0;
   min-width: 0;
 }
-/* Milkdown 给 ProseMirror 根节点加了 class="editor"，正好撞上 app.css 的 .editor（flex + 16px 间距）：
-   块之间已经有 16px，提示块 / 公式块自己的上下外边距去掉，免得叠成 32px */
-.md-editor-content.editor > .md-alert,
-.md-editor-content.editor > .md-math-block-edit {
-  margin-top: 0;
-  margin-bottom: 0;
+/* 注意：Milkdown 会给 ProseMirror 根节点加 class="editor"。别在任何地方给裸的 .editor 写样式（以前 app.css 里那条 flex + 16px 间距
+   让编辑器每块之间多出 16px，Rei 2026-10-17 去掉了）；编辑器块间距只靠 .md 的外边距，和只读显示一样。 */
+
+/* ───────── 折叠块 <details>（details.ts，Rei 2026-10-17）─────────
+ * 三角是不可编辑的按钮（画法和只读的 summary::before 共用，见 app.css .md summary），点它展开 / 收起；标题一行纯文字，下面是正文。 */
+.md-editor-content .md-details {
+  position: relative;
+  margin: 6px 0;
+}
+.md-editor-content .md-details-toggle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 1lh;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  cursor: pointer;
+}
+.md-editor-content .md-details-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.md-editor-content .md-details-inner {
+  padding-left: 20px;
+}
+.md-editor-content .md-details-summary {
+  font-weight: 500;
+  margin: 0;
+}
+.md-editor-content .md-details:not(.is-open) > .md-details-inner > :not(.md-details-summary) {
+  display: none;
+}
+.md-editor-content .md-details-summary.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-3);
+  font-weight: 400;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+/* 任务正文第一块是折叠块：不当大标题 */
+.detail-md .md-editor-content > .md-details:first-child {
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: inherit;
+  margin-bottom: 6px;
 }
