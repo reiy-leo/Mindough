@@ -35,6 +35,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
   typedef.ts            类型编辑器的纯逻辑：字段增改排序隐藏、删字段留墓碑（key 不变、值保留）、类型顺序（同步偏好 type_order）；类型不能删、只能归档（存 hidden 列，Store.archiveType）
+  journal.ts            日记（Rei 2026-10-17）：日期 → 固定 id、「一天从几点开始」、将来不能写、12 个心情 id、字数、同步保护（两边都改时输家收进折叠块，base_at 判断有没有看到对方）
   merge.ts              资料 / 人物合并：合并后的值与冲突、可能重复的分组、merged_into 解析与成环处理（写入在 Store.mergeLibraryItems / mergePeople）
   links.ts money.ts episode.ts  字段种类的逻辑：站点编号（IMDb / 豆瓣）与更多链接、金额 + 币种、看到第几季第几集
   lookup.ts             在线找资料的纯逻辑：结果形状、按什么找（去季标记、电影 / 剧集）、库里的同一条、自动补全逐项计划；来源存 fields._source
@@ -50,6 +51,8 @@ apps/client/src/
   components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
   components/library/   资料库共用件：占位图 ItemArt、选择框 LibraryPicker、资料编辑 ItemEditor / ItemSheet、资料卡 ItemCard
                         LinkFields（站点编号 / 更多链接 / 链接小标签）、MoneyField（金额 + 可搜索币种）、NoteField（Markdown 备注）
+  components/journal/   日记：心情图标 MoodIcon（手写 SVG + journal.css 动画，颜色令牌 --mood-*）、MoodPicker、月历 JournalCalendar、我的一天小卡 JournalCard
+  pages/Journal.tsx     日记页（docs/JOURNAL.md）
   pages/Library.tsx     资料库页与资料详情（人物库沿用 pages/People.tsx 的人物详情）
   components/ pages/    业务组件与页面（不写死平台样式）
   styles/task.css       新建面板与详情的结构样式
@@ -60,7 +63,7 @@ apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）�
                         存储层 sql.ts（SqlDb 接口）/ storage.ts（按 STORAGE_BACKEND 选）/ turso.ts（Hrana HTTP）/ d1.ts（D1 绑定 + REST）/ copy.ts（库间全量复制与核对，scripts/copy-storage.ts）、assets.ts（R2 图片）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
   test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso；storage.test.ts 用 Miniflare 本地 D1）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
 .github/workflows/      ci.yml、build.yml
-docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPORT.md（导入导出格式）
+docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPORT.md（导入导出格式）、DEEPLINKS.md、JOURNAL.md（日记方案与决定）
 .agents/                skills / rules / prompts / memory
 ```
 

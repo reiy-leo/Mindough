@@ -183,6 +183,7 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
 - person：id、name、avatar_asset_id、relation、birthday、note_md
 - task_person：task_id、person_id
 - asset：id、sha256、mime、width、height、r2_key（同步后）
+- journal_entry（日记，SQLite 迁移 v6，Rei 2026-10-17）：id（由日期算：`journalEntryId`）、date、body_md、mood（心情英文 id，可空）、base_at（这一版是在哪一版别的设备写的内容上改的，同步保护用）、created_at
 - 依赖可以跨组。
 
 ## 视图（MVP）
@@ -411,6 +412,12 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
      - ✅ **书的封面不对接任何平台，纯手填（Rei 2026-10-17 定）**：只去掉书的封面，Open Library 仍补书名、作者、年份、页数等。Worker 的 openlibrary 适配器不取 cover_i、不输出 image / thumb；`/api/lookup/image` 白名单去掉 covers.openlibrary.org（现在只拉 image.tmdb.org、*.steamstatic.com、img*.doubanio.com）。core 的来源表加 `covers`（Open Library 为 false）和 `lookupCover(r)`：自动补全不列图片那行、选中在线结果建资料不拉图、候选列表里书一律用占位图——就算旧 Worker / 缓存还带着封面地址也不用。书的封面只走现有的手动图片字段（上传 / 粘贴，照旧按海报 600×900 统一裁切）。已经拉进 R2 的旧封面不动。
      - ✅ **书按 ISBN 精确取那一版（Rei 2026-10-17 同意）**：书籍类型加三个资料字段 出版社（publisher，文字）、出版年份（year，数字）、ISBN（isbn，站点编号 `site: 'isbn'`，链到 openlibrary.org/isbn/…），插在作者和页数之间；内置版本升到 r3（`BUILTIN_TYPES_REVISION` 0003），没改过的内置书籍直接换新定义，改过的照 `withNewBuiltinFields` 只补这三个新字段、已有的不动。core `links.ts` 的 `isbnOf`：ISBN-10 / 13，容许连字符、空格、「ISBN」前缀，也认 openlibrary.org/isbn/ 链接，校验位不对的不认（免得把一串数字当 ISBN）。选择框里输入 / 粘贴 ISBN（只在书里认）就按 ISBN 取一条候选；编辑资料「自动补全」先认已填的 ISBN（名字栏里粘的 ISBN 也认），取到的直接进逐项确认（同 IMDb 编号）；按书名找到的是作品，逐项确认上面说明「只补作者、首版年份、页数；要出版社和 ISBN，先填 ISBN 再自动补全」。按 ISBN 取到的来源记成这一版（`openlibrary:OL25840916M`，链接到 /books/）；同一 ISBN 算库里的同一本。仍然不带封面。2026-10-17 沙箱实测 978-7-5366-9293-0 → 三体 · 刘慈欣 · Chongqing Press · 2008 · 302 页。
 
+### 日记 J1 ✅（2026-10-17，方案 docs/JOURNAL.md）
+- **core** `journal.ts`：`journalEntryId`（日期 → 固定 id，第四段 8002）、`journalToday`（「一天从几点开始」，pref `journal.day_start`，默认 5）、`canWriteJournal`（将来不能写）、12 个心情 `MOOD_IDS` / `moodLabel`、字数 `journalWordCount`（中文按字、英文按词）、同步保护 `isJournalConflict` / `mergeJournalConflict`（输家里赢家没有的段落收进 `<details data-journal="conflict">` 折叠块，已经有的不重复，两边各合一次也收敛）、月历 `monthGrid`。Store：`journalToday()`、`journalOf(date)`、`setJournal(date, {body_md, mood})`（将来抛 `FutureJournalError`；空的不建；base_at = 上一版是别的设备写的就记它）、`deleteJournal`；`applyRemote` 收到一篇没看到本机那版的日记 → 合好写成一次新的本机写入推上去。搜索 `SearchHit.kind = 'journal'`；提醒 `journalReminders`（每天 pref `journal.remind_time`，默认 21:00，写没写都响；`journal.remind` 默认开）；导出 `journal/YYYY/MM/YYYY-MM-DD.md`、导入按日期认。测试 `test/journal.test.ts`（两台设备离线同写一天两种先后都不丢字）。
+- **界面**：`pages/Journal.tsx`（桌面月历 + 这个月的列表 + 那天的日记；手机「月历」切换；停手 1.2 秒、离开编辑器、换一天、关页面时存；正在写时同步来了另一版也收进折叠块）、`components/journal/`（`MoodIcon` 12 个手写 SVG + `styles/journal.css` 的点选动画，颜色令牌 `--mood-*` 三皮肤 × 明暗在 `skin/tokens.css`；`MoodPicker`；`JournalCalendar`；我的一天底部 `JournalCard`）。侧边栏「今天」小节最后「日记」，手机在「更多」；设置 → 日记；⌘K「写今天的日记」+ 搜日记；深链接 `mindough://journal/{today|日期}`、`view/journal`（Android 注册 journal host）、Web `#/journal/…`；提醒点了打开日记（sw.js `open-journal`、Tauri extra.journal）。截图 work/shots-journal/（脚本 work/shots-tool/journal.mjs）。
+- **按推荐、Rei 未答**：同步保护（折叠块）、导出按年 / 月两层、隐私开关留 J3。
+- **J2 / J3 待排**：那年今日、插入时间、`@` 引用、Obsidian 每日笔记导入、`journal/today?append=`；隐私三个开关、写日记热力图、Day One 导入。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
@@ -432,4 +439,5 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
 - ✅ iOS 分发（Rei 2026-10-16 定）：免费 Apple ID + Xcode 个人团队装自己 iPhone（7 天重装，不走 TestFlight），步骤见 docs/IOS.md；小组件要 App Group，先不接。
-- 🟡 日记功能（Rei 2026-10-17：「加入日记功能，先写计划，让我审核」）：方案见 [docs/JOURNAL.md](JOURNAL.md)，待 Rei 审核，审过之前不动代码。
+- ✅ 日记功能（Rei 2026-10-17 审过：「一天一篇，英文Journal，入口按你推荐的做。只要心情（5个太少了…动画svg图标）。设一个「一天从几点开始」（默认 5点）。「这一天」汇总不放在日记中。日记提醒…晚上9点，不论是不是已经写了。将来这日子不能写。」）：J1 已做完上线，见下面「日记 J1」和 [docs/JOURNAL.md](JOURNAL.md) 第 0 节。
+- 🟡 日记待问（J1 没做）：「一天从几点开始」要不要扩展到我的一天 / 打卡 / 提醒；日记页要不要只读的「这一天」；「插入时间」「那年今日」⌘K 按日期跳转。

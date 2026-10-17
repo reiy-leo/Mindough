@@ -100,15 +100,15 @@ Rei 2026-10-17：「加入日记功能，先写计划，让我审核」。方案
 | irritated | 烦躁 | Irritated | 负面 | 斜眉 + 波浪嘴，快速抖 |
 | angry | 生气 | Angry | 负面 | 怒眉 + 头顶怒气符号，放大一下 |
 
-- 图标是 `components/journal/MoodIcon.tsx` 里手写的 SVG（24×24，线条 `currentColor`，脸填心情色的淡色），颜色是皮肤令牌 `--mood-<id>`（三套 × 明暗），月历小点用同一个颜色。
+- 图标是 `components/journal/MoodIcon.tsx` 里手写的 SVG（32×32，线条 `currentColor`，脸填心情色的淡色），颜色是皮肤令牌 `--mood-<id>`（三套 × 明暗），月历小点用同一个颜色。
 - 动画只在点选那一下播（CSS keyframes，0.7s 左右），`prefers-reduced-motion: reduce` 时不播。
 - 字数只显示不存（「312 字」，英文「312 words」；中文按字数、英文按词数）。
 
 ## 7. 搜索与 ⌘K
 
-- `search.ts` 的 `SearchHit` 加 `kind: 'journal'`（标题 = 「10 月 17 日」，片段 = 命中附近的文字，沿用 `snippetAround`）；排在任务后面。
-- ⌘K 命令「写今天的日记」；输入日期（`10-17`、`2026-10-17`、「昨天」）直接跳到那篇。
-- 日记页顶部有自己的搜索框（只搜日记，按日期倒序）。
+- `search.ts` 的 `SearchHit` 加 `kind: 'journal'`（标题 = 「2026年10月17日 周六」，片段 = 命中附近的文字，也搜心情名）；同样命中时排在任务后面。✅ J1
+- ⌘K 命令「写今天的日记」（没输入时在最前，输入「日记 / journal / 写…」时也出来）。✅ J1
+- 输入日期直接跳到那篇、日记页自己的搜索框：J1 没做（待问）。
 - 隐私选项「搜索里不显示日记」见第 10 节。
 
 ## 8. 提醒（Rei 2026-10-17：晚上 9 点，不论是不是已经写了）
@@ -205,29 +205,29 @@ created: 2026-10-17T13:02:11.000Z
 | 导入开关 | 把按日期命名的文件当日记 | Treat date-named files as journal entries |
 | 隐私开关（J3） | 搜索里不显示日记 / 我的一天不显示日记预览 / 导出时包含日记 | Hide journal from search / Hide journal preview in My Day / Include journal in export |
 
-## 14. 数据表草案与迁移
+## 14. 数据表与迁移（J1 实际做的）
 
-SQLite 迁移 **v6**（当前 main 最新是 v5「资料合并」；动工前再确认没有别的分支占了 v6）：
+SQLite 迁移 **v6**（动工前确认 main 和各分支都没有占 v6）：
 
 ```sql
 CREATE TABLE IF NOT EXISTS "journal_entry" (
   "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
-  "date" TEXT NOT NULL,              -- 本地日期 YYYY-MM-DD
+  "date" TEXT NOT NULL,              -- 本地日期 YYYY-MM-DD（按「一天从几点开始」算的那天）
   "body_md" TEXT NOT NULL DEFAULT '',
-  "mood" INTEGER,                    -- 1–5，可空
+  "mood" TEXT,                       -- 心情英文 id（happy…），可空
+  "base_at" TEXT,                    -- 同步保护：这一版是在哪一版「别的设备写的」内容上改的
   "created_at" TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "journal_entry_date" ON "journal_entry" ("date");
 ```
 
-- `types.ts` 加 `JournalEntry`，`TABLES` / `COLUMNS` 加 `journal_entry: { date: 'text', body_md: 'text', mood: 'int?', created_at: 'text' }`（COLUMNS 的类型约束会逼着两边一致）。
-- id：`journalEntryId(date)`——UUIDv7 形状，时间戳段 = 这一天 00:00 UTC 的毫秒数，第四段固定 `8002`（打卡分类用的是 `8001`），其余为 0；各设备算出来一样。
-- 不加列到别的表；引用靠内容里的深链接，「在日记里提到」靠扫描。
-- pref 新键：`journal.remind_time`、`journal.myday_card`（以及 J3 的隐私开关）。
-- localStorage / 内存适配器、`migrate.ts`、导出 `_meta/mindough.json` 的 counts 加上日记数。
-- 云端不用改。旧版本客户端拉到 `journal_entry` 行能存不能用，不影响别的。
+- `types.ts` 的 `JournalEntry`，`COLUMNS.journal_entry = { date: 'text', body_md: 'text', mood: 'text?', base_at: 'text?', created_at: 'text' }`。
+- id：`journalEntryId(date)`——UUIDv7 形状，时间戳段 = 这一天 00:00 UTC 的毫秒数，第三段 `7000`、第四段 `8002`，其余为 0；各设备算出来一样。
+- pref 键（跟账户同步）：`journal.day_start`（0–23，默认 5）、`journal.remind`（默认开）、`journal.remind_time`（默认 21:00）。
+- 云端不用改（只存整行 JSON）。旧版本客户端拉到 `journal_entry` 行忽略，不影响别的。
+- core `journal.ts`：`journalEntryId`、`isDateKey`、`journalToday`、`canWriteJournal`、`MOOD_IDS` / `moods()` / `moodLabel`、`journalWordCount` / `journalPreview`、`isJournalConflict` / `mergeJournalConflict` / `splitConflictBlocks` / `conflictSummary`、`monthGrid` / `addMonths` / `journalOfMonth`。Store：`journalDayStart()`、`journalToday()`、`journalOf(date)`、`setJournal(date, { body_md?, mood? })`、`deleteJournal(date)`、`journalBaseOf(id)`。
 
-core 新模块 `journal.ts`（纯函数 + 测试）：`journalEntryId`、`daySummary(date, tasks, checkIns, items, tz)`、`onThisDay(entries, date)`、`mergeJournalConflict(winner, loser, at)`、`isJournalFile(path)`（导入）；Store：`journalOf(date)`、`setJournalBody`、`setJournalMood`、`deleteJournal`、`journalDays(month)`。
+**同步保护怎么判断「没看到对方那版」**：每次本机写，`base_at` = 上一版（如果是别的设备写的）的 `updated_at`；上一版是自己写的就沿用它的 `base_at`。拉下来的一版 R 比本机这版 L 新、正文不同、L 不空、且 `R.base_at` 为空或早于 `L.updated_at` → R 没看到 L：取 R 的内容 + 末尾折叠块收着 L 里 R 没有的段落，`base_at = R.updated_at`，作为本机新写入推上去。永远只有输掉那边的设备合并（HLC 全序），合好的那版别的设备看来 `base_at` 就是它手里的 R，不会再合；内容比较忽略空白和 markdown 记号，已经包含的段落不重复，所以多台设备各合一次也收敛。删除（墓碑）不触发保护。
 
 ## 15. 深链接
 
@@ -237,7 +237,7 @@ core 新模块 `journal.ts`（纯函数 + 测试）：`journalEntryId`、`daySum
 | `mindough://view/journal` | 打开日记页（今天） |
 | `mindough://journal/today?append=…`（J2） | 把一段文字接在今天日记末尾（快捷指令随手记一句；会改数据，提示里可撤销，同 DEEPLINKS 规则 2） |
 
-Web：`#/journal`、`#/journal/2026-10-17`。Android 要多注册 host `journal`。日期非法 → 打开今天并提示「没有这一天」。DEEPLINKS.md 审过后补表。
+Web：`#/journal`、`#/journal/today`、`#/journal/2026-10-17`。Android 已注册 host `journal`。日期非法 → 打开今天并提示「没有这一天」；将来的日子 → 打开那天（写不了）并提示「这天还没到，还不能写」。已补进 DEEPLINKS.md。✅ J1（`append` 留到 J2）
 
 ## 16. 三皮肤与手机布局
 
@@ -250,8 +250,8 @@ Web：`#/journal`、`#/journal/2026-10-17`。Android 要多注册 host `journal`
 
 | 阶段 | 内容 | 估计 |
 |---|---|---|
-| **J1 MVP** | v6 迁移 + `journal.ts` + Store 操作 + 测试；日记页（月历 + 列表 + 编辑器 + 心情）；侧边栏 / 更多 / 我的一天小卡；「这一天」只读汇总 +「插入」；「插入时间」；同步保护（折叠块保留另一版）；⌘K 搜索与命令；深链 `journal/…`、`view/journal`；导出 / 导回自己的格式；中英文文案；三皮肤截图 | 2–3 天 |
-| **J2** | 每日提醒；那年今日；`@` 引用任务 / 资料 / 人物（胶囊）+「在日记里提到」反向列表；普通 markdown / Obsidian 每日笔记导入；`append` 深链 | 1.5–2 天 |
+| **J1 MVP ✅ 2026-10-17** | v6 迁移 + `journal.ts` + Store 操作 + 测试；日记页（月历 + 列表 + 编辑器 + 12 个动画心情）；侧边栏 / 更多 / 我的一天小卡；「一天从几点开始」；每日 21:00 提醒（从 J2 提前，Rei 定）；同步保护（折叠块保留另一版）；⌘K 搜索与命令；深链 `journal/…`、`view/journal`；导出 / 导回自己的格式；中英文文案；三皮肤截图。~~「这一天」汇总~~（Rei 不要）、「插入时间」（没做，待问） | 完成 |
+| **J2** | 那年今日；插入时间；`@` 引用任务 / 资料 / 人物（胶囊）+「在日记里提到」反向列表；普通 markdown / Obsidian 每日笔记导入；`append` 深链 | 1.5–2 天 |
 | **J3（可选）** | 隐私三个开关；写日记热力图 / 连续天数；Day One 导入；（Rei 要的话）应用锁 | 1–2 天（应用锁另算 1–2 天） |
 | M5 衔接 | 正文逐字合并做好后日记一起换过去，去掉同步保护 | 随 M5 |
 

@@ -108,6 +108,11 @@
 | 公式 | LaTeX / 数学表达式 | `$…$` / `$$…$$`（KaTeX）；界面上没有专门的文字，写错的公式显示红色源码 |
 | 脚注 | 注释 / 尾注 | `[^1]`；只读显示底部的脚注区读屏标题「脚注」，返回链接读屏「回到引用 1」。英文 Footnotes / Back to reference 1 |
 | 折叠块 | 折叠 / 详情 / details / 可折叠区域 | `<details><summary>`（Rei 2026-10-17）。工具栏按钮「折叠块」（悬停提示同名）；空标题占位「折叠块标题」；三角读屏「展开折叠块」/「收起折叠块」。英文 Collapsible / Summary / Expand / Collapse |
+| 日记 | 日志 / 随笔 / 日志本 | 导航、页面名（Rei 2026-10-17，英文 Journal）。一天一篇：页面上日期大标题「2026年10月17日 周六」+「今天 / 昨天」小标签、「‹ › 」前一天 / 后一天、右上「今天」（手机多一个「月历」）；月历下是「这个月的日记」列表（日期 · 心情 · 第一行 · 「16 字」），空的时候「这个月还没写日记」。编辑器占位：今天「写几句今天的事」，过去的日子「这天还没写」；底部字数「16 字」/「还没写」、删除按钮「删除这天的日记」→ 确认「删除这天的日记？」「「2026年10月17日 周六」的日记会被删除，不能恢复。」。将来的日子：「这天还没到」「将来的日子还不能写。」（月历上灰掉、点不了）。我的一天底部小卡「今天的日记」+ 第一行（没写「写几句今天的事」，只填了心情「心情：开心」）。⌘K 命令「写今天的日记」，搜索结果副标题「日记 · 片段」 |
+| 心情 | 情绪 / 状态 / 评分 | 日记唯一的可选字段，小标题「心情」，没选时旁边「不填也行」；12 个（按顺序）：开心、兴奋、感恩、满足、平静、一般、无聊、疲惫、焦虑、难过、烦躁、生气；英文 Happy、Excited、Grateful、Content、Calm、Okay、Bored、Tired、Anxious、Sad、Irritated、Angry。读屏「心情：开心」，选中的「心情：开心（再点一次取消）」。存英文 id（happy…），不存序号 |
+| 一天从几点开始 | 日界线 / 换日时间 | 设置 → 日记（默认 5:00）：说明「还没到这个点，「今天的日记」还是前一天那篇（比如凌晨 3 点写的算昨天）。只用于日记。」 |
+| 每天提醒写日记 | 日记闹钟 | 设置 → 日记（默认开、21:00）：说明「每天 21:00 提醒，写没写都会响。」/「关着：不提醒写日记。」/「这台设备的「提醒通知」关着，开了才会响。」；到点通知标题「日记」、正文「今天过得怎么样？写几句吧」，点了打开今天的日记 |
+| 另一台设备上同时写的 · 10-17 20:30 | 冲突 / 合并冲突 / 副本 | 两台设备同时改了同一天的日记：输掉的那版收进日记末尾的折叠块，标题这样写（时间是那版写下的时刻） |
 | 新建任务（浮动按钮） | 新建 / 添加任务 / + 新任务 | 右下角的浮动加号按钮（Rei 2026-10-17），读屏「新建任务」，桌面悬停提示「新建任务 N」；侧边栏和手机顶栏不再放新建按钮。英文 New Task |
 
 ## 写在代码里的约定
@@ -150,5 +155,7 @@
 | 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
 | 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Link URL，Add / Cancel；? 提示 “Type these and they format as you go:” |
 | 归档这个类型 / 取消归档 / 已归档 N 个 / 已归档 | Archive This Type / Unarchive / N archived / Archived | 类型编辑器；提示 Archived “X” + Undo；设置里 “9 types, plus 2 archived. …” |
+| 日记 · 今天的日记 · 写今天的日记 | Journal · Today’s Entry · Write Today’s Entry | 「16 字」= 16 words；「这天还没到」= This day hasn’t come yet；设置 Day Starts At、Daily Journal Reminder；通知 “How was today? Jot a few lines.” |
+| 心情 | Mood | 12 个见上面中文表；没选 Optional |
 | 提醒 | Reminder / Reminders | 值 None / 9:00 AM；到点 Due today · It’s today · Time to check in · Time’s up — 10 min；按钮 View · In 10 Min；设置 Reminders、Allow Notifications、When You’re Reminded |
 | HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |
