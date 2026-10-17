@@ -82,6 +82,13 @@
           ],
           "host": "checkin",
           "appLink": false
+        },
+        {
+          "scheme": [
+            "mindough"
+          ],
+          "host": "journal",
+          "appLink": false
         }
       ]
     }

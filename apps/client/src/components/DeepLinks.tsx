@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isArchivedType, isFinished, shouldJoinMyDay, toDateKey, type Store } from '@mindough/core';
+import { canWriteJournal, isArchivedType, isDateKey, isFinished, shouldJoinMyDay, toDateKey, type Store } from '@mindough/core';
 import { drainDeepLinks, enqueueDeepLink, onDeepLink, parseHashLink, type DeepLinkAction } from '../lib/deeplink';
 import { navigate } from '../lib/router';
 import { useUi } from '../lib/ui';
@@ -36,6 +36,17 @@ export function runDeepLink(store: Store, ui: Ui, a: DeepLinkAction): void {
     case 'view':
       navigate(a.route);
       return;
+    case 'journal': {
+      // 今天 = 按「一天从几点开始」算的那天；不是真日期 → 打开今天并提示；将来的日子 → 打开那天（页面上写不了）并提示
+      if (a.date === 'today') return navigate({ page: 'journal' });
+      if (!isDateKey(a.date)) {
+        navigate({ page: 'journal' });
+        return ui.toast({ tone: 'error', message: tr('没有这一天：{date}', { date: a.date }) });
+      }
+      navigate({ page: 'journal', date: a.date });
+      if (!canWriteJournal(a.date, store.journalToday())) ui.toast({ message: tr('这天还没到，还不能写') });
+      return;
+    }
     case 'task': {
       const t = store.get('task', a.id);
       if (!t) return ui.toast({ tone: 'error', message: tr('找不到这件任务') });

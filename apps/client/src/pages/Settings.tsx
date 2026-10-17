@@ -7,7 +7,9 @@ import { startNativeLogin } from '../lib/native-login';
 import { isTauri } from '../store/sqlite-tauri';
 import { useUi } from '../lib/ui';
 import { resetSyncState, syncedAgo } from '@mindough/core';
-import { Button, Section, Segmented, Switch } from '../ui/primitives';
+import { Button, Section, Segmented, Select, Switch } from '../ui/primitives';
+import { JOURNAL_PREFS, JOURNAL_REMIND_TIME_DEFAULT, normalizeRemindTime } from '@mindough/core';
+import { formatRemindTime } from '../components/task/RemindPanel';
 import { notifyPermission, onReminderSettings, remindersEnabled, requestNotifyPermission, setRemindersEnabled, type NotifyPermission } from '../lib/reminders';
 import { PageHeader } from '../components/PageHeader';
 import { TypeManager } from '../components/TypeManager';
@@ -38,6 +40,7 @@ export function SettingsPage() {
       <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
       <AccountSection />
       <ReminderSection />
+      <JournalSection />
       <TypesSection />
       <Section title={tr('外观')}>
         <div className="card settings-card">
@@ -210,9 +213,9 @@ function ArchiveRows() {
       const c = await exportToZip(store, setBusy);
       toast({
         tone: 'success',
-        message: c.missedImages
-          ? tr('已导出 {n} 件任务；{m} 张网上的图片没取到，照原链接写着', { n: c.tasks, m: c.missedImages })
-          : tr('已导出 {n} 件任务', { n: c.tasks }),
+        message:
+          (c.journal ? tr('已导出 {n} 件任务、{j} 篇日记', { n: c.tasks, j: c.journal }) : tr('已导出 {n} 件任务', { n: c.tasks })) +
+          (c.missedImages ? tr('；{m} 张网上的图片没取到，照原链接写着', { m: c.missedImages }) : ''),
       });
     } catch (e) {
       toast({ tone: 'error', message: tr('没能导出：{msg}', { msg: e instanceof Error ? e.message : String(e) }) });
@@ -412,6 +415,65 @@ function SyncRow({ sync, onLogin }: { sync: Extract<SyncView, { enabled: true }>
         </Button>
       )}
     </div>
+  );
+}
+
+/** 提醒时间的选项：18:00–23:30 每半小时（现在的值不在里面也列上）。 */
+function journalTimeOptions(cur: string) {
+  const list: string[] = [];
+  for (let h = 18; h < 24; h++) for (const m of ['00', '30']) list.push(`${String(h).padStart(2, '0')}:${m}`);
+  if (!list.includes(cur)) list.push(cur);
+  return list.sort().map((t) => ({ id: t, label: formatRemindTime(t) }));
+}
+
+/**
+ * 日记（Rei 2026-10-17）：「一天从几点开始」（默认 5 点，只用于日记）、每天提醒写日记（默认开、21:00，写没写都响）。
+ * 都是跟着账户同步的偏好；提醒还要这台设备的「提醒通知」开着。
+ */
+function JournalSection() {
+  const store = useStore();
+  const dayStart = store.journalDayStart();
+  const remind = store.pref(JOURNAL_PREFS.remind) !== false;
+  const time = normalizeRemindTime(String(store.pref(JOURNAL_PREFS.remindTime) ?? '')) ?? JOURNAL_REMIND_TIME_DEFAULT;
+  const [deviceOn, setDeviceOn] = useState(remindersEnabled);
+  useEffect(() => onReminderSettings(() => setDeviceOn(remindersEnabled())), []);
+  const hourLabel = (h: number) => formatRemindTime(`${String(h).padStart(2, '0')}:00`);
+  return (
+    <Section title={tr('日记')}>
+      <div className="card settings-card">
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-name">{tr('一天从几点开始')}</div>
+            <div className="setting-hint">{tr('还没到这个点，「今天的日记」还是前一天那篇（比如凌晨 3 点写的算昨天）。只用于日记。')}</div>
+          </div>
+          <Select
+            label={tr('一天从几点开始')}
+            className="setting-select"
+            value={String(dayStart)}
+            onChange={(v) => store.setPref(JOURNAL_PREFS.dayStart, Number(v))}
+            options={Array.from({ length: 24 }, (_, h) => ({ id: String(h), label: hourLabel(h) }))}
+          />
+        </div>
+        <div className="setting">
+          <div className="setting-text">
+            <div className="setting-name">{tr('每天提醒写日记')}</div>
+            <div className="setting-hint">
+              {!remind
+                ? tr('关着：不提醒写日记。')
+                : deviceOn
+                  ? tr('每天 {time} 提醒，写没写都会响。', { time: formatRemindTime(time) })
+                  : tr('这台设备的「提醒通知」关着，开了才会响。')}
+            </div>
+          </div>
+          <div className="setting-actions">
+            {remind && (
+              <Select label={tr('提醒时间')} className="setting-select" value={time} onChange={(v) => store.setPref(JOURNAL_PREFS.remindTime, v)} options={journalTimeOptions(time)} />
+            )}
+            <Switch label={tr('每天提醒写日记')} isSelected={remind} onChange={(v) => store.setPref(JOURNAL_PREFS.remind, v)} />
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }
 

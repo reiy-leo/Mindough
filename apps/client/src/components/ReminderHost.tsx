@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react';
 import { startReminders } from '../lib/reminders';
 import { useUi } from '../lib/ui';
 import { useStore } from '../store/StoreProvider';
+import { navigate } from '../lib/router';
 import { tr } from '../lib/i18n';
 
 export function ReminderHost() {
@@ -16,6 +17,7 @@ export function ReminderHost() {
       startReminders({
         store,
         open: (id) => uiRef.current.openEditor(id),
+        openJournal: () => navigate({ page: 'journal' }),
         inApp: (_r, title, body, a) =>
           uiRef.current.toast(
             {

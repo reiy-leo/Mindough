@@ -1,6 +1,6 @@
 /**
  * 深链接 mindough://（方案见 docs/DEEPLINKS.md，Rei 2026-10-16 审过）。
- * 第一批：task / view / new / checkin。做事的链接不弹确认，直接做 + 提示里可以撤销。
+ * 第一批：task / view / new / checkin；日记 journal/{today|YYYY-MM-DD}（Rei 2026-10-17）。做事的链接不弹确认，直接做 + 提示里可以撤销。
  * auth 由 native-login 处理；其余 host（group、library、person、search、timer、done）跟 M4 一起做。
  *
  * Web 端同样的东西走 hash：#/task/{id}、#/new?text=…、#/checkin-now/{id}（打卡页 #/checkin 已占用）。
@@ -13,6 +13,8 @@ export type DeepLinkAction =
   | { kind: 'view'; route: Route }
   | { kind: 'new'; text: string; date: DateKey | null; myDay: boolean; typeId: string | null; groupId: string | null }
   | { kind: 'checkin'; id: string; amount: number }
+  /** 日记：date = 'today' 或 YYYY-MM-DD（不是真日期的也原样带着，执行时提示「没有这一天」）。 */
+  | { kind: 'journal'; date: string }
   /** 认得是 mindough:// 但写错了（或者是还没做的 host）：打开 app，提示一句。 */
   | { kind: 'invalid'; url: string };
 
@@ -25,6 +27,7 @@ const VIEWS: Record<string, Route> = {
   graph: { page: 'graph' },
   available: { page: 'doable' },
   checkin: { page: 'checkin' },
+  journal: { page: 'journal' },
   library: { page: 'library' },
   people: { page: 'people' },
   settings: { page: 'settings' },
@@ -74,6 +77,8 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
         groupId: q.get('group') || null,
       };
     }
+    case 'journal':
+      return { kind: 'journal', date: (segs[0] ?? 'today').toLowerCase() };
     case 'checkin': {
       if (!segs[0]) return { kind: 'invalid', url: raw };
       const n = Number(q.get('amount') ?? '1');

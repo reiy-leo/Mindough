@@ -128,6 +128,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
     ['library', (n) => tr('{n} 条资料', { n })],
     ['person', (n) => tr('{n} 位人物', { n })],
     ['type', (n) => tr('{n} 个类型', { n })],
+    ['journal', (n) => tr('{n} 篇日记', { n })],
   ];
   const breakdown = kinds
     .map(([k, label]) => label(s.byKind[k].create + s.byKind[k].update))

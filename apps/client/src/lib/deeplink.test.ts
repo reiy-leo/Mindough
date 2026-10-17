@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_TYPE_IDS } from '@mindough/core';
 import { parseDeepLink, parseHashLink, parseLinkDate } from './deeplink';
+import { href, parseHash } from './router';
 
 const now = new Date(2026, 9, 16, 12);
 
@@ -38,5 +39,24 @@ describe('深链接 mindough://', () => {
     expect(parseHashLink('#/checkin-now/t1', now)).toEqual({ kind: 'checkin', id: 't1', amount: 1 });
     expect(parseHashLink('#/checkin', now)).toBeNull();
     expect(parseHashLink('#/myday', now)).toBeNull();
+  });
+});
+
+describe('日记的深链接与路由（Rei 2026-10-17）', () => {
+  it('mindough://journal/today、/2026-10-17、乱写的原样带着；view/journal', () => {
+    expect(parseDeepLink('mindough://journal/today', now)).toEqual({ kind: 'journal', date: 'today' });
+    expect(parseDeepLink('mindough://journal', now)).toEqual({ kind: 'journal', date: 'today' });
+    expect(parseDeepLink('mindough://journal/2026-10-17', now)).toEqual({ kind: 'journal', date: '2026-10-17' });
+    expect(parseDeepLink('mindough://journal/TODAY', now)).toEqual({ kind: 'journal', date: 'today' });
+    expect(parseDeepLink('mindough://journal/2026-02-30', now)).toEqual({ kind: 'journal', date: '2026-02-30' });
+    expect(parseDeepLink('mindough://view/journal', now)).toEqual({ kind: 'view', route: { page: 'journal' } });
+  });
+  it('#/journal、#/journal/today、#/journal/2026-10-17 是普通页面（不走深链接队列）', () => {
+    expect(parseHashLink('#/journal', now)).toBeNull();
+    expect(parseHash('#/journal')).toEqual({ page: 'journal' });
+    expect(parseHash('#/journal/today')).toEqual({ page: 'journal' });
+    expect(parseHash('#/journal/2026-10-17')).toEqual({ page: 'journal', date: '2026-10-17' });
+    expect(href({ page: 'journal', date: '2026-10-17' })).toBe('#/journal/2026-10-17');
+    expect(href({ page: 'journal' })).toBe('#/journal');
   });
 });

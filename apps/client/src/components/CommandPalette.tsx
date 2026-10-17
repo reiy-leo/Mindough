@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } from 'react-aria-components';
-import { CornerDownLeft, FolderOpen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
+import { CornerDownLeft, FolderOpen, NotebookPen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
 import { TASK_STATUS_LABEL, isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
+import { MoodIcon } from './journal/MoodIcon';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -29,7 +30,7 @@ export function CommandPalette() {
   const hits = useMemo<SearchHit[]>(
     () =>
       search(
-        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item') },
+        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item'), journal: store.list('journal_entry') },
         q,
         20,
       ),
@@ -38,6 +39,14 @@ export function CommandPalette() {
   const recent = useMemo(() => (q ? [] : store.tasks().filter((t) => !isFinished(t.status)).slice(-6).reverse()), [q, store, store.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = () => ui.setPaletteOpen(false);
+  // 「写今天的日记」：没输入时排最前；输入像「日记 / journal / 写」时也出来
+  const showJournal = !q.trim() || /日记|journal|diary|^写/i.test(q.trim()); // i18n-ignore 匹配用的关键词
+  const writeJournal = () => {
+    close();
+    navigate({ page: 'journal' });
+  };
+  const offset = (q.trim() ? 1 : 0) + (showJournal ? 1 : 0);
+  const journalIndex = q.trim() ? 1 : 0;
   const createFromQuery = () => {
     const t = store.createTask({ body_md: q.trim() });
     store.addToMyDay(t.id);
@@ -49,9 +58,10 @@ export function CommandPalette() {
     if (h.kind === 'task') ui.openEditor(h.id);
     else if (h.kind === 'person') navigate({ page: 'person', id: h.id });
     else if (h.kind === 'item') navigate({ page: 'libitem', typeId: h.item.type_id, id: h.id });
+    else if (h.kind === 'journal') navigate({ page: 'journal', date: h.entry.date });
     else navigate({ page: 'group', id: h.id });
   };
-  const count = (q.trim() ? 1 : 0) + hits.length;
+  const count = offset + (q ? hits.length : recent.length);
 
   const taskItem = (id: string, title: string, snippet: string, index: number) => {
     const t = store.get('task', id);
@@ -103,8 +113,15 @@ export function CommandPalette() {
             }}
             onSubmit={() => {
               if (q.trim() && active === 0) createFromQuery();
-              else {
-                const h = hits[active - (q.trim() ? 1 : 0)];
+              else if (showJournal && active === journalIndex) writeJournal();
+              else if (!q) {
+                const t = recent[active - offset];
+                if (t) {
+                  close();
+                  ui.openEditor(t.id);
+                }
+              } else {
+                const h = hits[active - offset];
                 if (h) openHit(h);
               }
             }}
@@ -125,11 +142,36 @@ export function CommandPalette() {
                 </RacButton>
               </li>
             )}
-            {!q && <li className="palette-group">{tr('最近的任务')}</li>}
-            {recent.map((t, i) => taskItem(t.id, viewOf(store, t).title, '', i))}
+            {showJournal && (
+              <li className={`palette-item${active === journalIndex ? ' is-active' : ''}`} onMouseEnter={() => setActive(journalIndex)}>
+                <RacButton className="palette-main" onPress={writeJournal}>
+                  <span className="thumb thumb-icon"><NotebookPen size={16} /></span>
+                  <span className="palette-text">
+                    <span className="palette-title">{tr('写今天的日记')}</span>
+                  </span>
+                </RacButton>
+              </li>
+            )}
+            {!q && recent.length > 0 && <li className="palette-group">{tr('最近的任务')}</li>}
+            {recent.map((t, i) => taskItem(t.id, viewOf(store, t).title, '', i + offset))}
             {hits.map((h, i) => {
-              const index = i + (q.trim() ? 1 : 0);
+              const index = i + offset;
               if (h.kind === 'task') return taskItem(h.id, h.title, h.snippet, index);
+              if (h.kind === 'journal')
+                return (
+                  <li key={h.id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>
+                    <RacButton className="palette-main" onPress={() => openHit(h)}>
+                      <span className="thumb thumb-icon">{h.entry.mood ? <MoodIcon mood={h.entry.mood} size={22} /> : <NotebookPen size={16} />}</span>
+                      <span className="palette-text">
+                        <span className="palette-title">{h.title}</span>
+                        <span className="palette-snippet">
+                          {tr('日记')}
+                          {h.snippet ? ` · ${h.snippet}` : ''}
+                        </span>
+                      </span>
+                    </RacButton>
+                  </li>
+                );
               if (h.kind === 'item')
                 return (
                   <li key={h.id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>

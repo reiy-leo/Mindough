@@ -8,8 +8,17 @@
  *   Android Chrome 只认这种；点通知回到 app 打开那件任务）。
  * - Tauri 桌面：同 Web（app 开着时排程），系统通知走 tauri-plugin-notification。
  * - Tauri 手机：接下来 48 小时的提醒交给系统排好（Schedule.at），app 关着也会响；每次重算时先取消旧的再排。
+ * - 日记提醒（Rei 2026-10-17）：每天 journal.remind_time（默认 21:00）响，写没写都响；journal.remind 关掉就不排。
+ *   不属于任务（taskId 空串），点了打开日记（openJournal）。
  */
-import { dueReminders, pruneFired, reminderBody, upcomingReminders, SNOOZE_MS, type Reminder, type Store } from '@mindough/core';
+
+/** 现在要不要排日记提醒、几点（同步的偏好）。 */
+export function journalRemindTime(store: Store): string | null {
+  if (store.pref(JOURNAL_PREFS.remind) === false) return null;
+  const v = store.pref(JOURNAL_PREFS.remindTime);
+  return typeof v === 'string' && v ? v : JOURNAL_REMIND_TIME_DEFAULT;
+}
+import { dueReminders, journalReminders, pruneFired, reminderBody, upcomingReminders, JOURNAL_PREFS, JOURNAL_REMIND_TIME_DEFAULT, SNOOZE_MS, type Reminder, type Store } from '@mindough/core';
 import { isTauri } from '../store/sqlite-tauri';
 import { titleOf } from './view';
 import { tr } from './i18n';
@@ -106,27 +115,33 @@ export function numericId(s: string): number {
   return (h >>> 0) % 2147483647;
 }
 
-async function systemNotify(id: string, title: string, body: string, taskId: string): Promise<void> {
+/** 通知带的数据：任务提醒带 taskId；日记提醒带 journal（点了打开日记）。 */
+const extraOf = (r: Pick<Reminder, 'kind' | 'taskId'>) => (r.kind === 'journal' ? { journal: '1' } : { taskId: r.taskId });
+
+async function systemNotify(r: Reminder, title: string, body: string): Promise<void> {
+  const id = r.id;
   if (isTauri()) {
     const n = await import('@tauri-apps/plugin-notification');
-    n.sendNotification({ id: numericId(id), title, body, extra: { taskId } });
+    n.sendNotification({ id: numericId(id), title, body, extra: extraOf(r) });
     return;
   }
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const reg = await serviceWorker();
   if (reg) {
-    await reg.showNotification(title, { body, tag: id, data: { taskId }, icon: '/favicon.svg' });
+    await reg.showNotification(title, { body, tag: id, data: extraOf(r), icon: '/favicon.svg' });
     return;
   }
   const n = new Notification(title, { body, tag: id, icon: '/favicon.svg' });
   n.onclick = () => {
     window.focus();
-    openTask?.(taskId);
+    if (r.kind === 'journal') openJournal?.();
+    else openTask?.(r.taskId);
     n.close();
   };
 }
 
 let openTask: ((id: string) => void) | null = null;
+let openJournal: (() => void) | null = null;
 
 // ───────── 排程 ─────────
 
@@ -135,34 +150,38 @@ export interface SchedulerDeps {
   /** 前台时在 app 里提示（带「查看」「10 分钟后」）。 */
   inApp: (r: Reminder, title: string, body: string, actions: { open: () => void; snooze: () => void }) => void;
   open: (taskId: string) => void;
+  /** 打开日记（今天那篇）。 */
+  openJournal: () => void;
 }
 
 /** 开始排程；返回停止函数。 */
 export function startReminders(deps: SchedulerDeps): () => void {
   const { store } = deps;
   openTask = deps.open;
+  openJournal = deps.openJournal;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dead = false;
 
   const title = (r: Reminder) => {
+    if (r.kind === 'journal') return tr('日记');
     const t = store.get('task', r.taskId);
     return t ? titleOf(store, t) : tr('提醒');
   };
 
   const deliver = (r: Reminder) => {
-    const t = store.get('task', r.taskId);
+    const t = r.kind === 'journal' ? { target_value: null } : store.get('task', r.taskId);
     if (!t) return;
     const name = title(r);
     const body = reminderBody(r, t);
     const visible = document.visibilityState === 'visible' && document.hasFocus();
     if (visible) {
       deps.inApp(r, name, body, {
-        open: () => deps.open(r.taskId),
+        open: () => (r.kind === 'journal' ? deps.openJournal() : deps.open(r.taskId)),
         snooze: () => snooze(r),
       });
     } else if (!isMobileTauri()) {
       // 手机上已经交给系统排好了，这里不再发一次
-      void systemNotify(r.id, name, body, r.taskId).catch(() => {});
+      void systemNotify(r, name, body).catch(() => {});
     }
   };
 
@@ -184,7 +203,8 @@ export function startReminders(deps: SchedulerDeps): () => void {
     const now = new Date();
     const fired = pruneFired(readMap(FIRED), now);
     const snoozed = readMap(SNOOZED);
-    const list = upcomingReminders(store.list('task'), store.list('check_in'), { now, fired: new Set(fired.keys()), snoozed });
+    const opts = { now, fired: new Set(fired.keys()), snoozed };
+    const list = [...upcomingReminders(store.list('task'), store.list('check_in'), opts), ...journalReminders(journalRemindTime(store), opts)].sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
     const due = dueReminders(list, now);
     if (due.length) {
       for (const r of due) {
@@ -196,7 +216,7 @@ export function startReminders(deps: SchedulerDeps): () => void {
     }
     writeMap(FIRED, fired);
     const rest = list.filter((r) => r.at > now.getTime());
-    if (isMobileTauri()) void syncMobileSchedule(rest, (r) => ({ title: title(r), body: reminderBody(r, store.get('task', r.taskId) ?? { target_value: null }) }));
+    if (isMobileTauri()) void syncMobileSchedule(rest, (r) => ({ title: title(r), body: reminderBody(r, (r.kind === 'journal' ? undefined : store.get('task', r.taskId)) ?? { target_value: null }) }));
     const next = rest[0];
     // 最多 60 秒重算一次（睡眠唤醒、时区变了也能跟上）
     const wait = Math.min(60_000, next ? Math.max(250, next.at - Date.now()) : 60_000);
@@ -217,6 +237,7 @@ export function startReminders(deps: SchedulerDeps): () => void {
   const onSwMessage = (e: MessageEvent) => {
     const d = e.data as { type?: string; taskId?: string } | null;
     if (d?.type === 'open-task' && d.taskId) deps.open(d.taskId);
+    if (d?.type === 'open-journal') deps.openJournal();
   };
   if (!isTauri() && 'serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', onSwMessage);
@@ -228,8 +249,9 @@ export function startReminders(deps: SchedulerDeps): () => void {
     void import('@tauri-apps/plugin-notification')
       .then((n) =>
         n.onAction((ev) => {
-          const id = (ev as { extra?: { taskId?: string } }).extra?.taskId;
-          if (id) deps.open(id);
+          const extra = (ev as { extra?: { taskId?: string; journal?: string } }).extra;
+          if (extra?.journal) deps.openJournal();
+          else if (extra?.taskId) deps.open(extra.taskId);
         }),
       )
       .then((l) => {
@@ -250,6 +272,7 @@ export function startReminders(deps: SchedulerDeps): () => void {
     if ('serviceWorker' in navigator) navigator.serviceWorker.removeEventListener('message', onSwMessage);
     offAction?.();
     openTask = null;
+    openJournal = null;
   };
 }
 
@@ -267,7 +290,7 @@ async function syncMobileSchedule(list: readonly Reminder[], text?: (r: Reminder
       after.set(k, r.at);
       if (before.get(k) === r.at) continue;
       const x = text?.(r) ?? { title: tr('提醒'), body: reminderBody(r, { target_value: null }) };
-      n.sendNotification({ id: Number(k), title: x.title, body: x.body, schedule: n.Schedule.at(new Date(r.at), false, true), extra: { taskId: r.taskId } });
+      n.sendNotification({ id: Number(k), title: x.title, body: x.body, schedule: n.Schedule.at(new Date(r.at), false, true), extra: extraOf(r) });
     }
     writeMap(SCHEDULED, after);
   } catch {

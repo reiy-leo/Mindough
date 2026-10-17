@@ -14,6 +14,8 @@ export type Route =
   | { page: 'graph' }
   | { page: 'doable' }
   | { page: 'checkin' }
+  /** 日记：date 省略 = 今天（按「一天从几点开始」算）。 */
+  | { page: 'journal'; date?: string }
   | { page: 'settings' }
   | { page: 'more' };
 
@@ -36,6 +38,8 @@ export function parseHash(hash: string): Route {
       return { page: 'doable' };
     case 'checkin':
       return { page: 'checkin' };
+    case 'journal':
+      return b && b !== 'today' ? { page: 'journal', date: decodeURIComponent(b) } : { page: 'journal' };
     case 'settings':
       return { page: 'settings' };
     case 'more':
@@ -55,6 +59,8 @@ export function href(route: Route): string {
       return route.typeId ? `#/library/${route.typeId}` : '#/library';
     case 'libitem':
       return `#/library/${route.typeId}/${route.id}`;
+    case 'journal':
+      return route.date ? `#/journal/${route.date}` : '#/journal';
     default:
       return `#/${route.page}`;
   }

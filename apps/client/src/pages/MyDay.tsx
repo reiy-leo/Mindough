@@ -13,6 +13,7 @@ const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings } from '../lib/settings';
+import { JournalCard } from '../components/journal/JournalCard';
 
 import { tr } from '../lib/i18n';
 const REASON_COLOR: Record<string, string> = {
@@ -191,6 +192,8 @@ export function MyDayPage() {
           </div>
         </Section>
       )}
+
+      <JournalCard />
     </div>
   );
 }

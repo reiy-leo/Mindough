@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
@@ -16,6 +16,7 @@ import { GraphPage } from './pages/Graph';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { SettingsPage } from './pages/Settings';
+import { JournalPage } from './pages/Journal';
 import { TaskDetail } from './components/task/TaskDetail';
 import { DeepLinks } from './components/DeepLinks';
 import { TaskComposer } from './components/task/TaskComposer';
@@ -52,6 +53,8 @@ const NAV_SECTIONS: NavSection[] = [
       { page: 'backlog', get label() { return tr('待安排'); }, icon: Inbox, match: ['backlog'] },
       { page: 'checkin', get label() { return trc('导航', '打卡'); }, icon: CalendarCheck2, match: ['checkin'] },
       { page: 'doable', get label() { return tr('可做'); }, icon: ListChecks, match: ['doable'] },
+      // 日记（Rei 2026-10-17）：「今天」小节最后；手机不进标签栏，在「更多」里
+      { page: 'journal', get label() { return tr('日记'); }, icon: NotebookPen, match: ['journal'] },
     ],
   },
   {
@@ -134,6 +137,8 @@ function Page({ route }: { route: Route }) {
       return <DoablePage />;
     case 'checkin':
       return <CheckInsPage />;
+    case 'journal':
+      return <JournalPage {...(route.date ? { date: route.date } : {})} />;
     case 'settings':
       return <SettingsPage />;
     case 'more':

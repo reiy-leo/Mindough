@@ -333,3 +333,89 @@
   --fs-title: 32px;
   --fs-body: 15px;
 }
+
+/* 心情颜色（日记，Rei 2026-10-17）：12 个心情 × 三套皮肤 × 明暗。图标线条和月历小点都用它。 */
+[data-skin='apple'] {
+  --mood-happy: #d29a00;
+  --mood-excited: #e86a00;
+  --mood-grateful: #e5336b;
+  --mood-content: #2fa84f;
+  --mood-calm: #0a97ad;
+  --mood-okay: #6e7781;
+  --mood-bored: #8b8576;
+  --mood-tired: #6b5fd3;
+  --mood-anxious: #a35bd6;
+  --mood-sad: #2e7cf6;
+  --mood-irritated: #d4602a;
+  --mood-angry: #e0352b;
+}
+[data-skin='apple'][data-theme='dark'] {
+  --mood-happy: #ffd60a;
+  --mood-excited: #ff9f0a;
+  --mood-grateful: #ff6b9a;
+  --mood-content: #30d158;
+  --mood-calm: #40c8e0;
+  --mood-okay: #a1a1a6;
+  --mood-bored: #b8b2a2;
+  --mood-tired: #8e86ff;
+  --mood-anxious: #c58af9;
+  --mood-sad: #64a8ff;
+  --mood-irritated: #ff8a50;
+  --mood-angry: #ff6961;
+}
+[data-skin='winui'] {
+  --mood-happy: #b37a00;
+  --mood-excited: #ca5010;
+  --mood-grateful: #c239b3;
+  --mood-content: #107c10;
+  --mood-calm: #038387;
+  --mood-okay: #69707a;
+  --mood-bored: #7a7574;
+  --mood-tired: #6b69d6;
+  --mood-anxious: #8764b8;
+  --mood-sad: #0063b1;
+  --mood-irritated: #c25c1a;
+  --mood-angry: #c42b1c;
+}
+[data-skin='winui'][data-theme='dark'] {
+  --mood-happy: #fce100;
+  --mood-excited: #f7894a;
+  --mood-grateful: #ee5fb7;
+  --mood-content: #6ccb5f;
+  --mood-calm: #00b7c3;
+  --mood-okay: #a0a6ae;
+  --mood-bored: #b1aca6;
+  --mood-tired: #9a98f0;
+  --mood-anxious: #b4a0e5;
+  --mood-sad: #60cdff;
+  --mood-irritated: #f2a074;
+  --mood-angry: #ff99a4;
+}
+[data-skin='material'] {
+  --mood-happy: #8a6d00;
+  --mood-excited: #a14a00;
+  --mood-grateful: #a8336e;
+  --mood-content: #3a6a1f;
+  --mood-calm: #006a6a;
+  --mood-okay: #5f6368;
+  --mood-bored: #6f6a5e;
+  --mood-tired: #5154b0;
+  --mood-anxious: #7b4fa0;
+  --mood-sad: #1f62c9;
+  --mood-irritated: #9c4a1e;
+  --mood-angry: #ba1a1a;
+}
+[data-skin='material'][data-theme='dark'] {
+  --mood-happy: #f2c94c;
+  --mood-excited: #ffb68a;
+  --mood-grateful: #ffb0cf;
+  --mood-content: #9ad38a;
+  --mood-calm: #76d6d6;
+  --mood-okay: #c4c7c5;
+  --mood-bored: #cdc6b4;
+  --mood-tired: #bfc2ff;
+  --mood-anxious: #dcb8ff;
+  --mood-sad: #a8c7fa;
+  --mood-irritated: #ffb59a;
+  --mood-angry: #ffb4ab;
+}
