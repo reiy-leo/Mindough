@@ -13,6 +13,7 @@ import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
 import { tr } from '../i18n';
 import { isDateKey, journalEntryId } from '../journal';
+import { isFileKey, safeFileName } from '../attachments';
 import {
   COMPLETION_MODES,
   TASK_STATUSES,
@@ -28,6 +29,7 @@ import {
   type LibraryItem,
   type Person,
   type JournalEntry,
+  type Attachment,
   type Pref,
   type TableName,
   type Task,
@@ -35,7 +37,7 @@ import {
   type TaskType,
   type TypeLayout,
 } from '../types';
-import { ARCHIVE_FORMAT, MANIFEST_PATH, RESERVED_DIRS } from './export';
+import { ARCHIVE_FORMAT, ATTACHMENTS_MARKER, MANIFEST_PATH, RESERVED_DIRS } from './export';
 import {
   MD_IMAGE,
   WIKI_IMAGE,
@@ -57,8 +59,8 @@ import {
 } from './text';
 
 /** 预览里分开数的几种东西（打卡记录、图片、分类这些跟着走，不单独数）。 */
-export type ImportKind = 'task' | 'group' | 'library' | 'person' | 'type' | 'journal';
-export const IMPORT_KINDS: readonly ImportKind[] = ['task', 'group', 'library', 'person', 'type', 'journal'];
+export type ImportKind = 'task' | 'group' | 'library' | 'person' | 'type' | 'journal' | 'attachment';
+export const IMPORT_KINDS: readonly ImportKind[] = ['task', 'group', 'library', 'person', 'type', 'journal', 'attachment'];
 
 /** new = 库里没有（或已删除）；existing = 有，内容不同；same = 有，内容一样（总是跳过）。 */
 export type EntryState = 'new' | 'existing' | 'same';
@@ -96,6 +98,8 @@ export interface ImportPlan {
   issues: ImportIssue[];
   /** 正文 / 字段里用到的图片文件（归档内路径）：登录时可以先上传，再用 assetUrls 重新 plan。 */
   imagePaths: string[];
+  /** 带着文件的附件（附件 id → 归档内路径）：写入后由客户端把文件放进上传队列（行里 r2_key 为空的才要传）。 */
+  attachmentFiles: Array<{ id: string; path: string }>;
 }
 
 export interface ImportOptions {
@@ -357,7 +361,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
   const parsed: Parsed[] = [];
   for (const f of files) {
     if (!/\.(md|markdown)$/i.test(f.path)) continue;
-    if (format === 'mindough' && (f.path.startsWith('_meta/') || f.path.startsWith('assets/'))) continue;
+    if (format === 'mindough' && (f.path.startsWith('_meta/') || f.path.startsWith('assets/') || f.path.startsWith('attachments/'))) continue;
     const split = splitFrontMatter(fromUtf8(f.data));
     if (split.unterminated) {
       err(f.path, tr('开头的属性（front matter）没有用 --- 收尾'));
@@ -368,7 +372,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       err(f.path, r.error);
       continue;
     }
-    parsed.push({ path: f.path, fm: r.data, body: split.body });
+    parsed.push({ path: f.path, fm: r.data, body: format === 'mindough' ? stripAttachmentBlock(split.body) : split.body });
   }
 
   const own = (p: Parsed) => format === 'mindough' && p.fm.id !== undefined;
@@ -573,7 +577,52 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     if (missingPeople) warn(r.path, tr('有 {n} 个人物找不到，没关联', { n: missingPeople }));
   }
 
-  return { format, entries, refs, issues, imagePaths: [...imagePaths] };
+  // 附件：_meta/attachments.json（挂的任务 / 日记要在这次导入里或库里）
+  const attachmentFiles: ImportPlan['attachmentFiles'] = [];
+  if (format === 'mindough') {
+    for (const r of rowsOf('_meta/attachments.json', (r) => isId(r.owner_id) && typeof r.owner_type === 'string' && typeof r.file_name === 'string')) {
+      const a = r as unknown as Attachment & { file?: unknown };
+      const ownerId = a.owner_id.trim();
+      const ownerOk =
+        a.owner_type === 'task' ? taskExists(ownerId) : a.owner_type === 'journal' ? seen.has(`journal_entry:${ownerId}`) || !!store.get('journal_entry', ownerId) : false;
+      if (!ownerOk) {
+        warn('_meta/attachments.json', tr('附件「{name}」挂的任务或日记找不到，没导入', { name: a.file_name }));
+        continue;
+      }
+      const file = typeof a.file === 'string' ? normPath(a.file) : null;
+      const has = !!file && byPath.has(file);
+      if (file && !has) warn('_meta/attachments.json', tr('找不到附件文件 {file}，只导入了记录', { file }));
+      const cur = store.raw('attachment', a.id);
+      // 带着文件：库里已有同一个附件且传过了就沿用它的 key，否则留空等重新上传；没带文件：照记录（同一个账户还能取到）
+      const r2 = has ? (cur?.r2_key ?? null) : isFileKey(a.r2_key) ? a.r2_key : null;
+      const thumb = has ? (cur?.thumb_key ?? null) : isFileKey(a.thumb_key) ? a.thumb_key : null;
+      const row = fresh<Omit<Attachment, 'updated_at' | 'deleted'>>({
+        id: a.id,
+        owner_type: a.owner_type,
+        owner_id: ownerId,
+        file_name: safeFileName(a.file_name),
+        mime: str(a.mime) ?? (has ? (mimeOfPath(file!) ?? 'application/octet-stream') : 'application/octet-stream'),
+        size: num(a.size) ?? (has ? byPath.get(file!)!.data.byteLength : 0),
+        r2_key: r2,
+        thumb_key: thumb,
+        width: num(a.width),
+        height: num(a.height),
+        created_at: iso(a.created_at) ?? now.toISOString(),
+      });
+      add('attachment', 'attachment', file ?? '_meta/attachments.json', a.file_name, row);
+      if (has) attachmentFiles.push({ id: a.id, path: file! });
+    }
+  }
+
+  return { format, entries, refs, issues, imagePaths: [...imagePaths], attachmentFiles };
+}
+
+/** 去掉导出时附在正文后面的附件清单（从 ATTACHMENTS_MARKER 那行到结尾）。 */
+export function stripAttachmentBlock(body: string): string {
+  const i = body.indexOf(ATTACHMENTS_MARKER);
+  if (i < 0) return body;
+  const before = body.slice(0, i);
+  return before.endsWith('\n\n') ? before.slice(0, -2) : before.replace(/\n+$/, '');
 }
 
 /** 预览的数字：overwrite = 已有的用文件覆盖。 */

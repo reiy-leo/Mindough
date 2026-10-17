@@ -61,6 +61,7 @@ export function emptySnapshot(): Snapshot {
     task_link: [],
     pref: [],
     journal_entry: [],
+    attachment: [],
   };
 }
 

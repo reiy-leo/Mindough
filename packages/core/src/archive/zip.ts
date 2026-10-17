@@ -8,7 +8,9 @@ export function zipArchive(files: readonly ArchiveFile[], root: string): Uint8Ar
   const tree: Zippable = {};
   for (const f of files) {
     const path = root ? `${root}/${f.path}` : f.path;
-    tree[path] = [f.data, { level: /\.(png|jpe?g|gif|webp|avif|heic|heif)$/i.test(f.path) ? 0 : 6 }];
+    // 图片、附件（大多已经压缩过，压了也省不了多少还慢）不压；附件里的纯文本照样压
+    const stored = /\.(png|jpe?g|gif|webp|avif|heic|heif)$/i.test(f.path) || (f.path.startsWith('attachments/') && !/\.(txt|md|csv|tsv|json|xml|html?|log|ya?ml|svg)$/i.test(f.path));
+    tree[path] = [f.data, { level: stored ? 0 : 6 }];
   }
   return zipSync(tree, { mtime: new Date('2026-01-01T00:00:00Z') });
 }

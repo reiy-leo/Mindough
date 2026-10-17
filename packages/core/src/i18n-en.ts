@@ -377,6 +377,21 @@ export const CORE_EN: Record<string, V> = {
   '今天过得怎么样？写几句吧': 'How was today? Jot a few lines.',
   '日期写得不对，没导入': 'The date isn’t valid, so it wasn’t imported',
   'id 和日期对不上，按日期导入': 'The id doesn’t match the date; imported by date',
+  附件: 'Attachments',
+  '附件「{name}」挂的任务或日记找不到，没导入': (p) => `The task or journal entry for attachment “${p.name}” wasn’t found, so it wasn’t imported`,
+  '找不到附件文件 {file}，只导入了记录': (p) => `Couldn’t find the attachment file ${p.file}; imported its record only`,
+
+  // ── 附件（attachments.ts） ──
+  '{n} 字节': (p) => count(p.n, 'byte', 'bytes'),
+  '文件类型|图片': 'Image',
+  '文件类型|文档': 'Document',
+  '文件类型|表格': 'Spreadsheet',
+  '文件类型|演示文稿': 'Presentation',
+  '文件类型|压缩包': 'Archive',
+  '文件类型|音频': 'Audio',
+  '文件类型|视频': 'Video',
+  '文件类型|代码 / 文本': 'Code / Text',
+  '文件类型|文件': 'File',
 };
 
 function ordinal(n: number): string {

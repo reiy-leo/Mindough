@@ -1,5 +1,5 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片（R2）、在线找资料（lookup/）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
@@ -9,6 +9,7 @@ import { handlePull, handlePush, handleSyncToken, type SyncEnv } from './sync';
 import { handleExchange, issueNativeCode } from './native';
 import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
 import { handleLookup } from './lookup';
+import { handleFileGet, handleFileUpload } from './files';
 import type { LookupEnv } from './lookup/types';
 
 export interface Env extends SyncEnv, AssetEnv, LookupEnv {
@@ -83,6 +84,13 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
     return handleAssetUpload(request, env);
   }
   if (pathname.startsWith('/api/assets/') && method === 'GET') return handleAssetGet(pathname.slice('/api/assets/'.length), env);
+
+  // 附件（任务、日记）：传、读都要登录，只能读自己的
+  if (pathname === '/api/files') {
+    if (method !== 'POST') return json({ error: '405 方法不允许：请用 POST' }, 405);
+    return handleFileUpload(request, env);
+  }
+  if (pathname.startsWith('/api/files/') && method === 'GET') return handleFileGet(request, pathname.slice('/api/files/'.length), env, url);
 
   // 在线找资料（TMDB / 豆瓣 / Open Library / Steam），要登录
   if (pathname.startsWith('/api/lookup/')) return handleLookup(request, env, url);

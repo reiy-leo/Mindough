@@ -35,7 +35,8 @@ import type { Change, StorageAdapter } from './storage/adapter';
 import { dataLabel, tr } from './i18n';
 import { parseHlc } from './hlc';
 import { FutureJournalError, JOURNAL_PREFS, canWriteJournal, conflictSummary, isDateKey, isJournalConflict, journalEntryId, journalToday, mergeJournalConflict, normalizeDayStart, type MoodId } from './journal';
-import type { JournalEntry } from './types';
+import type { Attachment, AttachmentOwnerType, JournalEntry } from './types';
+import { renamedFileName, safeFileName, sortAttachments } from './attachments';
 export interface StoreOptions {
   deviceId?: string;
   now?: () => Date;
@@ -340,6 +341,13 @@ export class Store {
         if (t.checkin_category_id === undefined) t.checkin_category_id = null;
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
+      }
+      if (c.table === 'attachment') {
+        const a = row as Attachment;
+        for (const k of ['r2_key', 'thumb_key', 'width', 'height'] as const) if (a[k] === undefined) a[k] = null;
+        if (typeof a.file_name !== 'string') a.file_name = 'file';
+        if (typeof a.mime !== 'string') a.mime = 'application/octet-stream';
+        if (typeof a.size !== 'number') a.size = 0;
       }
       if ((c.table === 'library_item' || c.table === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
       table.set(row.id, row);
@@ -838,6 +846,7 @@ export class Store {
     for (const m of this.list('my_day')) if (m.task_id === id) rows.push({ table: 'my_day', row: { ...m, deleted: true } });
     for (const p of this.list('task_person')) if (p.task_id === id) rows.push({ table: 'task_person', row: { ...p, deleted: true } });
     for (const l of this.list('task_link')) if (l.a_task_id === id || l.b_task_id === id) rows.push({ table: 'task_link', row: { ...l, deleted: true } });
+    for (const a of this.list('attachment')) if (a.owner_type === 'task' && a.owner_id === id) rows.push({ table: 'attachment', row: { ...a, deleted: true } });
     this.write(rows);
   }
 
@@ -1093,6 +1102,18 @@ export class Store {
     return this.tables.journal_entry.get(id);
   }
 
+  /** 确保那天有一行日记（加附件时用：附件挂在日记 id 上，导出要靠这一行认出日期）。将来的日子抛 FutureJournalError。 */
+  ensureJournal(date: string): JournalEntry {
+    if (!isDateKey(date)) throw new Error(tr('没有这一天'));
+    const cur = this.journalOf(date);
+    if (cur) return cur;
+    if (!canWriteJournal(date, this.journalToday())) throw new FutureJournalError();
+    const id = journalEntryId(date);
+    const row: JournalEntry = { id, updated_at: '', deleted: false, date, body_md: '', mood: null, base_at: this.journalBaseOf(id), created_at: this.now().toISOString() };
+    this.write([{ table: 'journal_entry', row }]);
+    return this.tables.journal_entry.get(id)!;
+  }
+
   /** 改这一行日记时该记的 base_at：上一版是别的设备写的就是它，自己写的沿用它的 base_at，没有就是 null。 */
   journalBaseOf(id: string): string | null {
     const cur = this.tables.journal_entry.get(id);
@@ -1100,9 +1121,81 @@ export class Store {
     return parseHlc(cur.updated_at).deviceId === this.deviceId ? (cur.base_at ?? null) : cur.updated_at;
   }
 
-  /** 删掉那天的日记（墓碑）。 */
+  /** 删掉那天的日记（墓碑），连同挂在上面的附件。 */
   deleteJournal(date: string): void {
-    if (isDateKey(date)) this.remove('journal_entry', journalEntryId(date));
+    if (!isDateKey(date)) return;
+    const id = journalEntryId(date);
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    const cur = this.tables.journal_entry.get(id);
+    if (cur && !cur.deleted) rows.push({ table: 'journal_entry', row: { ...cur, deleted: true } });
+    for (const a of this.list('attachment')) if (a.owner_type === 'journal' && a.owner_id === id) rows.push({ table: 'attachment', row: { ...a, deleted: true } });
+    if (rows.length) this.write(rows);
+  }
+
+  // ───────────── 附件 ─────────────
+
+  /** 挂在这件任务 / 这篇日记上的附件（按添加时间）。日记的 owner_id 是 journalEntryId(date)。 */
+  attachmentsOf(ownerType: AttachmentOwnerType, ownerId: string): Attachment[] {
+    return sortAttachments(this.list('attachment').filter((a) => a.owner_type === ownerType && a.owner_id === ownerId));
+  }
+
+  /** 加一个附件（文件还没传上去时 r2_key / thumb_key 为 null，传好后用 setAttachmentFile 填上）。 */
+  addAttachment(input: {
+    owner_type: AttachmentOwnerType;
+    owner_id: string;
+    file_name: string;
+    mime: string;
+    size: number;
+    width?: number | null;
+    height?: number | null;
+    r2_key?: string | null;
+    thumb_key?: string | null;
+    id?: string;
+  }): Attachment {
+    return this.insert('attachment', {
+      ...(input.id ? { id: input.id } : {}),
+      owner_type: input.owner_type,
+      owner_id: input.owner_id,
+      file_name: safeFileName(input.file_name),
+      mime: input.mime || 'application/octet-stream',
+      size: Math.max(0, Math.round(input.size)),
+      r2_key: input.r2_key ?? null,
+      thumb_key: input.thumb_key ?? null,
+      width: input.width ?? null,
+      height: input.height ?? null,
+      created_at: this.now().toISOString(),
+    });
+  }
+
+  /** 上传好了：记下 R2 的 key（附件已删就不动）。 */
+  setAttachmentFile(id: string, keys: { r2_key: string; thumb_key?: string | null }): Attachment | undefined {
+    const cur = this.get('attachment', id);
+    if (!cur) return undefined;
+    return this.update('attachment', id, { r2_key: keys.r2_key, thumb_key: keys.thumb_key ?? cur.thumb_key });
+  }
+
+  /** 改名（没写扩展名时补回原来的）；空名字不改，返回 undefined。 */
+  renameAttachment(id: string, name: string): Attachment | undefined {
+    const cur = this.get('attachment', id);
+    if (!cur) return undefined;
+    const next = renamedFileName(cur.file_name, name);
+    if (!next) return undefined;
+    if (next === cur.file_name) return cur;
+    return this.update('attachment', id, { file_name: next });
+  }
+
+  /** 删附件（墓碑；提示里的「撤销」用 restoreAttachment）。 */
+  removeAttachment(id: string): void {
+    this.remove('attachment', id);
+  }
+
+  /** 撤销删除。 */
+  restoreAttachment(id: string): Attachment | undefined {
+    const cur = this.raw('attachment', id);
+    if (!cur) return undefined;
+    if (!cur.deleted) return cur;
+    this.write([{ table: 'attachment', row: { ...cur, deleted: false } }]);
+    return this.get('attachment', id);
   }
 
   // ───────────── 打卡分类 ─────────────

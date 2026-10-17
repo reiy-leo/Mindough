@@ -1,7 +1,7 @@
 /**
  * 导出成 Markdown 文件夹（格式见 docs/EXPORT.md）：一件任务一个 .md（YAML front matter + 正文），
  * 组 = 一层文件夹（_group.md 记组的属性），资料库 library/<库名>/<名字>.md，人物 people/<名字>.md，
- * 日记 journal/YYYY/MM/YYYY-MM-DD.md（front matter 只有 id、date、mood、created），类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
+ * 日记 journal/YYYY/MM/YYYY-MM-DD.md（front matter 只有 id、date、mood、created），附件 attachments/<文件名>（记录在 _meta/attachments.json，正文后面附一段链接），类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
  * id 才是身份：文件名只给人看，改名不影响再导入。
  */
 import type { Store } from '../store';
@@ -9,7 +9,8 @@ import { firstLine } from '../preview';
 import { toDateKey } from '../dates';
 import { libraryCopy } from '../library';
 import { dataLabel, tr } from '../i18n';
-import { type Asset, type FieldDef, type FieldValue, type Group, type Task, type TaskType } from '../types';
+import { fileKind, sortAttachments, uniqueFileName } from '../attachments';
+import { type Asset, type Attachment, type FieldDef, type FieldValue, type Group, type Task, type TaskType } from '../types';
 import {
   MD_IMAGE,
   NameSet,
@@ -29,7 +30,9 @@ import {
 export const ARCHIVE_FORMAT = 'mindough-markdown';
 export const ARCHIVE_VERSION = 1;
 /** 归档根下保留的文件夹（不当成组）。 */
-export const RESERVED_DIRS = ['_meta', 'library', 'people', 'assets', 'journal'] as const;
+export const RESERVED_DIRS = ['_meta', 'library', 'people', 'assets', 'journal', 'attachments'] as const;
+/** 正文后面列附件的那一段从这行开始（只给人看、Obsidian 里能点；导入时整段去掉，附件以 _meta/attachments.json 为准）。 */
+export const ATTACHMENTS_MARKER = '<!-- mindough:attachments -->';
 export const MANIFEST_PATH = '_meta/mindough.json';
 
 export interface ExportImage {
@@ -41,6 +44,8 @@ export interface ExportOptions {
   now?: Date;
   /** 远程图片（http 链接）事先取回的内容；取不到的照原链接写。 */
   images?: ReadonlyMap<string, ExportImage>;
+  /** 附件的文件内容（附件 id → 字节），事先取回（本机上传队列里的、或从 R2 下载的）；取不到的只写记录。 */
+  attachments?: ReadonlyMap<string, Uint8Array>;
 }
 
 export interface ExportCounts {
@@ -51,6 +56,10 @@ export interface ExportCounts {
   /** 日记篇数。 */
   journal: number;
   images: number;
+  /** 附件个数（含没取到文件、只写了记录的）。 */
+  attachments: number;
+  /** 其中没取到文件的。 */
+  missingAttachments: number;
 }
 
 export interface ExportResult {
@@ -157,6 +166,26 @@ const strip = <T extends { updated_at: string; deleted: boolean }>(r: T): Omit<T
 };
 const dateKey = (iso: string) => (Number.isFinite(Date.parse(iso)) ? toDateKey(new Date(iso)) : iso.slice(0, 10));
 
+/** 要导出的附件：挂在活着的任务 / 日记上的。 */
+export function exportableAttachments(store: Store): Attachment[] {
+  const tasks = new Set(store.tasks().map((t) => t.id));
+  const journal = new Set(store.list('journal_entry').map((e) => e.id));
+  return sortAttachments(store.list('attachment').filter((a) => (a.owner_type === 'task' && tasks.has(a.owner_id)) || (a.owner_type === 'journal' && journal.has(a.owner_id))));
+}
+
+/** 正文后面那段附件清单（图片用 ![]()，其余 []()；没取到文件的只写名字）。 */
+function attachmentBlock(list: readonly Attachment[], paths: ReadonlyMap<string, string>, filePath: string, heading: string): string {
+  if (!list.length) return '';
+  const lines = list.map((a) => {
+    const p = paths.get(a.id);
+    const label = a.file_name.replace(/[[\]\n]/g, ' ');
+    if (!p) return `- ${label}`;
+    const href = mdHref(relativePath(filePath, p));
+    return fileKind(a.file_name, a.mime) === 'image' ? `- ![${label}](${href})` : `- [${label}](${href})`;
+  });
+  return `\n\n${ATTACHMENTS_MARKER}\n## ${heading}\n\n${lines.join('\n')}\n`;
+}
+
 /** 导出全部（未删除的）数据。纯函数式地读 Store，不写。 */
 export function exportArchive(store: Store, opts: ExportOptions = {}): ExportResult {
   const now = opts.now ?? store.now();
@@ -170,6 +199,22 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
     return t ? dataLabel(t.name) : '';
   };
   const taskName = (t: Task) => firstLine(t.body_md) || store.itemOf(t)?.name || tr('空白任务');
+
+  // ── 附件：attachments/<文件名>（同名加「 2」），记录在 _meta/attachments.json ──
+  const attachments = exportableAttachments(store);
+  const attachmentPath = new Map<string, string>();
+  const attachmentNames = new Set<string>();
+  const attachmentFiles: ArchiveFile[] = [];
+  for (const a of attachments) {
+    const data = opts.attachments?.get(a.id);
+    if (!data) continue;
+    const path = `attachments/${uniqueFileName(a.file_name, attachmentNames)}`;
+    attachmentPath.set(a.id, path);
+    attachmentFiles.push({ path, data });
+  }
+  const attachmentsOf = new Map<string, Attachment[]>();
+  for (const a of attachments) attachmentsOf.set(`${a.owner_type}:${a.owner_id}`, [...(attachmentsOf.get(`${a.owner_type}:${a.owner_id}`) ?? []), a]);
+  const block = (ownerType: string, ownerId: string, path: string) => attachmentBlock(attachmentsOf.get(`${ownerType}:${ownerId}`) ?? [], attachmentPath, path, tr('附件'));
 
   // ── 组：一层文件夹 ──
   const rootDirs = new NameSet([...RESERVED_DIRS]);
@@ -240,7 +285,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       my_day: myDayOf.get(t.id),
       checkins: cis.length ? { count: cis.length, last: dateKey(cis[cis.length - 1]!.at) } : undefined,
     };
-    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(t.body_md, path)) });
+    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(t.body_md, path) + block('task', t.id, path)) });
   }
 
   // ── 资料库 ──
@@ -289,16 +334,25 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
   // ── 日记：journal/YYYY/MM/YYYY-MM-DD.md（「这一天」汇总是算出来的，不导出） ──
   const journal = store
     .list('journal_entry')
-    .filter((e) => e.body_md.trim() || e.mood)
+    .filter((e) => e.body_md.trim() || e.mood || attachmentsOf.has(`journal:${e.id}`))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   for (const e of journal) {
     const path = `journal/${e.date.slice(0, 4)}/${e.date.slice(5, 7)}/${e.date}.md`;
     const fm = { id: e.id, date: e.date, mood: e.mood ?? undefined, created: e.created_at };
-    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(e.body_md, path)) });
+    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(e.body_md, path) + block('journal', e.id, path)) });
   }
 
   // ── _meta ──
-  const counts: ExportCounts = { tasks: tasks.length, groups: groups.length, library: items.length, people: people.length, journal: journal.length, images: images.files.size };
+  const counts: ExportCounts = {
+    tasks: tasks.length,
+    groups: groups.length,
+    library: items.length,
+    people: people.length,
+    journal: journal.length,
+    images: images.files.size,
+    attachments: attachments.length,
+    missingAttachments: attachments.length - attachmentPath.size,
+  };
   files.push({ path: MANIFEST_PATH, data: json({ format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, exported_at: now.toISOString(), device: store.deviceId, counts }) });
   // 类型的 hidden 列语义是「归档」（Rei 2026-10-17），文件里写 archived；导入兼容旧文件的 hidden
   files.push({
@@ -318,7 +372,9 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
   files.push({ path: '_meta/prefs.json', data: json(store.list('pref').map(strip)) });
   files.push({ path: '_meta/checkins.json', data: json(checkins.filter((c) => taskById.has(c.task_id)).map(strip)) });
   files.push({ path: '_meta/assets.json', data: json([...images.assets.values()]) });
+  files.push({ path: '_meta/attachments.json', data: json(attachments.map((a) => ({ ...strip(a), ...(attachmentPath.has(a.id) ? { file: attachmentPath.get(a.id) } : {}) }))) });
   files.push(...images.files.values());
+  files.push(...attachmentFiles);
   return { files, counts };
 }
 

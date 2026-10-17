@@ -329,6 +329,30 @@ export interface JournalEntry extends BaseRow {
   created_at: Timestamp;
 }
 
+/**
+ * 附件（Rei 2026-10-17）：挂在任务详情或日记上的文件。SQLite 迁移 v7。
+ * 原文件不压缩、不改尺寸，传到 R2（Worker /api/files，要登录才能读）；图片另有一张小缩略图（thumb_key）给网格用。
+ * 还没传上去时 r2_key 为 null：文件在本机的上传队列里（lib/attachments-queue.ts），别的设备显示「还在另一台设备上」。
+ */
+export interface Attachment extends BaseRow {
+  /** 挂在哪：task（任务）或 journal（日记，owner_id = 那天的 journalEntryId）。不认识的（新版本加的）原样保留、不显示。 */
+  owner_type: AttachmentOwnerType | string;
+  owner_id: string;
+  /** 原文件名（下载时用它）；可以改名。 */
+  file_name: string;
+  mime: string;
+  /** 字节数。 */
+  size: number;
+  r2_key: string | null;
+  thumb_key: string | null;
+  /** 图片的原始宽高（不是缩略图的）；不是图片 / 读不出来为 null。 */
+  width: number | null;
+  height: number | null;
+  created_at: Timestamp;
+}
+
+export type AttachmentOwnerType = 'task' | 'journal';
+
 export interface TableMap {
   task: Task;
   dependency: Dependency;
@@ -345,6 +369,7 @@ export interface TableMap {
   library_item: LibraryItem;
   pref: Pref;
   journal_entry: JournalEntry;
+  attachment: Attachment;
 }
 
 export type TableName = keyof TableMap;
@@ -364,6 +389,7 @@ export const TABLES: readonly TableName[] = [
   'task_link',
   'pref',
   'journal_entry',
+  'attachment',
 ];
 
 /** 写入时调用方提供的部分：id / updated_at / deleted 由存储层补齐。 */

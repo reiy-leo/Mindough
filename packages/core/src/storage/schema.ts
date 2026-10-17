@@ -61,6 +61,18 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
   pref: { key: 'text', value: 'json' },
   journal_entry: { date: 'text', body_md: 'text', mood: 'text?', base_at: 'text?', created_at: 'text' },
+  attachment: {
+    owner_type: 'text',
+    owner_id: 'text',
+    file_name: 'text',
+    mime: 'text',
+    size: 'int',
+    r2_key: 'text?',
+    thumb_key: 'text?',
+    width: 'int?',
+    height: 'int?',
+    created_at: 'text',
+  },
 };
 
 /** SQL 标识符加引号（"group" 是关键字）。 */
@@ -198,6 +210,18 @@ CREATE TABLE IF NOT EXISTS "journal_entry" (
   "date" TEXT NOT NULL, "body_md" TEXT NOT NULL DEFAULT '', "mood" TEXT, "base_at" TEXT, "created_at" TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "journal_entry_date" ON "journal_entry" ("date");
+`,
+  },
+  {
+    version: 7,
+    name: '附件（attachment）',
+    sql: `
+CREATE TABLE IF NOT EXISTS "attachment" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "owner_type" TEXT NOT NULL, "owner_id" TEXT NOT NULL, "file_name" TEXT NOT NULL, "mime" TEXT NOT NULL DEFAULT '',
+  "size" INTEGER NOT NULL DEFAULT 0, "r2_key" TEXT, "thumb_key" TEXT, "width" INTEGER, "height" INTEGER, "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "attachment_owner" ON "attachment" ("owner_type", "owner_id");
 `,
   },
 ];
