@@ -527,6 +527,21 @@ export const EN: Record<string, EnValue> = {
   '登录后，改动会在你的设备间自动同步。': 'Sign in to sync changes across your devices.',
   '不登录也能完整使用，数据都存在这台设备上。': 'Everything works without signing in — your data stays on this device.',
   '用 Google 登录': 'Sign In with Google',
+  // 设置 → 账户：数据怎么走（Rei 2026-10-17）
+  'Turso（东京）': 'Turso (Tokyo)',
+  云端数据库: 'Cloud database',
+  这台设备: 'This device',
+  先存在这里: 'Saved here first',
+  核对是你本人: 'Checks it’s you',
+  其他设备: 'Other devices',
+  从这里同步: 'Sync from the cloud',
+  '数据存在：这台设备 + {storage}': 'Stored on this device + {storage}',
+  登录后数据怎么走: 'Where your data goes when you sign in',
+  数据流向: 'Data flow',
+  '改动先存在这台设备上，再由 Worker（mindough.rei8t.dev）核对是你本人后存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。':
+    'Changes are saved on this device first. The Worker (mindough.rei8t.dev) checks it’s really you, then saves them to {storage}, and your other devices sync from there. Images are stored in Cloudflare R2.',
+  '改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）先核对是你本人，再存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。':
+    'Changes are saved on this device first. Once you sign in with Google, the Worker (mindough.rei8t.dev) checks it’s really you, then saves them to {storage}, and your other devices sync from there. Images are stored in Cloudflare R2.',
   '已同步 · {ago}': 'Synced · {ago}',
   已同步: 'Synced',
   '改动会自动同步到你的其他设备。': 'Changes sync to your other devices automatically.',

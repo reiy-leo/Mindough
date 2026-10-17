@@ -19,7 +19,7 @@
 - ✅ Markdown 编辑：Milkdown 7（commonmark + gfm 预设），正文以 .md 文本入库；详情 / 备注带工具栏，新建面板 `toolbar="none"`
 - 依赖图：React Flow（xyflow）+ elkjs
 - ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），同一 schema 与迁移（packages/core/src/storage/schema.ts）
-- ✅ 同步：云端是 Turso Cloud 库 `mindough`（东京），客户端经 Worker `/api/sync/*` 用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）；Worker `mindough`（`mindough.rei8t.dev`）负责 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
+- ✅ 同步：云端默认是 Turso Cloud 库 `mindough`（东京），也可用 Worker 环境变量 `STORAGE_BACKEND=d1` 换成 Cloudflare D1 库 `mindough`（存储层 `apps/server/src/sql.ts` / `storage.ts`，切换前跑 `pnpm --filter server storage:copy`，见 PLAN“云端存储：Turso / D1”）；客户端经 Worker `/api/sync/*` 用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）；Worker `mindough`（`mindough.rei8t.dev`）负责 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
 - 包管理：pnpm；测试 Vitest
 
 ## 目录（M1 实际）
@@ -56,8 +56,9 @@ apps/client/src/
   styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
   lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
 apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；opener + deep-link（mindough://）+ 桌面 single-instance）
-apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、turso.ts（Hrana HTTP）、assets.ts（R2 图片）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
-  test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
+apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、
+                        存储层 sql.ts（SqlDb 接口）/ storage.ts（按 STORAGE_BACKEND 选）/ turso.ts（Hrana HTTP）/ d1.ts（D1 绑定 + REST）/ copy.ts（库间全量复制与核对，scripts/copy-storage.ts）、assets.ts（R2 图片）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
+  test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso；storage.test.ts 用 Miniflare 本地 D1）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
 .github/workflows/      ci.yml、build.yml
 docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPORT.md（导入导出格式）
 .agents/                skills / rules / prompts / memory
@@ -77,6 +78,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 | Worker 本地 | `pnpm --filter server dev`（:8787，需 `apps/server/.dev.vars`，见 `.dev.vars.example`） |
 | Worker 单测 | `pnpm --filter server test` |
 | 同步端到端（真实 Turso） | `cd apps/server && E2E_TURSO_URL=https://mindough-rei8.aws-ap-northeast-1.turso.io E2E_TURSO_TOKEN_FILE=<放数据库 token 的文件> npx vitest run e2e/real-turso.test.ts`（测试账户 e2e@mindough.test，跑完自动删行） |
+| 云端库复制（切换前） | `cd apps/server && pnpm storage:copy -- --from turso --to d1 [--dry-run] [--replace]`（环境变量见脚本头；切换改 `wrangler.deploy.jsonc` 的 `STORAGE_BACKEND`） |
 | 部署 | `cd apps/server && CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… pnpm deploy`（`keep_vars` 保留控制台里的 Google 变量） |
 | Rust 检查 | `cd apps/client/src-tauri && cargo check`（Linux 需 libwebkit2gtk-4.1-dev 等） |
 | Android | `pnpm tauri android init` → `pnpm tauri android build --apk --debug` |
@@ -96,7 +98,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 任务没有标题字段，列表里显示 body_md 首行作预览。
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
-- 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
+- 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，经 `openDb(env)` 拿库，别直接调 turso.ts）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
 - 外链：在 Tauri 里一律经 `lib/external.ts`（全局拦截 + `openExternal`）交给系统浏览器；不要自己 `window.open` 或另装 opener 调用。
 - 资料 / 人物合并后来源是墓碑 + `merged_into`：读任务挂的资料一律经 `store.itemOf(task)` / `resolveItemId` / `resolvePersonId`（会顺着 merged_into 找到留下的那条），不要直接 `get('library_item', task.library_item_id)`。
 - 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。

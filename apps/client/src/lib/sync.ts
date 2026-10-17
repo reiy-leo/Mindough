@@ -11,6 +11,7 @@ import { SyncEngine, SyncHttpError, type PullResult, type PushResult, type Store
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
 
 import { tr } from './i18n';
+import { setCloudStorage } from './cloud';
 const INTERVAL_MS = 60_000;
 
 async function readError(res: Response): Promise<string> {
@@ -39,6 +40,7 @@ export class TokenSource {
     }
     if (!res.ok) throw new SyncHttpError(res.status, await readError(res));
     this.cached = (await res.json()) as SyncToken;
+    setCloudStorage((this.cached as { storage?: unknown }).storage);
     return this.cached;
   }
 

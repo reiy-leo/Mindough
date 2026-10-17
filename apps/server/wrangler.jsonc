@@ -16,5 +16,10 @@
   },
   // 用户上传的图片（/api/assets）；本地 wrangler dev 用模拟的 R2
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "mindough-assets" }],
+  // 云端存储后端：turso（默认，Turso Cloud 东京，凭据是 secret TURSO_DB_URL / TURSO_DB_TOKEN）| d1（下面的 D1 库）。
+  // 切换前先跑 `pnpm --filter server storage:copy -- --from turso --to d1` 全量复制并核对，再改这里、重新部署（docs/PLAN.md）。
+  "vars": { "STORAGE_BACKEND": "turso" },
+  // Cloudflare D1 库 mindough（APAC，Rei 2026-10-17 建）；STORAGE_BACKEND=d1 时同步数据存这里
+  "d1_databases": [{ "binding": "DB", "database_name": "mindough", "database_id": "eb0e708a-8764-42fe-a41c-13c9906f16fe" }],
   "observability": { "enabled": true }
 }

@@ -1,9 +1,10 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud）、图片（R2）、在线找资料（lookup/）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片（R2）、在线找资料（lookup/）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
 import { currentSession, handleCallback, handleLogin, handleLogout } from './auth';
+import { storageBackend } from './storage';
 import { handlePull, handlePush, handleSyncToken, type SyncEnv } from './sync';
 import { handleExchange, issueNativeCode } from './native';
 import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
@@ -51,7 +52,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
 }
 
 async function route(request: Request, env: Env, url: URL, pathname: string, method: string): Promise<Response> {
-  if (pathname === '/api/health') return json({ ok: true, name: 'mindough', stage: 'M2' });
+  // storage：云端数据库是哪个（turso | d1，由 STORAGE_BACKEND 决定；写错了是 null），设置页只读显示
+  if (pathname === '/api/health') return json({ ok: true, name: 'mindough', stage: 'M2', storage: storageBackend(env) });
   if (pathname === '/auth/login' && method === 'GET') return handleLogin(request, env);
   if (pathname === '/auth/callback' && method === 'GET')
     return handleCallback(request, env, { issueNativeCode: (user, challenge) => issueNativeCode(env, user, challenge) });

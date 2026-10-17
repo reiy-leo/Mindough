@@ -8,7 +8,7 @@
 - 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
 - 前端：TypeScript + React + Vite；UI 为 headless 组件 + 每端原生风格皮肤（见“设计风格”）；浅/深色跟随系统。
 - 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
-- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；客户端只和 Worker（同域 `mindough.rei8t.dev/api/sync`）说话，Worker 经 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端走系统浏览器 + deep link 回调。见“多端同步怎么做”。
+- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；也可以换成 Cloudflare D1 库 `mindough`，用 Worker 环境变量 `STORAGE_BACKEND` 切（Rei 2026-10-17，见“云端存储：Turso / D1”）；客户端只和 Worker（同域 `mindough.rei8t.dev/api/sync`）说话，Worker 经 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端走系统浏览器 + deep link 回调。见“多端同步怎么做”。
 - Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
 
@@ -67,7 +67,7 @@ Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自
 - Safari / iOS / macOS 的 WKWebView 没有 `COEP: credentialless`，跑不了 wasm 引擎（Web 端在 Safari 上本来就退回 localStorage），Apple 端只能换 Rust `turso` crate 重写原生存储层并实测移动端交叉编译。我们的协议是纯 TS，localStorage、rusqlite、OPFS 三种存储都能同步，Rust 侧不用动。
 - 鉴权：Turso Sync 要把数据库 token 交给客户端；Turso 的 token 只能经 Platform API（org 级权限）或长期 token 签发，没法在 Worker 里不带 Platform API token 就签短期 token。现在数据库 token 只放在 Worker 的密钥里，客户端拿的是 Worker 签的 1 小时同步凭据，只能读写自己的行。
 - 留的路：core 的 `SyncTransport` 接口与 `SyncEngine` 和存储无关，以后 Turso Sync 成熟（逻辑行级冲突、DDL 不随同步走）可以换；云端数据本来就在 Turso。
-- 备选（未用）：B 自建 Worker + D1（同一套协议换个云端存储即可，~10 行）；cr-sqlite；PowerSync（需要 Postgres）。
+- 备选：B 自建 Worker + D1——2026-10-17 已做成可切换的第二个后端（见下“云端存储：Turso / D1”），默认仍是 Turso；cr-sqlite；PowerSync（需要 Postgres）。
 
 ### 云端（Turso `mindough`）
 - `sync_row(user_id, tbl, id, updated_at, deleted, data, seq)`，主键 (user_id, tbl, id)，索引 (user_id, seq)；`data` 是整行 JSON，云端不关心业务列——客户端加列 / 加表不用改云端。
@@ -75,6 +75,19 @@ Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自
 - `server_schema`：云端迁移版本；Worker 第一次用到时自动应用（`apps/server/src/sync.ts` 的 `SERVER_MIGRATIONS`，只追加）。
 - Worker 密钥：`TURSO_DB_URL`、`TURSO_DB_TOKEN`（全权限数据库 token，只在 Worker 里，不进仓库、不给客户端）。
 - 接口：`POST /api/sync/token`（会话 → `{ url, token, expires_at }`，401 未登录 / 403 无权限 / 503 服务不可用）、`POST /api/sync/push`（`{ rows }` → `{ applied }`，单次最多 500 行、单行 ≤ 2 MB）、`POST /api/sync/pull`（`{ cursor, limit }` → `{ rows, cursor, more }`）。
+
+### 云端存储：Turso / D1（Rei 2026-10-17）
+Rei：「settings中的这个google登录写清楚数据流向，先经过worker认证是你自己，再存到turso中，也可以选择存在D1中」，随后改成「这个切换数据库用环境变量切换」——不在界面上选、服务端也不存“选了哪个”，由 Worker 环境变量决定。默认仍是 Turso（Rei 2026-10-16 定过云端先继续用 Turso），线上部署保持 `turso`。
+- 存储层：`apps/server/src/sql.ts` 定义 `SqlDb { execute, transaction }`；`turso.ts` 的 `tursoDb`（Hrana HTTP）、`d1.ts` 的 `d1Db`（Worker 绑定 `DB`，事务用 D1 batch，整批原子）和 `d1RestDb`（Cloudflare REST API，迁移脚本用）；`storage.ts` 的 `openDb(env)` 按 `STORAGE_BACKEND` 选。同步协议、`SERVER_MIGRATIONS`、upsert / RETURNING SQL 两边完全同一份；auth_code（原生端登录码）也跟着后端走。
+- `STORAGE_BACKEND`：没设或 `turso` → Turso；`d1` → D1；别的值 → 503 服务不可用（不悄悄回退，免得两边数据分叉）。写在 `wrangler.deploy.jsonc` 的 `vars` 里（git 里看得到；`keep_vars` 只保留配置里没写的控制台变量）。
+- D1 库：`mindough`（id `eb0e708a-8764-42fe-a41c-13c9906f16fe`，APAC，账户 9151f72e…）2026-10-17 建好、云端 schema v1 已应用、`sync_row` 是空的；绑定名 `DB`。
+- 只读显示：`GET /api/health` 和 `POST /api/sync/token` 的响应带 `storage: 'turso' | 'd1'`（写错了 health 报 `null`）；设置 → 账户卡最后一行「数据怎么走」显示当前库名和流向（文案见 COPY.md）。
+- 切换步骤（手动，Turso → D1；反向把 turso / d1 对调）：
+  1. 复制并核对：`cd apps/server && TURSO_DB_TOKEN_FILE=<数据库 token 文件> CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… pnpm storage:copy -- --from turso --to d1`（先加 `--dry-run` 看源库有多少行；Hark 沙箱里 Node 要走代理，前面加 `NODE_USE_ENV_PROXY=1`）。脚本 `scripts/copy-storage.ts`（核心 `src/copy.ts`）：在目标库应用迁移 → 目标库已有同步数据就 409 冲突停下（确认要覆盖目标库加 `--replace`，只清目标库）→ 按主键翻页全量复制 `sync_row`（原样保留 seq，各设备的拉取游标切换后照样能用）→ 核对总行数、每个用户的行数与最大 seq、每张表的行数、逐行摘要（user/tbl/id/updated_at/deleted/seq/data 的 SHA-256）。任何一项对不上就退出码 1、提示“不要切换”。源库只读，从不删改。
+  2. 把 `wrangler.deploy.jsonc` 的 `STORAGE_BACKEND` 改成 `d1`，提交并 `pnpm deploy`。
+  3. 打开 `/api/health` 看 `storage` 是不是 `d1`，设置页库名跟着变。
+  - 复制和切换之间不要有设备往旧库写：那几行不在新库里，而且新库会从旧的最大 seq 往上重新编号，已经拉到更大游标的设备会漏掉这些编号的新行。所以在没人用的时候做，复制完马上切；担心的话切换前再跑一次 `--replace` 复制。
+- 测试：`apps/server/test/storage.test.ts`：STORAGE_BACKEND 解析与写错 503、D1 存储层（Miniflare 的本地 D1：编号参数、batch 原子回滚、迁移可重复）、同步 API 整套跑在 D1 上（push / pull / LWW / 游标 / 原生登录码，不发任何网络请求）、Turso ⇄ D1 双向复制（seq / 墓碑 / 中文原样、源库不变、409 与 --replace、--dry-run 不写、丢行和改值都能被核对发现）。
 
 ### 原生端登录（Tauri）
 - 「用 Google 登录」→ app 生成 verifier，用系统浏览器打开 `/auth/login?native=1&challenge=base64url(SHA-256(verifier))` → Google → Worker 发一次性登录码，结果页（“已登录，回到 Mindough 继续”）跳回 `mindough://auth?code=…` → app `POST /auth/exchange { code, verifier }` 换成会话（30 天），存本机，之后请求带 `Authorization: Bearer`。别的 app 截到 deep link 没有 verifier 换不走；码只能用一次。
@@ -86,7 +99,7 @@ Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自
 - 客户端上传图片时：登录且在线 → 传 R2，asset 行只存地址（`url`、`r2_key`、`sha256`）；离线或没登录 → 仍存 data: 地址（照样同步，只是行大一些）。以前存的 data: 图片暂不自动搬到 R2（以后做）。
 
 ### 风险与缺口
-- 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖 Turso 单写者串行；若以后开 `BEGIN CONCURRENT` 要改成计数表。
+- 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖单写者串行（Turso 与 D1 都是）；若以后开 `BEGIN CONCURRENT` 要改成计数表。
 - 行级 LWW：两台设备离线改同一件任务的不同字段，只留晚的那次（整行）。字段级合并以后再说。
 - 旧版本客户端不认识的新列：拉下来能存（JSON 里有），但旧版本改这一行再推，会丢掉新列的值。
 - 同步凭据 1 小时、会话 30 天；会话是 HMAC 签名、无服务端状态，泄露只能靠换 `SESSION_SECRET` 失效。

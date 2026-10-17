@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { AlertCircle, CloudCheck, CloudOff, LogIn, LogOut, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import { AlertCircle, CloudCheck, CloudOff, Database, Laptop, LogIn, LogOut, MonitorSmartphone, RefreshCw, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
 import { loginUrl, logout, useAccount } from '../lib/account';
 import { syncNow, useSyncView, type SyncView } from '../lib/sync';
+import { cloudStorageName, useCloudStorage, type CloudStorage } from '../lib/cloud';
 import { startNativeLogin } from '../lib/native-login';
 import { isTauri } from '../store/sqlite-tauri';
 import { useUi } from '../lib/ui';
@@ -273,6 +274,7 @@ function AccountSection() {
   const [acc, refresh] = useAccount();
   const sync = useSyncView();
   const { toast } = useUi();
+  const storage = useCloudStorage();
   const native = isTauri();
   const login = () => {
     if (native) void startNativeLogin().catch(() => toast({ message: tr('没能打开浏览器，请再试一次。'), tone: 'error' }));
@@ -322,8 +324,48 @@ function AccountSection() {
           )}
         </div>
         {acc.status === 'in' && sync.enabled && <SyncRow sync={sync} onLogin={login} />}
+        <DataFlowRow signedIn={acc.status === 'in'} storage={storage} />
       </div>
     </Section>
+  );
+}
+
+/**
+ * 数据怎么走（Rei 2026-10-17「写清楚数据流向，先经过 worker 认证是你自己，再存到 turso 中，也可以选择存在 D1 中」）：
+ * 一句说明 + 流向示意（这台设备 → Worker 核对 → 云端库 → 其他设备）。云端库是哪个由服务器的 STORAGE_BACKEND 决定，这里只读显示。
+ */
+function DataFlowRow({ signedIn, storage }: { signedIn: boolean; storage: CloudStorage | null }) {
+  const name = cloudStorageName(storage);
+  const steps = [
+    { icon: <Laptop size={16} />, name: tr('这台设备'), hint: tr('先存在这里') },
+    { icon: <ShieldCheck size={16} />, name: 'Worker', hint: tr('核对是你本人') },
+    { icon: <Database size={16} />, name, hint: storage ? tr('云端数据库') : '' },
+    { icon: <MonitorSmartphone size={16} />, name: tr('其他设备'), hint: tr('从这里同步') },
+  ];
+  return (
+    <div className="setting data-flow-row">
+      <div className="setting-text">
+        <div className="setting-name">{signedIn ? tr('数据存在：这台设备 + {storage}', { storage: name }) : tr('登录后数据怎么走')}</div>
+        <div className="setting-hint">
+          {signedIn
+            ? tr('改动先存在这台设备上，再由 Worker（mindough.rei8t.dev）核对是你本人后存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。', { storage: name })
+            : tr('改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）先核对是你本人，再存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。', { storage: name })}
+        </div>
+        <ol className="data-flow" aria-label={tr('数据流向')}>
+          {steps.map((s, i) => (
+            <li key={i} className="data-flow-step">
+              <span className="data-flow-icon" aria-hidden>
+                {s.icon}
+              </span>
+              <span className="data-flow-text">
+                <span className="data-flow-name">{s.name}</span>
+                {s.hint && <span className="data-flow-hint">{s.hint}</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
   );
 }
 

@@ -1,28 +1,22 @@
 /**
  * 最小的 Turso / libSQL HTTP 客户端（Hrana over HTTP，`POST {url}/v2/pipeline`）。
- * 只在 Worker 里用；数据库凭据 TURSO_DB_TOKEN 不出 Worker。
+ * Worker 里用（STORAGE_BACKEND=turso，默认），scripts/copy-storage.ts 也用；数据库凭据 TURSO_DB_TOKEN 不出 Worker。
  */
+import { DbError, type Row, type SqlDb, type Stmt, type Value } from './sql';
+
 export interface TursoEnv {
   /** 如 https://mindough-rei8.aws-ap-northeast-1.turso.io（libsql:// 也行，会换成 https://） */
   TURSO_DB_URL?: string;
   TURSO_DB_TOKEN?: string;
 }
 
-export type Value = string | number | null;
-export interface Stmt {
-  sql: string;
-  args?: readonly Value[];
-}
-export type Row = Record<string, Value>;
+export type { Row, Stmt, Value } from './sql';
 
 type HranaValue = { type: 'null' } | { type: 'integer'; value: string } | { type: 'float'; value: number } | { type: 'text'; value: string } | { type: 'blob'; base64: string };
 
-export class TursoError extends Error {
-  constructor(
-    message: string,
-    readonly status = 502,
-  ) {
-    super(message);
+export class TursoError extends DbError {
+  constructor(message: string, status = 502) {
+    super(message, status);
     this.name = 'TursoError';
   }
 }
@@ -110,4 +104,14 @@ export async function transaction(env: TursoEnv, stmts: readonly Stmt[], fetcher
   const err = batch.step_errors.find((e) => e);
   if (err || !batch.step_results[commitAt]) throw new TursoError(`502 网关错误：写入同步数据库失败（${err?.message ?? '未提交'}）`);
   return stmts.map((_, i) => rowsOf(batch.step_results[i + 1]!));
+}
+
+/** 存储层接口（sql.ts）的 Turso 实现。 */
+export function tursoDb(env: TursoEnv, fetcher: typeof fetch = fetch): SqlDb {
+  return {
+    backend: 'turso',
+    configured: tursoConfigured(env),
+    execute: (stmts) => execute(env, stmts, fetcher),
+    transaction: (stmts) => transaction(env, stmts, fetcher),
+  };
 }

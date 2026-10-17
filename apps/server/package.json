@@ -8,11 +8,14 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "storage:copy": "tsx scripts/copy-storage.ts",
     "deploy": "pnpm --filter client build && bash scripts/upload-web.sh && wrangler deploy -c wrangler.deploy.jsonc"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261006.1",
     "@types/node": "^22.20.5",
+    "miniflare": "4.20260730.0",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "vitest": "^4.1.11",
     "wrangler": "^4.40.0"

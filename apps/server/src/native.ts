@@ -3,12 +3,12 @@
  *   /auth/login?native=1&challenge=base64url(SHA-256(verifier))
  * Google 登录成功后 Worker 发一个 5 分钟有效、只能用一次的登录码，结果页跳回 mindough://auth?code=…；
  * app 收到 deep link 后 POST /auth/exchange { code, verifier } 换成会话（Bearer 用），之后和 Web 端一样取同步凭据。
- * 登录码存在 Turso 的 auth_code 表（Worker 没有别的存储）。verifier 只在 app 里，别的 app 截到 deep link 也换不走。
+ * 登录码存在云端库（Turso 或 D1，看 STORAGE_BACKEND）的 auth_code 表（Worker 没有别的存储）。verifier 只在 app 里，别的 app 截到 deep link 也换不走。
  */
 import { SESSION_TTL_S, allowedEmails, type SessionUser } from './auth';
 import { randomToken, sign } from './session';
 import { ensureSchema, type SyncEnv } from './sync';
-import { execute } from './turso';
+import { openDb } from './storage';
 
 const CODE_TTL_MS = 5 * 60 * 1000;
 
@@ -23,17 +23,14 @@ export async function sha256b64url(text: string): Promise<string> {
 }
 
 export async function issueNativeCode(env: SyncEnv, user: SessionUser, challenge: string, fetcher: typeof fetch = fetch): Promise<string> {
-  await ensureSchema(env, fetcher);
+  const db = openDb(env, fetcher);
+  await ensureSchema(db);
   const code = randomToken(32);
   const now = Date.now();
-  await execute(
-    env,
-    [
+  await db.execute([
       { sql: `DELETE FROM "auth_code" WHERE "expires_at" < ?`, args: [now] },
       { sql: `INSERT INTO "auth_code" ("code", "payload", "challenge", "expires_at") VALUES (?, ?, ?, ?)`, args: [code, JSON.stringify(user), challenge, now + CODE_TTL_MS] },
-    ],
-    fetcher,
-  );
+  ]);
   return code;
 }
 
@@ -48,18 +45,17 @@ export async function handleExchange(req: Request, env: SyncEnv, fetcher: typeof
   }
   if (typeof body.code !== 'string' || typeof body.verifier !== 'string' || body.verifier.length < 43) return json({ error: '400 请求有误：缺少 code 或 verifier' }, 400);
   try {
-    await ensureSchema(env, fetcher);
+    const db = openDb(env, fetcher);
+    await ensureSchema(db);
     const challenge = await sha256b64url(body.verifier);
     // 一次性：只有 used = 0、没过期、challenge 对得上的那一行会被改成 used = 1 并返回
-    const [rows] = await execute(
-      env,
+    const [rows] = await db.execute(
       [
         {
           sql: `UPDATE "auth_code" SET "used" = 1 WHERE "code" = ? AND "used" = 0 AND "expires_at" >= ? AND "challenge" = ? RETURNING "payload"`,
           args: [body.code, Date.now(), challenge],
         },
       ],
-      fetcher,
     );
     const payload = rows?.[0]?.payload;
     if (typeof payload !== 'string') return json({ error: '400 请求有误：登录码无效、已用过或已过期，请重新登录' }, 400);

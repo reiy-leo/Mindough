@@ -14,3 +14,5 @@ TURSO_DB_URL=
 TURSO_DB_TOKEN=
 # 在线找影视（可不配；不配时界面显示「TMDB 还没配置」）：themoviedb.org → 设置 → API，v3 API key 或 v4 读访问令牌都行
 TMDB_API_KEY=
+# 云端存储后端：turso（默认）| d1（本地 wrangler dev 用模拟的 D1）；wrangler.jsonc 的 vars 里也写着
+# STORAGE_BACKEND=turso
