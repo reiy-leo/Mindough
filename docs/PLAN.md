@@ -432,3 +432,4 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 类型的海报 / 图标 MVP 只手动上传或贴链接，自动找图以后做，可以吗？
 - ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
 - ✅ iOS 分发（Rei 2026-10-16 定）：免费 Apple ID + Xcode 个人团队装自己 iPhone（7 天重装，不走 TestFlight），步骤见 docs/IOS.md；小组件要 App Group，先不接。
+- 🟡 日记功能（Rei 2026-10-17：「加入日记功能，先写计划，让我审核」）：方案见 [docs/JOURNAL.md](JOURNAL.md)，待 Rei 审核，审过之前不动代码。
