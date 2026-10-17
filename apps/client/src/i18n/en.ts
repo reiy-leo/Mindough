@@ -180,6 +180,12 @@ export const EN: Record<string, EnValue> = {
   格式: 'Formatting',
   链接地址: 'Link URL',
   去掉链接: 'Remove Link',
+  // 链接框（文字 + 链接两栏）
+  编辑链接: 'Edit Link',
+  文字: 'Text',
+  不填就用网址: 'Leave empty to use the URL',
+  填一个网址: 'Enter a URL',
+  '这不像网址，检查一下': 'That doesn’t look like a URL',
   // GitHub 提示块标题（> [!NOTE] 等，和 GitHub 英文界面一致）、脚注
   注意: 'Note',
   提示: 'Tip',

@@ -233,7 +233,9 @@
 }
 [data-skin='winui'] .popover,
 [data-skin='winui'] .modal,
-[data-skin='winui'] .toast {
+[data-skin='winui'] .toast,
+[data-skin='winui'] .md-link-pop,
+[data-skin='winui'] .md-link-sheet {
   --popup-bg: #f9f9f9;
   background-color: var(--popup-bg);
 }
@@ -242,7 +244,9 @@
 }
 [data-skin='winui'][data-theme='dark'] .popover,
 [data-skin='winui'][data-theme='dark'] .modal,
-[data-skin='winui'][data-theme='dark'] .toast {
+[data-skin='winui'][data-theme='dark'] .toast,
+[data-skin='winui'][data-theme='dark'] .md-link-pop,
+[data-skin='winui'][data-theme='dark'] .md-link-sheet {
   --popup-bg: #2c2c2c;
 }
 [data-skin='winui'] .dialog-foot {

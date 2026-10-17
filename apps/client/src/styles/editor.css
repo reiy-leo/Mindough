@@ -236,9 +236,121 @@
   box-shadow: var(--shadow-pop);
   font-size: 13px;
 }
+/* 链接框：两栏「文字」「链接」+ 按钮（浮层「编辑」、工具栏链接、⌘K 共用） */
 .md-link-pop.is-editing {
-  width: min(420px, 100%);
-  padding-left: 8px;
+  display: block;
+  width: min(360px, 100%);
+  padding: 10px;
+}
+.md-link-dialog {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+}
+.md-link-row {
+  display: contents;
+}
+.md-link-label {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.md-link-dialog .md-link-input {
+  height: 30px;
+  min-height: 30px;
+  min-width: 0;
+}
+.md-link-dialog .md-link-input[data-disabled],
+.md-link-dialog .md-link-input:disabled {
+  color: var(--text-3);
+  opacity: 0.7;
+}
+.md-link-dialog .md-link-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.md-link-error {
+  grid-column: 2;
+  margin-top: -4px;
+  font-size: 12px;
+  color: var(--danger);
+}
+.md-link-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.md-link-actions .md-link-remove {
+  margin-right: auto;
+}
+/* 触屏：底部弹出面板（键盘弹起时 bottom 由 visualViewport 抬高；没键盘时留出底部安全区） */
+.md-link-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.28);
+  animation: fade 0.15s var(--ease);
+}
+.md-link-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  background: var(--surface);
+  background-color: color-mix(in srgb, var(--surface) 100%, var(--bg));
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-pop);
+  animation: rise 0.2s var(--ease);
+}
+.md-link-sheet::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.md-link-sheet-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.md-link-sheet .md-link-dialog {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.md-link-sheet .md-link-label {
+  margin-top: 6px;
+}
+.md-link-sheet .md-link-dialog .md-link-input {
+  height: 44px;
+  min-height: 44px;
+  font-size: 16px; /* iOS 小于 16px 会自动放大页面 */
+}
+.md-link-sheet .md-link-error {
+  grid-column: 1;
+  margin-top: 0;
+}
+.md-link-sheet .md-link-actions {
+  margin-top: 12px;
+}
+.md-link-sheet .md-link-actions .btn {
+  min-height: 40px;
+  padding-inline: 16px;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-link-sheet,
+  .md-link-sheet-backdrop {
+    animation: none;
+  }
 }
 .md-link-pop-url {
   flex: 1 1 auto;

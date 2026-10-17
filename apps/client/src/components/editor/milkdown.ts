@@ -110,6 +110,72 @@ export function setLinkTr(state: EditorState, range: { from: number; to: number 
   return tr;
 }
 
+/**
+ * 链接框里填的网址 → 存进去的地址；不像网址返回 null（Rei 2026-10-17「编辑器中链接要支持编辑名称和链接」）。
+ * - 去掉两头空白；中间的空格编成 %20（markdown 里的链接地址不能带空格，否则往返会断）。
+ * - 没协议补 https://；mailto: / tel: 照原样；站内的 #/… 照原样。
+ * - javascript: / data: / vbscript: 不收。http(s) 要有像样的主机名（带点、localhost 或 IP）。
+ */
+export function normalizeHref(raw: string): string | null {
+  const t = raw.trim().replace(/\s+/g, '%20');
+  if (!t) return null;
+  if (t.startsWith('#')) return t;
+  if (/^(javascript|data|vbscript):/i.test(t)) return null;
+  if (/^(mailto|tel):/i.test(t)) return t.length > t.indexOf(':') + 1 ? t : null;
+  const url = withProtocol(t.replace(/^\/\//, ''));
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (/^https?:$/.test(u.protocol)) {
+    const host = u.hostname;
+    if (!host || !(host.includes('.') || host === 'localhost' || /^\[.*\]$/.test(host))) return null;
+    if (/^\.|\.$|\.\./.test(host)) return null;
+  }
+  return url;
+}
+
+/**
+ * 链接框保存：把 [from, to) 换成「text」并加上链接 href（已规范好的）。
+ * - text 空 = 用网址当文字。
+ * - 文字没改：只改地址，保留里面的粗体 / 斜体（setLinkTr）。
+ * - 文字改了：整段换成新文字，带上原来第一个字的格式（去掉旧链接）。
+ * - 空区间（新加）：在 from 插入。跨段落的选区不改文字，只加链接。
+ * 保存后光标放在链接后面。
+ */
+export function applyLinkTr(state: EditorState, range: { from: number; to: number }, text: string, href: string) {
+  const type = state.schema.marks.link!;
+  const name = text.trim() || href;
+  const { from, to } = range;
+  const $from = state.doc.resolve(from);
+  const $to = state.doc.resolve(to);
+  const sameBlock = $from.sameParent($to);
+  const cur = from < to ? state.doc.textBetween(from, to, '') : '';
+  if (from < to && (!sameBlock || cur === name)) {
+    const tr = setLinkTr(state, range, href);
+    const end = tr.mapping.map(to);
+    tr.setSelection(TextSelection.create(tr.doc, end));
+    // 接着打的字不带链接
+    return tr.setStoredMarks(tr.doc.resolve(end).marks().filter((m) => m.type !== type));
+  }
+  let title: unknown = null;
+  if (from < to)
+    state.doc.nodesBetween(from, to, (n) => {
+      const m = type.isInSet(n.marks);
+      if (m && title == null) title = m.attrs.title ?? null;
+    });
+  const base = (from < to ? (state.doc.nodeAt(from)?.marks ?? $from.marks()) : (state.storedMarks ?? $from.marks())).filter((m) => m.type !== type && m.type.name !== 'inlineCode');
+  const marks = type.create({ href, ...(title ? { title } : {}) }).addToSet(base);
+  const tr = state.tr.replaceWith(from, to, state.schema.text(name, marks));
+  const end = from + name.length;
+  tr.setSelection(TextSelection.create(tr.doc, end));
+  // 接着打的字不带链接
+  tr.setStoredMarks(base);
+  return tr;
+}
+
 /** 手打的 [文字](网址) / [](网址)；前面是 ! 的是图片，不管。也认全角括号（中文输入法）。 */
 export const LINK_INPUT_RE = /(?<!!)\[([^\]]*)\][(（]([^)）\s]+)[)）]$/;
 
@@ -143,6 +209,12 @@ export interface MdEditorHandle {
   linkAtSelection(): LinkRange | null;
   /** 改 / 去掉（href 空）一段链接的地址。 */
   setLink(range: { from: number; to: number }, href: string): void;
+  /** 链接框保存：文字 + 地址一起换（见 applyLinkTr）；href 不像网址返回 false、什么都不改。 */
+  applyLink(range: { from: number; to: number }, text: string, href: string): boolean;
+  /** 一段的纯文字（链接框预填）。 */
+  textOf(range: { from: number; to: number }): string;
+  /** 当前选区（链接框新加时用）。 */
+  selection(): { from: number; to: number };
   /** 链接起点在页面上的位置（浮层定位）。 */
   coordsOf(range: { from: number; to: number }): { left: number; top: number; bottom: number } | null;
   view(): EditorView;
@@ -565,6 +637,30 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
       const size = v.state.doc.content.size;
       if (range.from < 0 || range.to > size || range.from >= range.to) return;
       v.dispatch(setLinkTr(v.state, range, href.trim() ? withProtocol(href.trim()) : ''));
+    },
+    applyLink(range, text, href) {
+      const url = normalizeHref(href);
+      if (!url) return false;
+      const v = view();
+      const size = v.state.doc.content.size;
+      if (range.from < 0 || range.to > size || range.from > range.to) return false;
+      v.dispatch(applyLinkTr(v.state, range, text, url));
+      return true;
+    },
+    textOf(range) {
+      const v = view();
+      try {
+        return v.state.doc.textBetween(range.from, range.to, ' ');
+      } catch {
+        return '';
+      }
+    },
+    selection() {
+      const v = view();
+      // 刚用 Shift+方向键 / 长按改的选区，ProseMirror 可能还没从 DOM 读进来（selectionchange 是异步的）：先读一下
+      (v as unknown as { domObserver?: { flush?: () => void } }).domObserver?.flush?.();
+      const { from, to } = v.state.selection;
+      return { from, to };
     },
     coordsOf(range) {
       try {

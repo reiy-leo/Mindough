@@ -102,8 +102,9 @@
 | 备注 | Markdown 备注 / 富文本 / 支持 Markdown | 资料、人物的备注；所见即所得，标签旁不再写「支持 Markdown」；空的时候占位「写点什么…」 |
 | 提醒 | 通知时间 / 闹钟 / 到期提醒 | 任务属性（新建面板胶囊、详情一行）：值「09:00」（英文 9:00 AM），没设「不提醒」；只在有日期、倒数日、定期打卡时出现。弹层：常用时间、「其他时间」、说明「那天这个时间提醒你。」/「目标日那天，这个时间提醒你。」/「每个要打卡的日子，这个时间提醒你；那天已经打过卡就不提醒。」、「不提醒」；总开关关着时「提醒通知关着。」+「去设置里打开」。到点的提示：标题 · 「今天要做」/「就是今天」/「该打卡了」/「计时到了：10 分钟」，按钮「查看」「10 分钟后」。设置 → 提醒：「提醒通知」开关，说明按状态：「到点发系统通知。」（网页版加「Mindough 开着（标签页可以在后台）才会提醒」）/「还没允许通知：到点只在 Mindough 里提示。」+「允许通知」/ 被拦了时说去浏览器网站设置或系统设置里允许 /「关着：到点不提醒。只影响这台设备。」；「什么时候提醒」一行说明规则 |
 | 小窗 | 悬浮窗 / 迷你模式 / 小组件（桌面） | 桌面 app 我的一天标题旁的按钮「打开小窗」（悬停「小窗：置顶显示今天的事」）；小窗里标题「我的一天」、图钉「置顶 / 不再置顶」、「打开主窗口」、小标题「今天要打卡」、空的时候「今天还没有安排。」、输入条占位「加到今天…」；英文 Mini Window / Keep on Top / Open Main Window / Add to Today… |
-| 格式工具栏 | 富文本工具栏 / Markdown 工具栏 | 详情内容和备注编辑时出现在下方，读屏名「格式」；按钮（悬停提示带快捷键）：标题、粗体、斜体、删除线、清单、列表、编号列表、引用、代码、折叠块、链接、表格；链接输入框读屏「链接地址」，占位 https://，按钮「添加」「取消」（光标在已有链接里时预填原地址，按钮「保存」「去掉链接」「取消」）。新建面板的内容框不带工具栏 |
-| 链接小浮层 | 链接气泡 / 链接卡片 | 编辑器里鼠标移到链接上（触屏长按选中链接里的字）出现：原地址（太长省略号）+「编辑」「去掉链接」；编辑时一个输入框（读屏「链接地址」，预填原地址）+「保存」。点链接就是打开，不用说明。英文 Edit / Remove Link / Save |
+| 格式工具栏 | 富文本工具栏 / Markdown 工具栏 | 详情内容和备注编辑时出现在下方，读屏名「格式」；按钮（悬停提示带快捷键）：标题、粗体、斜体、删除线、清单、列表、编号列表、引用、代码、折叠块、链接、表格；链接按钮 / ⌘K 打开链接框（见下一行）。新建面板的内容框不带工具栏 |
+| 链接小浮层 | 链接气泡 / 链接卡片 | 编辑器里鼠标移到链接上（触屏长按选中链接里的字）出现：原地址（太长省略号）+「编辑」「去掉链接」；点「编辑」原地展开成链接框。点链接就是打开，不用说明。英文 Edit / Remove Link |
+| 链接框 | 链接弹窗 / 链接对话框 / 名称 | 两栏「文字」（占位「不填就用网址」）「链接」（占位 https://）；读屏名「编辑链接」/「添加链接」，手机底部面板标题同；按钮：已有链接「去掉链接」「取消」「保存」，新加「取消」「添加」；网址空着「填一个网址」，不像网址「这不像网址，检查一下」。叫「文字」不叫「名称 / 标题」（markdown 里就是链接文字）。英文 Text / Link，Leave empty to use the URL，Edit Link / Add Link，Enter a URL，That doesn’t look like a URL，Cancel / Save / Add / Remove Link |
 | 注意 / 提示 / 重要 / 警告 / 小心 | 备注 / 技巧 / 危险 / NOTE | GitHub 提示块（`> [!NOTE]` 等，Rei 2026-10-17）的标题，带图标；参考 GitHub 中文界面，CAUTION 叫「小心」（和 NOTE 的「注意」分开）。英文 Note / Tip / Important / Warning / Caution |
 | 公式 | LaTeX / 数学表达式 | `$…$` / `$$…$$`（KaTeX）；界面上没有专门的文字，写错的公式显示红色源码 |
 | 脚注 | 注释 / 尾注 | `[^1]`；只读显示底部的脚注区读屏标题「脚注」，返回链接读屏「回到引用 1」。英文 Footnotes / Back to reference 1 |
@@ -153,7 +154,7 @@
 | 没有待安排的事 | Inbox Zero | |
 | 影视库 / 书库 / 游戏库 … / 好物清单 / 菜谱 | Movies & TV / Books / Games … / Wish List / Recipes | 条数 7 titles / 5 books / 3 items |
 | 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
-| 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Link URL，Add / Cancel；? 提示 “Type these and they format as you go:” |
+| 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Text / Link，Add / Save / Cancel；? 提示 “Type these and they format as you go:” |
 | 归档这个类型 / 取消归档 / 已归档 N 个 / 已归档 | Archive This Type / Unarchive / N archived / Archived | 类型编辑器；提示 Archived “X” + Undo；设置里 “9 types, plus 2 archived. …” |
 | 日记 · 今天的日记 · 写今天的日记 | Journal · Today’s Entry · Write Today’s Entry | 「16 字」= 16 words；「这天还没到」= This day hasn’t come yet；设置 Day Starts At、Daily Journal Reminder；通知 “How was today? Jot a few lines.” |
 | 心情 | Mood | 12 个见上面中文表；没选 Optional |
