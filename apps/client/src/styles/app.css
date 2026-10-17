@@ -1924,6 +1924,13 @@ button {
 .md a:hover {
   text-decoration: underline;
 }
+/* 网络图片不渲染，只显示 alt 或网址（Rei 2026-10-17）：链接色 + 虚下划线，悬停看完整地址 */
+.md .md-remote-image {
+  color: var(--accent);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
 .md code {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
   font-size: 0.88em;

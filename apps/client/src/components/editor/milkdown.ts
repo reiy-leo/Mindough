@@ -6,6 +6,7 @@
  * - 序列化：列表用「-」、强调用「*」、粗体「**」（和我们以前存的写法一致）。
  * - 空的清单项「- [ ] 」（内置正文模板里有）GFM 不认作清单；读入前补一个零宽空格、写出时去掉。
  * - 占位文字、点清单的勾、⌘K 加链接、Esc 收起都在这里。
+ * - 网络图片 ![](https://…) 不加载，显示成文字（remote-image.ts；Rei 2026-10-17）。
  */
 import { Editor, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx, rootCtx, serializerCtx, parserCtx, commandsCtx } from '@milkdown/kit/core';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, wrapInHeadingCommand, createCodeBlockCommand, toggleLinkCommand, turnIntoTextCommand } from '@milkdown/kit/preset/commonmark';
@@ -19,6 +20,7 @@ import { goToNextCell } from '@milkdown/kit/prose/tables';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import type { Node as PMNode } from '@milkdown/kit/prose/model';
+import { remoteImagePaste, remoteImageView } from './remote-image';
 
 const ZW = '\u200b';
 
@@ -187,10 +189,12 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     .use(gfm)
     .use(history)
     .use(listener)
+    .use(remoteImagePaste)
     .use(clipboard)
     .use(placeholderPlugin(opts.placeholder))
     .use(taskToggle)
     .use(keys(opts))
+    .use(remoteImageView)
     .create();
 
   const call = (key: unknown, payload?: unknown) => editor.action((ctx) => ctx.get(commandsCtx).call(key as never, payload as never));

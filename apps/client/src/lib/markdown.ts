@@ -4,8 +4,11 @@
  */
 import { Marked, type Tokens } from 'marked';
 import DOMPurify from 'dompurify';
+import { isRemoteImage, remoteImageText } from './remote-image';
 
 const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const md = new Marked({
   gfm: true,
@@ -15,6 +18,11 @@ const md = new Marked({
       const text = this.parser.parseInline(token.tokens);
       const title = token.title ? ` title="${escAttr(token.title)}"` : '';
       return `<a href="${escAttr(token.href)}"${title} target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
+    /** 网络图片不渲染（Rei 2026-10-17），显示成和编辑器一样的文字；自己的图照常。 */
+    image(token: Tokens.Image) {
+      if (isRemoteImage(token.href)) return `<span class="md-remote-image" title="${escAttr(token.href)}">${escHtml(remoteImageText(token.href, token.text))}</span>`;
+      return false;
     },
   },
 });

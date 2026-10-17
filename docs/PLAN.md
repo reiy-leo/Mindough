@@ -274,6 +274,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - 详情和备注编辑时下方出现格式工具栏（标题 / 粗体 / 斜体 / 删除线 · 清单 / 列表 / 编号列表 / 引用 / 代码 · 链接 / 表格），按钮不抢焦点，悬停提示带快捷键，⌘K 加链接；点清单的勾直接切换。
    - 去掉了备注标签旁的「支持 Markdown」小字（写的时候就是排好的样子，用不着说）；新建面板的 ? 提示改成「直接这样写，会自动排好版：」。
    - 修：详情第一行的标题样式漏到了整段（`.detail-md > :first-child` 套到了编辑器外壳上），小标题比正文大一点（h1 19 / h2 17）。
+   - ✅ 网络图片不渲染（Rei 2026-10-17：「编辑器的网络插图」「编辑器不渲染网络图片」；先误解成去掉资料图片框的「粘贴图片链接」，Rei 澄清后改回，那个照留）：判断在 `lib/remote-image.ts`（http(s) 和 `//` 开头算网络图片；`data:` / `blob:` / 相对路径 / `https://mindough.rei8t.dev/api/assets/…` 和同源的 `/api/assets/` 是自己的图，照常显示）。编辑器里覆盖 image 节点视图（`components/editor/remote-image.ts`，`$view`）渲染成 `span.md-remote-image`（alt，没有就网址；title 是网址），不建 `<img>`；只读预览（`lib/markdown.ts` 的 marked image 渲染器）同样处理（编辑器加载前的占位也是它）。markdown 原文不动，往返一致；粘贴 markdown / HTML 也不加载（ProseMirror 和 Milkdown 剪贴板都在惰性文档 / template 里解析）。不迁移旧数据；导出时正文里的网络图片仍照旧去取回打包（`remoteImageUrls`），没改。
 3. 🟡 小组件（2026-10-16，详见 docs/WIDGETS.md）：
    - ✅ 桌面小窗：我的一天标题旁「打开小窗」（只在桌面 app）→ Tauri 第二个窗口 `mini`（`?window=mini`，340 × 540，置顶，可调大小）：我的一天 + 今天要打卡，用 TaskRow 直接勾 / 计时 / +1，底部「加到今天…」，图钉切换置顶、「打开主窗口」。两个窗口共用 rusqlite，内存快照经 Tauri 事件 `mindough:changes` 互相 applyRemote；小窗不跑同步 / 提醒 / 登录回调。`cargo check` 通过，真机待验。
    - 🟡 Android：app 写快照 ✅（`lib/widget-snapshot.ts` → Rust `widget_snapshot` → app 数据目录 `widget-snapshot.json`，有测试）；AppWidget 的 Kotlin + 布局写在 `src-tauri/mobile/android-widget/`，**没接进构建**（gen/android 由 CI 生成、本机没 SDK 验证不了；接入步骤在 WIDGETS.md）。
