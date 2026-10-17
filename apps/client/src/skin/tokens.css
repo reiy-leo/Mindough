@@ -419,3 +419,77 @@
   --mood-irritated: #ffb59a;
   --mood-angry: #ffb4ab;
 }
+
+/* 文件类型颜色（附件图标，Rei 2026-10-17）：9 种 × 三套皮肤 × 明暗。图标描边、扩展名、淡色底都用它。 */
+[data-skin='apple'] {
+  --file-image: #2fa84f;
+  --file-pdf: #e0352b;
+  --file-doc: #2e7cf6;
+  --file-sheet: #248a3d;
+  --file-slides: #e86a00;
+  --file-archive: #a2845e;
+  --file-audio: #e5336b;
+  --file-video: #8944ab;
+  --file-code: #5856d6;
+  --file-file: #8e8e93;
+}
+[data-skin='apple'][data-theme='dark'] {
+  --file-image: #30d158;
+  --file-pdf: #ff6961;
+  --file-doc: #64a8ff;
+  --file-sheet: #32d74b;
+  --file-slides: #ff9f0a;
+  --file-archive: #c9a97a;
+  --file-audio: #ff6482;
+  --file-video: #bf5af2;
+  --file-code: #8e8cff;
+  --file-file: #98989d;
+}
+[data-skin='winui'] {
+  --file-image: #0f7b0f;
+  --file-pdf: #c50f1f;
+  --file-doc: #185abd;
+  --file-sheet: #107c41;
+  --file-slides: #c43e1c;
+  --file-archive: #8a6d00;
+  --file-audio: #b4009e;
+  --file-video: #5c2e91;
+  --file-code: #038387;
+  --file-file: #616161;
+}
+[data-skin='winui'][data-theme='dark'] {
+  --file-image: #6ccb5f;
+  --file-pdf: #ff99a4;
+  --file-doc: #6cb8f6;
+  --file-sheet: #54b054;
+  --file-slides: #f7894a;
+  --file-archive: #e0c35c;
+  --file-audio: #ee5fb7;
+  --file-video: #b597e6;
+  --file-code: #4cc2c4;
+  --file-file: #adadad;
+}
+[data-skin='material'] {
+  --file-image: #386a20;
+  --file-pdf: #ba1a1a;
+  --file-doc: #0b57d0;
+  --file-sheet: #146c2e;
+  --file-slides: #b3261e;
+  --file-archive: #7d5700;
+  --file-audio: #984061;
+  --file-video: #6750a4;
+  --file-code: #006a6a;
+  --file-file: #625b71;
+}
+[data-skin='material'][data-theme='dark'] {
+  --file-image: #9cd67d;
+  --file-pdf: #ffb4ab;
+  --file-doc: #a8c7fa;
+  --file-sheet: #6dd58c;
+  --file-slides: #f2b8b5;
+  --file-archive: #f5bd48;
+  --file-audio: #ffb0c8;
+  --file-video: #d0bcff;
+  --file-code: #4cdada;
+  --file-file: #ccc2dc;
+}

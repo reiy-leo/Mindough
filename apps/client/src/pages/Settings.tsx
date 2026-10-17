@@ -205,7 +205,7 @@ function TypesSection() {
 function ArchiveRows() {
   const store = useStore();
   const { toast } = useUi();
-  const [busy, setBusy] = useState<null | 'images' | 'zip'>(null);
+  const [busy, setBusy] = useState<null | 'images' | 'attachments' | 'zip'>(null);
   const [importing, setImporting] = useState(false);
   const doExport = async () => {
     setBusy('zip');
@@ -215,7 +215,9 @@ function ArchiveRows() {
         tone: 'success',
         message:
           (c.journal ? tr('已导出 {n} 件任务、{j} 篇日记', { n: c.tasks, j: c.journal }) : tr('已导出 {n} 件任务', { n: c.tasks })) +
-          (c.missedImages ? tr('；{m} 张网上的图片没取到，照原链接写着', { m: c.missedImages }) : ''),
+          (c.attachments ? tr('，{a} 个附件', { a: c.attachments }) : '') +
+          (c.missedImages ? tr('；{m} 张网上的图片没取到，照原链接写着', { m: c.missedImages }) : '') +
+          (c.missingAttachments ? tr('；{m} 个附件的文件没取到，只写了记录', { m: c.missingAttachments }) : ''),
       });
     } catch (e) {
       toast({ tone: 'error', message: tr('没能导出：{msg}', { msg: e instanceof Error ? e.message : String(e) }) });
@@ -228,10 +230,10 @@ function ArchiveRows() {
       <div className="setting">
         <div className="setting-text">
           <div className="setting-name">{tr('导出')}</div>
-          <div className="setting-hint">{tr('所有任务、资料库和人物存成 Markdown 文件夹（zip），Obsidian 能直接打开')}</div>
+          <div className="setting-hint">{tr('所有任务、日记、附件、资料库和人物存成 Markdown 文件夹（zip），Obsidian 能直接打开')}</div>
         </div>
         <Button variant="secondary" isDisabled={!!busy} onPress={() => void doExport()}>
-          {busy === 'images' ? tr('正在取图片…') : busy ? tr('正在打包…') : tr('导出…')}
+          {busy === 'images' ? tr('正在取图片…') : busy === 'attachments' ? tr('正在取附件…') : busy ? tr('正在打包…') : tr('导出…')}
         </Button>
       </div>
       <div className="setting">

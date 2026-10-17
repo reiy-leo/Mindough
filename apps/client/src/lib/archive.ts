@@ -1,12 +1,14 @@
 /**
  * 设置里的「导出…」「导入…」：序列化都在 core（`@mindough/core/archive`，按需加载，yaml + fflate 不进首屏包），
  * 这里只管浏览器那一头：取回远程图片、打 zip 下载、读选进来的 zip / 文件夹、登录时把图片先传到 R2。
+ * 附件：导出时取回文件内容放进 attachments/，导入后放进本机上传队列（lib/attachments.ts）。
  * Tauri 端暂时也走 zip 下载（还没装 dialog / fs 插件，见 PLAN「待 Rei 确认」）。
  */
 import type { Store } from '@mindough/core';
 import type { ArchiveFile, ExportCounts, ExportImage, ImportPlan } from '@mindough/core/archive';
 import { getAccount } from './account';
 import { uploadImage } from './upload';
+import { attachmentBytes, enqueueImported } from './attachments';
 
 export const loadArchive = () => import('@mindough/core/archive');
 
@@ -35,8 +37,18 @@ async function pool<T>(items: readonly T[], n: number, fn: (x: T) => Promise<voi
 }
 
 /** 导出全部数据，下载成 zip。返回数了多少。 */
-export async function exportToZip(store: Store, onStep?: (step: 'images' | 'zip') => void): Promise<ExportCounts & { missedImages: number }> {
+export async function exportToZip(store: Store, onStep?: (step: 'images' | 'attachments' | 'zip') => void): Promise<ExportCounts & { missedImages: number }> {
   const ar = await loadArchive();
+  // 附件：本机队列里的、或从 R2 取回（取不到的只写记录）
+  const atts = ar.exportableAttachments(store);
+  const attachments = new Map<string, Uint8Array>();
+  if (atts.length) {
+    onStep?.('attachments');
+    await pool(atts, 3, async (a) => {
+      const b = await attachmentBytes(a);
+      if (b) attachments.set(a.id, new Uint8Array(await b.arrayBuffer()));
+    });
+  }
   const urls = ar.remoteImageUrls(store);
   const images = new Map<string, ExportImage>();
   if (urls.length) {
@@ -48,7 +60,7 @@ export async function exportToZip(store: Store, onStep?: (step: 'images' | 'zip'
   }
   onStep?.('zip');
   const now = new Date();
-  const { files, counts } = ar.exportArchive(store, { now, images });
+  const { files, counts } = ar.exportArchive(store, { now, images, attachments });
   const name = ar.archiveName(now);
   const zip = ar.zipArchive(files, name);
   download(new Blob([zip as BlobPart], { type: 'application/zip' }), `${name}.zip`);
@@ -79,6 +91,23 @@ export async function readPicked(list: FileList | readonly File[]): Promise<{ fi
   const files = await Promise.all(keep.map(async (f) => ({ path: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name, data: new Uint8Array(await f.arrayBuffer()) })));
   const root = files[0]?.path.includes('/') ? files[0].path.split('/')[0]! : '';
   return { files, name: root };
+}
+
+/** 导入写好后：带着文件、还没有 R2 key 的附件放进本机上传队列（缩略图在这里重新生成）。 */
+export async function queueImportedAttachments(store: Store, plan: ImportPlan, files: readonly ArchiveFile[]): Promise<number> {
+  if (!plan.attachmentFiles.length) return 0;
+  const ar = await loadArchive();
+  const { files: norm } = ar.normalizeArchive(files);
+  const byPath = new Map(norm.map((f) => [f.path, f]));
+  let n = 0;
+  for (const { id, path } of plan.attachmentFiles) {
+    const row = store.get('attachment', id);
+    const f = byPath.get(path);
+    if (!row || row.r2_key || !f) continue;
+    await enqueueImported(row, new Blob([f.data as BlobPart], { type: row.mime || 'application/octet-stream' }));
+    n++;
+  }
+  return n;
 }
 
 /** 登录且在线时：先把要用到的图片传到 R2，返回 路径 → 地址；没登录 / 传不上的不在表里（导入时转成 data URL）。 */

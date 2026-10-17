@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
 import { AlertTriangle, Bell, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
@@ -50,6 +50,7 @@ import { CategoryLabel, CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, FieldInput, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
+import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 export function TaskDetail() {
@@ -679,6 +680,11 @@ function Detail({ task }: { task: Task }) {
   const [addRel, setAddRel] = useState<RelKind | null>(null);
   const close = () => ui.openEditor(null);
   const { primary, secondary, today, complete } = useActions(store, task, close);
+  // 附件：拖文件到详情上就加（Rei 2026-10-17）
+  const owner = useMemo(() => ({ type: 'task' as const, id: task.id }), [task.id]);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const addFiles = useAddFiles(owner);
+  const dropping = useFileDrop(dropRef, addFiles);
   const type = store.get('task_type', task.type_id);
   const typed = !!type && type.id !== PLAIN_TYPE_ID && shownFields(type).length > 0;
   const title = titleOf(store, task);
@@ -913,7 +919,8 @@ function Detail({ task }: { task: Task }) {
           )
         }
       >
-        <div className={`detail${layout === 'mobile' ? ' is-mobile' : ''}`}>
+        <div ref={dropRef} className={`detail${layout === 'mobile' ? ' is-mobile' : ''}${dropping ? ' is-dropping' : ''}`}>
+          <DropOverlay active={dropping} />
           <div className="detail-main">
             {!lib && typed && type && (
               <div className="detail-hero" style={{ '--chip-color': type.color } as CSSProperties}>
@@ -933,6 +940,7 @@ function Detail({ task }: { task: Task }) {
               </div>
             )}
             <Body store={store} task={task} placeholder={typed ? tr('添加笔记…') : tr('写点什么…')} />
+            <Attachments owner={owner} />
             {!lib && typed && type && (
               <Disclosure className="type-disclosure" defaultExpanded={!hasPrimary}>
                 <Heading level={3} className="disclosure-head">

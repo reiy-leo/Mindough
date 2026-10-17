@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Trash2 } from 'lucide-react';
-import { addDays, canWriteJournal, conflictSummary, formatDate, isDateKey, journalWordCount, mergeJournalConflict, relativeDayZh, type JournalEntry } from '@mindough/core';
+import { addDays, canWriteJournal, conflictSummary, formatDate, hasJournalContent, isDateKey, journalEntryId, journalWordCount, mergeJournalConflict, relativeDayZh, type JournalEntry } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useSettings } from '../lib/settings';
 import { navigate } from '../lib/router';
@@ -15,6 +15,7 @@ import { useUi } from '../lib/ui';
 import { PageHeader } from '../components/PageHeader';
 import { Button, ConfirmDialog, Empty } from '../ui/primitives';
 import { LazyMdEditor } from '../components/editor/LazyMdEditor';
+import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../components/attachments/Attachments';
 import { MoodPicker } from '../components/journal/MoodPicker';
 import { JournalCalendar, JournalMonthList } from '../components/journal/JournalCalendar';
 import { tr } from '../lib/i18n';
@@ -33,13 +34,21 @@ export function JournalPage({ date: wanted }: { date?: string }) {
   const [browsing, setBrowsing] = useState(false);
   useEffect(() => setMonth((m) => (m === date.slice(0, 7) ? m : date.slice(0, 7))), [date]);
 
-  const all = store.list('journal_entry');
+  // 只有附件的日子也算写了（加附件时会建一行空日记）
+  const attachedTo = new Map<string, number>();
+  for (const a of store.list('attachment')) if (a.owner_type === 'journal') attachedTo.set(a.owner_id, (attachedTo.get(a.owner_id) ?? 0) + 1);
+  const all = store.list('journal_entry').filter((e) => hasJournalContent(e) || attachedTo.has(e.id));
   const byDate = useMemo(() => new Map(all.map((e) => [e.date, e])), [all]);
   const go = (d: string) => {
     setBrowsing(false);
     navigate(d === today ? { page: 'journal' } : { page: 'journal', date: d });
   };
   const mobile = layout === 'mobile';
+  // 附件：拖文件到这天的日记上就加（将来的日子不收）
+  const owner = useMemo(() => ({ type: 'journal' as const, id: journalEntryId(date), date }), [date]);
+  const dropRef = useRef<HTMLElement>(null);
+  const addFiles = useAddFiles(owner);
+  const dropping = useFileDrop(dropRef, addFiles, !future && (!mobile || !browsing));
   // #/journal/不是日期：换成今天并提示一句
   const ui = useUi();
   useEffect(() => {
@@ -51,8 +60,8 @@ export function JournalPage({ date: wanted }: { date?: string }) {
 
   const calendar = (
     <div className="journal-side">
-      <JournalCalendar month={month} onMonth={setMonth} selected={date} today={today} entries={byDate} onSelect={go} />
-      <JournalMonthList month={month} entries={all} selected={date} onSelect={go} />
+      <JournalCalendar month={month} onMonth={setMonth} selected={date} today={today} entries={byDate} onSelect={go} attachments={(id) => attachedTo.get(id) ?? 0} />
+      <JournalMonthList month={month} entries={all} selected={date} onSelect={go} attachments={(id) => attachedTo.get(id) ?? 0} />
     </div>
   );
 
@@ -81,7 +90,8 @@ export function JournalPage({ date: wanted }: { date?: string }) {
       <div className="journal-layout">
         {(!mobile || browsing) && calendar}
         {(!mobile || !browsing) && (
-          <section className="journal-main card" aria-label={formatDate(date, { year: true })}>
+          <section ref={dropRef} className={`journal-main card${dropping ? ' is-dropping' : ''}`} aria-label={formatDate(date, { year: true })}>
+            <DropOverlay active={dropping} />
             <DayNav date={date} today={today} onGo={go} />
             {future ? (
               <Empty icon={<CalendarClock size={28} />} title={tr('这天还没到')} hint={tr('将来的日子还不能写。')} />
@@ -207,9 +217,10 @@ function Entry({ date, today, entry }: { date: string; today: string; entry: Jou
           }}
         />
       </div>
+      <Attachments owner={{ type: 'journal', id: journalEntryId(date), date }} />
       <div className="journal-foot">
         <span className="muted small">{words > 0 ? tr('{n} 字', { n: words }) : tr('还没写')}</span>
-        {entry && (
+        {entry && (hasJournalContent(entry) || store.attachmentsOf('journal', entry.id).length > 0) && (
           <RacButton className="icon-btn" aria-label={tr('删除这天的日记')} onPress={() => setConfirm(true)}>
             <Trash2 size={16} />
           </RacButton>
@@ -219,7 +230,11 @@ function Entry({ date, today, entry }: { date: string; today: string; entry: Jou
         isOpen={confirm}
         onOpenChange={setConfirm}
         title={tr('删除这天的日记？')}
-        message={tr('「{date}」的日记会被删除，不能恢复。', { date: formatDate(date, { year: true }) })}
+        message={
+          entry && store.attachmentsOf('journal', entry.id).length
+            ? tr('「{date}」的日记和它的 {n} 个附件会被删除，不能恢复。', { date: formatDate(date, { year: true }), n: store.attachmentsOf('journal', entry.id).length })
+            : tr('「{date}」的日记会被删除，不能恢复。', { date: formatDate(date, { year: true }) })
+        }
         confirmLabel={tr('删除')}
         danger
         onConfirm={() => {

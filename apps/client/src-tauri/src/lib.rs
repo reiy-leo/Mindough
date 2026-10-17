@@ -8,6 +8,7 @@
 //! - 以后：窗口毛玻璃等。
 
 mod db;
+mod files;
 mod widget;
 
 #[cfg(desktop)]
@@ -44,7 +45,7 @@ pub fn run() {
             Ok(())
         })
         .manage(db::Db::new())
-        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot])
+        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot, files::save_download])
         .run(tauri::generate_context!())
         .expect("启动 Mindough 失败");
 }

@@ -1,0 +1,443 @@
+/* 附件区、文件图标、拖放高亮层、灯箱（Rei 2026-10-17）。只用令牌变量；形状差异（圆角、阴影）跟着各皮肤的 --radius-* 走。 */
+
+/* ── 文件图标 ── */
+.file-icon {
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+}
+.file-icon svg {
+  overflow: visible;
+}
+.file-icon .fi-page {
+  fill: color-mix(in srgb, currentColor 11%, var(--surface));
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.file-icon .fi-fold {
+  fill: color-mix(in srgb, currentColor 26%, var(--surface));
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.file-icon .fi-ext {
+  fill: currentColor;
+  font-family: var(--font);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.file-image { color: var(--file-image); }
+.file-pdf { color: var(--file-pdf); }
+.file-doc { color: var(--file-doc); }
+.file-sheet { color: var(--file-sheet); }
+.file-slides { color: var(--file-slides); }
+.file-archive { color: var(--file-archive); }
+.file-audio { color: var(--file-audio); }
+.file-video { color: var(--file-video); }
+.file-code { color: var(--file-code); }
+.file-file { color: var(--file-file); }
+
+/* ── 附件区 ── */
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.att-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+.att-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.att-count {
+  font-weight: 500;
+  color: var(--text-3);
+}
+.att-hint {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+.att-head .grow {
+  flex: 1;
+}
+.att-add {
+  color: var(--accent-soft-text);
+}
+
+/* 图片网格：方形小图 */
+.att-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+[data-layout='mobile'] .att-grid {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+}
+.att-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.att-tile-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  cursor: zoom-in;
+}
+.att-tile-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s var(--ease);
+}
+.att-tile-btn[data-hovered] img {
+  transform: scale(1.03);
+}
+.att-tile-btn[data-focus-visible] {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: inherit;
+}
+.att-tile.is-uploading img,
+.att-tile.is-queued img,
+.att-tile.is-offline img,
+.att-tile.is-signed-out img,
+.att-tile.is-failed img {
+  opacity: 0.55;
+}
+.att-tile-status {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 8px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.att-tile-status.is-error {
+  color: #fff;
+  background: var(--danger);
+  text-shadow: none;
+  border-radius: var(--radius-xs);
+  padding: 1px 4px;
+  width: fit-content;
+}
+.att-tile .att-progress {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 4px;
+}
+.att-tile-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.att-tile:hover .att-tile-actions,
+.att-tile:focus-within .att-tile-actions,
+.att-tile[class*=' is-'] .att-tile-actions,
+[data-layout='mobile'] .att-tile-actions {
+  opacity: 1;
+}
+.att-tile-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-pill);
+}
+
+/* 文件列表 */
+.att-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.att-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-md);
+  padding-right: var(--space-1);
+}
+.att-file:hover {
+  background: var(--surface-hover);
+}
+.att-file-btn {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.att-file-btn[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.att-file-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.att-file-name {
+  font-size: var(--fs-body);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att-file-meta {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+.att-file-meta .is-error {
+  color: var(--danger);
+}
+.att-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.att-file:not(:hover):not(:focus-within) .att-dl {
+  opacity: 0;
+}
+[data-layout='mobile'] .att-file .att-dl {
+  opacity: 1;
+}
+.att-progress {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  overflow: hidden;
+  max-width: 220px;
+}
+.att-tile .att-progress {
+  max-width: none;
+  background: rgba(255, 255, 255, 0.45);
+}
+.att-progress-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.2s linear;
+}
+.att-progress.is-queued .att-progress-bar {
+  width: 30% !important;
+  animation: att-indet 1.2s ease-in-out infinite;
+}
+@keyframes att-indet {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .att-progress.is-queued .att-progress-bar {
+    animation: none;
+  }
+}
+.att-rename {
+  display: block;
+  margin: var(--space-3) 0 var(--space-4);
+}
+.att-rename .input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── 拖放高亮层 ── */
+.detail,
+.journal-main {
+  position: relative;
+}
+.drop-overlay {
+  position: absolute;
+  inset: -6px;
+  z-index: 20;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 9%, color-mix(in srgb, var(--surface) 82%, transparent));
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  animation: fade 0.12s var(--ease);
+}
+.drop-overlay-box {
+  position: sticky;
+  top: 30%;
+  margin: 18vh auto 0;
+  width: fit-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--accent-soft-text);
+}
+.drop-overlay-title {
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--text);
+}
+.drop-overlay-hint {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+
+/* ── 灯箱 ── */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.88);
+  animation: fade 0.15s var(--ease);
+}
+.lightbox-modal,
+.lightbox,
+.lightbox-body {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}
+.lightbox-body {
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  color: #fff;
+}
+.lightbox-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: 48px;
+  flex: none;
+  z-index: 2;
+}
+.lightbox-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.lightbox-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lightbox-count {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  flex: none;
+}
+.lightbox-btn,
+.lightbox-nav {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+}
+.lightbox-btn[data-hovered],
+.lightbox-nav[data-hovered] {
+  background: rgba(255, 255, 255, 0.22);
+}
+.lightbox-btn[data-focus-visible],
+.lightbox-nav[data-focus-visible] {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.lightbox-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-2) 64px var(--space-6);
+  cursor: zoom-out;
+}
+[data-layout='mobile'] .lightbox-stage {
+  padding: var(--space-2) var(--space-2) var(--space-4);
+}
+.lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  user-select: none;
+}
+.lightbox-missing {
+  color: rgba(255, 255, 255, 0.75);
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+}
+.lightbox-nav.is-prev {
+  left: calc(env(safe-area-inset-left) + var(--space-3));
+}
+.lightbox-nav.is-next {
+  right: calc(env(safe-area-inset-right) + var(--space-3));
+}
+[data-layout='mobile'] .lightbox-nav {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
+  transform: none;
+}

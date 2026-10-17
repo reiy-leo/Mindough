@@ -8,7 +8,7 @@ import { summarizeImport, type ArchiveFile, type ImportPlan } from '@mindough/co
 import { Button, Sheet, Switch } from '../ui/primitives';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
-import { loadArchive, readPicked, uploadPlanImages } from '../lib/archive';
+import { loadArchive, queueImportedAttachments, readPicked, uploadPlanImages } from '../lib/archive';
 import { tr } from '../lib/i18n';
 import '../styles/archive.css';
 
@@ -59,6 +59,7 @@ export function ArchiveImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; 
       if (urls.size) plan = ar.planImport(store, files, { assetUrls: urls });
     }
     const receipt = ar.applyImport(store, plan, { overwrite });
+    await queueImportedAttachments(store, plan, files);
     const n = receipt.counts.create + receipt.counts.update;
     close(false);
     ui.toast(
@@ -129,6 +130,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
     ['person', (n) => tr('{n} 位人物', { n })],
     ['type', (n) => tr('{n} 个类型', { n })],
     ['journal', (n) => tr('{n} 篇日记', { n })],
+    ['attachment', (n) => tr('{n} 个附件', { n })],
   ];
   const breakdown = kinds
     .map(([k, label]) => label(s.byKind[k].create + s.byKind[k].update))

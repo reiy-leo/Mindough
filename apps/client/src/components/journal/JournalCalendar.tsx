@@ -21,12 +21,14 @@ export function JournalCalendar({
   today,
   entries,
   onSelect,
+  attachments,
 }: {
   month: string;
   onMonth: (month: string) => void;
   selected: string;
   today: string;
   entries: ReadonlyMap<string, JournalEntry>;
+  attachments?: (entryId: string) => number;
   onSelect: (date: string) => void;
 }) {
   const todayMonth = today.slice(0, 7);
@@ -57,7 +59,7 @@ export function JournalCalendar({
             {cells.slice(r * 7, r * 7 + 7).map((d, i) => {
               if (!d) return <span key={`x${i}`} className="jcal-cell is-blank" role="gridcell" />;
               const e = entries.get(d);
-              const written = hasJournalContent(e);
+              const written = hasJournalContent(e) || (!!e && (attachments?.(e.id) ?? 0) > 0);
               const future = d > today;
               const label = future ? tr('{date}，还没到', { date: formatDate(d) }) : written ? tr('{date}，写了日记', { date: formatDate(d) }) : formatDate(d);
               return (
@@ -83,7 +85,20 @@ export function JournalCalendar({
 }
 
 /** 这个月写过的日子（倒序）。 */
-export function JournalMonthList({ month, entries, selected, onSelect }: { month: string; entries: readonly JournalEntry[]; selected: string; onSelect: (date: string) => void }) {
+export function JournalMonthList({
+  month,
+  entries,
+  selected,
+  onSelect,
+  attachments,
+}: {
+  month: string;
+  entries: readonly JournalEntry[];
+  selected: string;
+  onSelect: (date: string) => void;
+  /** 那天日记的附件个数（只有附件的日子显示「N 个附件」）。 */
+  attachments?: (entryId: string) => number;
+}) {
   const list = journalOfMonth(entries, month);
   if (!list.length) return <p className="jlist-empty muted">{tr('这个月还没写日记')}</p>;
   return (
@@ -99,7 +114,9 @@ export function JournalMonthList({ month, entries, selected, onSelect }: { month
                   <MoodIcon mood={e.mood} size={18} />
                 </span>
               )}
-              <span className="jlist-text">{journalPreview(e.body_md) || <span className="muted">{moodLabel(e.mood)}</span>}</span>
+              <span className="jlist-text">
+                {journalPreview(e.body_md) || <span className="muted">{e.mood ? moodLabel(e.mood) : tr('{n} 个附件', { n: attachments?.(e.id) ?? 0 })}</span>}
+              </span>
               {words > 0 && <span className="jlist-count">{tr('{n} 字', { n: words })}</span>}
             </RacButton>
           </li>

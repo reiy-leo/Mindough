@@ -22,6 +22,7 @@ import './styles/types.css';
 import './styles/lookup.css';
 import './styles/editor.css';
 import './styles/journal.css';
+import './styles/attachments.css';
 import './skin/skins.css';
 
 // 界面语言：先按本机记的（或 ?lang=）切好，演示数据、第一屏都用这个语言；登录同步后以同步的设置为准
