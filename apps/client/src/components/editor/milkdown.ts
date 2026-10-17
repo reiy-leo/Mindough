@@ -7,19 +7,25 @@
  * - 空的清单项「- [ ] 」（内置正文模板里有）GFM 不认作清单；读入前补一个零宽空格、写出时去掉。
  * - 占位文字、点清单的勾、⌘K 加链接、Esc 收起都在这里。
  * - 网络图片 ![](https://…) 不加载，显示成文字（remote-image.ts；Rei 2026-10-17）。
+ * - 链接（Rei 2026-10-17）：点一下是打开（不进编辑）；悬停 / 光标落在链接里时通知外面显示小浮层（看地址、编辑、去掉）；
+ *   改地址按 mark 的范围 removeMark + addMark，不再 toggle 掉。手打 [文字](网址) 打完右括号就变成链接（![图](…) 不算）。
+ * - Tab 不让焦点跑出编辑器：弹层（React Aria FocusScope contain）在 document 上自己接 Tab 挪焦点、不看 defaultPrevented，
+ *   所以编辑器根节点上把 Tab 的冒泡拦下来。
  */
 import { Editor, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx, rootCtx, serializerCtx, parserCtx, commandsCtx } from '@milkdown/kit/core';
-import { commonmark, toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, wrapInHeadingCommand, createCodeBlockCommand, toggleLinkCommand, turnIntoTextCommand } from '@milkdown/kit/preset/commonmark';
+import { commonmark, toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, wrapInHeadingCommand, createCodeBlockCommand, turnIntoTextCommand } from '@milkdown/kit/preset/commonmark';
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { clipboard } from '@milkdown/kit/plugin/clipboard';
-import { $prose } from '@milkdown/kit/utils';
+import { $inputRule, $prose } from '@milkdown/kit/utils';
+import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { liftListItem, sinkListItem } from '@milkdown/kit/prose/schema-list';
 import { goToNextCell } from '@milkdown/kit/prose/tables';
-import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection, type EditorState } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import type { Node as PMNode } from '@milkdown/kit/prose/model';
+import type { Mark, MarkType, NodeType, Node as PMNode } from '@milkdown/kit/prose/model';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { remoteImagePaste, remoteImageView } from './remote-image';
 
 const ZW = '\u200b';
@@ -44,6 +50,82 @@ export const sameMarkdown = (a: string, b: string) => a.replace(/\s+$/, '') === 
 
 export type MdCommand = 'bold' | 'italic' | 'strike' | 'code' | 'h1' | 'h2' | 'h3' | 'text' | 'bullet' | 'ordered' | 'task' | 'quote' | 'codeblock' | 'table' | 'link';
 
+/** 文档里的一段链接：[from, to) 与地址。 */
+export interface LinkRange {
+  from: number;
+  to: number;
+  href: string;
+}
+
+/** 网址缺协议时补 https://（mailto: 之类有协议的照原样）。 */
+export const withProtocol = (url: string) => (/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`);
+
+/**
+ * pos 所在那段链接（同一个 link mark 连着的几个文字节点合成一段）。
+ * strict：空光标只认在链接里面（不含两端）；inclusive 用于鼠标指着的那个字。
+ */
+export function linkRangeAt(doc: PMNode, pos: number, type: MarkType, strict = true): LinkRange | null {
+  const $pos = doc.resolve(pos);
+  const parent = $pos.parent;
+  if (!parent.inlineContent) return null;
+  const start = $pos.start();
+  type Run = { from: number; to: number; mark: Mark };
+  const runs: Run[] = [];
+  parent.forEach((child, off) => {
+    const m = type.isInSet(child.marks);
+    const from = start + off;
+    const to = from + child.nodeSize;
+    const last = runs[runs.length - 1];
+    if (m && last && last.to === from && last.mark.eq(m)) last.to = to;
+    else if (m) runs.push({ from, to, mark: m });
+  });
+  const hit = runs.find((r) => (strict ? r.from < pos && pos < r.to : r.from <= pos && pos <= r.to));
+  return hit ? { from: hit.from, to: hit.to, href: String(hit.mark.attrs.href ?? '') } : null;
+}
+
+/** 选区所在的链接：空光标在链接里面，或整个选区落在同一段链接里。 */
+export function linkAtSelection(state: EditorState): LinkRange | null {
+  const type = state.schema.marks.link;
+  if (!type) return null;
+  const { from, to, empty } = state.selection;
+  if (empty) return linkRangeAt(state.doc, from, type);
+  const r = linkRangeAt(state.doc, from, type, false);
+  return r && r.from <= from && to <= r.to ? r : null;
+}
+
+/** 把 [from, to) 的链接地址改成 href（保留 title）；href 空 = 去掉链接。 */
+export function setLinkTr(state: EditorState, range: { from: number; to: number }, href: string) {
+  const type = state.schema.marks.link!;
+  let title: unknown = null;
+  state.doc.nodesBetween(range.from, range.to, (n) => {
+    const m = type.isInSet(n.marks);
+    if (m && title == null) title = m.attrs.title ?? null;
+  });
+  const tr = state.tr.removeMark(range.from, range.to, type);
+  if (href) tr.addMark(range.from, range.to, type.create({ href, ...(title ? { title } : {}) }));
+  return tr;
+}
+
+/** 手打的 [文字](网址) / [](网址)；前面是 ! 的是图片，不管。也认全角括号（中文输入法）。 */
+export const LINK_INPUT_RE = /(?<!!)\[([^\]]*)\][(（]([^)）\s]+)[)）]$/;
+
+/** 手打 <网址> / <mailto:…>：打完 > 变成链接。 */
+export const ANGLE_LINK_RE = /<((?:https?:\/\/|mailto:)[^\s<>]+)>$/;
+/** 手打裸网址后接空格：网址变成链接（GFM 自动链接，同粘贴 / 读入时的样子）。末尾的标点不算网址。 */
+export const BARE_URL_RE = /(?:^|[\s(（])((?:https?:\/\/|www\.)[^\s<>]*[^\s<>.,;:!?'"）)\]】，。；：！？、])[.,;:!?'"）)\]】，。；：！？、]*\s$/;
+/** 一行 |a|b|（至少两列，或一列也行）：回车变成表格，这行当表头。 */
+export const TABLE_ROW_RE = /^\|(?:[^|]*\|)+\s*$/;
+
+/** 把一行 |a|b| 拆成单元格文字。 */
+export function tableCells(line: string): string[] | null {
+  const t = line.trim();
+  if (!TABLE_ROW_RE.test(t)) return null;
+  const cells = t.slice(1, -1).split('|').map((c) => c.trim());
+  // |---|---| 这种是分隔行，不当表头
+  if (cells.every((c) => /^:?-+:?$/.test(c))) return null;
+  return cells;
+}
+
 export interface MdEditorHandle {
   editor: Editor;
   run(cmd: MdCommand, arg?: string): void;
@@ -53,6 +135,13 @@ export interface MdEditorHandle {
   destroy(): Promise<void>;
   /** 当前选区是否在某种格式里（工具栏高亮）。 */
   active(): Set<MdCommand>;
+  /** 选区所在的链接（见 linkAtSelection）。 */
+  linkAtSelection(): LinkRange | null;
+  /** 改 / 去掉（href 空）一段链接的地址。 */
+  setLink(range: { from: number; to: number }, href: string): void;
+  /** 链接起点在页面上的位置（浮层定位）。 */
+  coordsOf(range: { from: number; to: number }): { left: number; top: number; bottom: number } | null;
+  view(): EditorView;
 }
 
 export interface MdEditorOptions {
@@ -66,6 +155,10 @@ export interface MdEditorOptions {
   onEscape?: () => void;
   onLinkShortcut?: () => void;
   onSelection?: () => void;
+  /** 鼠标移到链接上（range）/ 移开（null）。 */
+  onLinkHover?: (link: LinkRange | null, el: HTMLElement | null) => void;
+  /** 点了链接：打开它。 */
+  onLinkOpen?: (href: string) => void;
 }
 
 const placeholderKey = new PluginKey('md-placeholder');
@@ -111,6 +204,143 @@ const taskToggle = $prose(
             }
             return false;
           },
+        },
+      },
+    }),
+);
+
+/** 编辑器里的链接：点一下打开（mousedown 不放光标、不进编辑），鼠标移上 / 移开通知外面。 */
+const linkPointer = (opts: MdEditorOptions) =>
+  $prose(
+    () =>
+      new Plugin({
+        props: {
+          handleDOMEvents: {
+            mousedown(view, event) {
+              const a = (event.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+              if (!a || !view.dom.contains(a) || event.button !== 0 || !opts.onLinkOpen) return false;
+              event.preventDefault();
+              return true;
+            },
+            click(view, event) {
+              const a = (event.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+              if (!a || !view.dom.contains(a) || event.button !== 0 || !opts.onLinkOpen) return false;
+              event.preventDefault();
+              const href = a.getAttribute('href') ?? '';
+              if (href) opts.onLinkOpen(href);
+              return true;
+            },
+            mouseover(view, event) {
+              const a = (event.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+              if (!a || !view.dom.contains(a) || !opts.onLinkHover) return false;
+              const type = view.state.schema.marks.link;
+              if (!type) return false;
+              let pos: number;
+              try {
+                pos = view.posAtDOM(a, 0);
+              } catch {
+                return false;
+              }
+              const r = linkRangeAt(view.state.doc, Math.min(pos + 1, view.state.doc.content.size), type, false) ?? linkRangeAt(view.state.doc, pos, type, false);
+              opts.onLinkHover(r, a);
+              return false;
+            },
+            mouseout(view, event) {
+              const a = (event.target as HTMLElement).closest?.('a[href]');
+              const to = (event as MouseEvent).relatedTarget as HTMLElement | null;
+              if (!a || !opts.onLinkHover || (to && a.contains(to))) return false;
+              opts.onLinkHover(null, null);
+              return false;
+            },
+          },
+        },
+      }),
+  );
+
+/** 手打 [文字](网址)：打完右括号就变成链接。 */
+const linkInputRule = $inputRule(
+  () =>
+    new InputRule(LINK_INPUT_RE, (state, match, start, end) => {
+      const type = state.schema.marks.link;
+      const raw = match[2];
+      if (!type || !raw) return null;
+      const href = withProtocol(raw);
+      const text = match[1] || raw;
+      // 已经在代码里的不转
+      const $s = state.doc.resolve(start);
+      if ($s.parent.type.spec.code || $s.marks().some((m) => m.type.name === 'inlineCode')) return null;
+      const marks = $s.marks().filter((m) => m.type !== type);
+      // end 是触发前的位置：最后那个右括号还没进文档，一起替换掉
+      return state.tr.replaceWith(start, end, state.schema.text(text, [...marks, type.create({ href })])).removeStoredMark(type);
+    }),
+);
+
+/** 光标处能不能加链接：不在代码块、行内代码、已有链接里。 */
+const canLinkAt = (state: EditorState, pos: number) => {
+  const $s = state.doc.resolve(pos);
+  if ($s.parent.type.spec.code) return false;
+  return !$s.marks().some((m) => m.type.name === 'inlineCode' || m.type.name === 'link');
+};
+
+/** 手打 <网址>：打完 > 变成链接。 */
+const angleLinkRule = $inputRule(
+  () =>
+    new InputRule(ANGLE_LINK_RE, (state, match, start, end) => {
+      const type = state.schema.marks.link;
+      const url = match[1];
+      if (!type || !url || !canLinkAt(state, start)) return null;
+      const marks = state.doc.resolve(start).marks();
+      return state.tr.replaceWith(start, end, state.schema.text(url, [...marks, type.create({ href: url })])).removeStoredMark(type);
+    }),
+);
+
+/** 手打裸网址再打空格：网址加上链接，空格照打。 */
+const bareUrlRule = $inputRule(
+  () =>
+    new InputRule(BARE_URL_RE, (state, match, start, end) => {
+      const type = state.schema.marks.link;
+      const url = match[1];
+      if (!type || !url) return null;
+      const from = start + match[0].lastIndexOf(url);
+      const to = from + url.length;
+      if (!canLinkAt(state, from) || state.doc.rangeHasMark(from, to, type)) return null;
+      const href = url.startsWith('www.') ? `https://${url}` : url;
+      const tr = state.tr.addMark(from, to, type.create({ href }));
+      // 补上触发的那个空格（input rule 接管了这次输入）
+      return tr.insertText(match[0].slice(-1), end).removeStoredMark(type);
+    }),
+);
+
+/** 一行 |a|b| 回车：变成表格（这行是表头，下面一行空的），光标进第一格。 */
+const tableOnEnter = $prose(
+  () =>
+    new Plugin({
+      props: {
+        handleKeyDown(view, event) {
+          if (event.key !== 'Enter' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return false;
+          const { state } = view;
+          const { $from, empty } = state.selection;
+          const n = state.schema.nodes;
+          if (!empty || !n.table || !n.table_header_row || !n.table_row || !n.table_header || !n.table_cell || !n.paragraph) return false;
+          const para = $from.parent;
+          if (para.type !== n.paragraph || $from.parentOffset !== para.content.size) return false;
+          // 只在文档顶层（不在列表、引用、表格里）
+          if ($from.depth !== 1) return false;
+          const cells = tableCells(para.textContent);
+          if (!cells || !cells.length) return false;
+          const cell = (type: NodeType, text: string) => type.create({ alignment: null }, n.paragraph!.create(null, text ? state.schema.text(text) : null));
+          const table = n.table.create(null, [
+            n.table_header_row.create(null, cells.map((c) => cell(n.table_header!, c))),
+            n.table_row.create(null, cells.map(() => cell(n.table_cell!, ''))),
+          ]);
+          const before = $from.before();
+          const tr = state.tr.replaceWith(before, $from.after(), table);
+          // 第一行数据的第一格：table(1) + header_row + row(1) + cell(1) + paragraph(1)
+          const headerSize = table.child(0).nodeSize;
+          tr.setSelection(TextSelection.create(tr.doc, before + 1 + headerSize + 3));
+          view.dispatch(tr.scrollIntoView());
+          event.preventDefault();
+          return true;
         },
       },
     }),
@@ -195,7 +425,22 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     .use(taskToggle)
     .use(keys(opts))
     .use(remoteImageView)
+    .use(linkPointer(opts))
+    .use(linkInputRule)
+    .use(angleLinkRule)
+    .use(bareUrlRule)
+    .use(tableOnEnter)
     .create();
+
+  // Tab 的冒泡拦在编辑器里：弹层的焦点圈（React Aria FocusScope contain）在 document 上接 Tab，
+  // 不管 ProseMirror 已经 preventDefault，照样把焦点挪到下一个按钮。列表缩进 / 表格跳格前面已经做了。
+  const stopTab = (e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!(e.target as HTMLElement | null)?.closest?.('.ProseMirror')) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  opts.root.addEventListener('keydown', stopTab);
 
   const call = (key: unknown, payload?: unknown) => editor.action((ctx) => ctx.get(commandsCtx).call(key as never, payload as never));
   const view = () => editor.action((ctx) => ctx.get(editorViewCtx));
@@ -265,13 +510,16 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
           const v = view();
           const href = (arg ?? '').trim();
           if (!href) return;
+          // 光标 / 选区在已有链接里：改这一段的地址（以前 toggle 会把它去掉）
+          const cur = linkAtSelection(v.state);
+          if (cur) return void v.dispatch(setLinkTr(v.state, cur, href));
           if (v.state.selection.empty) {
             // 没选字：把网址本身插进去并加上链接
             const schema = v.state.schema;
             const mark = schema.marks.link!.create({ href });
             const tr = v.state.tr.insert(v.state.selection.from, schema.text(href, [mark]));
             v.dispatch(tr);
-          } else call(toggleLinkCommand.key, { href });
+          } else v.dispatch(setLinkTr(v.state, v.state.selection, href));
           return;
         }
       }
@@ -294,7 +542,26 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     focus() {
       view().focus();
     },
-    destroy: () => editor.destroy().then(() => undefined),
+    destroy: () => {
+      opts.root.removeEventListener('keydown', stopTab);
+      return editor.destroy().then(() => undefined);
+    },
+    linkAtSelection: () => linkAtSelection(view().state),
+    setLink(range, href) {
+      const v = view();
+      const size = v.state.doc.content.size;
+      if (range.from < 0 || range.to > size || range.from >= range.to) return;
+      v.dispatch(setLinkTr(v.state, range, href.trim() ? withProtocol(href.trim()) : ''));
+    },
+    coordsOf(range) {
+      try {
+        const c = view().coordsAtPos(range.from, 1);
+        return { left: c.left, top: c.top, bottom: c.bottom };
+      } catch {
+        return null;
+      }
+    },
+    view,
     active() {
       const out = new Set<MdCommand>();
       const st = view().state;

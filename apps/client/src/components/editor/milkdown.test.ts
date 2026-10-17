@@ -91,3 +91,245 @@ describe('Tab / Shift+Tab 不让焦点跑出编辑器', () => {
     expect(r.md).toMatch(/^- a\n- b/);
   });
 });
+
+describe('链接（Rei 2026-10-17）', () => {
+  const setup = async (md: string, extra: Partial<import('./milkdown').MdEditorOptions> = {}) => {
+    const { createMdEditor } = await import('./milkdown');
+    const { editorViewCtx } = await import('@milkdown/kit/core');
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: () => {}, ...extra });
+    const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+    const done = async () => {
+      await h.destroy();
+      root.remove();
+    };
+    return { h, view, root, done };
+  };
+  const posOf = (doc: import('@milkdown/kit/prose/model').Node, text: string, offset = 1) => {
+    let at = -1;
+    doc.descendants((n, pos) => {
+      if (at < 0 && n.isText && n.text?.includes(text)) at = pos + n.text.indexOf(text) + offset;
+    });
+    return at;
+  };
+  const place = async (view: import('@milkdown/kit/prose/view').EditorView, from: number, to = from) => {
+    const { TextSelection } = await import('@milkdown/kit/prose/state');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+  };
+  /** 模拟一个字一个字打进去（走 inputRules 的 handleTextInput）。 */
+  const type = (view: import('@milkdown/kit/prose/view').EditorView, text: string) => {
+    for (const ch of text) {
+      const { from, to } = view.state.selection;
+      const handled = view.someProp('handleTextInput', (f) => f(view, from, to, ch, () => view.state.tr.insertText(ch, from, to)));
+      if (!handled) view.dispatch(view.state.tr.insertText(ch, from, to));
+    }
+  };
+
+  it('linkRangeAt：同一个链接连着的几段算一段；空光标只认里面', async () => {
+    const { linkRangeAt } = await import('./milkdown');
+    const { view, done } = await setup('看 [**粗**和细](https://a.com) 完');
+    const doc = view.state.doc;
+    const type = view.state.schema.marks.link!;
+    const mid = posOf(doc, '和');
+    const r = linkRangeAt(doc, mid, type);
+    expect(r?.href).toBe('https://a.com');
+    expect(doc.textBetween(r!.from, r!.to)).toBe('粗和细');
+    expect(linkRangeAt(doc, r!.from, type)).toBeNull(); // 起点边上不算
+    expect(linkRangeAt(doc, r!.from, type, false)?.href).toBe('https://a.com');
+    expect(linkRangeAt(doc, posOf(doc, '完'), type)).toBeNull();
+    await done();
+  });
+
+  it('光标在已有链接里加链接：改地址，不会把链接去掉（以前 toggle）', async () => {
+    const { view, h, done } = await setup('看 [文档](https://old.com) 吧');
+    await place(view, posOf(view.state.doc, '档', 0));
+    expect(h.linkAtSelection()?.href).toBe('https://old.com');
+    h.run('link', 'https://new.com');
+    expect(h.getMarkdown()).toBe('看 [文档](https://new.com) 吧\n');
+    await done();
+  });
+
+  it('选中链接里的一部分再加链接：整段一起改', async () => {
+    const { view, h, done } = await setup('[长长的链接](https://old.com)');
+    const at = posOf(view.state.doc, '长的', 0);
+    await place(view, at, at + 2);
+    h.run('link', 'https://x.com');
+    expect(h.getMarkdown()).toBe('[长长的链接](https://x.com)\n');
+    await done();
+  });
+
+  it('setLink：改地址（缺协议补 https://）、空地址去掉链接', async () => {
+    const { view, h, done } = await setup('[文档](https://old.com)');
+    await place(view, posOf(view.state.doc, '档', 0));
+    const r = h.linkAtSelection()!;
+    h.setLink(r, 'example.org/a');
+    expect(h.getMarkdown()).toBe('[文档](https://example.org/a)\n');
+    h.setLink(r, '');
+    expect(h.getMarkdown()).toBe('文档\n');
+    await done();
+  });
+
+  it('选中普通文字加链接；空光标插入网址本身', async () => {
+    const { view, h, done } = await setup('一段话');
+    await place(view, 1, 3);
+    h.run('link', 'https://a.com');
+    expect(h.getMarkdown()).toBe('[一段](https://a.com)话\n');
+    await place(view, view.state.doc.content.size - 1);
+    h.run('link', 'https://b.com');
+    expect(h.getMarkdown()).toBe('[一段](https://a.com)话<https://b.com>\n');
+    await done();
+  });
+
+  it('点链接：交给 onLinkOpen 打开，mousedown 不放光标', async () => {
+    const opened: string[] = [];
+    const { view, done } = await setup('看 [文档](https://a.com/x)', { onLinkOpen: (u) => opened.push(u) });
+    const a = view.dom.querySelector('a')!;
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(opened).toEqual(['https://a.com/x']);
+    await done();
+  });
+
+  it('鼠标移到链接上 / 移开：onLinkHover 给出这段链接 / null', async () => {
+    const hovers: (string | null)[] = [];
+    const { view, done } = await setup('看 [文档](https://a.com)', { onLinkHover: (r) => hovers.push(r ? `${r.href}:${view.state.doc.textBetween(r.from, r.to)}` : null) });
+    const a = view.dom.querySelector('a')!;
+    a.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    a.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+    expect(hovers).toEqual(['https://a.com:文档', null]);
+    await done();
+  });
+
+  it('手打 [文字](网址)：打完右括号就是链接，缺协议补 https://', async () => {
+    const { view, h, done } = await setup('');
+    type(view, '看 [文档](example.com/a)');
+    expect(h.getMarkdown()).toBe('看 [文档](https://example.com/a)\n');
+    expect(view.state.doc.textContent).toBe('看 文档');
+    // 接着打字不带链接
+    type(view, '吧');
+    expect(h.getMarkdown()).toBe('看 [文档](https://example.com/a)吧\n');
+    await done();
+  });
+
+  it('[](网址)：用网址当文字；全角括号也认', async () => {
+    const { view, h, done } = await setup('');
+    type(view, '[](https://a.com)');
+    expect(view.state.doc.textContent).toBe('https://a.com');
+    expect(h.getMarkdown()).toMatch(/https:\/\/a\.com/);
+    expect(h.active().has('link') || view.state.doc.rangeHasMark(1, 3, view.state.schema.marks.link!)).toBe(true);
+    await done();
+    const b = await setup('');
+    type(b.view, '[文档]（a.com）');
+    expect(b.h.getMarkdown()).toBe('[文档](https://a.com)\n');
+    await b.done();
+  });
+
+  it('![图](网址) 不当链接；代码里不转', async () => {
+    const { view, h, done } = await setup('');
+    type(view, '![图](https://a.com/x.png)');
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, view.state.schema.marks.link!)).toBe(false);
+    expect(view.state.doc.textContent).toBe('![图](https://a.com/x.png)');
+    await done();
+    const c = await setup('```\nx\n```');
+    await place(c.view, 2);
+    type(c.view, '[a](b.com)');
+    expect(c.view.state.doc.rangeHasMark(0, c.view.state.doc.content.size, c.view.state.schema.marks.link!)).toBe(false);
+    await c.done();
+    void h;
+  });
+
+  it('手打 <网址>、裸网址 + 空格：变成链接（末尾标点不算）', async () => {
+    const { view, h, done } = await setup('');
+    type(view, '见 <https://a.com/x>');
+    expect(view.state.doc.textContent).toBe('见 https://a.com/x');
+    expect(h.getMarkdown()).toMatch(/https:\/\/a\.com\/x/);
+    expect(view.state.doc.rangeHasMark(3, 6, view.state.schema.marks.link!)).toBe(true);
+    await done();
+    const b = await setup('');
+    type(b.view, '看 https://b.com/y. 吧');
+    expect(b.view.state.doc.textContent).toBe('看 https://b.com/y. 吧');
+    const linked: string[] = [];
+    b.view.state.doc.descendants((n) => {
+      if (n.isText && b.view.state.schema.marks.link!.isInSet(n.marks)) linked.push(n.text!);
+    });
+    expect(linked).toEqual(['https://b.com/y']);
+    await b.done();
+    const c = await setup('');
+    type(c.view, 'www.c.com ');
+    let href = '';
+    c.view.state.doc.descendants((n) => {
+      const m = c.view.state.schema.marks.link!.isInSet(n.marks);
+      if (m) href = m.attrs.href;
+    });
+    expect(href).toBe('https://www.c.com');
+    await c.done();
+  });
+
+  it('一行 |a|b| 回车：变成表格（这行是表头），光标进第一格；|---| 分隔行不算', async () => {
+    const { tableCells } = await import('./milkdown');
+    expect(tableCells('|a|b|')).toEqual(['a', 'b']);
+    expect(tableCells('| 名字 | 价格 |  ')).toEqual(['名字', '价格']);
+    expect(tableCells('|---|:-:|')).toBeNull();
+    expect(tableCells('a|b')).toBeNull();
+    const { view, h, done } = await setup('');
+    type(view, '|a|b|');
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    view.dom.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+    type(view, 'x');
+    expect(h.getMarkdown()).toBe('| a | b |\n| - | - |\n| x |   |\n');
+    await done();
+  });
+
+  it('LINK_INPUT_RE', async () => {
+    const { LINK_INPUT_RE, withProtocol } = await import('./milkdown');
+    expect('看 [a](b.com)'.match(LINK_INPUT_RE)?.slice(1)).toEqual(['a', 'b.com']);
+    expect('![a](b.png)'.match(LINK_INPUT_RE)).toBeNull();
+    expect('[a](b c)'.match(LINK_INPUT_RE)).toBeNull();
+    expect(withProtocol('mailto:a@b.c')).toBe('mailto:a@b.c');
+    expect(withProtocol('a.com')).toBe('https://a.com');
+  });
+});
+
+describe('Tab 不冒泡到弹层的焦点圈（Rei 2026-10-17：ul / ol 里 Tab 焦点跑掉）', () => {
+  it('列表里 Tab 缩进、Shift+Tab 反缩进，document 上收不到 Tab', async () => {
+    const { createMdEditor } = await import('./milkdown');
+    const { TextSelection } = await import('@milkdown/kit/prose/state');
+    const { editorViewCtx } = await import('@milkdown/kit/core');
+    for (const md of ['- a\n- b', '1. a\n2. b', '- [ ] a\n- [ ] b']) {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: () => {} });
+      const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+      let at = 1;
+      view.state.doc.descendants((n, pos) => {
+        if (n.isText && n.text === 'b') at = pos + 1;
+      });
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, at)));
+      let reached = 0;
+      const spy = (e: KeyboardEvent) => e.key === 'Tab' && reached++;
+      document.addEventListener('keydown', spy);
+      const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+      view.dom.dispatchEvent(tab);
+      expect(tab.defaultPrevented).toBe(true);
+      expect(h.getMarkdown()).toMatch(/\n\s+(- |1\. )/);
+      const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+      view.dom.dispatchEvent(back);
+      expect(h.getMarkdown()).not.toMatch(/\n\s+(- |1\. )/);
+      // 第一项缩不动：也只吞掉
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 3)));
+      const first = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+      view.dom.dispatchEvent(first);
+      expect(first.defaultPrevented).toBe(true);
+      expect(reached).toBe(0);
+      document.removeEventListener('keydown', spy);
+      await h.destroy();
+      root.remove();
+    }
+  });
+});

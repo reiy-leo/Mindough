@@ -179,6 +179,7 @@ export const EN: Record<string, EnValue> = {
   表格: 'Table',
   格式: 'Formatting',
   链接地址: 'Link URL',
+  去掉链接: 'Remove Link',
 
   // ── 日期面板 ──
   不设日期: 'No Date',

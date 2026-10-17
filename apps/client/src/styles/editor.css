@@ -219,3 +219,44 @@
   margin: 8px auto;
   border-radius: 8px;
 }
+
+/* 链接小浮层：悬停 / 光标在链接里时出现在链接下面（原地址 + 编辑 + 去掉链接） */
+.md-link-pop {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: min(420px, 100%);
+  padding: 3px 4px 3px 10px;
+  background: var(--surface);
+  background-color: color-mix(in srgb, var(--surface) 100%, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+}
+.md-link-pop.is-editing {
+  width: min(420px, 100%);
+  padding-left: 8px;
+}
+.md-link-pop-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent);
+  text-decoration: none;
+  margin-right: 4px;
+}
+.md-link-pop-url:hover {
+  text-decoration: underline;
+}
+.md-link-pop .btn {
+  flex: none;
+}
+.md-editor-content a {
+  cursor: pointer;
+}
