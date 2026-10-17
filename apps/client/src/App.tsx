@@ -24,6 +24,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
 import { ReminderHost } from './components/ReminderHost';
+import { useLunarSubScheduler } from './lib/lunar';
 import { Tip } from './ui/primitives';
 
 import { tr, trc } from './lib/i18n';
@@ -225,6 +226,7 @@ export function App() {
   const route = useRoute();
   const ui = useUi();
   const store = useStore();
+  useLunarSubScheduler(store);
   const { layout, skin } = useSettings();
   const isActive = (n: NavItem) => n.match.includes(route.page);
   const [collapsed, toggleSection] = useCollapsed();

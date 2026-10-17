@@ -5,6 +5,7 @@ import { weekdayLabel, addDays, compareDateKey, diffDays, formatDateZh, relative
 import { useNow, useStore } from '../store/StoreProvider';
 import { Button } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
+import { LunarLine } from '../components/LunarLine';
 import { PageHeader } from '../components/PageHeader';
 
 import { tr, trc } from '../lib/i18n';
@@ -66,6 +67,7 @@ export function AgendaPage() {
                     <span className="agenda-full">{weekdayLabel(weekday(d), 'short')}</span>
                   </>
                 )}
+                <LunarLine date={d} />
               </div>
               <div className="agenda-items">
                 {list.map((t) => (

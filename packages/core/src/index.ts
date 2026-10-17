@@ -15,6 +15,7 @@ export * from './preview';
 export * from './describe';
 export * from './search';
 export * from './journal';
+export * from './lunar/index';
 export * from './attachments';
 export * from './library';
 export * from './typedef';

@@ -94,3 +94,27 @@ describe('连续天数', () => {
     expect(computeStreak(r, new Set(['2026-10-12']), '2026-10-15', '2026-10-14').current).toBe(1);
   });
 });
+
+describe('每年农历（RSCALE=CHINESE）', () => {
+  it('读写', () => {
+    const r: Recurrence = { kind: 'lunarYearly', month: 6, day: 15, leap: true };
+    expect(formatRecurrence(r)).toBe('FREQ=YEARLY;RSCALE=CHINESE;BYMONTH=6L;BYMONTHDAY=15');
+    expect(parseRecurrence(formatRecurrence(r))).toEqual(r);
+    expect(parseRecurrence('FREQ=YEARLY;RSCALE=CHINESE;BYMONTH=8;BYMONTHDAY=15')).toEqual({ kind: 'lunarYearly', month: 8, day: 15, leap: false });
+    expect(parseRecurrence('FREQ=YEARLY;RSCALE=CHINESE;BYMONTH=13;BYMONTHDAY=1')).toBeNull();
+    expect(parseRecurrence('FREQ=YEARLY;BYMONTH=8;BYMONTHDAY=15')).toBeNull();
+    expect(describeRecurrence({ kind: 'lunarYearly', month: 8, day: 15, leap: false })).toBe('每年农历八月十五');
+  });
+  it('中秋：2025-10-06、2026-09-25', () => {
+    const r: Recurrence = { kind: 'lunarYearly', month: 8, day: 15, leap: false };
+    expect(occurrences(r, '2025-01-01', '2026-12-31')).toEqual(['2025-10-06', '2026-09-25']);
+    expect(periodStart(r, '2026-09-24')).toBe('2025-10-06');
+    expect(periodStart(r, '2026-10-17')).toBe('2026-09-25');
+    expect(periodKeyFor(r, '2026-02-01')).toBe('2025-10-06');
+  });
+  it('闰六月十五：2025 在闰月，2026 没闰月按六月', () => {
+    const r: Recurrence = { kind: 'lunarYearly', month: 6, day: 15, leap: true };
+    expect(occurrences(r, '2025-01-01', '2026-12-31')).toEqual(['2025-08-08', '2026-07-28']);
+    expect(isDueOn(r, '2025-07-09')).toBe(false); // 2025 的（非闰）六月十五不算
+  });
+});

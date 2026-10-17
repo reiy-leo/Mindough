@@ -444,6 +444,20 @@ Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为
   8. 已经传到 R2 的文件，本机不留缓存：离线时打不开、下不了（显示缩略图要联网）。
   9. 还没升级的旧客户端会跳过 attachment 表的行（同 journal_entry 当时的情况），升级后要等那些行再被改一次才会拉到。
 
+### 农历 ✅（2026-10-17，Rei：「选择日期支持选择中国农历，订阅农历可在设置中看到地址和同步频率」；澄清后确认：从外部订阅一份农历 / 节气日历（ICS），设置里显示源地址和多久同步一次）
+- **换算本地查表，不联网**：core `lunar/`——`data.ts`（农历 1900–2100 月大小 / 闰月 201 个数 + 公历 1900–2100 节气表，约 6 KB）由 `packages/core/scripts/gen-lunar-data.mjs` 从 lunar-javascript 1.7.7（MIT，6tail，寿星天文历算法）生成；它不是依赖，只在生成时用，生成时 1900-01-31 … 2100-12-31 逐日核对过农历和节气（全对）。没用 `Intl` 的 chinese 历：Node / 浏览器的 ICU 在 2027、2030、2012、2018 等年份的初一和官方差一天（如 ICU 说 2027 春节是 2-07，官方 2-06）。`lunar.ts`：`solarToLunar` / `lunarToSolar`（不存在的日子 null）、`lunarYearMonths`、`leapMonthOf`、`solarTermOf`、`lunarFestivalOf`（春节、元宵、龙抬头、端午、七夕、中元、中秋、重阳、腊八、小年、除夕；闰月不算）、`lunarYearlyDate`（每年农历 X 月 X 日落在哪天）、`lunarCellLabel`（格子小字优先级：订阅的节日名 > 传统节日 > 节气 > 初一显示月名「九月」「闰六月」> 日子「初八」）。名字在 `names.ts`（中英文界面格子里都照中文显示，同 Apple 日历；选择器、重复规则的英文说法 Month 9 / Day 8 / Leap Month 6）。
+- **日期选择**：`DatePanel`（新建 / 详情的日期、倒数日目标日、待安排里排日期）格子下显示农历小字 + 订阅的放假「休」/ 调休上班「班」角标；上面「公历 | 农历」切换（这台设备记住上次用的），农历模式按 农历年（「2026 丙午」）- 月（含闰月）- 日 选，下面写出公历，点「选这天」换算成公历存。日记月历同样显示农历。日期都存公历 `YYYY-MM-DD`，不加列、不加迁移。
+- **每年农历重复**：重复规则加 `lunarYearly`，存 RFC 7529 写法 `FREQ=YEARLY;RSCALE=CHINESE;BYMONTH=8;BYMONTHDAY=15`（闰月 `BYMONTH=6L`）。闰月规则：那年有同一个闰月就在闰月，没有就按非闰的同一个月；三十碰上小月取廿九。打卡、连续天数、提醒都按它走（`isDueOn` / `periodStart`）。
+- **订阅**：默认源 Apple「中国大陆节假日」`https://calendars.icloud.com/holidays/cn_zh.ics`（macOS / iOS 日历里订阅的同一份；节气、传统节日、法定假日的放假（休）和调休上班（班），简体中文；2026-10-17 实测 246 个事件、2023-12-30 … 2029-12-21，假日安排随国务院公布更新）。备选（没用）：Google 中国节假日 ICS（`calendar.google.com/calendar/ical/zh-cn.china%23holiday%40group.v.calendar.google.com/public/basic.ics`，没有节气）、lanceliao/china-holiday-calender（只有法定假日）、infinet/lunar-calendar（停在 2015、繁体）。Worker `GET /api/calendar/ics?url=…[&fresh=1]`（`apps/server/src/calendar.ts`）代拉避开 CORS：不用登录（没登录也能看节日），只收公网 http(s)、回来的必须是 `BEGIN:VCALENDAR` 开头、≤ 2 MB、10 秒超时，Cache API 6 小时（「立即同步」带 fresh=1 跳过读缓存）；错误附中文状态码（400 请求有误、415 不支持的格式、413 内容太大、502 网关错误 + `upstream_status`、504 网关超时）。客户端 `lib/lunar.ts`：core `parseIcs`（全天 / 多天、DTEND 不含当天、`RRULE:FREQ=YEARLY;COUNT=…`、EXDATE、Apple 的 `X-APPLE-SPECIAL-DAY`、标题里的（休）（班））解析后存这台设备 localStorage（离线可用）；到点自动同步（启动、回到前台、每小时看一眼，按频率；失败隔一小时再试）。订阅的事件只读：显示在日期格子、我的一天副标题、列表每天的标题旁，不成任务；和本地农历冲突时用订阅的名字。
+- **设置 → 农历**：「显示农历」（同步偏好 `lunar.show`，没设过跟界面语言：中文开、英文关）；「农历订阅」源地址（可复制、可改、webcal:// 自动换成 https://、改了的显示「恢复默认」；同步偏好 `lunar.sub_url`，空 = 默认源）；「同步频率」每天 / 每周 / 每月 / 手动（`lunar.sub_freq`，默认每天）；「上次同步 · 3 分钟前」+ 状态（「同步成功，315 个日子」/「同步失败：订阅源返回 404 未找到」…）+「立即同步」。地址和频率跟账户同步；数据、上次同步时间、状态只在这台设备。
+- **测试**：core `test/lunar.test.ts`（对照已知日期：2026 春节 2026-02-17、2025 闰六月初一 2025-07-25、2033 闰十一月、1900-01-31 等；1900–2100 逐日往返；每年 24 节气）、`test/lunar-sub.test.ts`（ICS 解析、格子挑选、订阅设置、什么时候同步、状态文案）、`test/recurrence.test.ts`（每年农历：中秋、闰六月十五）；server `test/calendar.test.ts`；client `lib/lunar.test.ts`。截图 work/shots-lunar/（脚本 work/shots-tool/lunar.mjs、lunar-repeat.mjs）。
+- **待 Rei 确认**（我先这样定的）：
+  1. 「公历 | 农历」切换只在开了「显示农历」时出现（英文界面默认关，要用先在设置里打开）。
+  2. 默认源选 Apple「中国大陆节假日」：它覆盖到约 5 年后，没有逐日农历（逐日农历本地算）；想要别的源在设置里换地址。
+  3. 订阅不用登录，Worker 代拉对谁都开（只收日历文件，不能当通用代理）。
+  4. 闰月重复的说法：选「闰六月十五」，没有闰六月的年份按六月十五；选普通「六月十五」，有闰六月的年份也只在（第一个）六月。
+  5. 英文界面格子里的农历、节气、节日照中文显示。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。

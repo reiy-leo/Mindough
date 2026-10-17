@@ -38,7 +38,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType, weekdayLabel, shownFields } from '@mindough/core';
+  type TaskType, weekdayLabel, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, lunarYearlyDate, formatDate } from '@mindough/core';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -176,13 +176,35 @@ const FREQ: Array<{ id: Freq; label: string }> = [
   { id: 'weekly', get label() { return tr('每周'); } },
   { id: 'monthly', get label() { return tr('每月'); } },
   { id: 'every', get label() { return tr('每隔几天'); } },
+  { id: 'lunarYearly', get label() { return tr('每年农历'); } },
 ];
 
 function defaultRule(kind: Freq, today: DateKey): string {
   if (kind === 'daily') return formatRecurrence({ kind: 'daily' });
   if (kind === 'weekly') return formatRecurrence({ kind: 'weekly', weekdays: [weekday(today)] });
   if (kind === 'monthly') return formatRecurrence({ kind: 'monthly', day: Number(today.slice(8)) });
+  if (kind === 'lunarYearly') {
+    const l = solarToLunar(today);
+    return formatRecurrence({ kind: 'lunarYearly', month: l?.month ?? 1, day: l?.day ?? 1, leap: l?.leap ?? false });
+  }
   return formatRecurrence({ kind: 'every', days: 3, anchor: today });
+}
+
+/** 农历月份选项：正月…腊月，后面接 闰正月…闰腊月（闰月要选那一年有的才有意义，见说明）。 */
+const LUNAR_MONTH_OPTIONS = () => [
+  ...Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), label: lunarMonthLabel(i + 1) })),
+  ...Array.from({ length: 12 }, (_, i) => ({ id: `${i + 1}L`, label: lunarMonthLabel(i + 1, true) })),
+];
+
+/** 下一次（含今天）在哪天：「2027年9月15日」。 */
+function nextLunarText(r: Extract<Recurrence, { kind: 'lunarYearly' }>, today: DateKey): string {
+  const y = solarToLunar(today)?.year;
+  if (!y) return '—';
+  for (const yy of [y, y + 1]) {
+    const d = lunarYearlyDate(yy, r.month, r.day, r.leap);
+    if (d && d >= today) return formatDate(d, { year: true });
+  }
+  return '—';
 }
 
 /** 重复：只做一次 / 定期打卡 → 每天、每周几、每月几号、每隔几天。 */
@@ -246,6 +268,27 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
             <div className="sentence">
               {trx('在每月的 {day} 号', { day: <InlineNumber label={tr('每月几号')} value={r.day} min={1} max={31} width={2} onChange={(v) => v >= 1 && v <= 31 && onChange(formatRecurrence({ kind: 'monthly', day: Math.round(v) }))} /> }, {}, { wrap: '' })}
               {r.day > 28 && <span className="sentence-note">{tr('小月取月末')}</span>}
+            </div>
+          )}
+          {r.kind === 'lunarYearly' && (
+            <div className="sentence lunar-repeat">
+              <span>{tr('在每年农历的')}</span>
+              <InlineSelect<string>
+                label={tr('农历几月')}
+                value={`${r.month}${r.leap ? 'L' : ''}`}
+                onChange={(v) => onChange(formatRecurrence({ kind: 'lunarYearly', month: parseInt(v, 10), day: r.day, leap: v.endsWith('L') }))}
+                options={LUNAR_MONTH_OPTIONS()}
+              />
+              <InlineSelect<string>
+                label={tr('农历几日')}
+                value={String(r.day)}
+                onChange={(v) => onChange(formatRecurrence({ ...r, day: Number(v) }))}
+                options={Array.from({ length: 30 }, (_, i) => ({ id: String(i + 1), label: lunarDayLabel(i + 1) }))}
+              />
+              <span className="sentence-note">
+                {[r.leap ? tr('没有这个闰月的年份按{month}', { month: lunarMonthLabel(r.month) }) : null, r.day === 30 ? tr('小月取廿九') : null].filter(Boolean).join(tr('；')) ||
+                  tr('下次：{date}', { date: nextLunarText(r, today) })}
+              </span>
             </div>
           )}
           {r.kind === 'every' && (

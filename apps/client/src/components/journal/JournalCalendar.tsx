@@ -6,6 +6,9 @@ import { Button as RacButton } from 'react-aria-components';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, formatDate, getLocale, hasJournalContent, intlLocale, journalOfMonth, journalPreview, journalWordCount, monthGrid, moodLabel, parseDateKey, weekdayLabel, type JournalEntry } from '@mindough/core';
 import { MoodIcon } from './MoodIcon';
+import { LunarMark, lunarTitle } from '../task/DatePanel';
+import { useLunar } from '../../lib/lunar';
+import { useStore } from '../../store/StoreProvider';
 import { tr } from '../../lib/i18n';
 
 /** 「2026年10月」/「October 2026」。 */
@@ -33,8 +36,9 @@ export function JournalCalendar({
 }) {
   const todayMonth = today.slice(0, 7);
   const cells = monthGrid(month);
+  const lunar = useLunar(useStore());
   return (
-    <div className="jcal">
+    <div className={`jcal${lunar.show ? ' has-lunar' : ''}`}>
       <div className="jcal-head">
         <RacButton className="icon-btn" aria-label={tr('上个月')} onPress={() => onMonth(addMonths(month, -1))}>
           <ChevronLeft size={18} />
@@ -61,7 +65,10 @@ export function JournalCalendar({
               const e = entries.get(d);
               const written = hasJournalContent(e) || (!!e && (attachments?.(e.id) ?? 0) > 0);
               const future = d > today;
-              const label = future ? tr('{date}，还没到', { date: formatDate(d) }) : written ? tr('{date}，写了日记', { date: formatDate(d) }) : formatDate(d);
+              const info = lunar.show ? lunar.day(d) : null;
+              const title = info ? lunarTitle(info) : undefined;
+              const base = future ? tr('{date}，还没到', { date: formatDate(d) }) : written ? tr('{date}，写了日记', { date: formatDate(d) }) : formatDate(d);
+              const label = title ? `${base} · ${title}` : base;
               return (
                 <span key={d} role="gridcell" className="jcal-cellwrap">
                   <RacButton
@@ -72,6 +79,7 @@ export function JournalCalendar({
                     onPress={() => onSelect(d)}
                   >
                     <span className="jcal-num">{parseDateKey(d).d}</span>
+                    {info && <LunarMark info={info} />}
                     <span className="jcal-dot" style={e?.mood ? { background: `var(--mood-${e.mood}, var(--accent))` } : undefined} aria-hidden />
                   </RacButton>
                 </span>

@@ -10,6 +10,16 @@ const pl = (n: unknown, one: string, other: string) => (new Intl.PluralRules('en
 const count = (n: unknown, one: string, other: string) => `${n} ${pl(n, one, other)}`;
 
 export const CORE_EN: Record<string, V> = {
+  // ── 农历订阅、每年农历重复（lunar/、recurrence.ts，Rei 2026-10-17）──
+  手动: 'Manual',
+  还没同步过: 'Not synced yet',
+  '同步成功，{n} 个日子': (p) => `Synced: ${count(p.n, 'day', 'days')}`,
+  '同步失败：没连上网络': 'Sync failed: no network connection',
+  '同步失败：这个地址不是日历文件（ICS）': 'Sync failed: this URL isn’t a calendar file (ICS)',
+  '同步失败：日历里没有能显示的日子': 'Sync failed: the calendar has no days to show',
+  '同步失败：订阅源返回 {code}': (p) => `Sync failed: the calendar returned ${p.code}`,
+  '同步失败：{code}': (p) => `Sync failed: ${p.code}`,
+  '每年{date}': (p) => `Yearly on ${p.date}`,
   // ── 导入导出（archive/） ──
   无标题: 'Untitled',
   未命名组: 'Untitled group',

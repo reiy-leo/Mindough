@@ -11,6 +11,7 @@ import { isTauri } from '../store/sqlite-tauri';
 /** 小窗只在桌面 app 里有（手机、网页没有置顶窗口）。 */
 const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 import { TaskRow } from '../components/TaskRow';
+import { LunarLine } from '../components/LunarLine';
 import { PageHeader } from '../components/PageHeader';
 import { useSettings } from '../lib/settings';
 import { JournalCard } from '../components/journal/JournalCard';
@@ -71,7 +72,12 @@ export function MyDayPage() {
     <div className="page">
       <PageHeader
         title={tr('我的一天')}
-        subtitle={`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
+        subtitle={
+          <>
+            {`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
+            <LunarLine date={today} className="page-subtitle-lunar" />
+          </>
+        }
         icon={<Sun size={22} />}
         {...(canMini
           ? {

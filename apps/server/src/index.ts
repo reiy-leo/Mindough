@@ -1,5 +1,5 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、农历订阅代拉（calendar.ts）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
@@ -10,6 +10,7 @@ import { handleExchange, issueNativeCode } from './native';
 import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
 import { handleLookup } from './lookup';
 import { handleFileGet, handleFileUpload } from './files';
+import { handleIcsProxy } from './calendar';
 import type { LookupEnv } from './lookup/types';
 
 export interface Env extends SyncEnv, AssetEnv, LookupEnv {
@@ -91,6 +92,12 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
     return handleFileUpload(request, env);
   }
   if (pathname.startsWith('/api/files/') && method === 'GET') return handleFileGet(request, pathname.slice('/api/files/'.length), env, url);
+
+  // 农历订阅：代拉 ICS（不用登录，只收日历文件）
+  if (pathname === '/api/calendar/ics') {
+    if (method !== 'GET') return json({ error: '405 方法不允许：请用 GET' }, 405);
+    return handleIcsProxy(url);
+  }
 
   // 在线找资料（TMDB / 豆瓣 / Open Library / Steam），要登录
   if (pathname.startsWith('/api/lookup/')) return handleLookup(request, env, url);

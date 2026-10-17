@@ -13,6 +13,7 @@ import { formatRemindTime } from '../components/task/RemindPanel';
 import { notifyPermission, onReminderSettings, remindersEnabled, requestNotifyPermission, setRemindersEnabled, type NotifyPermission } from '../lib/reminders';
 import { PageHeader } from '../components/PageHeader';
 import { TypeManager } from '../components/TypeManager';
+import { LunarSection } from '../components/LunarSettings';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
@@ -41,6 +42,7 @@ export function SettingsPage() {
       <AccountSection />
       <ReminderSection />
       <JournalSection />
+      <LunarSection />
       <TypesSection />
       <Section title={tr('外观')}>
         <div className="card settings-card">
