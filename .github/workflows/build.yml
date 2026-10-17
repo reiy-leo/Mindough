@@ -100,7 +100,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # setup-android 默认装 "tools" 包；新 runner 镜像（cmdline-tools 16.0）已没有这个包，sdkmanager 退出码 1，
+      # 所以只装 platform-tools（Rei 2026-10-17 alpha.2 的 Android 任务因此失败）
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: 安装 NDK
         run: |
