@@ -260,3 +260,110 @@
 .md-editor-content a {
   cursor: pointer;
 }
+
+/* ───────── GitHub 提示块与公式（gh-syntax.ts，Rei 2026-10-17）───────── */
+/* 提示块标题不可编辑；正文照常写 */
+.md-editor-content .md-alert-title {
+  cursor: default;
+}
+.md-editor-content .md-alert-body > :first-child {
+  margin-top: 0;
+}
+
+/* 行内公式：平时只显示 KaTeX，光标进去（is-editing）显示 $源码$ */
+.md-editor-content .md-math-inline .md-math-src {
+  display: none;
+}
+.md-editor-content .md-math-inline.is-editing .md-math-src {
+  display: inline;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.md-editor-content .md-math-inline.is-editing .md-math-src::before,
+.md-editor-content .md-math-inline.is-editing .md-math-src::after {
+  content: '$';
+  color: var(--text-3);
+}
+.md-editor-content .md-math-inline.is-editing .md-math-render {
+  display: none;
+}
+.md-editor-content .md-math-render {
+  cursor: text;
+}
+.md-editor-content .md-math-inline .md-math-render:hover,
+.md-editor-content .md-math-block-edit:not(.is-editing) .md-math-render:hover {
+  background: var(--accent-soft);
+  border-radius: var(--radius-xs);
+}
+
+/* 块级公式：平时只显示结果，光标进去显示源码，下面跟着实时预览 */
+.md-editor-content .md-math-block-edit {
+  margin: 8px 0;
+}
+.md-editor-content .md-math-block-edit .md-math-src {
+  display: none;
+  margin: 0;
+}
+.md-editor-content .md-math-block-edit.is-editing .md-math-src {
+  display: block;
+}
+.md-editor-content .md-math-block-edit.is-editing .md-math-src::before,
+.md-editor-content .md-math-block-edit.is-editing .md-math-src::after {
+  content: '$$';
+  display: block;
+  color: var(--text-3);
+}
+.md-editor-content .md-math-block-edit .md-math-render {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.md-editor-content .md-math-block-edit.is-editing .md-math-render {
+  padding-top: 4px;
+}
+.md-editor-content .md-math-block-edit.is-empty:not(.is-editing) .md-math-render::before {
+  content: '$$ $$';
+  color: var(--text-3);
+}
+
+/* 脚注（GFM）：引用是上标，定义是一行「标号 内容」 */
+.md-editor-content sup[data-type='footnote_reference'] {
+  color: var(--accent);
+}
+.md-editor-content sup[data-type='footnote_reference']::before {
+  content: '[';
+}
+.md-editor-content sup[data-type='footnote_reference']::after {
+  content: ']';
+}
+.md-editor-content dl[data-type='footnote_definition'] {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 0.9em;
+  color: var(--text-2);
+}
+.md-editor-content dl[data-type='footnote_definition'] dt {
+  flex: none;
+  color: var(--accent);
+}
+.md-editor-content dl[data-type='footnote_definition'] dt::before {
+  content: '[^';
+}
+.md-editor-content dl[data-type='footnote_definition'] dt::after {
+  content: ']:';
+}
+.md-editor-content dl[data-type='footnote_definition'] dd {
+  margin: 0;
+  min-width: 0;
+}
+/* Milkdown 给 ProseMirror 根节点加了 class="editor"，正好撞上 app.css 的 .editor（flex + 16px 间距）：
+   块之间已经有 16px，提示块 / 公式块自己的上下外边距去掉，免得叠成 32px */
+.md-editor-content.editor > .md-alert,
+.md-editor-content.editor > .md-math-block-edit {
+  margin-top: 0;
+  margin-bottom: 0;
+}

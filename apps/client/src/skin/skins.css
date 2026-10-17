@@ -968,3 +968,22 @@
 [data-skin='material'] .merge-cell {
   border-radius: 8px;
 }
+
+/* GitHub 提示块：Apple / Material 用整块浅色底 + 圆角，WinUI 用 InfoBar 式细边框；通用样式（左色带）见 app.css */
+[data-skin='material'] .md .md-alert {
+  border-left-width: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--alert) 12%, transparent);
+}
+[data-skin='winui'] .md .md-alert {
+  border-left-width: 0;
+  border: 1px solid color-mix(in srgb, var(--alert) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--alert) 9%, transparent);
+}
+[data-skin='apple'] .md .md-alert {
+  border-left-width: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--alert) 10%, transparent);
+}
+

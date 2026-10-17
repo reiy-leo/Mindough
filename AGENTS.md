@@ -13,7 +13,7 @@
 
 ## 技术栈（M0 已落定的版本标 ✅）
 - ✅ TypeScript 5.9（strict + noUncheckedIndexedAccess）、React 19、Vite 8、Vitest 4、pnpm workspace
-- ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify；✅ 编辑 Milkdown 7（`components/editor/`，所见即所得，存 markdown）
+- ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（+ marked-footnote）；GitHub 提示块 / 公式（KaTeX，本地打包按需加载）见 `components/editor/gh-syntax.ts`、`lib/gh-alerts.ts`、`lib/math.ts`；✅ 编辑 Milkdown 7（`components/editor/`，所见即所得，存 markdown）
 - Tauri 2（桌面 + iOS/Android；本机 cargo check 通过，GitHub Actions build.yml 打包）
 - UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
 - ✅ Markdown 编辑：Milkdown 7（commonmark + gfm 预设），正文以 .md 文本入库；详情 / 备注带工具栏，新建面板 `toolbar="none"`

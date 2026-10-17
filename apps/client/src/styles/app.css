@@ -1967,6 +1967,101 @@ button {
   background: var(--surface-2);
   font-weight: 600;
 }
+.md th[align='center'],
+.md td[align='center'] {
+  text-align: center;
+}
+.md th[align='right'],
+.md td[align='right'] {
+  text-align: right;
+}
+
+/* GitHub 提示块（Rei 2026-10-17）：左边一条色带 + 图标标题，颜色来自各皮肤的 --alert-* 令牌；编辑器里同一套 */
+.md .md-alert {
+  --alert: var(--alert-note);
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--alert);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--alert) 7%, transparent);
+}
+.md .md-alert-tip {
+  --alert: var(--alert-tip);
+}
+.md .md-alert-important {
+  --alert: var(--alert-important);
+}
+.md .md-alert-warning {
+  --alert: var(--alert-warning);
+}
+.md .md-alert-caution {
+  --alert: var(--alert-caution);
+}
+.md .md-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 2px;
+  color: var(--alert);
+  font-weight: 600;
+  line-height: 1.5;
+  user-select: none;
+}
+.md .md-alert-icon {
+  flex: none;
+}
+.md .md-alert > :last-child,
+.md .md-alert-body > :last-child {
+  margin-bottom: 2px;
+}
+/* 数学公式（KaTeX）：块级的可横向滚动；KaTeX 没加载好时先显示源码 */
+.md .md-math-block {
+  margin: 8px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.md .katex {
+  font-size: 1.08em;
+}
+.md .katex-display {
+  margin: 0.4em 0;
+}
+.md .md-math-pending,
+.md .md-math-error {
+  color: var(--text-2);
+}
+
+/* 脚注：小号、上标链接；底部一条细线 */
+.md sup a,
+.md sup[data-type='footnote_reference'] {
+  font-size: 0.8em;
+  padding: 0 1px;
+}
+.md .footnotes {
+  margin-top: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9em;
+  color: var(--text-2);
+}
+.md .footnotes ol {
+  padding-left: 20px;
+}
+.md .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.md details {
+  margin: 6px 0;
+}
+.md summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
 .md hr {
   border: 0;
   border-top: 1px solid var(--border);

@@ -180,6 +180,14 @@ export const EN: Record<string, EnValue> = {
   格式: 'Formatting',
   链接地址: 'Link URL',
   去掉链接: 'Remove Link',
+  // GitHub 提示块标题（> [!NOTE] 等，和 GitHub 英文界面一致）、脚注
+  注意: 'Note',
+  提示: 'Tip',
+  重要: 'Important',
+  警告: 'Warning',
+  小心: 'Caution',
+  脚注: 'Footnotes',
+  '回到引用 {0}': 'Back to reference {0}',
 
   // ── 日期面板 ──
   不设日期: 'No Date',

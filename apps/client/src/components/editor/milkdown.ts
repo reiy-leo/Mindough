@@ -9,6 +9,7 @@
  * - 网络图片 ![](https://…) 不加载，显示成文字（remote-image.ts；Rei 2026-10-17）。
  * - 链接（Rei 2026-10-17）：点一下是打开（不进编辑）；悬停 / 光标落在链接里时通知外面显示小浮层（看地址、编辑、去掉）；
  *   改地址按 mark 的范围 removeMark + addMark，不再 toggle 掉。手打 [文字](网址) 打完右括号就变成链接（![图](…) 不算）。
+ * - GitHub 提示块 `> [!NOTE]`、数学公式 `$…$` / `$$…$$`（KaTeX）见 gh-syntax.ts（Rei 2026-10-17）。
  * - Tab 不让焦点跑出编辑器：弹层（React Aria FocusScope contain）在 document 上自己接 Tab 挪焦点、不看 defaultPrevented，
  *   所以编辑器根节点上把 Tab 的冒泡拦下来。
  */
@@ -27,6 +28,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import type { Mark, MarkType, NodeType, Node as PMNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { remoteImagePaste, remoteImageView } from './remote-image';
+import { ghSyntax, mathSafeText } from './gh-syntax';
 
 const ZW = '\u200b';
 
@@ -400,7 +402,9 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     .config((ctx) => {
       ctx.set(rootCtx, opts.root);
       ctx.set(defaultValueCtx, prepareMarkdown(opts.value));
-      ctx.set(remarkStringifyOptionsCtx, { ...ctx.get(remarkStringifyOptionsCtx), bullet: '-', emphasis: '*', strong: '*', rule: '-', fences: true });
+      const so = ctx.get(remarkStringifyOptionsCtx);
+      const handlers = (so.handlers ?? {}) as Record<string, never>;
+      ctx.set(remarkStringifyOptionsCtx, { ...so, bullet: '-', emphasis: '*', strong: '*', rule: '-', fences: true, handlers: { ...handlers, text: mathSafeText(handlers.text) as never } });
       ctx.update(editorViewOptionsCtx, (prev) => ({
         ...prev,
         attributes: { class: 'md md-editor-content', role: 'textbox', 'aria-multiline': 'true', 'aria-label': opts.label, spellcheck: 'true' },
@@ -417,6 +421,7 @@ export async function createMdEditor(opts: MdEditorOptions): Promise<MdEditorHan
     })
     .use(commonmark)
     .use(gfm)
+    .use(ghSyntax)
     .use(history)
     .use(listener)
     .use(remoteImagePaste)
