@@ -20,6 +20,7 @@ import {
   NumberField,
   Popover,
   Select as RacSelect,
+  Separator,
   SelectValue,
   Text,
   TextArea,
@@ -146,6 +147,8 @@ export interface MenuAction {
   label: string;
   icon?: ReactNode;
   danger?: boolean;
+  /** 这一项前面画分隔线（另起一组，如状态项、删除） */
+  separator?: boolean;
   onAction: () => void;
 }
 
@@ -158,12 +161,13 @@ export function OverflowMenu({ label = tr('更多'), items, icon, className }: {
       </RacButton>
       <Popover className="popover menu-popover" placement="bottom end" offset={4}>
         <Menu className="menu" onAction={(k) => items.find((i) => i.id === k)?.onAction()}>
-          {items.map((i) => (
+          {items.flatMap((i, n) => [
+            ...(i.separator && n > 0 ? [<Separator key={`sep-${i.id}`} className="menu-sep" />] : []),
             <MenuItem key={i.id} id={i.id} className={`menu-item${i.danger ? ' is-danger' : ''}`} textValue={i.label}>
               {i.icon}
               <span>{i.label}</span>
-            </MenuItem>
-          ))}
+            </MenuItem>,
+          ])}
         </Menu>
       </Popover>
     </MenuTrigger>

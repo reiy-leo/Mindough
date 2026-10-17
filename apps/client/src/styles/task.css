@@ -142,6 +142,13 @@
 .menu-item.is-danger svg {
   color: var(--danger);
 }
+/* 菜单分组线（状态项、删除前面）；各皮肤的粗细 / 边距在 skins.css */
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--border);
+}
 .modal-alert {
   width: min(380px, 100%);
 }

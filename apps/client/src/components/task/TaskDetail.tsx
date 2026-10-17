@@ -50,6 +50,7 @@ import { CategoryLabel, CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, FieldInput, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
+import { detailMenu, type DetailMenuId } from '../../lib/task-menu';
 import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
@@ -723,11 +724,22 @@ function Detail({ task }: { task: Task }) {
   else if (derived?.state === '被阻塞') badge = <span className="status-badge is-blocked">{tr('还在等 {length} 件事', { length: derived.missing.length })}</span>;
   else if (task.status === '进行中') badge = <span className="status-badge is-active">{tr('进行中')}</span>;
 
-  const menu: MenuAction[] = [
-    { id: 'myday', label: inDay ? tr('移出我的一天') : tr('加入我的一天'), icon: inDay ? <SunDim size={16} /> : <Sun size={16} />, onAction: () => toggleMyDay(store, ui, task.id) },
-    ...(!finished && !recurring && task.completion_mode !== 'once' ? [{ id: 'done', label: tr('直接标为完成'), icon: <Check size={16} />, onAction: complete }] : []),
-    { id: 'delete', label: tr('删除…'), icon: <Trash2 size={16} />, danger: true, onAction: () => setConfirmDelete(true) },
-  ];
+  // 「关闭」在这里，不在底部（Rei 2026-10-17）；顺序和分隔见 lib/task-menu.ts
+  const MENU_ICON = { myday: inDay ? <SunDim size={16} /> : <Sun size={16} />, done: <Check size={16} />, close: <CircleSlash size={16} />, reopen: <RotateCcw size={16} />, delete: <Trash2 size={16} /> };
+  const MENU_DO: Record<DetailMenuId, () => void> = {
+    myday: () => toggleMyDay(store, ui, task.id),
+    done: complete,
+    close: () => {
+      closeTask(store, ui, task.id);
+      close();
+    },
+    reopen: () => {
+      store.reopenTask(task.id);
+      ui.toast({ message: tr('已重新打开') }, 2500);
+    },
+    delete: () => setConfirmDelete(true),
+  };
+  const menu: MenuAction[] = detailMenu(task, inDay).map((e) => ({ ...e, icon: MENU_ICON[e.id], onAction: MENU_DO[e.id] }));
 
   const props = (
     <div className="prop-list" role="group" aria-label={tr('属性')}>
@@ -889,19 +901,8 @@ function Detail({ task }: { task: Task }) {
                 {recurring ? tr('恢复打卡') : tr('重新打开')}
               </Button>
             </>
-          ) : (
+          ) : primary || secondary ? (
             <>
-              <Button
-                variant="quiet"
-                className="close-task"
-                onPress={() => {
-                  closeTask(store, ui, task.id);
-                  close();
-                }}
-              >
-                <CircleSlash size={16} />
-                {recurring ? tr('不再打卡') : tr('关闭')}
-              </Button>
               <span className="grow" />
               {secondary && (
                 <Button variant="secondary" onPress={secondary.onPress}>
@@ -916,7 +917,7 @@ function Detail({ task }: { task: Task }) {
                 </Button>
               )}
             </>
-          )
+          ) : null
         }
       >
         <div ref={dropRef} className={`detail${layout === 'mobile' ? ' is-mobile' : ''}${dropping ? ' is-dropping' : ''}`}>
