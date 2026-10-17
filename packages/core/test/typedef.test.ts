@@ -240,7 +240,7 @@ describe('Store 类型编辑', () => {
     expect(isArchivedType(store.get('task_type', T.plain))).toBe(false);
   });
 
-  it('引用归档类型的任务和资料照常解析：图标、名字、字段、资料、完成方式；能改字段值；搜索里只剩任务', async () => {
+  it('引用归档类型的任务和资料照常解析：图标、名字、字段、资料、完成方式；能改字段值；⌘K 照常搜得到它的资料（Rei 2026-10-17）', async () => {
     const { store } = await open();
     const t = store.createType({ name: '播客', icon: 'mic', default_completion_mode: 'count' });
     const host = store.addTypeField(t.id, { label: '主播', kind: 'text' });
@@ -258,18 +258,24 @@ describe('Store 类型编辑', () => {
     store.updateTask(task.id, { type_data: { ...cur.type_data, [ep]: { episode: 4 } } });
     expect(store.get('task', task.id)!.type_data[ep]).toEqual({ episode: 4 });
     const hits = search({ tasks: store.list('task'), types: store.list('task_type'), people: [], groups: [], taskPeople: [], items: store.list('library_item') }, '忽左忽右');
-    expect(hits.map((h) => h.kind)).toEqual(['task']);
+    expect(hits.map((h) => h.kind).sort()).toEqual(['item', 'task']);
+    const itemHit = hits.find((h) => h.kind === 'item')!;
+    expect(itemHit.kind === 'item' && itemHit.type?.id).toBe(t.id);
   });
 
-  it('组的默认类型归档了：新建任务退回普通，组上存的 id 不动，取消归档后又生效', async () => {
+  it('组的默认类型归档了照样生效：新建任务仍用它（Rei 2026-10-17「组的类型被归档后不退回」），只是选择器里选不到', async () => {
     const { store } = await open();
     const g = store.insert('group', { name: '听', icon: '🎧', start_at: null, end_at: null, category_id: null, default_type_id: T.book });
     store.archiveType(T.book);
-    expect(store.effectiveDefaultTypeId(g)).toBeNull();
-    expect(store.createTask({ group_id: g.id }).type_id).toBeNull();
+    expect(store.effectiveDefaultTypeId(g)).toBe(T.book);
+    expect(store.createTask({ group_id: g.id }).type_id).toBe(T.book);
     expect(store.get('group', g.id)!.default_type_id).toBe(T.book);
+    expect(store.pickableTypes().map((x) => x.id)).not.toContain(T.book);
     store.unarchiveType(T.book);
     expect(store.createTask({ group_id: g.id }).type_id).toBe(T.book);
+    // 类型行真不在了（旧墓碑、没被找回）才退回普通
+    expect(store.effectiveDefaultTypeId({ default_type_id: 'no-such-type' })).toBeNull();
+    expect(store.effectiveDefaultTypeId(null)).toBeNull();
   });
 
   it('旧数据兼容：hidden=true（以前的「隐藏」）读出来就是归档；导出写 archived，导入认旧文件的 hidden', async () => {

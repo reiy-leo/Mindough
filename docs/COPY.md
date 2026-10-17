@@ -52,7 +52,7 @@
 | 资料字段 / 任务字段 | item 字段 / task 字段 / 共享字段 | 字段归属；行上小标签「资料」「任务」；说明「资料字段属于这部片、这本书本身，几件任务共用；任务字段只属于这一次，比如看到第几集。」 |
 | 文字 / 数字 / 进度 / 日期 / 单选 / 多选 / 链接 / 更多链接 / 站点编号 / 图片 / 清单 / 金额 / 看到第几集 | 文本 / 下拉 / 复选 / URL / 货币 | 字段种类（core `FIELD_KIND_LABEL`）；新字段占位「新字段」 |
 | 删除字段 | 移除字段 | 字段设置弹层里；下面轻提「删掉后已填的值还留着，加回同名字段就又能看到。」；有值时「已经填过值，种类和归属不能再改；要换就新加一个字段。」；主字段和图片悬停「名字和图片是固定的，不能隐藏或删除」 |
-| 归档这个类型 / 取消归档 | 隐藏 / 停用 / 删除类型 | 类型不能删，只能改和归档（Rei 2026-10-17）。类型编辑页底部；说明「类型不能删。不再用了就归档：新建任务时选不到它，用过它的任务和资料照常显示。」，已归档的「已归档：新建任务时选不到它，用过它的任务和资料照常显示。」；归档后提示「已归档「X」」+「撤销」，不用确认（能取消归档） |
+| 归档这个类型 / 取消归档 | 隐藏 / 停用 / 删除类型 | 类型不能删，只能改和归档（Rei 2026-10-17）。类型编辑页底部；说明「类型不能删。不再用了就归档：新建任务时选不到它，用过它的任务和资料照常显示。」，已归档的「已归档：新建任务时选不到它，用过它的任务和资料照常显示。」；归档后提示「已归档「X」」+「撤销」，不用确认（能取消归档）；归档类型的库（从它的资料页返回时）工具栏条数后轻标「已归档」 |
 | 我的一天 | — | 加入我的一天 / 移出我的一天 |
 | 待安排 | 收件箱 / 未分配 / 待办箱 | 页面名（导航「今天」小节）；副标题「N 件还没定哪天做」/「都安排好了」；行上按钮读屏「安排日期」，安排后提示「已安排到列表：「X」」；空状态「没有待安排的事」+「想到什么先记下来，有空再决定哪天做。」+「记一件事」；新建后提示「已添加到待安排：「X」」 |
 | 今天 / 计划 / 资料 | — | 侧边栏和「更多」的小节标题：今天（我的一天、待安排、打卡、可做）、计划（列表、组、关系图）、资料（资料库、人物） |
@@ -142,6 +142,6 @@
 | 影视库 / 书库 / 游戏库 … / 好物清单 / 菜谱 | Movies & TV / Books / Games … / Wish List / Recipes | 条数 7 titles / 5 books / 3 items |
 | 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
 | 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Link URL，Add / Cancel；? 提示 “Type these and they format as you go:” |
-| 归档这个类型 / 取消归档 / 已归档 N 个 | Archive This Type / Unarchive / N archived | 类型编辑器；提示 Archived “X” + Undo；设置里 “9 types, plus 2 archived. …” |
+| 归档这个类型 / 取消归档 / 已归档 N 个 / 已归档 | Archive This Type / Unarchive / N archived / Archived | 类型编辑器；提示 Archived “X” + Undo；设置里 “9 types, plus 2 archived. …” |
 | 提醒 | Reminder / Reminders | 值 None / 9:00 AM；到点 Due today · It’s today · Time to check in · Time’s up — 10 min；按钮 View · In 10 Min；设置 Reminders、Allow Notifications、When You’re Reminded |
 | HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |

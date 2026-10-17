@@ -636,6 +636,7 @@ export const EN: Record<string, EnValue> = {
   取消归档: 'Unarchive',
   '归档「{name}」': 'Archive “{name}”',
   '已归档「{name}」': 'Archived “{name}”',
+  '已归档': 'Archived',
   '已归档 {n} 个': (p) => `${p.n} archived`,
   已归档的类型: 'Archived types',
   '或者用一个 emoji': 'Or use an emoji',

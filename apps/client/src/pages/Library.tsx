@@ -99,7 +99,9 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
   const libs = useLibraries();
   const { layout } = useSettings();
   const mobile = layout === 'mobile';
-  const type = libs.find((t) => t.id === typeId) ?? libs[0];
+  // 归档类型的库不在标签条里，但按 id 打开（如从它的资料页点「‹ 某某库」回来）照常显示这个库，不落到第一个库
+  const requested = typeId ? store.get('task_type', typeId) : undefined;
+  const type = libs.find((t) => t.id === typeId) ?? (requested && hasLibrary(requested) ? requested : undefined) ?? libs[0];
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
@@ -194,6 +196,8 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
             )}
             <span className="lib-toolbar-count">
               {entries.length ? copy.count(entries.length) : ''}
+              {/* 归档类型的库：标签条里没有它，这里轻轻标一下 */}
+              {isArchivedType(type) && <>{entries.length ? ' · ' : ''}{tr('已归档')}</>}
             </span>
             {entries.length > 1 && (
               <RacButton className="lib-select-btn" onPress={() => setSelection([])}>

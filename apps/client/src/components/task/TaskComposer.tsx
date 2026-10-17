@@ -83,7 +83,7 @@ interface Draft extends CompletionValue {
 
 function initialDraft(store: Store, d: NewTaskInput): Draft {
   const group = store.get('group', d.group_id ?? null);
-  // 组的默认类型归档了就不生效，退回普通（effectiveDefaultTypeId）
+  // 组的默认类型归档了照样用它（effectiveDefaultTypeId）；类型选择器里不列归档的，但当前值照常显示
   const typeId = d.type_id ?? store.effectiveDefaultTypeId(group) ?? PLAIN_TYPE_ID;
   const type = store.get('task_type', typeId);
   const mode: CompletionMode = d.completion_mode ?? type?.default_completion_mode ?? 'once';

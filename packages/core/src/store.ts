@@ -1097,12 +1097,12 @@ export class Store {
   }
 
   /**
-   * 组的默认类型里真正生效的那个：类型归档了就不生效（新建任务退回普通），组上存的 id 不动——
-   * 取消归档后又生效，也不用为此多写一行组。
+   * 组的默认类型里真正生效的那个。归档的类型照样生效（Rei 2026-10-17：「组的类型被归档后不退回」——
+   * 归档只是不让后续任务在选择器里选到它）：在组里新建任务仍用它，组页副标题照常显示。
+   * 只有类型行不在了（以前版本删掉、没被找回的墓碑）才退回普通。
    */
   effectiveDefaultTypeId(group: Pick<TableMap['group'], 'default_type_id'> | null | undefined): string | null {
-    const t = this.get('task_type', group?.default_type_id ?? null);
-    return t && !isArchivedType(t) ? t.id : null;
+    return this.get('task_type', group?.default_type_id ?? null)?.id ?? null;
   }
 
   /** 用到这个类型的任务、资料各几条（未删除的）。 */
@@ -1226,8 +1226,8 @@ export class Store {
 
   /**
    * 归档类型（Rei 2026-10-17：类型创建后只能改和归档，不支持删除；内置、自定义一样）。
-   * 归档后任何选择器、资料库标签条、搜索、类型编辑器主列表里都不出现；引用它的任务和资料照常显示、能编辑字段值。
-   * 存在 hidden 列（整行 LWW 同步）。组的默认类型不清，只是不生效（见 effectiveDefaultTypeId）。
+   * 归档后不出现在选择器（新建 / 改类型 / 组默认类型）、资料库标签条、类型编辑器主列表；引用它的任务和资料照常显示、能编辑字段值，
+   * ⌘K 照常搜得到它的资料，以它为默认类型的组照常用它（Rei 2026-10-17 纠正）。存在 hidden 列（整行 LWW 同步）。
    */
   archiveType(id: string): TableMap['task_type'] | undefined {
     const t = this.get('task_type', id);
