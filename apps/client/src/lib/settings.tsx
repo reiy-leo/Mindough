@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { MonthMarker } from '@mindough/core';
-import { detectPlatform, layoutForWidth, resolveSkin, type LayoutKind, type Platform, type Skin, type SkinPref, type ThemePref } from '../skin/platform';
+import { detectPlatform, layoutForWidth, MAC_OVERLAY_CLASS, resolveSkin, usesMacOverlayTitlebar, type LayoutKind, type Platform, type Skin, type SkinPref, type ThemePref } from '../skin/platform';
 
 import { tr } from './i18n';
+import { isMiniWindow } from './windows';
+import { isTauri } from '../store/sqlite-tauri';
 export interface Settings {
   skin: SkinPref;
   theme: ThemePref;
@@ -100,6 +102,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     el.dataset.platform = platform;
     el.style.colorScheme = theme;
   }, [skin, theme, layout, platform]);
+  // macOS 桌面端主窗口：没有系统标题栏，侧边栏顶到窗口最上、给红绿灯让位（样式见 skin/skins.css）
+  useEffect(() => {
+    document.documentElement.classList.toggle(MAC_OVERLAY_CLASS, usesMacOverlayTitlebar(platform, { tauri: isTauri(), mini: isMiniWindow() }));
+  }, [platform]);
 
   const value = useMemo(() => ({ settings, set, platform, skin, theme, layout }), [settings, set, platform, skin, theme, layout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

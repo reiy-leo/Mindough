@@ -108,6 +108,7 @@
 | 公式 | LaTeX / 数学表达式 | `$…$` / `$$…$$`（KaTeX）；界面上没有专门的文字，写错的公式显示红色源码 |
 | 脚注 | 注释 / 尾注 | `[^1]`；只读显示底部的脚注区读屏标题「脚注」，返回链接读屏「回到引用 1」。英文 Footnotes / Back to reference 1 |
 | 折叠块 | 折叠 / 详情 / details / 可折叠区域 | `<details><summary>`（Rei 2026-10-17）。工具栏按钮「折叠块」（悬停提示同名）；空标题占位「折叠块标题」；三角读屏「展开折叠块」/「收起折叠块」。英文 Collapsible / Summary / Expand / Collapse |
+| 新建任务（浮动按钮） | 新建 / 添加任务 / + 新任务 | 右下角的浮动加号按钮（Rei 2026-10-17），读屏「新建任务」，桌面悬停提示「新建任务 N」；侧边栏和手机顶栏不再放新建按钮。英文 New Task |
 
 ## 写在代码里的约定
 - 完成方式的名称与一句话说明在 `packages/core/src/types.ts`（`COMPLETION_MODE_LABEL`、`COMPLETION_MODE_HINT`），界面一律从这里取，不要自己写。

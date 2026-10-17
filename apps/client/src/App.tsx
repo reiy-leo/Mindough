@@ -23,6 +23,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
 import { ReminderHost } from './components/ReminderHost';
+import { Tip } from './ui/primitives';
 
 import { tr, trc } from './lib/i18n';
 interface NavItem {
@@ -140,6 +141,15 @@ function Page({ route }: { route: Route }) {
   }
 }
 
+/** 新建任务：右下角浮动按钮（Rei 2026-10-17「新建任务移动到右下角浮动」），三种皮肤各自的形状写在 skin/skins.css；快捷键 N 不变。 */
+function NewTaskFab({ onPress }: { onPress: () => void }) {
+  return (
+    <RacButton className="fab" aria-label={tr('新建任务')} onPress={onPress}>
+      <Plus size={24} strokeWidth={2.25} aria-hidden />
+    </RacButton>
+  );
+}
+
 function MorePage() {
   const sections = [
     ...NAV_SECTIONS.map((sec) => ({ id: sec.id, title: sec.title, items: sec.items.filter((n) => !MOBILE_TABS.includes(n.page)) })),
@@ -239,10 +249,8 @@ export function App() {
     shell = (
       <div className="app app-desktop">
         <aside className="sidebar">
-          <div className="sidebar-brand">
-            <img src="/favicon.svg" alt="" width={22} height={22} />
-            <span>Mindough</span>
-          </div>
+          {/* macOS 无标题栏时给红绿灯让位、可拖动窗口（双击放大）；其他平台不显示 */}
+          <div className="titlebar-space" data-tauri-drag-region aria-hidden />
           <RacButton className="sidebar-search" onPress={() => ui.setPaletteOpen(true)}>
             <Search size={15} />
             <span className="grow">{tr('搜索')}</span>
@@ -265,16 +273,18 @@ export function App() {
           </nav>
           <div className="sidebar-foot">
             <NavLink item={SETTINGS} active={isActive(SETTINGS)} />
-            <RacButton className="btn btn-primary sidebar-new" onPress={newTask}>
-              <Plus size={16} />
-              {tr('新建任务')}<kbd className="kbd kbd-on-accent">N</kbd>
-            </RacButton>
           </div>
         </aside>
         <main className="main">
-          <LoginErrorBanner />
-          <Page route={route} />
+          <div className="titlebar-space" data-tauri-drag-region aria-hidden />
+          <div className="main-scroll">
+            <LoginErrorBanner />
+            <Page route={route} />
+          </div>
         </main>
+        <Tip content={<>{tr('新建任务')} <kbd className="kbd">N</kbd></>}>
+          <NewTaskFab onPress={newTask} />
+        </Tip>
       </div>
     );
   } else {
@@ -287,21 +297,12 @@ export function App() {
           <RacButton className="icon-btn" aria-label={tr('搜索')} onPress={() => ui.setPaletteOpen(true)}>
             <Search size={20} />
           </RacButton>
-          {skin !== 'material' && (
-            <RacButton className="icon-btn topbar-add" aria-label={tr('新建任务')} onPress={newTask}>
-              <Plus size={22} />
-            </RacButton>
-          )}
         </div>
         <main className="main">
           <LoginErrorBanner />
           <Page route={route} />
         </main>
-        {skin === 'material' && (
-          <RacButton className="fab" aria-label={tr('新建任务')} onPress={newTask}>
-            <Plus size={24} />
-          </RacButton>
-        )}
+        <NewTaskFab onPress={newTask} />
         <nav className="tabbar" aria-label={tr('主导航')}>
           {tabs.map((n) => {
             const Icon = n.icon;

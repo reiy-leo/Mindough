@@ -10,6 +10,7 @@ import { isMiniWindow } from './lib/windows';
 import { initLoginError, startAccountWatch } from './lib/account';
 import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
+import { installContextMenuBlock } from './lib/contextmenu';
 import { applyLocalePref, initialLocalePref } from './lib/i18n';
 import { LocaleRoot } from './lib/locale';
 import { preloadMdEditor } from './components/editor/LazyMdEditor';
@@ -35,6 +36,8 @@ if (!mini) {
 }
 // App 里的外链交给系统浏览器
 installExternalLinks();
+// 浏览器 / WebView 自带的右键菜单不出（能打字的地方除外）
+installContextMenuBlock();
 
 // 编辑器在空闲时先加载好：新建面板一打开就能写
 const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500));

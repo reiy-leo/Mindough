@@ -11,6 +11,18 @@ body,
   height: 100%;
   margin: 0;
 }
+/* 页面不能左右移动（Rei 2026-10-17「不允许页面左右移动」）：根上不横向滚动、不左右回弹；
+   表格、代码块、公式等在各自容器里横向滚 */
+html,
+body {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+#root,
+.app {
+  max-width: 100%;
+  overflow-x: hidden;
+}
 body {
   font-family: var(--font);
   font-size: var(--fs-body);
@@ -72,14 +84,6 @@ button {
   -webkit-backdrop-filter: var(--sidebar-blur);
   border-right: 1px solid var(--border);
   overflow-y: auto;
-}
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-1);
-  font-weight: 700;
-  font-size: 15px;
 }
 .sidebar-search {
   display: flex;
@@ -145,14 +149,18 @@ button {
   flex-direction: column;
   gap: var(--space-2);
 }
-.sidebar-new {
-  width: 100%;
-  justify-content: center;
-}
 .main {
   overflow-y: auto;
   min-width: 0;
   min-height: 0;
+}
+/* 桌面主区里的滚动层：平时不占盒子（等于没有），macOS 无标题栏时才接手滚动（见 skin/skins.css） */
+.main-scroll {
+  display: contents;
+}
+/* 给红绿灯让位的拖动条：只在 macOS 无标题栏时显示 */
+.titlebar-space {
+  display: none;
 }
 .page {
   max-width: var(--content-max);
@@ -238,21 +246,33 @@ button {
   align-items: center;
   justify-content: center;
 }
+/* 新建任务浮动按钮：桌面在内容区右下角，手机在标签栏上方、避开安全区；形状按皮肤（skin/skins.css） */
 .fab {
   position: fixed;
-  right: var(--space-4);
-  bottom: calc(var(--tabbar-h) + var(--space-4) + env(safe-area-inset-bottom));
+  right: calc(var(--space-6) + env(safe-area-inset-right));
+  bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
   z-index: 11;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: var(--fab-size, 56px);
+  height: var(--fab-size, 56px);
+  border-radius: var(--fab-radius, 16px);
   border: 0;
   display: grid;
   place-items: center;
-  background: var(--accent-soft);
-  color: var(--accent-soft-text);
+  background: var(--accent);
+  color: var(--accent-contrast);
   box-shadow: var(--shadow-pop);
   cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease), background 0.12s var(--ease);
+}
+.fab[data-hovered] {
+  background: var(--accent-hover);
+}
+.fab[data-pressed] {
+  transform: scale(0.96);
+}
+.app-mobile .fab {
+  right: calc(var(--space-4) + env(safe-area-inset-right));
+  bottom: calc(var(--tabbar-h) + var(--space-4) + env(safe-area-inset-bottom));
 }
 .hide-mobile {
 }

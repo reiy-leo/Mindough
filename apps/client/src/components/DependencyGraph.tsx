@@ -250,7 +250,8 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
         connectionLineStyle={{ stroke: 'var(--accent)', strokeWidth: 2 }}
       >
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--graph-dot)" />
-        <Controls showInteractive={false} position="bottom-right" />
+        {/* 右下角留给新建任务浮动按钮 */}
+        <Controls showInteractive={false} position="bottom-left" />
       </ReactFlow>
     </div>
   );

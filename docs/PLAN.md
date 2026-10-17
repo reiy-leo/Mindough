@@ -317,13 +317,20 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - ✅ 暗色模式检查（三种皮肤，我的一天 / 打卡 / 详情 / 编辑资料 / 资料库），Material 补截图（work/screens/m3-*）。
    - ✅ 关系图里相关任务并排放：相关的几件合成一个「并排组」交给 elk 排（`lib/graph-layout.ts`），同一层里挨着，侧边点线相连；两组之间有前后关系路径时不合（会绕圈），照旧只画线。几块互不相连的图手机上往下叠。
    - ✅ SGD / TRY 等币种显示本地符号：Intl 只给代码时换成表里的符号（S$189、₺1,299.50、₱500、RM49、₽99）。
-   - ✅ 侧边栏分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：「今天」我的一天 · 打卡 · 可做 /「计划」列表 · 组 · 关系图 /「资料」资料库 · 人物；设置和新建固定在底部。小节标题按平台：macOS 11pt 粗体灰字、悬停出折叠箭头；WinUI NavigationViewItemHeader 14px 粗体；Material 抽屉 Title small + 分隔线、桌面紧凑一档。点小节标题可折叠（记在本机，当前页所在的小节不折）。手机标签栏按同样顺序：我的一天、打卡、列表、关系图、更多；「更多」页同样分组（iOS 分组列表 / WinUI / Material 各自的小节标题）。
+   - ✅ 侧边栏分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：「今天」我的一天 · 打卡 · 可做 /「计划」列表 · 组 · 关系图 /「资料」资料库 · 人物；设置固定在底部（新建按钮 Rei 2026-10-17 改成右下角浮动按钮）。小节标题按平台：macOS 11pt 粗体灰字、悬停出折叠箭头；WinUI NavigationViewItemHeader 14px 粗体；Material 抽屉 Title small + 分隔线、桌面紧凑一档。点小节标题可折叠（记在本机，当前页所在的小节不折）。手机标签栏按同样顺序：我的一天、打卡、列表、关系图、更多；「更多」页同样分组（iOS 分组列表 / WinUI / Material 各自的小节标题）。
    - ✅ 打卡分类的管理从设置挪出来（Rei 2026-10-16）：打卡页筛选条末尾「编辑」、新建面板分类选择器底部「管理分类…」打开同一个弹层（`components/CategoryManager.tsx`）：改名、隐藏 / 显示、上移 / 下移（`Store.moveCheckInCategory`，只改 sort）、添加；id 不变；设置里不再有这一节。
    - ✅ 详情「关系」变紧凑（Rei 2026-10-16：「关联占用那么大空间……如果这类关系中没有内容，则不显示……也不要显示添加、新建下一步…无用的按钮」）：顶栏（太阳旁）一个「添加关系」按钮，菜单三项 先做完这些… / 做完后解锁… / 相关任务…；选了打开同一个挑任务的弹层（搜索已有任务，最后一行「新建“xxx”」直接新建并连好，回车也行——合并了以前的「添加」和「新建下一步」）；分组只在有内容时出现，三组都空时整个「关系」不显示；行照旧：点开、× 去掉、行尾状态。··· 菜单里的「新建下一步」去掉（完成提示里的「然后呢？」保留）。新建面板的「相关任务」本来就是一颗胶囊，不改。
    - ✅ 待安排（Rei 2026-10-16：「加一个待安排」）：没结束（待办 / 进行中）、只做一次、没有日期（倒数日的目标日也算日期）、不在今天我的一天里的任务；组里的也算（行上带组名）。行上：加入我的一天（太阳）、安排日期（日期面板，选了就进列表）、拖动排序（`Store.reorderBacklog`：这几件在原来那些 sort 值里换位置）；手动顺序在前、再按创建时间。导航「今天」小节里在我的一天下面（带件数）；手机标签栏 我的一天 · 待安排 · 打卡 · 列表 · 更多（关系图、可做进「更多」）。core `backlog.ts`（`isBacklogTask`、`backlogTasks`、`shouldJoinMyDay`）+ 测试。
      - **改了 M0 决定 8**（Rei 2026-10-16）：新建的任务不再因为「没日期、没组」就自动进我的一天；只有从我的一天页新建的（侧边栏 / N 键在我的一天页上、或我的一天的输入条）才放进今天，别处新建的默认进待安排。我的一天里没做完的：照旧有「昨天没做完 → 带回今天」，不带回的自然落回待安排。
    - ✅ 中英文（Rei 2026-10-16：「添加中英文支持」）：gettext 式——中文原文就是 key（`tr('还在等 {n} 件事', { n })`），英文值可以是函数（复数、语序）；`trx` 整句带元素（「还有 **12** 天」→ “**12** days to go”），`trc` 带语境（导航「打卡」= Check-ins、按钮 = Check In）。core `i18n.ts`（`tr` / `trc` / `dataLabel` / `setLocale` / `intlLocale`）+ `i18n-en.ts`（core 说法、演示数据）+ `i18n-data-en.ts`（内置类型 / 字段 / 选项 / 单位 / 模板 / 27 个打卡分类 / 网站名，显示时翻译，存的仍是中文，用户改过的照原样）；界面 `apps/client/src/i18n/en.ts`。日期星期月份走 Intl（`formatDate`、`weekdayLabel`、`monthShort`），币种名 `currencyName`（Intl.DisplayNames），金额 Intl 跟语言。设置 → 外观 → 语言（跟随系统 / 中文 / English）存进同步的 pref `locale`，本机另存一份启动即用；换语言整棵界面重新挂载（`lib/locale.tsx`，React Aria 的 I18nProvider 跟着换）；`?lang=en` 截图用。守门测试 `i18n/i18n.test.ts`（TypeScript AST 扫描）：组件与 core 没有漏翻的中文（数据 / 解析文件、console、`// i18n-ignore` 行除外）、每个 key 有英文、每个内置名字有英文。英文写法见 COPY.md「English」。截图 work/screens/m3-*-en.png。
      - 演示数据按生成时的语言写（英文界面第一次打开就是英文演示数据）；已有的中文演示数据不会变成英文（是用户数据）。
+
+   - ✅ 外壳调整（Rei 2026-10-17，分支 macos-titlebar）：
+     - macOS 无标题栏（「macOS的边栏框要贯通，titlebar不展示」）：`src-tauri/tauri.macos.conf.json` 只在 macOS 合并，主窗口 `titleBarStyle: Overlay` + `hiddenTitle` + `trafficLightPosition { x: 16, y: 17 }`；前端在 Tauri + macOS + 主窗口时给 html 加 `platform-macos-overlay`（`skin/platform.ts` 的 `usesMacOverlayTitlebar`），侧边栏和内容区顶部各一条 38px（`--titlebar-h`）的 `data-tauri-drag-region` 拖动条（双击放大走 Tauri 自带的 drag 脚本，权限加 `core:window:allow-start-dragging`），内容区改由 `.main-scroll` 滚动（平时 `display: contents`，等于没有）。y 按「(条高 − 按钮高) / 2 + 按钮在容器里的 origin.y」估：Sequoia 上 origin.y≈5、按钮高≈14 → 17；Tahoe 上 origin.y≈7，红绿灯会高约 2pt，要真机再调。小窗保持系统标题栏；Windows / Linux / 网页不变；全屏时红绿灯隐藏，拖动条仍留空。
+     - 侧边栏不放软件名和图标（「侧边栏不要添加软件title」），三种皮肤都去掉。
+     - 新建任务改成右下角浮动按钮（「新建任务移动到右下角浮动」）：桌面和手机三种皮肤都是 `.fab`——Material 3 FAB（56dp、16dp 圆角、primary container）、Apple 强调色正圆 52px、WinUI 强调色 8px 圆角 48px；手机在标签栏上方并让开安全区；侧边栏底部和手机顶栏的新建按钮去掉，N 键不变；关系图的缩放按钮挪到左下，免得被挡。
+     - 去掉全局右键菜单（「去掉全局右键菜单」）：`lib/contextmenu.ts` 在 window 上拦 `contextmenu`，输入框 / 多行文本 / contenteditable（Milkdown）/ `[data-native-menu]` 例外；Tauri 和网页都生效。
+     - 页面不能左右移动（「不允许页面左右移动」）：html、body `overflow-x: hidden` + `overscroll-behavior-x: none`，#root / .app 不超宽；表格、代码块、公式、标签条、打卡分类条在自己的容器里横向滚。没在根上加 `touch-action: pan-y`（祖先上的 touch-action 会连带禁掉这些容器里的横向滑动）。
 
 ### M4 更聪明
 - ✅ 自定义类型编辑器（2026-10-16，分支 m4-types）：设置 →「类型」一节和资料库页标签条末尾「编辑」打开同一个弹层（`components/TypeManager.tsx`，样式 `styles/types.css`）。

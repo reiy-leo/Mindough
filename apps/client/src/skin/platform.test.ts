@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectPlatform, layoutForWidth, resolveSkin, skinForPlatform } from './platform';
+import { detectPlatform, layoutForWidth, resolveSkin, skinForPlatform, usesMacOverlayTitlebar } from './platform';
 
 const UA = {
   mac: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
@@ -35,5 +35,14 @@ describe('平台检测', () => {
   it('布局按宽度', () => {
     expect(layoutForWidth(390)).toBe('mobile');
     expect(layoutForWidth(1280)).toBe('desktop');
+  });
+});
+
+describe('macOS 无标题栏（Rei 2026-10-17）', () => {
+  it('只在 Tauri + macOS 的主窗口打开', () => {
+    expect(usesMacOverlayTitlebar('macos', { tauri: true, mini: false })).toBe(true);
+    expect(usesMacOverlayTitlebar('macos', { tauri: true, mini: true })).toBe(false); // 小窗保留系统标题栏
+    expect(usesMacOverlayTitlebar('macos', { tauri: false, mini: false })).toBe(false); // 网页版不变
+    for (const p of ['windows', 'linux', 'ios', 'android', 'unknown'] as const) expect(usesMacOverlayTitlebar(p, { tauri: true, mini: false })).toBe(false);
   });
 });
