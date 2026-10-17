@@ -295,7 +295,7 @@
 }
 .drop-overlay {
   position: absolute;
-  inset: -6px;
+  inset: 0;
   z-index: 20;
   border: 2px dashed var(--accent);
   border-radius: var(--radius-lg);
@@ -401,26 +401,33 @@
   outline-offset: 2px;
 }
 .lightbox-stage {
+  --lb-pad-x: 72px;
+  --lb-pad-y: 20px;
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  padding: var(--space-2) 64px var(--space-6);
-  cursor: zoom-out;
+  position: relative;
+  cursor: default;
 }
 [data-layout='mobile'] .lightbox-stage {
-  padding: var(--space-2) var(--space-2) var(--space-4);
+  --lb-pad-x: 8px;
+  --lb-pad-y: 12px;
 }
 .lightbox-img {
-  max-width: 100%;
-  max-height: 100%;
+  /* 盖满舞台（四周留边），object-fit 保持比例：缩略图先放大顶着，原图到了换上，大小不跳 */
+  position: absolute;
+  inset: var(--lb-pad-y) var(--lb-pad-x);
+  width: calc(100% - 2 * var(--lb-pad-x));
+  height: calc(100% - 2 * var(--lb-pad-y));
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-  cursor: default;
+  pointer-events: none;
   user-select: none;
+  filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.45));
 }
 .lightbox-missing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   color: rgba(255, 255, 255, 0.75);
 }
 .lightbox-nav {

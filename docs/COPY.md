@@ -114,6 +114,7 @@
 | 一天从几点开始 | 日界线 / 换日时间 | 设置 → 日记（默认 5:00）：说明「还没到这个点，「今天的日记」还是前一天那篇（比如凌晨 3 点写的算昨天）。只用于日记。」 |
 | 每天提醒写日记 | 日记闹钟 | 设置 → 日记（默认开、21:00）：说明「每天 21:00 提醒，写没写都会响。」/「关着：不提醒写日记。」/「这台设备的「提醒通知」关着，开了才会响。」；到点通知标题「日记」、正文「今天过得怎么样？写几句吧」，点了打开今天的日记 |
 | 另一台设备上同时写的 · 10-17 20:30 | 冲突 / 合并冲突 / 副本 | 两台设备同时改了同一天的日记：输掉的那版收进日记末尾的折叠块，标题这样写（时间是那版写下的时刻） |
+| 附件 | 文件 / 附档 / 上传的文件 | 任务详情、日记正文下面的一块（Rei 2026-10-17）：小标题「附件」+ 个数；没有时右边轻字「也可以把文件拖到这里」（桌面）；按钮「添加附件」。图片网格读屏「图片」、每张「查看图片「x」」；文件列表读屏「文件」，副标题「PDF · 380 KB」（类型叫法：图片、PDF、文档、表格、演示文稿、压缩包、音频、视频、代码 / 文本、文件），点一下「下载「x」」。··· 读屏「附件操作」：下载、重命名…、删除。上传中「正在上传 45%」、排着「等着上传」、离线「等联网后上传」、没登录「登录后上传」、失败「上传失败」+「重试」（悬停「重试（500 服务器内部错误）」）、「取消上传」；别的设备加的还没传上来「还在另一台设备上」。拖放层「松手添加附件」「每个文件不超过 50 MB」。太大「「x」超过 50 MB，没有添加」/「3 个文件超过 50 MB，没有添加」。删除提示「已删除「x」」+「撤销」。重命名弹层「重命名附件」，输入框读屏「文件名」，按钮「取消」「改名」，空名字「名字不能是空的」。下载：Tauri「已存到「下载」：x」+「在文件夹中显示」；取不到「文件还没传上来，在添加它的设备上联网后就能下载」/「没下载成功，稍后再试」。灯箱：读屏「图片「x」」，「2 / 5」，下载、关闭、「上一张」「下一张」，没传上来「图片还没传上来」，载入中「正在载入…」。日记删除确认有附件时「「日期」的日记和它的 3 个附件会被删除，不能恢复。」；月历列表里只有附件的那天「3 个附件」。导出提示「已导出 N 件任务、N 篇日记，N 个附件」+「；N 个附件的文件没取到，只写了记录」，按钮在取附件时「正在取附件…」；导入预览「N 个附件」 |
 | 新建任务（浮动按钮） | 新建 / 添加任务 / + 新任务 | 右下角的浮动加号按钮（Rei 2026-10-17），读屏「新建任务」，桌面悬停提示「新建任务 N」；侧边栏和手机顶栏不再放新建按钮。英文 New Task |
 
 ## 写在代码里的约定
@@ -159,4 +160,5 @@
 | 日记 · 今天的日记 · 写今天的日记 | Journal · Today’s Entry · Write Today’s Entry | 「16 字」= 16 words；「这天还没到」= This day hasn’t come yet；设置 Day Starts At、Daily Journal Reminder；通知 “How was today? Jot a few lines.” |
 | 心情 | Mood | 12 个见上面中文表；没选 Optional |
 | 提醒 | Reminder / Reminders | 值 None / 9:00 AM；到点 Due today · It’s today · Time to check in · Time’s up — 10 min；按钮 View · In 10 Min；设置 Reminders、Allow Notifications、When You’re Reminded |
+| 附件 · 添加附件 · 松手添加附件 | Attachments · Add Attachment · Drop to attach | 类型：Image、PDF、Document、Spreadsheet、Presentation、Archive、Audio、Video、Code / Text、File；大小 1.5 KB / 380 KB / 12 bytes；状态 Uploading 45% · Waiting to upload · Will upload when online · Sign in to upload · Upload failed · Still on another device；菜单 Download / Rename… / Delete；灯箱 “2 of 5”、Previous / Next；Tauri “Saved to Downloads: x” + Show in Folder |
 | HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |

@@ -97,6 +97,7 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
 ### 图片（R2）
 - `POST /api/assets`（会话或同步凭据，image/*，≤ 10 MB）存进 R2 桶 `mindough-assets`，key = 用户邮箱哈希前 16 位 / 内容 SHA-256（同一张图只存一份）；`GET /api/assets/<key>` 公开读、长缓存（key 猜不到）。
 - 客户端上传图片时：登录且在线 → 传 R2，asset 行只存地址（`url`、`r2_key`、`sha256`）；离线或没登录 → 仍存 data: 地址（照样同步，只是行大一些）。以前存的 data: 图片暂不自动搬到 R2（以后做）。
+- 附件（2026-10-17）另走 `POST /api/files`（任何格式，≤ 50 MB）/ `GET /api/files/<key>`（要登录、只能读自己的），同一个桶，key = 用户哈希 / `f` / SHA-256，见下面「附件」。
 
 ### 风险与缺口
 - 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖单写者串行（Turso 与 D1 都是）；若以后开 `BEGIN CONCURRENT` 要改成计数表。
@@ -419,6 +420,29 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - **按推荐、Rei 未答**：同步保护（折叠块）、导出按年 / 月两层、隐私开关留 J3。
 - **J2 / J3 待排**：那年今日、插入时间、`@` 引用、Obsidian 每日笔记导入、`journal/today?append=`；隐私三个开关、写日记热力图、Day One 导入。
 
+### 附件 ✅（2026-10-17）
+Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为附件，附件是图片则小图显示点击可放大(有关闭、下载按钮)，其他文件格式上传后显示图标，点击下载」。
+- **挂在哪**：任务详情、日记（每天那篇）。资料项暂不做（待问）。正文下面一块「附件」。
+- **数据**：新表 `attachment`（SQLite 迁移 **v7**）：`owner_type`（task / journal）、`owner_id`（任务 id，或日记 `journalEntryId(date)`）、`file_name`、`mime`、`size`、`r2_key`、`thumb_key`、`width` / `height`（原图）、`created_at`，加 `id` / `updated_at` / `deleted`。按现有同步协议加表（云端只存整行 JSON，不动云端 schema），行级 LWW。给日记加附件时先 `Store.ensureJournal(date)` 建一行空日记（导出靠这一行认日期；只有附件的日子在月历和列表里也算写了，列表里写「N 个附件」）。删任务 / 删那天日记一起把附件打墓碑。Store：`attachmentsOf` / `addAttachment` / `setAttachmentFile` / `renameAttachment`（没写扩展名补回原来的）/ `removeAttachment` / `restoreAttachment`。纯逻辑 core `attachments.ts`（文件类型 10 种、大小显示、文件名安全化与去重、`MAX_ATTACHMENT_BYTES`）。测试 core `test/attachments.test.ts`、client `lib/attachments.test.ts`、`components/attachments/FileIcon.test.tsx`、server `test/files.test.ts`。
+- **存储**：原文件原样传 R2 `mindough-assets`（不压缩不改尺寸），图片在本机另生成一张缩略图（长边 480，WebP，编不了退 JPEG）也传上去，网格用它。Worker `apps/server/src/files.ts`：`POST /api/files`（会话或同步凭据；≤ 50 MB，超过 413 内容太大；同内容只存一份）、`GET /api/files/<用户哈希>/f/<sha256>[?name=&dl=1]`（要登录，key 前缀不是自己的一律 404 未找到；安全的图片格式 inline，其余或 dl=1 一律 attachment 带原文件名；nosniff + CSP sandbox，HTML / SVG 附件里的脚本不跑；`cache-control: private`）。
+- **上传**（client `lib/attachments.ts` + `lib/attachments-queue.ts`）：选进来 / 拖进来 → 先建行（r2_key 空）+ 文件和缩略图存进本机 IndexedDB 队列 `mindough-files` → 登录且在线时传（XMLHttpRequest，有进度；同时 2 个；先传缩略图再传原图）→ 填上 key、删本机那份。界面显示「正在上传 45%」+ 进度条，能取消（停掉上传、删行，不留撤销）；失败显示「上传失败」+ 重试（悬停看原因，带状态码中文说明）；离线「等联网后上传」、没登录「登录后上传」，联网 / 登录后自动接着传；关掉 app 再开，队列里的接着传。别的设备加的、还没传上来的显示「还在另一台设备上」。上传器只在主窗口跑（同同步）。
+- **显示**（`components/attachments/`）：图片（浏览器能直接显示的，HEIC 等有缩略图才算）方形小图网格；点开灯箱 `Lightbox`：全屏深色底、先放大缩略图顶着、原图到了换上；顶栏文件名、「2 / 5」、下载、关闭；多张时左右箭头、← → 键、手机左右滑；Esc、点图片外面关闭；四周 `env(safe-area-inset-*)`。其他文件：按类型的图标 + 文件名 + 「PDF · 380 KB」，点一下下载。每个附件 ··· 菜单：下载、重命名…（选中主干，不写扩展名就保留原来的）、删除（提示里「撤销」）。
+- **文件类型图标** `FileIcon`：自绘一组 SVG（折角的纸 + 中间一个线条图形 + 扩展名），10 种：图片、PDF、文档、表格、演示、压缩包、音频、视频、代码 / 文本、通用；颜色令牌 `--file-*`（三皮肤 × 明暗，`skin/tokens.css`）。
+- **拖放**：拖文件到任务详情 / 日记那一块上，显示虚线高亮层「松手添加附件 · 每个文件不超过 50 MB」，可多个；捕获阶段接住，编辑器不会把文件插进正文、浏览器也不会打开文件。只认文件（拖文字照旧）。将来的日子不收。手机上「添加附件」打开系统选择器（iOS / Android 里含相册）。
+- **下载**：Web 端直接让浏览器下 `/api/files/<key>?dl=1&name=原文件名`（同源带 cookie）；还在本机队列里的用 blob: 地址，名字一样。Tauri：取回内容交给新命令 `save_download`（`src-tauri/src/files.rs`，原始字节经 IPC，不用新插件）存进系统「下载」文件夹（没有就「文稿」），重名加「 (2)」，提示「已存到「下载」：x」+「在文件夹中显示」（opener 的 revealItemInDir）。原生端显示图片：带 Bearer 取回成 blob: 地址（内存缓存）。
+- **导出 / 导入**：见 [EXPORT.md](EXPORT.md)「附件」：文件进 `attachments/`，记录 `_meta/attachments.json`，正文后面附一段链接（导入时去掉）；导入后带文件的排进上传队列。
+- 截图 `work/shots-attachments/`（脚本 `work/shots-tool/attach.mjs`，假 API）。
+- **待 Rei 确认**（我先这样定的）：
+  1. 单个附件上限 50 MB（Worker 和客户端同一个数 `MAX_ATTACHMENT_BYTES` / `MAX_FILE_BYTES`）。Worker 一次读进内存算 SHA-256；要更大得改成分片（R2 multipart）。
+  2. 资料项（影视 / 书…）要不要也能挂附件。
+  3. 附件不占正文：不在 markdown 里插链接（导出时才附一段清单）；要不要支持把附件拖进正文某处当插图。
+  4. 删掉的附件只打墓碑，R2 里的文件不删（同一份内容可能被别的附件 / 导入用着；以后可以做「清理没人用的文件」）。
+  5. 只有附件、没写字的日记那天算「写了」（月历上有点）。
+  6. Tauri 下载直接存进「下载」文件夹，不弹保存对话框（不装 dialog 插件）；iOS / Android 上「下载」目录的行为要真机看（iOS 没有下载文件夹时退到「文稿」，Android 可能要存储权限），沙箱里没有 Rust 工具链，`files.rs` 没有 cargo check 过，交给 CI build.yml。
+  7. 两台设备同时改同一个附件（一边改名、一边刚传完填 key）是整行 LWW，极少数情况下改名会被盖掉。
+  8. 已经传到 R2 的文件，本机不留缓存：离线时打不开、下不了（显示缩略图要联网）。
+  9. 还没升级的旧客户端会跳过 attachment 表的行（同 journal_entry 当时的情况），升级后要等那些行再被改一次才会拉到。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
@@ -441,4 +465,5 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
 - ✅ iOS 分发（Rei 2026-10-16 定）：免费 Apple ID + Xcode 个人团队装自己 iPhone（7 天重装，不走 TestFlight），步骤见 docs/IOS.md；小组件要 App Group，先不接。
 - ✅ 日记功能（Rei 2026-10-17 审过：「一天一篇，英文Journal，入口按你推荐的做。只要心情（5个太少了…动画svg图标）。设一个「一天从几点开始」（默认 5点）。「这一天」汇总不放在日记中。日记提醒…晚上9点，不论是不是已经写了。将来这日子不能写。」）：J1 已做完上线，见下面「日记 J1」和 [docs/JOURNAL.md](JOURNAL.md) 第 0 节。
+- 🟡 附件待问：见上面「附件」的待 Rei 确认（50 MB 上限、资料项要不要附件、Tauri 存到哪）。
 - 🟡 日记待问（J1 没做）：「一天从几点开始」要不要扩展到我的一天 / 打卡 / 提醒；日记页要不要只读的「这一天」；「插入时间」「那年今日」⌘K 按日期跳转。

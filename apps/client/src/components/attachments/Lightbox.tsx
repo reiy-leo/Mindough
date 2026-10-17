@@ -76,6 +76,17 @@ export function Lightbox({ images, openId, onClose, onDownload }: { images: read
   );
 }
 
+/** 点在 object-fit: contain 的图片画面里吗。 */
+function insideContent(img: HTMLImageElement, x: number, y: number): boolean {
+  const r = img.getBoundingClientRect();
+  const k = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  const left = r.left + (r.width - w) / 2;
+  const top = r.top + (r.height - h) / 2;
+  return x >= left && x <= left + w && y >= top && y <= top + h;
+}
+
 /** 一张图：先显示缩略图，原图到了换上。点图片外面关闭；左右滑切换。 */
 function Stage({ a, onBackdrop, onSwipe }: { a: Attachment; onBackdrop: () => void; onSwipe?: (d: number) => void }) {
   const thumb = useAttachmentUrl(a, 'thumb');
@@ -87,7 +98,10 @@ function Stage({ a, onBackdrop, onSwipe }: { a: Attachment; onBackdrop: () => vo
     <div
       className="lightbox-stage"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onBackdrop();
+        // 图片盖满舞台、按比例缩放（object-fit: contain）：点在图片画面上不关，点在四周空白处关
+        const img = e.currentTarget.querySelector<HTMLImageElement>('.lightbox-img');
+        if (img && img.naturalWidth && insideContent(img, e.clientX, e.clientY)) return;
+        onBackdrop();
       }}
       onTouchStart={(e) => {
         const t = e.touches[0];
@@ -103,7 +117,7 @@ function Stage({ a, onBackdrop, onSwipe }: { a: Attachment; onBackdrop: () => vo
       }}
     >
       {src ? (
-        <img className="lightbox-img" src={src} alt={a.file_name} draggable={false} style={a.width && a.height ? { aspectRatio: `${a.width} / ${a.height}` } : undefined} />
+        <img className="lightbox-img" src={src} alt={a.file_name} draggable={false} />
       ) : (
         <span className="lightbox-missing">{src === null ? tr('图片还没传上来') : tr('正在载入…')}</span>
       )}
