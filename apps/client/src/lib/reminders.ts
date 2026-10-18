@@ -106,6 +106,11 @@ function serviceWorker(): Promise<ServiceWorkerRegistration | null> {
   return swReg;
 }
 
+/** 网页版启动就注册（「安装为 app」要它，断网也能打开外壳）。Tauri 里什么都不做。 */
+export function registerServiceWorker(): void {
+  void serviceWorker();
+}
+
 // ───────── 发通知 ─────────
 
 /** 31 位整数 id（Tauri 手机的通知 id 是数字）。 */

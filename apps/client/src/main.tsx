@@ -8,6 +8,7 @@ import { MiniWindow } from './components/MiniWindow';
 import { TaskDetail } from './components/task/TaskDetail';
 import { isMiniWindow } from './lib/windows';
 import { initLoginError, startAccountWatch } from './lib/account';
+import { registerServiceWorker } from './lib/reminders';
 import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
 import { installContextMenuBlock } from './lib/contextmenu';
@@ -35,6 +36,7 @@ initLoginError();
 const mini = isMiniWindow();
 if (!mini) {
   startAccountWatch();
+  registerServiceWorker();
   void initNativeLogin();
 }
 // App 里的外链交给系统浏览器
