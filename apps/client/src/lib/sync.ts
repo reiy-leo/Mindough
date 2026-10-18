@@ -6,6 +6,7 @@
  *
  * Web 与原生端只差在凭据怎么取（authInit）和基址（API_BASE），引擎同一份。
  */
+import { migrateDataAssets } from './asset-migrate';
 import { useSyncExternalStore } from 'react';
 import { SyncEngine, SyncHttpError, type PullResult, type PushResult, type Store, type SyncStatus, type SyncToken, type SyncTransport, type WireRow } from '@mindough/core';
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
@@ -103,7 +104,7 @@ async function startFor(store: Store, email: string) {
   if (engine && engineAccount === email) return;
   await stopSync();
   engineAccount = email;
-  engine = new SyncEngine(store, httpTransport(tokens), { account: email, onError: (e) => console.warn('同步出错', e) });
+  engine = new SyncEngine(store, httpTransport(tokens), { account: email, onError: (e) => console.warn('同步出错', e), beforePush: () => migrateDataAssets(store).then(() => {}) });
   unsubEngine = engine.subscribe(() => engine && setView({ enabled: true, ...engine.snapshot }));
   setView({ enabled: true, ...engine.snapshot, phase: navigator.onLine === false ? 'offline' : 'syncing' });
   window.addEventListener('focus', onForeground);

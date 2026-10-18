@@ -49,7 +49,13 @@ export interface SyncEngineOptions {
   timers?: Timers;
   now?: () => Date;
   onError?: (err: unknown) => void;
+  /** 每轮推送前调用（客户端在这里把离线时存成 data: 的图片传上 R2，行就小了）。出错不挡同步。 */
+  beforePush?: () => Promise<void>;
 }
+
+/** 云端单行上限 2 MB（apps/server sync.ts MAX_ROW_BYTES），留点余量。超过的行先扣下不推，不挡别的行。 */
+export const MAX_PUSH_ROW_CHARS = 2 * 1024 * 1024 - 1024;
+const HELD_META = 'held';
 
 /** 内置类型 / 内置打卡分类：时间戳为 0 的固定行，每台设备都有，不算“数据”。 */
 export const isSeedRow = (r: Pick<BaseRow, 'updated_at'>) => /^0{13}-/.test(r.updated_at);
@@ -84,6 +90,7 @@ export function describeSyncError(e: unknown): { offline: boolean; needsLogin: b
     if (e.offline) return { offline: true, needsLogin: false, text: tr('离线，联网后自动同步') };
     if (e.status === 401) return { offline: false, needsLogin: true, text: tr('登录已过期（401 未登录），重新登录后继续同步') };
     if (e.status === 403) return { offline: false, needsLogin: true, text: tr('这个账户不能同步（403 无权限）') };
+    if (e.status === 413) return { offline: false, needsLogin: false, text: tr('有内容太大（413 内容太大），没能同步') };
     return { offline: false, needsLogin: false, text: e.message };
   }
   return { offline: false, needsLogin: false, text: tr('同步出错：{p}', { p: e instanceof Error ? e.message : String(e) }) };
@@ -175,7 +182,12 @@ export class SyncEngine {
           await this.runOnce();
           const at = this.now().toISOString();
           await this.store.adapter.setMeta(this.key('last_synced_at'), at);
-          this.set({ phase: 'idle', lastSyncedAt: at, error: null, needsLogin: false });
+          const n = this.held.size;
+          this.set(
+            n
+              ? { phase: 'error', lastSyncedAt: at, error: tr('其余已同步；有 {n} 条内容超过 2 MB（多半是没上传的大图），先留在这台设备上', { n }), needsLogin: false }
+              : { phase: 'idle', lastSyncedAt: at, error: null, needsLogin: false },
+          );
         } catch (e) {
           const d = describeSyncError(e);
           this.set({ phase: d.offline ? 'offline' : 'error', error: d.offline ? null : d.text, needsLogin: d.needsLogin });
@@ -189,10 +201,24 @@ export class SyncEngine {
     return this.running;
   }
 
+  /** 这一轮因为太大没推上去的行（table/id）。 */
+  private held = new Set<string>();
+
   private async runOnce(): Promise<void> {
     await this.store.flush();
+    if (this.opts.beforePush) {
+      try {
+        await this.opts.beforePush();
+        await this.store.flush();
+      } catch (e) {
+        this.opts.onError?.(e);
+      }
+    }
+    const prevHeld: string[] = JSON.parse((await this.store.adapter.getMeta(this.key(HELD_META))) || '[]');
+    this.held = new Set();
     if (!(await this.store.adapter.getMeta(this.key('bootstrapped')))) await this.bootstrap();
-    else await this.pushPending();
+    else await this.pushPending(prevHeld);
+    await this.store.adapter.setMeta(this.key(HELD_META), JSON.stringify([...this.held]));
     await this.pullFrom(Number((await this.store.adapter.getMeta(this.key('cursor'))) ?? 0));
     await this.store.flush();
   }
@@ -243,7 +269,7 @@ export class SyncEngine {
         const at = remoteAt.get(`${t}/${r.id}`);
         if (at === undefined || r.updated_at > at) up.push(toWire(t, r));
       }
-    for (let i = 0; i < up.length; i += PUSH_BATCH) await this.transport.push(up.slice(i, i + PUSH_BATCH));
+    await this.pushRows(up);
     const maxSeq = outboxBefore.at(-1)?.seq;
     if (maxSeq !== undefined) await adapter.ackOutbox(maxSeq);
 
@@ -254,8 +280,16 @@ export class SyncEngine {
   }
 
   /** 推 outbox：同一行多次改动只推当前值；推成功才确认（ack）。 */
-  private async pushPending(): Promise<void> {
+  private async pushPending(prevHeld: readonly string[] = []): Promise<void> {
     const adapter = this.store.adapter;
+    // 上次太大扣下的行：每轮再试（可能已经变小，比如图片传上去了）
+    const retry: WireRow[] = [];
+    for (const k of prevHeld) {
+      const [t, id] = k.split('/') as [TableName, string];
+      const row = this.store.raw(t, id) as BaseRow | undefined;
+      if (row) retry.push(toWire(t, row));
+    }
+    if (retry.length) await this.pushRows(retry);
     for (;;) {
       const entries = await adapter.pendingOutbox(1000);
       if (!entries.length) return;
@@ -268,10 +302,20 @@ export class SyncEngine {
         const row = this.store.raw(e.table, e.id) as BaseRow | undefined;
         if (row) rows.push(toWire(e.table, row));
       }
-      for (let i = 0; i < rows.length; i += PUSH_BATCH) await this.transport.push(rows.slice(i, i + PUSH_BATCH));
+      await this.pushRows(rows);
       await adapter.ackOutbox(entries.at(-1)!.seq);
       if (entries.length < 1000) return;
     }
+  }
+
+  /** 分批推；超过单行上限的扣下（记进 held），别的照推。 */
+  private async pushRows(rows: readonly WireRow[]): Promise<void> {
+    const ok: WireRow[] = [];
+    for (const r of rows) {
+      if (JSON.stringify(r.row).length > MAX_PUSH_ROW_CHARS) this.held.add(`${r.table}/${r.id}`);
+      else ok.push(r);
+    }
+    for (let i = 0; i < ok.length; i += PUSH_BATCH) await this.transport.push(ok.slice(i, i + PUSH_BATCH));
   }
 
   private async pullFrom(cursor: number): Promise<void> {

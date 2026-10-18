@@ -248,6 +248,8 @@ export const CORE_EN: Record<string, V> = {
   '离线，联网后自动同步': 'Offline — will sync when you’re back online',
   '登录已过期（401 未登录），重新登录后继续同步': 'Your session expired (401 Unauthorized). Sign in again to keep syncing',
   '这个账户不能同步（403 无权限）': 'This account can’t sync (403 Forbidden)',
+  '有内容太大（413 内容太大），没能同步': 'Something is too large to sync (413 Payload Too Large)',
+  '其余已同步；有 {n} 条内容超过 2 MB（多半是没上传的大图），先留在这台设备上': 'Everything else synced. {n} item(s) are over 2 MB (most likely large images not yet uploaded) and stay on this device for now',
   '同步出错：{p}': 'Sync error: {p}',
 
   // ── 演示数据（生成时按界面语言）──

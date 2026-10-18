@@ -54,6 +54,28 @@ async function device(remote: MemoryRemote, deviceId: string, opts: { adapter?: 
 }
 
 describe('同步引擎（两台设备 + 假云端）', () => {
+  it('单行超过 2 MB：扣下不推、不挡别的行；变小后下次推上去', async () => {
+    const remote = new MemoryRemote();
+    const A = await device(remote, 'devA');
+    const B = await device(remote, 'devB');
+    await A.sync();
+    await B.sync();
+    const big = A.store.insert('asset', { sha256: '', mime: 'image/png', width: 1, height: 1, r2_key: null, url: 'data:image/png;base64,' + 'A'.repeat(2_200_000) });
+    A.store.createTask({ body_md: '买牛奶' });
+    await A.sync();
+    expect(A.engine.snapshot.phase).toBe('error');
+    expect(A.engine.snapshot.error).toContain('1');
+    await B.sync();
+    expect(B.bodies()).toEqual(['买牛奶']);
+    expect(B.store.raw('asset', big.id)).toBeUndefined();
+    A.advance(1000);
+    A.store.update('asset', big.id, { url: 'https://example.com/a.webp', r2_key: 'k' });
+    await A.sync();
+    expect(A.engine.snapshot.phase).toBe('idle');
+    await B.sync();
+    expect(B.store.raw('asset', big.id)?.url).toBe('https://example.com/a.webp');
+  });
+
   it('A 新建的任务，B 同步后看到；状态回到已同步并记下时间', async () => {
     const remote = new MemoryRemote();
     const A = await device(remote, 'devA');
