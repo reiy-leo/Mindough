@@ -26,6 +26,9 @@ interface UiCtx {
   closeQuickCreate: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
+  /** 从滴答清单导入的窗口（菜单栏 文件 → 导入 → 滴答清单、设置 → 数据、⌘K）。 */
+  didaImportOpen: boolean;
+  setDidaImportOpen: (open: boolean) => void;
 }
 
 export interface ComposerRequest {
@@ -45,6 +48,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [quickCreate, setQuickCreate] = useState<ComposerRequest | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [didaImportOpen, setDidaImportOpen] = useState(false);
   const seq = useRef(0);
 
   const dismiss = useCallback((id: number) => setToasts((ts) => ts.filter((t) => t.id !== id)), []);
@@ -69,8 +73,10 @@ export function UiProvider({ children }: { children: ReactNode }) {
       closeQuickCreate: () => setQuickCreate(null),
       paletteOpen,
       setPaletteOpen,
+      didaImportOpen,
+      setDidaImportOpen,
     }),
-    [toasts, toast, dismiss, editingId, quickCreate, paletteOpen],
+    [toasts, toast, dismiss, editingId, quickCreate, paletteOpen, didaImportOpen],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

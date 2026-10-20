@@ -206,7 +206,7 @@ function TypesSection() {
 /** 导出 / 导入 Markdown 文件夹（格式见 docs/EXPORT.md）。 */
 function ArchiveRows() {
   const store = useStore();
-  const { toast } = useUi();
+  const { toast, setDidaImportOpen } = useUi();
   const [busy, setBusy] = useState<null | 'images' | 'attachments' | 'zip'>(null);
   const [importing, setImporting] = useState(false);
   const doExport = async () => {
@@ -245,6 +245,15 @@ function ArchiveRows() {
         </div>
         <Button variant="secondary" onPress={() => setImporting(true)}>
           {tr('导入…')}
+        </Button>
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('从滴答清单导入')}</div>
+          <div className="setting-hint">{tr('连接滴答清单（TickTick）账户，或用它的备份文件；清单变成组，再导一次不会重复')}</div>
+        </div>
+        <Button variant="secondary" onPress={() => setDidaImportOpen(true)}>
+          {tr('从滴答清单导入…')}
         </Button>
       </div>
       {importing && (

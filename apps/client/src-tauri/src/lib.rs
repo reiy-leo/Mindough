@@ -5,10 +5,12 @@
 //! - 桌面端 single-instance：已经开着时，deep link 交给原来的窗口
 //! - notification：提醒（前端 lib/reminders.ts 排程）
 //! - widget：主屏小组件读的 JSON 快照（widget-snapshot.json）；桌面「小窗」是前端开的第二个窗口（label mini）
+//! - menu：桌面菜单栏 File → Import → Dida365（文字由前端按界面语言传来，点了发 mindough:menu 给主窗口）
 //! - 以后：窗口毛玻璃等。
 
 mod db;
 mod files;
+mod menu;
 mod widget;
 
 #[cfg(desktop)]
@@ -28,6 +30,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }));
+        builder = builder.on_menu_event(|app, event| menu::on_event(app, event.id().as_ref()));
     }
 
     builder
@@ -36,6 +39,9 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|_app| {
+            // 菜单栏先用英文建好（macOS 一开窗就要有编辑菜单，复制粘贴快捷键靠它）；前端定下语言后换成对应文字
+            #[cfg(desktop)]
+            menu::install(_app.handle(), &menu::MenuLabels::default())?;
             // Windows / Linux 开发时也注册 mindough:// （安装包会自己注册；macOS / 移动端靠 Info.plist / Manifest）
             #[cfg(any(windows, target_os = "linux"))]
             {
@@ -45,7 +51,7 @@ pub fn run() {
             Ok(())
         })
         .manage(db::Db::new())
-        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot, files::save_download])
+        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot, files::save_download, menu::set_app_menu])
         .run(tauri::generate_context!())
         .expect("启动 Mindough 失败");
 }

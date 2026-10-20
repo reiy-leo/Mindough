@@ -43,6 +43,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   lookup.ts             在线找资料的纯逻辑：结果形状、按什么找（去季标记、电影 / 剧集）、库里的同一条、自动补全逐项计划；来源存 fields._source
   store.ts              内存快照 + 领域操作（UI 同步读、写入异步落盘并进 outbox）；applyRemote 合并拉下来的行（不进 outbox）；edges() / conflictEdges()
   sync/                 同步：protocol.ts（WireRow、SyncTransport、SyncHttpError）、engine.ts（SyncEngine：推、拉、第一次合并、状态）、memory-remote.ts（假云端 / 协议参考实现）
+  dida/                 从滴答清单导入（单独入口 @mindough/core/dida，docs/IMPORT-DIDA.md）：csv / parse（备份 CSV）、api（Open API，fetchDidaAccount 注入网络函数）、map（时区 / 提醒 / 重复 / 正文）、plan（预览、applyDida、undoDida）
   archive/              导入导出 Markdown 文件夹（单独入口 @mindough/core/archive，yaml + fflate，按需加载；格式见 docs/EXPORT.md）
   storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
   seed/                 内置 11 种类型、27 个打卡分类（固定 id）、演示数据
@@ -62,12 +63,12 @@ apps/client/src/
   styles/task.css       新建面板与详情的结构样式
   styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
   lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、附件上传队列（attachments.ts：IndexedDB 队列 attachments-queue.ts、XHR 进度、取消重试、显示地址、下载）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
-apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；src/files.rs：save_download 把附件存进「下载」文件夹；opener + deep-link（mindough://）+ 桌面 single-instance）
+apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；src/files.rs：save_download 把附件存进「下载」文件夹；src/menu.rs：菜单栏 文件 → 导入 → 滴答清单（文字由 lib/app-menu.ts 按界面语言传入）；opener + deep-link（mindough://）+ 桌面 single-instance）
 apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、
-                        存储层 sql.ts（SqlDb 接口）/ storage.ts（按 STORAGE_BACKEND 选）/ turso.ts（Hrana HTTP）/ d1.ts（D1 绑定 + REST）/ copy.ts（库间全量复制与核对，scripts/copy-storage.ts）、assets.ts（R2 图片）、files.ts（附件 /api/files：要登录、只能读自己的、≤ 50 MB）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
+                        存储层 sql.ts（SqlDb 接口）/ storage.ts（按 STORAGE_BACKEND 选）/ turso.ts（Hrana HTTP）/ d1.ts（D1 绑定 + REST）/ copy.ts（库间全量复制与核对，scripts/copy-storage.ts）、assets.ts（R2 图片）、files.ts（附件 /api/files：要登录、只能读自己的、≤ 50 MB）、dida.ts（滴答清单 Open API 代理 /api/dida/*，令牌走 x-dida-token、不存、只放只读白名单）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
   test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso；storage.test.ts 用 Miniflare 本地 D1）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
 .github/workflows/      ci.yml、build.yml
-docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPORT.md（导入导出格式，含附件）、DEEPLINKS.md、JOURNAL.md（日记方案与决定）
+docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPORT.md（导入导出格式，含附件）、IMPORT-DIDA.md（滴答清单导入字段映射）、DEEPLINKS.md、JOURNAL.md（日记方案与决定）
 .agents/                skills / rules / prompts / memory
 ```
 
@@ -108,6 +109,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，经 `openDb(env)` 拿库，别直接调 turso.ts）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
 - 附件（PLAN「附件」）：加附件一律经 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回），下载用 `downloadAttachment`（Web 浏览器下载 / Tauri `save_download`）。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，附件读要登录。
 - 农历（PLAN「农历」）：日期一律存公历，农历只在显示和选择时换算（core `lunar/`，本地查表，别用 `Intl` 的 chinese 历——ICU 有几年初一差一天）；格子小字一律经 `useLunar(store).day(d)`（订阅的节日名优先、休 / 班角标），不要自己拼；每年农历重复是 `lunarYearly`（RRULE `RSCALE=CHINESE`）。
+- 滴答清单导入（docs/IMPORT-DIDA.md）：解析、拉取、映射都在 core `dida/`，客户端只做界面；两种来源都先变成 `DidaRow` 再走 `planDida` / `applyDida`，别另写一套写入。任务 id 由滴答清单 taskId 算（`didaTaskId`），这是幂等的依据，别改算法。令牌只存本机（`lib/dida.ts`），不进同步表、不发给云端库；Worker 代理只转发白名单路径。菜单栏文字改动要同时改 `menu.rs` 的 `MenuLabels` 和 `lib/app-menu.ts`。
 - 外链：在 Tauri 里一律经 `lib/external.ts`（全局拦截 + `openExternal`）交给系统浏览器；不要自己 `window.open` 或另装 opener 调用。
 - 资料 / 人物合并后来源是墓碑 + `merged_into`：读任务挂的资料一律经 `store.itemOf(task)` / `resolveItemId` / `resolvePersonId`（会顺着 merged_into 找到留下的那条），不要直接 `get('library_item', task.library_item_id)`。
 - 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。

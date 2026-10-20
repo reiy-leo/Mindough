@@ -10,6 +10,22 @@ const pl = (n: unknown, one: string, other: string) => (new Intl.PluralRules('en
 const count = (n: unknown, one: string, other: string) => `${n} ${pl(n, one, other)}`;
 
 export const CORE_EN: Record<string, V> = {
+  // ── 滴答清单导入（dida/，Rei 2026-10-21）──
+  滴答清单: 'Dida365',
+  已取消: 'Canceled',
+  '清单「{name}」没拉下来：{msg}': (p) => `Couldn’t fetch list “${p.name}”: ${p.msg}`,
+  '同一分钟里完成的任务超过 {n} 件，可能有几件没拉到': (p) => `More than ${p.n} tasks were completed within one minute; a few may be missing`,
+  '已放弃的任务一次最多拉 {n} 件，更早的没拉到': (p) => `Won’t-do tasks are limited to ${p.n} per fetch; older ones were skipped`,
+  '已放弃的任务没拉下来：{msg}': (p) => `Couldn’t fetch won’t-do tasks: ${p.msg}`,
+  高优先级: 'high-priority',
+  中优先级: 'medium-priority',
+  低优先级: 'low-priority',
+  '截止：{date}': (p) => `Due: ${p.date}`,
+  '重复（滴答清单的规则，这里没法照样重复）：{rule}': (p) => `Repeat (Dida365 rule that can’t be repeated here): ${p.rule}`,
+  '这不像滴答清单的备份文件：没找到表头（标题、清单、状态…）': 'This doesn’t look like a Dida365 backup: no header row found (Title, List Name, Status…)',
+  '没有标题也没有内容，跳过': 'No title or content; skipped',
+  '状态「{s}」看不懂，当未完成导入': (p) => `Unknown status “${p.s}”; imported as not done`,
+  '父任务没导入，没连上': 'Parent task wasn’t imported; not linked',
   // ── 农历订阅、每年农历重复（lunar/、recurrence.ts，Rei 2026-10-17）──
   手动: 'Manual',
   还没同步过: 'Not synced yet',

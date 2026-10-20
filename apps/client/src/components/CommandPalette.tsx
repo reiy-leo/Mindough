@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } from 'react-aria-components';
-import { CornerDownLeft, FolderOpen, NotebookPen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
+import { CornerDownLeft, FileDown, FolderOpen, NotebookPen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
 import { TASK_STATUS_LABEL, isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
 import { MoodIcon } from './journal/MoodIcon';
 import { useStore } from '../store/StoreProvider';
@@ -45,8 +45,15 @@ export function CommandPalette() {
     close();
     navigate({ page: 'journal' });
   };
-  const offset = (q.trim() ? 1 : 0) + (showJournal ? 1 : 0);
+  // 「从滴答清单导入…」：没输入时排在日记后面；输入像「滴答 / dida / ticktick / 导入 / import」时也出来
+  const showDida = !q.trim() || /滴答|dida|tick|导入|import/i.test(q.trim()); // i18n-ignore 匹配用的关键词
+  const importDida = () => {
+    close();
+    ui.setDidaImportOpen(true);
+  };
   const journalIndex = q.trim() ? 1 : 0;
+  const didaIndex = journalIndex + (showJournal ? 1 : 0);
+  const offset = didaIndex + (showDida ? 1 : 0);
   const createFromQuery = () => {
     const t = store.createTask({ body_md: q.trim() });
     store.addToMyDay(t.id);
@@ -114,6 +121,7 @@ export function CommandPalette() {
             onSubmit={() => {
               if (q.trim() && active === 0) createFromQuery();
               else if (showJournal && active === journalIndex) writeJournal();
+              else if (showDida && active === didaIndex) importDida();
               else if (!q) {
                 const t = recent[active - offset];
                 if (t) {
@@ -148,6 +156,16 @@ export function CommandPalette() {
                   <span className="thumb thumb-icon"><NotebookPen size={16} /></span>
                   <span className="palette-text">
                     <span className="palette-title">{tr('写今天的日记')}</span>
+                  </span>
+                </RacButton>
+              </li>
+            )}
+            {showDida && (
+              <li className={`palette-item${active === didaIndex ? ' is-active' : ''}`} onMouseEnter={() => setActive(didaIndex)}>
+                <RacButton className="palette-main" onPress={importDida}>
+                  <span className="thumb thumb-icon"><FileDown size={16} /></span>
+                  <span className="palette-text">
+                    <span className="palette-title">{tr('从滴答清单导入…')}</span>
                   </span>
                 </RacButton>
               </li>

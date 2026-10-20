@@ -1,5 +1,5 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、农历订阅代拉（calendar.ts）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、农历订阅代拉（calendar.ts）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、滴答清单导入代理（dida.ts）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
@@ -11,6 +11,7 @@ import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
 import { handleLookup } from './lookup';
 import { handleFileGet, handleFileUpload } from './files';
 import { handleIcsProxy } from './calendar';
+import { handleDidaProxy } from './dida';
 import type { LookupEnv } from './lookup/types';
 
 export interface Env extends SyncEnv, AssetEnv, LookupEnv {
@@ -37,7 +38,7 @@ function withCors(res: Response, origin: string | null): Response {
   if (!origin) return res;
   const out = new Response(res.body, res);
   out.headers.set('access-control-allow-origin', origin);
-  out.headers.set('access-control-allow-headers', 'authorization, content-type');
+  out.headers.set('access-control-allow-headers', 'authorization, content-type, x-dida-token');
   out.headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
   out.headers.set('access-control-max-age', '600');
   out.headers.append('vary', 'origin');
@@ -101,6 +102,8 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
 
   // 在线找资料（TMDB / 豆瓣 / Open Library / Steam），要登录
   if (pathname.startsWith('/api/lookup/')) return handleLookup(request, env, url);
+  // 滴答清单 Open API 代理（导入用，令牌在 x-dida-token 头里，不存）
+  if (pathname.startsWith('/api/dida/')) return handleDidaProxy(request, env, url);
 
   if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) return json({ error: '404 未找到' }, 404);
   if (env.ASSETS) return env.ASSETS.fetch(request);

@@ -116,3 +116,114 @@
 .import-issue-msg {
   color: var(--text-2);
 }
+
+/* 从滴答清单导入（components/DidaImport.tsx） */
+.dida-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5, 24px) var(--space-4);
+  border: 1.5px dashed var(--border-strong, var(--border));
+  border-radius: var(--radius-md);
+  color: var(--text-2);
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dida-drop.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text);
+}
+.dida-section {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.dida-section-title {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: var(--space-1);
+}
+.dida-section .setting {
+  padding-left: 0;
+  padding-right: 0;
+}
+.dida-n {
+  font-weight: 400;
+  margin-left: var(--space-2);
+  font-size: var(--fs-small);
+}
+.dida-list .setting-text {
+  min-width: 0;
+}
+.dida-target {
+  flex: 0 1 220px;
+  min-width: 140px;
+}
+.dida-target .field-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dida-target .select-btn {
+  width: 100%;
+}
+.dida-target .select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dida-note {
+  margin: var(--space-1) 0 0;
+}
+.dida-result-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+  font-size: 17px;
+}
+.dida-result-head svg {
+  color: var(--success, var(--accent));
+}
+.dida-result-counts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 520px) {
+  .dida-list {
+    flex-wrap: wrap;
+  }
+  .dida-target {
+    flex: 1 1 100%;
+  }
+}
+.dida-sheet .segmented {
+  align-self: flex-start;
+}
+.dida-connect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.dida-connect p {
+  margin: 0;
+}
+.dida-warn {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning, #ff9f0a) 12%, transparent);
+  color: var(--text);
+}
+.dida-saved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

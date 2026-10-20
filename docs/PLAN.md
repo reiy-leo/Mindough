@@ -458,6 +458,17 @@ Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为
   4. 闰月重复的说法：选「闰六月十五」，没有闰六月的年份按六月十五；选普通「六月十五」，有闰六月的年份也只在（第一个）六月。
   5. 英文界面格子里的农历、节气、节日照中文显示。
 
+### 从滴答清单导入 ✅（2026-10-21，详见 [docs/IMPORT-DIDA.md](IMPORT-DIDA.md)）
+Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida365，点击后弹出一个导入窗口」；追加「不能直接连接dida365么」——直接连账户为默认，备份 CSV 留作备选。
+- **core** `dida/`（单独入口 `@mindough/core/dida`，导入窗口打开时才加载）：`csv.ts`（RFC 4180，带行号）、`parse.ts`（备份 CSV → `DidaRow`：跳过说明行、表头按名字 / 别名认）、`api.ts`（Open API JSON → `DidaRow`；`fetchDidaAccount(call, opts)` 拉清单 / 文件夹 / 未完成 / 已完成（200 条一页，满了时间窗口对半切）/ 已放弃（`task/filter status [-1]`，试的））、`map.ts`（时区换算、提醒、RRULE → Mindough 能存的子集、正文拼法）、`plan.ts`（`planDida` 预览、`previewDida`、`applyDida` 一批写入、`undoDida` 整批撤销）。
+- **决定**：任务 id = `stableId('dida-task\0' + taskId)` → 幂等（CSV 和 API 同一个 id）；清单 → 组（同名复用，收集箱默认不放进组），文件夹 → 新建组的分类（不做多层）；放弃 → 关闭；子任务 → 前后关系（子任务 → 父任务，FS，最贴合「做完子任务才算做完父任务」）；未完成任务的简单重复（每天 / 每 N 天 / 每周几 / 每月几号）→ 定期打卡，其余规则写进正文末尾；优先级 / 标签 → 正文末尾 #标签（没有字段）；NOTE → 普通任务；提醒只取同一天的第一个。
+- **Worker** `apps/server/src/dida.ts`：`/api/dida/*` 代理到 `https://api.dida365.com`（浏览器跨域不行；Tauri 也走它）。要登录 Mindough；令牌在 `x-dida-token` 头里每次带来，不存；只放行 6 条只读路径；状态码附中文（401 未授权 = 令牌不对或失效）。CORS 允许 `x-dida-token`。
+- **客户端**：`components/DidaImport.tsx`（两种方式 → 预览 / 选项 → 结果 / 撤销）、`lib/dida.ts`（令牌只存 localStorage `mindough:dida-token`，不进同步表；经代理调用）、`lib/app-menu.ts`（菜单文字走 tr()、监听 `mindough:menu`）、`lib/ui.tsx` 的 `didaImportOpen`；入口：设置 → 数据、⌘K「从滴答清单导入…」。
+- **Tauri** `src-tauri/src/menu.rs`：macOS 全局菜单（App / 文件（导入 ▸ 滴答清单、关闭窗口）/ 编辑 / 窗口，用 Tauri 预置项，复制粘贴快捷键照常）；Windows / Linux 只给主窗口加「文件」菜单（导入 ▸ 滴答清单、退出），不加编辑菜单；启动先用英文建，前端 `set_app_menu` 换成界面语言的文字；点了 `emit_to("main", "mindough:menu", "import-dida365")` 并把主窗口叫到前面。Linux `cargo check` 通过；macOS 分支（`#[cfg(target_os = "macos")]`）在 Linux 上没编到，**没在 Mac 上编译 / 运行过**。
+- 没做：OAuth（要 Rei 在滴答开发者中心注册应用，以后可选）；滴答清单的评论、专注记录、习惯、倒数日不导。
+- 测试：core `test/dida.test.ts`（CSV + API 两份 fixture）、server `test/dida.test.ts`。截图 `work/shots-dida/`。
+- **待 Rei 确认**：见 IMPORT-DIDA.md 末尾 8 条（子任务用前后关系、收集箱不进组、笔记当任务、优先级 / 标签写进正文、只有未完成的重复转打卡、已完成默认全部、中文 CSV 表头别名是猜的、已放弃靠 filter 试拉）。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
@@ -480,5 +491,6 @@ Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为
 - ✅ 谁能登录（Rei 2026-10-16 定）：白名单，只 Rei 自己（`ALLOWED_EMAILS=reiy.leoz@gmail.com`），不开放注册。
 - ✅ iOS 分发（Rei 2026-10-16 定）：免费 Apple ID + Xcode 个人团队装自己 iPhone（7 天重装，不走 TestFlight），步骤见 docs/IOS.md；小组件要 App Group，先不接。
 - ✅ 日记功能（Rei 2026-10-17 审过：「一天一篇，英文Journal，入口按你推荐的做。只要心情（5个太少了…动画svg图标）。设一个「一天从几点开始」（默认 5点）。「这一天」汇总不放在日记中。日记提醒…晚上9点，不论是不是已经写了。将来这日子不能写。」）：J1 已做完上线，见下面「日记 J1」和 [docs/JOURNAL.md](JOURNAL.md) 第 0 节。
+- 🟡 滴答清单导入待问：见 IMPORT-DIDA.md「待 Rei 确认」。
 - 🟡 附件待问：见上面「附件」的待 Rei 确认（50 MB 上限、资料项要不要附件、Tauri 存到哪）。
 - 🟡 日记待问（J1 没做）：「一天从几点开始」要不要扩展到我的一天 / 打卡 / 提醒；日记页要不要只读的「这一天」；「插入时间」「那年今日」⌘K 按日期跳转。

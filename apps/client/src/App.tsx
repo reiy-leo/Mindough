@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
@@ -26,6 +26,9 @@ import { LoginErrorBanner } from './components/LoginErrorBanner';
 import { ReminderHost } from './components/ReminderHost';
 import { useLunarSubScheduler } from './lib/lunar';
 import { Tip } from './ui/primitives';
+import { useAppMenu } from './lib/app-menu';
+
+const DidaImportSheet = lazy(() => import('./components/DidaImport').then((m) => ({ default: m.DidaImportSheet })));
 
 import { tr, trc } from './lib/i18n';
 interface NavItem {
@@ -227,6 +230,8 @@ export function App() {
   const ui = useUi();
   const store = useStore();
   useLunarSubScheduler(store);
+  const { setDidaImportOpen } = ui;
+  useAppMenu({ importDida: useCallback(() => setDidaImportOpen(true), [setDidaImportOpen]) });
   const { layout, skin } = useSettings();
   const isActive = (n: NavItem) => n.match.includes(route.page);
   const [collapsed, toggleSection] = useCollapsed();
@@ -340,6 +345,11 @@ export function App() {
       <TaskComposer />
       <ReminderHost />
       <CommandPalette />
+      {ui.didaImportOpen && (
+        <Suspense fallback={null}>
+          <DidaImportSheet isOpen={ui.didaImportOpen} onOpenChange={ui.setDidaImportOpen} />
+        </Suspense>
+      )}
       <Toasts />
       <DeepLinks />
     </>
