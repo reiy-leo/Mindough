@@ -133,10 +133,10 @@ async function systemNotify(r: Reminder, title: string, body: string): Promise<v
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const reg = await serviceWorker();
   if (reg) {
-    await reg.showNotification(title, { body, tag: id, data: extraOf(r), icon: '/favicon.svg' });
+    await reg.showNotification(title, { body, tag: id, data: extraOf(r), icon: '/icons/icon-192.png' });
     return;
   }
-  const n = new Notification(title, { body, tag: id, icon: '/favicon.svg' });
+  const n = new Notification(title, { body, tag: id, icon: '/icons/icon-192.png' });
   n.onclick = () => {
     window.focus();
     if (r.kind === 'journal') openJournal?.();

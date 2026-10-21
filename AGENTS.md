@@ -82,7 +82,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 | 构建 | `pnpm build`；只构建客户端 `pnpm --filter client build` |
 | 预览构建 | `pnpm --filter client preview`（:4173） |
 | 桌面 | `pnpm tauri dev` / `pnpm tauri build`（需 Rust） |
-| 重新生成图标 | `pnpm --filter client tauri icon src-tauri/icons/source.svg -o src-tauri/icons` |
+| 重新生成图标 | `scripts/make-icons.sh`（源图 apps/client/src-tauri/icons/source-character.png，透明底角色；生成桌面 / iOS / Android / PWA / favicon，改完把 sw.js SHELL 版本 +1） |
 | Worker 本地 | `pnpm --filter server dev`（:8787，需 `apps/server/.dev.vars`，见 `.dev.vars.example`） |
 | Worker 单测 | `pnpm --filter server test` |
 | 同步端到端（真实 Turso） | `cd apps/server && E2E_TURSO_URL=https://mindough-rei8.aws-ap-northeast-1.turso.io E2E_TURSO_TOKEN_FILE=<放数据库 token 的文件> npx vitest run e2e/real-turso.test.ts`（测试账户 e2e@mindough.test，跑完自动删行） |

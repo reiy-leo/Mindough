@@ -271,7 +271,7 @@ function ArchiveRows() {
 function AboutSection() {
   return (
     <section className="about" aria-label={tr('关于')}>
-      <img src="/favicon.svg" alt="" className="about-icon" width={36} height={36} />
+      <img src="/icons/icon-192.png" alt="" className="about-icon" width={36} height={36} />
       <div className="about-name">Mindough</div>
       <p className="muted small">{tr('数据先存在这台设备上，离线也能用')}</p>
       <div className="about-credits">

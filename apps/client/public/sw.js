@@ -1,6 +1,6 @@
 // Mindough 的 service worker：发提醒通知（Android Chrome 只能经 service worker 发通知），并让「安装为 app」后断网也能打开。
 // 缓存只管外壳：页面（index.html）先走网络、断网用上次的；/assets/ 下带哈希的文件先用缓存。/api、/auth 和别的一律不碰。
-const SHELL = 'mindough-shell-v1';
+const SHELL = 'mindough-shell-v2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) =>
   e.waitUntil(
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/favicon.svg' || url.pathname === '/manifest.webmanifest') {
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/favicon.png' || url.pathname === '/manifest.webmanifest') {
     e.respondWith(
       (async () => {
         const hit = await caches.match(req);
