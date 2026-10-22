@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, Network, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
@@ -12,7 +12,6 @@ import { GroupDetailPage, GroupsPage } from './pages/Groups';
 import { PersonDetailPage } from './pages/People';
 import { LibraryItemPage, LibraryPage } from './pages/Library';
 import { BUILTIN_TYPE_IDS } from '@mindough/core';
-import { GraphPage } from './pages/Graph';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { SettingsPage } from './pages/Settings';
@@ -67,7 +66,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { page: 'agenda', get label() { return trc('导航', '列表'); }, icon: CalendarDays, match: ['agenda'] },
       { page: 'groups', get label() { return trc('导航', '组'); }, icon: Shapes, match: ['groups', 'group'] },
-      { page: 'graph', get label() { return tr('关系图'); }, icon: Network, match: ['graph'] },
     ],
   },
   {
@@ -135,8 +133,6 @@ function Page({ route }: { route: Route }) {
       return <LibraryItemPage typeId={route.typeId} id={route.id} />;
     case 'person':
       return <PersonDetailPage id={route.id} />;
-    case 'graph':
-      return <GraphPage />;
     case 'doable':
       return <DoablePage />;
     case 'checkin':

@@ -162,3 +162,106 @@ export function unlockedSuccessors(completedId: string, tasks: readonly TaskLike
     return deriveStatus(t, before, edges).state === '被阻塞' && deriveStatus(t, after, edges).state === '可开始';
   });
 }
+
+// ───────── 整条线（Rei 2026-10-23：「一键展示整个 FS 的一条线上的所有任务」）─────────
+
+export interface TaskChain {
+  /** 当前任务。 */
+  id: string;
+  /** 线上所有任务（含当前），按拓扑顺序：先上游后下游。 */
+  ids: string[];
+  /** 所有上游（前置的前置……），按拓扑顺序。 */
+  ancestors: string[];
+  /** 所有下游（后续的后续……），按拓扑顺序。 */
+  descendants: string[];
+  /** 按层排：第 0 层是最上游；层号 = 从最上游数过来最长的那条路（分叉汇合后排在最晚的那条之后）。 */
+  layers: string[][];
+  /** 当前任务在第几层。 */
+  currentLayer: number;
+  /** 这条线内部的前后关系（两头都在线上）。 */
+  edges: Edge[];
+}
+
+type ChainEdge = Edge & { deleted?: boolean | number };
+
+/**
+ * 给一件任务，沿前后关系（FS 依赖边，不算「相关任务」）传递地取所有上游与下游，组成「整条线」。
+ * - 只走未删除的边；传了 tasks 时只走存在且未删除的任务（删掉的任务不经过、不显示）。
+ * - 分叉（一件解锁几件）、汇合（几件都做完才能开始一件）照常处理：同一层可能有好几件。
+ * - 只取当前任务的祖先和后代：上游分叉出去、和当前任务无关的兄弟任务不算在内。
+ * - 边本该无环（store.edges() 已去掉成环的）；万一有环也不会死循环，剩下的放到最后一层。
+ */
+export function taskChain(id: string, deps: readonly ChainEdge[], tasks?: readonly TaskLike[] | ReadonlyMap<string, TaskLike>): TaskChain {
+  const byId = tasks ? (tasks instanceof Map ? (tasks as ReadonlyMap<string, TaskLike>) : new Map((tasks as readonly TaskLike[]).map((t) => [t.id, t]))) : null;
+  const alive = (x: string) => !byId || (!!byId.get(x) && !byId.get(x)!.deleted);
+  const edges: Edge[] = [];
+  const seenEdge = new Set<string>();
+  for (const d of deps) {
+    if (d.deleted || d.pred_id === d.succ_id || !alive(d.pred_id) || !alive(d.succ_id)) continue;
+    const k = `${d.pred_id}>${d.succ_id}`;
+    if (seenEdge.has(k)) continue;
+    seenEdge.add(k);
+    edges.push({ pred_id: d.pred_id, succ_id: d.succ_id });
+  }
+  const down = new Map<string, string[]>();
+  const up = new Map<string, string[]>();
+  for (const e of edges) {
+    (down.get(e.pred_id) ?? down.set(e.pred_id, []).get(e.pred_id)!).push(e.succ_id);
+    (up.get(e.succ_id) ?? up.set(e.succ_id, []).get(e.succ_id)!).push(e.pred_id);
+  }
+  const walk = (adj: Map<string, string[]>): Set<string> => {
+    const out = new Set<string>();
+    const queue = [...(adj.get(id) ?? [])];
+    while (queue.length) {
+      const n = queue.shift()!;
+      if (n === id || out.has(n)) continue;
+      out.add(n);
+      queue.push(...(adj.get(n) ?? []));
+    }
+    return out;
+  };
+  if (!alive(id)) return { id, ids: [], ancestors: [], descendants: [], layers: [], currentLayer: -1, edges: [] };
+  const anc = walk(up);
+  const desc = walk(down);
+  const nodes = new Set<string>([...anc, id, ...desc]);
+  const inner = edges.filter((e) => nodes.has(e.pred_id) && nodes.has(e.succ_id));
+  // 层号 = 最长路径（Kahn 顺序上传递）；入队顺序按边出现的先后，结果稳定
+  const order: string[] = [];
+  for (const e of inner) for (const n of [e.pred_id, e.succ_id]) if (!order.includes(n)) order.push(n);
+  if (!order.includes(id)) order.push(id);
+  const indeg = new Map(order.map((n) => [n, 0]));
+  for (const e of inner) indeg.set(e.succ_id, indeg.get(e.succ_id)! + 1);
+  const level = new Map<string, number>();
+  const queue = order.filter((n) => indeg.get(n) === 0);
+  for (const n of queue) level.set(n, 0);
+  const topo: string[] = [];
+  while (queue.length) {
+    const n = queue.shift()!;
+    topo.push(n);
+    for (const s of down.get(n) ?? []) {
+      if (!nodes.has(s)) continue;
+      level.set(s, Math.max(level.get(s) ?? 0, level.get(n)! + 1));
+      const d = indeg.get(s)! - 1;
+      indeg.set(s, d);
+      if (d === 0) queue.push(s);
+    }
+  }
+  // 有环（不该发生）：剩下的按出现顺序放到最后一层
+  const rest = order.filter((n) => !topo.includes(n));
+  if (rest.length) {
+    const last = topo.reduce((m, n) => Math.max(m, level.get(n) ?? 0), -1) + 1;
+    for (const n of rest) level.set(n, last);
+    topo.push(...rest);
+  }
+  const layers: string[][] = [];
+  for (const n of topo) (layers[level.get(n)!] ??= []).push(n);
+  return {
+    id,
+    ids: topo,
+    ancestors: topo.filter((n) => anc.has(n)),
+    descendants: topo.filter((n) => desc.has(n)),
+    layers: layers.filter((l) => l?.length),
+    currentLayer: level.get(id)!,
+    edges: inner,
+  };
+}

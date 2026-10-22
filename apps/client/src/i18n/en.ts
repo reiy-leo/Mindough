@@ -526,17 +526,15 @@ export const EN: Record<string, EnValue> = {
   没有可开始的任务: 'Nothing ready to start',
   琐事: 'Errands',
 
-  // ── 关系图 ──
-  '拖动任务边上的圆点，连到下一件事': 'Drag from a task’s dot to the next task',
-  '从任务右边的圆点拖到另一件任务上，表示“做完这件才能开始那件”。选中连线按 Delete 删除，双击任务查看详情':
-    'Drag from the dot on a task’s right edge to another task to mean “finish this before starting that.” Select a link and press Delete to remove it. Double-click a task to open it.',
-  范围: 'Scope',
-  有关系的: 'Linked',
-  全部任务: 'All Tasks',
-  显示: 'Show',
-  含已完成: 'Include Completed',
-  只看未完成: 'Open Only',
-  图例: 'Legend',
+  // ── 整条线（详情「关系」）──
+  整条线: 'Whole Chain',
+  '看整条线：前面的前面、后面的后面都列出来': 'See the whole chain: every step before and after this one',
+  '已完成 {done} / 共 {total}': (p) => `${p.done} of ${p.total} done`,
+  '从上往下做：上面的做完，下面的才能开始。': 'Top to bottom: finish what’s above before starting what’s below.',
+  '第 {n} 步': (p) => `Step ${p.n}`,
+  '{n} 件': (p) => n(p.n, 'task', 'tasks'),
+  '接在 {list} 后面': (p) => `After ${p.list}`,
+  这件: 'This task',
 
   // ── 组 ──
   不限时间: 'Any time',

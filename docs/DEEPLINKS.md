@@ -7,7 +7,7 @@
 | host | 写法 | 示例 | 用途 |
 |---|---|---|---|
 | task | mindough://task/{任务id} | mindough://task/0199f2a4-7c1e-7000-8000-1a2b3c4d5e6f | 打开某件任务的详情（通知、小组件、别的 app 里的链接） |
-| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 组、graph 关系图、available 可做、checkin 打卡、journal 日记、library 资料库、people 人物、settings 设置 |
+| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 组、available 可做、checkin 打卡、journal 日记、library 资料库、people 人物、settings 设置 |
 | group | mindough://group/{组id} | mindough://group/0199f2a4-… | 打开某个组 |
 | library | mindough://library/{类型}/{资料id} | mindough://library/movie/0199f2a4-…；mindough://library/book | 打开某条资料；不带 id 就是这个类型的库。类型用英文短名：movie、book、game、project、course、travel、shopping、restaurant、meal |
 | person | mindough://person/{人物id} | mindough://person/0199f2a4-… | 打开某个人 |
@@ -37,6 +37,8 @@
 - app 没开时点链接：先启动，数据库打开后再执行。
 - Web 端同样的路径走 https://mindough.rei8t.dev/#/task/{id} 这种 hash 路由；以后要做 Universal Links / App Links（https 链接直接拉起 app），再单独审核。
 - 中文参数要 URL 编码（快捷指令会自动做）。
+
+关系图页删掉以后（Rei 2026-10-23）：旧链接 `mindough://view/graph` 打开默认页「我的一天」，不提示写错；Web 的旧地址 `#/graph` 同样打开我的一天。
 
 ## 五、Rei 的决定（2026-10-16）
 

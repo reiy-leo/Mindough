@@ -11,6 +11,9 @@ describe('深链接 mindough://', () => {
     expect(parseDeepLink('mindough://view/inbox', now)).toEqual({ kind: 'view', route: { page: 'backlog' } });
     expect(parseDeepLink('mindough://view/timeline', now)).toEqual({ kind: 'view', route: { page: 'agenda' } });
     expect(parseDeepLink('mindough://view/nope', now)?.kind).toBe('invalid');
+    // 关系图页删掉了：旧链接打开我的一天，不算写错
+    expect(parseDeepLink('mindough://view/graph', now)).toEqual({ kind: 'view', route: { page: 'myday' } });
+    expect(parseHash('#/graph')).toEqual({ page: 'myday' });
     expect(parseDeepLink('mindough://task', now)?.kind).toBe('invalid');
   });
   it('new：中文、日期、我的一天、类型', () => {

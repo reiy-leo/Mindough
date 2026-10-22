@@ -52,6 +52,7 @@ import { DatePanel } from './DatePanel';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { detailMenu, type DetailMenuId } from '../../lib/task-menu';
 import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
+import { ChainButton, TaskChainSheet } from './TaskChain';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 export function TaskDetail() {
@@ -449,6 +450,7 @@ function RelationPicker({ store, task, kind, onClose }: { store: Store; task: Ta
  */
 function Relations({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
+  const [chainOpen, setChainOpen] = useState(false);
   const edges = store.edges();
   const preds = predecessorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const succs = successorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
@@ -489,7 +491,11 @@ function Relations({ store, task }: { store: Store; task: Task }) {
     ) : null;
   return (
     <section className="relations" aria-label={trc('任务', '关系')}>
-      <h3 className="detail-section-title">{trc('任务', '关系')}</h3>
+      <div className="detail-section-head">
+        <h3 className="detail-section-title">{trc('任务', '关系')}</h3>
+        {(preds.length > 0 || succs.length > 0) && <ChainButton onPress={() => setChainOpen(true)} />}
+      </div>
+      <TaskChainSheet store={store} task={task} isOpen={chainOpen} onClose={() => setChainOpen(false)} />
       {conflicts.map((e) => {
         const a = store.get('task', e.pred_id);
         const b = store.get('task', e.succ_id);

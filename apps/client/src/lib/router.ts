@@ -11,7 +11,6 @@ export type Route =
   /** 资料库：typeId 省略时显示第一个库。人物库沿用 #/people。 */
   | { page: 'library'; typeId?: string }
   | { page: 'libitem'; typeId: string; id: string }
-  | { page: 'graph' }
   | { page: 'doable' }
   | { page: 'checkin' }
   /** 日记：date 省略 = 今天（按「一天从几点开始」算）。 */
@@ -32,8 +31,6 @@ export function parseHash(hash: string): Route {
       return b ? { page: 'person', id: b } : { page: 'people' };
     case 'library':
       return c && b ? { page: 'libitem', typeId: b, id: c } : b ? { page: 'library', typeId: b } : { page: 'library' };
-    case 'graph':
-      return { page: 'graph' };
     case 'doable':
       return { page: 'doable' };
     case 'checkin':
