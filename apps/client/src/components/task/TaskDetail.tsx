@@ -52,7 +52,7 @@ import { DatePanel } from './DatePanel';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { detailMenu, type DetailMenuId } from '../../lib/task-menu';
 import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
-import { ChainButton, TaskChainSheet } from './TaskChain';
+import { ChainToggle, TaskChainInline } from './TaskChain';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 export function TaskDetail() {
@@ -450,7 +450,7 @@ function RelationPicker({ store, task, kind, onClose }: { store: Store; task: Ta
  */
 function Relations({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
-  const [chainOpen, setChainOpen] = useState(false);
+  const { settings, set } = useSettings();
   const edges = store.edges();
   const preds = predecessorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const succs = successorsOf(edges, task.id).map((id) => store.get('task', id)).filter((t): t is Task => !!t);
@@ -460,6 +460,9 @@ function Relations({ store, task }: { store: Store; task: Task }) {
   // 同步合并后绕成圈、暂不生效的前后关系（两台设备各连了一条）
   const conflicts = store.conflictEdges().filter((e) => e.pred_id === task.id || e.succ_id === task.id);
   if (!preds.length && !succs.length && !related.length && !conflicts.length) return null;
+  // 任务链开着、这件又有前后关系时：原地用任务链替换「先做完这些 / 做完后解锁」两段
+  const hasChain = preds.length > 0 || succs.length > 0;
+  const showChain = hasChain && settings.taskChain;
   const row = (t: Task, dir: RelKind) => {
     const state = t.status === '完成' ? 'done' : t.status === '关闭' ? 'closed' : 'open';
     const meta = taskStateText(store, t);
@@ -493,9 +496,8 @@ function Relations({ store, task }: { store: Store; task: Task }) {
     <section className="relations" aria-label={trc('任务', '关系')}>
       <div className="detail-section-head">
         <h3 className="detail-section-title">{trc('任务', '关系')}</h3>
-        {(preds.length > 0 || succs.length > 0) && <ChainButton onPress={() => setChainOpen(true)} />}
+        {hasChain && <ChainToggle isOn={settings.taskChain} onChange={(on) => set('taskChain', on)} />}
       </div>
-      <TaskChainSheet store={store} task={task} isOpen={chainOpen} onClose={() => setChainOpen(false)} />
       {conflicts.map((e) => {
         const a = store.get('task', e.pred_id);
         const b = store.get('task', e.succ_id);
@@ -513,8 +515,14 @@ function Relations({ store, task }: { store: Store; task: Task }) {
           </div>
         );
       })}
-      {group('pred', preds, derived?.state === '被阻塞' ? <span className="rel-count">{tr('还差 {length} 件', { length: derived.missing.length })}</span> : null)}
-      {group('succ', succs)}
+      {showChain ? (
+        <TaskChainInline store={store} task={task} />
+      ) : (
+        <>
+          {group('pred', preds, derived?.state === '被阻塞' ? <span className="rel-count">{tr('还差 {length} 件', { length: derived.missing.length })}</span> : null)}
+          {group('succ', succs)}
+        </>
+      )}
       {group(
         'related',
         related,

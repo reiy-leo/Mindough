@@ -10,9 +10,11 @@ export interface Settings {
   theme: ThemePref;
   layout: 'auto' | LayoutKind;
   monthMarker: 'auto' | MonthMarker;
+  /** 详情「关系」显示任务链（Rei 2026-10-23）：只记在本机，不同步；换一件任务也沿用。 */
+  taskChain: boolean;
 }
 
-const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto' };
+const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false };
 const KEY = 'mindough:settings';
 
 function load(): Settings {

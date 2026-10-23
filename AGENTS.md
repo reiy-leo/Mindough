@@ -27,7 +27,7 @@
 packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts）
   types.ts              全部表的行类型（UUIDv7 id + HLC updated_at + deleted）
   uuid.ts hlc.ts        UUIDv7 生成、混合逻辑时钟
-  dag.ts                环检测、派生状态（可开始/被阻塞+缺哪些）、解锁后续
+  dag.ts                环检测、派生状态（可开始/被阻塞+缺哪些）、解锁后续、任务链 taskChain 与每一步的相对时间 chainStepWhen / chainWhenLabel
   related.ts            相关任务（task_link，无方向、不阻塞）：规范顺序、确定 id、前后关系优先
   recurrence.ts         RRULE 子集、周期键、连续天数
   checkin.ts            check_in 事件折叠出进度（计时/计量/点一下/倒数日）、热力图比例索引

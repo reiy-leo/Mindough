@@ -1,7 +1,8 @@
 /** 依赖图（前导图 PDM）：DAG、环检测、派生状态、解锁后续。 */
-import { isFinished, type Dependency, type Task } from './types';
+import { isFinished, type DateKey, type Dependency, type Task } from './types';
+import { diffDays, formatDate, toDateKey } from './dates';
 
-import { tr } from './i18n';
+import { tr, trc } from './i18n';
 export interface Edge {
   pred_id: string;
   succ_id: string;
@@ -163,7 +164,7 @@ export function unlockedSuccessors(completedId: string, tasks: readonly TaskLike
   });
 }
 
-// ───────── 整条线（Rei 2026-10-23：「一键展示整个 FS 的一条线上的所有任务」）─────────
+// ───────── 任务链（Rei 2026-10-23：「一键展示整个 FS 的一条线上的所有任务」；同日改名「任务链」，原叫「整条线」）─────────
 
 export interface TaskChain {
   /** 当前任务。 */
@@ -185,7 +186,7 @@ export interface TaskChain {
 type ChainEdge = Edge & { deleted?: boolean | number };
 
 /**
- * 给一件任务，沿前后关系（FS 依赖边，不算「相关任务」）传递地取所有上游与下游，组成「整条线」。
+ * 给一件任务，沿前后关系（FS 依赖边，不算「相关任务」）传递地取所有上游与下游，组成「任务链」。
  * - 只走未删除的边；传了 tasks 时只走存在且未删除的任务（删掉的任务不经过、不显示）。
  * - 分叉（一件解锁几件）、汇合（几件都做完才能开始一件）照常处理：同一层可能有好几件。
  * - 只取当前任务的祖先和后代：上游分叉出去、和当前任务无关的兄弟任务不算在内。
@@ -264,4 +265,87 @@ export function taskChain(id: string, deps: readonly ChainEdge[], tasks?: readon
     currentLayer: level.get(id)!,
     edges: inner,
   };
+}
+
+// ───────── 任务链每一步的相对时间（Rei 2026-10-23：「每个步骤显示相对时间，而不是第几步」）─────────
+
+/** 算一步的时间要用到的任务字段。 */
+export type ChainWhenTask = Pick<Task, 'id' | 'status' | 'scheduled_date' | 'target_date' | 'completion_mode' | 'done_at'> & { deleted?: boolean | number };
+
+/**
+ * 一件任务的计划日期：倒数日用目标日（它就是截止）；其他用「日期」（scheduled_date，界面上那一个日期就是要做 / 截止的那天）；
+ * 都没有时用它最晚一次进「我的一天」的日期（myDay 传这件任务的我的一天日期）。没有就 null。
+ */
+export function taskPlannedDate(t: ChainWhenTask, myDay?: readonly DateKey[]): DateKey | null {
+  if (t.completion_mode === 'countdown' && t.target_date) return t.target_date;
+  if (t.scheduled_date) return t.scheduled_date;
+  if (myDay?.length) return myDay.reduce((m, d) => (d > m ? d : m));
+  return null;
+}
+
+export type ChainWhen =
+  /** 这一步都结束了（完成 / 关闭）：date = 最晚那件的完成日期（本机日期）；都没记完成时间时为 null。days = 今天 - date。 */
+  | { kind: 'done'; date: DateKey | null; days: number | null }
+  /** 还没结束：没结束的那几件里最早的计划日期；days = date - 今天（负数 = 过期）。 */
+  | { kind: 'planned'; date: DateKey; days: number }
+  /** 没结束的那几件都没有日期。 */
+  | { kind: 'none' };
+
+/**
+ * 任务链里一步（一层，可能好几件）的时间：
+ * - 都完成 / 关闭了：用完成时间最晚的那件；
+ * - 否则只看还没结束的那几件，取最早的计划日期（taskPlannedDate）；
+ * - 都没有日期：none。
+ * myDay：任务 id → 它进过「我的一天」的日期；toLocalDate 把 done_at（ISO 时间）换成本机日期（默认按运行环境时区）。
+ */
+export function chainStepWhen(
+  tasks: readonly ChainWhenTask[],
+  today: DateKey,
+  opts: { myDay?: ReadonlyMap<string, readonly DateKey[]>; toLocalDate?: (ts: string) => DateKey } = {},
+): ChainWhen {
+  const live = tasks.filter((t) => !t.deleted);
+  const local = opts.toLocalDate ?? ((ts: string) => toDateKey(new Date(ts)));
+  const open = live.filter((t) => !isFinished(t.status));
+  if (live.length && !open.length) {
+    let date: DateKey | null = null;
+    for (const t of live) {
+      if (!t.done_at || Number.isNaN(Date.parse(t.done_at))) continue;
+      const d = local(t.done_at);
+      if (!date || d > date) date = d;
+    }
+    return { kind: 'done', date, days: date ? diffDays(date, today) : null };
+  }
+  let best: DateKey | null = null;
+  for (const t of open) {
+    const d = taskPlannedDate(t, opts.myDay?.get(t.id));
+    if (d && (!best || d < best)) best = d;
+  }
+  return best ? { kind: 'planned', date: best, days: diffDays(today, best) } : { kind: 'none' };
+}
+
+/** 超过这么多天（前后都算）就显示具体日期而不是「N 天前 / N 天后」。 */
+export const CHAIN_RELATIVE_DAYS = 30;
+
+export type ChainWhenTone = 'done' | 'overdue' | 'today' | 'upcoming' | 'none';
+
+/**
+ * 一步时间的文字（按当前语言）与色调：
+ * 完成：今天完成 / 昨天完成 / 3 天前完成 / 9月1日完成（超过 30 天；不是今年带年份）/ 已完成（没记完成时间）；
+ * 计划：今天 / 明天 / 5 天后 / 11月30日；过期：已过 2 天 / 9月1日（tone overdue）；没日期：未定时间。
+ */
+export function chainWhenLabel(w: ChainWhen, today: DateKey): { text: string; tone: ChainWhenTone } {
+  const date = (d: DateKey) => formatDate(d, { weekday: false, year: d.slice(0, 4) !== today.slice(0, 4) });
+  if (w.kind === 'none') return { text: trc('任务链', '未定时间'), tone: 'none' };
+  if (w.kind === 'done') {
+    if (w.date === null || w.days === null) return { text: tr('已完成'), tone: 'done' };
+    const n = w.days;
+    const text =
+      n <= 0 ? trc('任务链', '今天完成') : n === 1 ? trc('任务链', '昨天完成') : n <= CHAIN_RELATIVE_DAYS ? trc('任务链', '{n} 天前完成', { n }) : trc('任务链', '{date}完成', { date: date(w.date) });
+    return { text, tone: 'done' };
+  }
+  const n = w.days;
+  if (n === 0) return { text: tr('今天'), tone: 'today' };
+  if (n === 1) return { text: tr('明天'), tone: 'upcoming' };
+  if (n > 1) return { text: n <= CHAIN_RELATIVE_DAYS ? trc('任务链', '{n} 天后', { n }) : date(w.date), tone: 'upcoming' };
+  return { text: -n <= CHAIN_RELATIVE_DAYS ? trc('任务链', '已过 {n} 天', { n: -n }) : date(w.date), tone: 'overdue' };
 }

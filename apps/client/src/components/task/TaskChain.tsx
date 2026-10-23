@@ -1,16 +1,18 @@
 /**
- * 整条线（Rei 2026-10-23：「可以一键展示整个FS的一条线上的所有任务。当前一个任务只能展示它的前后任务，但前任务的前任务是没展示出来的」）。
- * 详情「关系」标题旁的「整条线」按钮打开：从最上游到最下游按层列出（core taskChain），当前任务高亮；
- * 一层有几件（分叉 / 汇合）时并排（手机上叠着），层与层之间竖线 + 箭头。点一行打开那件任务的详情。
- * 用纵向列表而不是关系图：手机窄屏上也能读全标题，状态一眼看得到。手机上 Sheet 自动是底部面板。
+ * 任务链（Rei 2026-10-23：「可以一键展示整个FS的一条线上的所有任务。当前一个任务只能展示它的前后任务，但前任务的前任务是没展示出来的」；
+ * 同日：「整条线不要弹窗。每个步骤显示相对时间，而不是第几步。改名成‘任务链’」）。
+ *
+ * 详情「关系」标题旁的「任务链」是个开关：打开后在关系区原地用任务链（core taskChain，从最上游到最下游）替换
+ * 「先做完这些 / 做完后解锁」两段，关掉恢复；「相关任务」照常在下面。开关记在本机设置（settings.taskChain，不同步），换一件任务也沿用。
+ * 每一步左边竖线 + 箭头，上面写这一步的相对时间（core chainStepWhen / chainWhenLabel：完成的写「3 天前完成」，没完成的写「明天」「已过 2 天」，没日期「未定时间」）。
+ * 同一步有几件（分叉 / 汇合）时纵向叠着、左边缩进一道线：详情栏窄，桌面也不并排。点一行打开那件任务的详情。
  */
 import { useMemo } from 'react';
-import { Button as RacButton } from 'react-aria-components';
+import { Button as RacButton, ToggleButton } from 'react-aria-components';
 import { ArrowDown, Check, Lock, Play, Route as RouteIcon, X } from 'lucide-react';
-import { taskChain, type Store, type Task } from '@mindough/core';
+import { chainStepWhen, chainWhenLabel, taskChain, todayKey, type DateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../../lib/ui';
 import { titleOf } from '../../lib/view';
-import { Sheet } from '../../ui/primitives';
 
 import { tr } from '../../lib/i18n';
 
@@ -42,29 +44,33 @@ function StateDot({ state }: { state: ChainState }) {
   );
 }
 
-/** 「整条线」按钮：有前置或后续时才显示。 */
-export function ChainButton({ onPress }: { onPress: () => void }) {
+/** 「任务链」开关：有前置或后续时才显示。打开后关系区显示任务链。 */
+export function ChainToggle({ isOn, onChange }: { isOn: boolean; onChange: (on: boolean) => void }) {
   return (
-    <RacButton className="link-btn chain-btn" onPress={onPress} aria-label={tr('看整条线：前面的前面、后面的后面都列出来')}>
-      <RouteIcon size={14} aria-hidden /> {tr('整条线')}
-    </RacButton>
+    <ToggleButton className="link-btn chain-btn" isSelected={isOn} onChange={onChange} aria-label={tr('任务链：把前面的前面、后面的后面都列出来')}>
+      <RouteIcon size={14} aria-hidden /> {tr('任务链')}
+    </ToggleButton>
   );
 }
 
-export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store; task: Task; isOpen: boolean; onClose: () => void }) {
+/** 任务链（内联在详情「关系」里）。 */
+export function TaskChainInline({ store, task }: { store: Store; task: Task }) {
   const ui = useUi();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const chain = useMemo(() => (isOpen ? taskChain(task.id, store.edges(), store.list('task')) : null), [isOpen, task.id, store, store.version]);
-  if (!isOpen || !chain) return null;
+  const chain = useMemo(() => taskChain(task.id, store.edges(), store.list('task')), [task.id, store, store.version]);
+  // 我的一天：任务 id → 进过哪些天（没有日期的任务拿它当计划日期）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const myDay = useMemo(() => {
+    const m = new Map<string, DateKey[]>();
+    for (const e of store.list('my_day')) (m.get(e.task_id) ?? m.set(e.task_id, []).get(e.task_id)!).push(e.date);
+    return m;
+  }, [store, store.version]);
+  const today = todayKey(store.now());
   const tasks = chain.ids.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const done = tasks.filter((t) => t.status === '完成').length;
   const predsIn = (id: string) => chain.edges.filter((e) => e.succ_id === id).map((e) => e.pred_id);
-  const open = (id: string) => {
-    onClose();
-    if (id !== task.id) ui.openEditor(id);
-  };
   return (
-    <Sheet isOpen onOpenChange={(o) => !o && onClose()} title={tr('整条线')} className="modal-chain">
+    <div className="chain" aria-label={tr('任务链')} role="group">
       <div className="chain-summary">
         <span className="chain-progress" role="status">
           {tr('已完成 {done} / 共 {total}', { done, total: tasks.length })}
@@ -73,14 +79,15 @@ export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store;
           <span style={{ width: `${tasks.length ? (done / tasks.length) * 100 : 0}%` }} />
         </span>
       </div>
-      <p className="chain-hint">{tr('从上往下做：上面的做完，下面的才能开始。')}</p>
       <ol className="chain-layers">
         {chain.layers.map((layer, li) => {
           const prev = new Set(chain.layers[li - 1] ?? []);
+          const layerTasks = layer.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
+          const when = chainWhenLabel(chainStepWhen(layerTasks, today, { myDay }), today);
           return (
             <li key={li} className={`chain-layer${li === chain.currentLayer ? ' is-current-layer' : ''}`}>
               <div className="chain-rail" aria-hidden>
-                <span className="chain-step">{li + 1}</span>
+                <span className="chain-node" />
                 {li < chain.layers.length - 1 && (
                   <span className="chain-line">
                     <ArrowDown size={12} strokeWidth={2.5} />
@@ -89,13 +96,12 @@ export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store;
               </div>
               <div className="chain-layer-body">
                 <div className="chain-step-label">
-                  {tr('第 {n} 步', { n: li + 1 })}
+                  <span className={`chain-when is-${when.tone}`}>{when.text}</span>
                   {layer.length > 1 && <span className="chain-step-count">{tr('{n} 件', { n: layer.length })}</span>}
                 </div>
                 <ul className={`chain-cards${layer.length > 1 ? ' is-multi' : ''}`}>
-                  {layer.map((id) => {
-                    const t = store.get('task', id);
-                    if (!t) return null;
+                  {layerTasks.map((t) => {
+                    const id = t.id;
                     const st = stateOf(store, t);
                     const current = id === task.id;
                     const preds = predsIn(id);
@@ -103,7 +109,7 @@ export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store;
                     const showAfter = li > 0 && (preds.length !== prev.size || preds.some((p) => !prev.has(p)));
                     return (
                       <li key={id} className={`chain-card is-${st}${current ? ' is-current' : ''}`}>
-                        <RacButton className="chain-card-btn" onPress={() => open(id)} aria-current={current ? 'true' : undefined}>
+                        <RacButton className="chain-card-btn" onPress={() => !current && ui.openEditor(id)} aria-current={current ? 'true' : undefined}>
                           <StateDot state={st} />
                           <span className="chain-card-text">
                             <span className="chain-card-title">{titleOf(store, t)}</span>
@@ -111,7 +117,14 @@ export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store;
                               <span className="chain-state">{STATE_TEXT[st]()}</span>
                               {showAfter && preds.length > 0 && (
                                 <span className="chain-after">
-                                  {tr('接在 {list} 后面', { list: preds.map((p) => { const pt = store.get('task', p); return pt ? tr('「{title}」', { title: titleOf(store, pt) }) : ''; }).join(tr('、')) })}
+                                  {tr('接在 {list} 后面', {
+                                    list: preds
+                                      .map((p) => {
+                                        const pt = store.get('task', p);
+                                        return pt ? tr('「{title}」', { title: titleOf(store, pt) }) : '';
+                                      })
+                                      .join(tr('、')),
+                                  })}
                                 </span>
                               )}
                             </span>
@@ -127,6 +140,6 @@ export function TaskChainSheet({ store, task, isOpen, onClose }: { store: Store;
           );
         })}
       </ol>
-    </Sheet>
+    </div>
   );
 }

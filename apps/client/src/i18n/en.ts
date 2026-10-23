@@ -526,12 +526,10 @@ export const EN: Record<string, EnValue> = {
   没有可开始的任务: 'Nothing ready to start',
   琐事: 'Errands',
 
-  // ── 整条线（详情「关系」）──
-  整条线: 'Whole Chain',
-  '看整条线：前面的前面、后面的后面都列出来': 'See the whole chain: every step before and after this one',
+  // ── 任务链（详情「关系」）──
+  任务链: 'Task Chain',
+  '任务链：把前面的前面、后面的后面都列出来': 'Task Chain: show every step before and after this one',
   '已完成 {done} / 共 {total}': (p) => `${p.done} of ${p.total} done`,
-  '从上往下做：上面的做完，下面的才能开始。': 'Top to bottom: finish what’s above before starting what’s below.',
-  '第 {n} 步': (p) => `Step ${p.n}`,
   '{n} 件': (p) => n(p.n, 'task', 'tasks'),
   '接在 {list} 后面': (p) => `After ${p.list}`,
   这件: 'This task',
