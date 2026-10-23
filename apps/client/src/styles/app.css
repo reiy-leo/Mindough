@@ -71,8 +71,19 @@ button {
 /* ───────── 外壳 ───────── */
 .app-desktop {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  /* 三列（Rei 2026-10-23）：侧边栏 | 当前视图的列表 | 任务详情（宽度由 DetailPane 定，中等宽度没选中时不占） */
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) auto;
   height: 100%;
+}
+.main-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.main-col > .main {
+  flex: 1 1 auto;
 }
 .sidebar {
   display: flex;
@@ -269,6 +280,10 @@ button {
 }
 .fab[data-pressed] {
   transform: scale(0.96);
+}
+.app-desktop .fab {
+  /* 浮在中间一列的右下角，不压住右列 */
+  position: absolute;
 }
 .app-mobile .fab {
   right: calc(var(--space-4) + env(safe-area-inset-right));
@@ -3148,4 +3163,238 @@ html[lang='en'] .heatmap {
   margin: 0 0 20px;
   color: var(--text-2);
   line-height: 1.5;
+}
+
+
+/* ═════════════ 三列布局：右列任务详情（Rei 2026-10-23：「任务详情如果不弹窗最好了，最好做成三列布局」） ═════════════
+ * 宽屏（≥ 1100）：侧边栏 | 列表 | 详情 常驻，没选中时右列是空状态；
+ * 中等宽度（761–1099，.is-narrow）：侧边栏收成图标栏，没选中时右列不占地方；
+ * 手机（≤ 760）：详情整页推入（.page-detail）。各皮肤的样子在 skin/skins.css。
+ */
+.detail-pane {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+.detail-pane-box {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--pane-bg, var(--surface));
+  border-left: 1px solid var(--border);
+}
+.pane-resizer {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.pane-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s var(--ease);
+}
+.pane-resizer:hover::after,
+.pane-resizer:focus-visible::after,
+.is-resizing .pane-resizer::after {
+  background: var(--accent);
+}
+.is-resizing,
+.is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+.pane-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.pane-head {
+  flex: none;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+  flex-wrap: nowrap;
+}
+.pane-head .status-badge,
+.pane-head .completion-pill {
+  flex: none;
+}
+.pane-body {
+  flex: 1 1 auto;
+  padding: var(--space-1) var(--space-5) var(--space-8);
+  overscroll-behavior: contain;
+}
+.pane-foot {
+  flex: none;
+}
+.pane-detail.is-finished .detail-md,
+.pane-detail.is-finished .hero-title {
+  color: var(--text-2);
+}
+.pane-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: var(--text-3);
+  text-align: center;
+}
+.pane-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+/* 右列里属性卡片不要贴边太紧 */
+.pane-detail .detail.is-stacked .prop-list {
+  margin-top: 0;
+}
+
+/* 列表里正在右列显示的那件 */
+.task-row.is-selected,
+.habit-row.is-selected {
+  background: var(--row-selected-bg, var(--accent-soft));
+}
+.task-row.is-selected:hover,
+.habit-row.is-selected:hover {
+  background: var(--row-selected-bg, var(--accent-soft));
+}
+.task-card.is-selected,
+.countdown-card.is-selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 中等宽度：侧边栏收成图标栏（每项悬停看名字），右列只在选中时出现 */
+.app-desktop.is-narrow {
+  --sidebar-w: var(--rail-w, 64px);
+}
+.app-desktop.is-narrow .detail-pane:not(.has-task),
+.app-desktop.no-list .detail-pane:not(.has-task) {
+  /* 没有任务列表的页面（日记、资料库、设置…）也一样：打开任务时才出现 */
+  display: none;
+}
+.app-desktop.is-narrow .sidebar {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  align-items: stretch;
+}
+.app-desktop.is-narrow .sidebar-search {
+  justify-content: center;
+  padding: 0;
+}
+.app-desktop.is-narrow .sidebar-search > :not(svg) {
+  display: none;
+}
+.app-desktop.is-narrow .nav-section-title {
+  /* 小节标题换成一条细线 */
+  height: 1px;
+  min-height: 0;
+  margin: var(--space-2) var(--space-2);
+  padding: 0;
+  overflow: hidden;
+  background: var(--border);
+  color: transparent;
+  pointer-events: none;
+}
+.app-desktop.is-narrow .nav-section:first-child .nav-section-title {
+  display: none;
+}
+.app-desktop.is-narrow .nav-item {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+.app-desktop.is-narrow .nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.app-desktop.is-narrow .nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+  box-sizing: border-box;
+}
+
+/* 手机：详情整页推入（盖住标签栏），返回按钮在左上 */
+.page-detail {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--pane-page-bg, var(--bg));
+  padding-top: env(safe-area-inset-top);
+  animation: page-push 0.26s var(--ease);
+  will-change: transform;
+}
+@keyframes page-push {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-detail {
+    animation: none;
+  }
+}
+.page-detail .pane-head {
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+}
+.page-detail .pane-body {
+  padding: var(--space-1) var(--space-4) var(--space-8);
+}
+.page-detail .pane-foot {
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+}
+.pane-back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-ctl);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.pane-back[data-pressed] {
+  opacity: 0.6;
+}
+.pane-back-label {
+  display: none;
 }

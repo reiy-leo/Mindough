@@ -62,8 +62,8 @@ export function CheckInsPage() {
     const type = store.get('task_type', t.type_id);
     const color = type?.color && type.layout !== 'text' ? type.color : undefined;
     return (
-      <div key={t.id} className="habit-row">
-        <RacButton className="habit-main" onPress={() => ui.openEditor(t.id)}>
+      <div key={t.id} className={`habit-row${ui.editingId === t.id ? ' is-selected' : ''}`} data-task-id={t.id}>
+        <RacButton className="habit-main" aria-current={ui.editingId === t.id ? 'true' : undefined} onPress={() => ui.openEditor(t.id)}>
           <span className="habit-title">{title(t)}</span>
           <span className="habit-meta">
             {arrange !== 'category' && catOf(t) && <CategoryLabel c={catOf(t)!} size={12} />}
@@ -187,7 +187,7 @@ export function CheckInsPage() {
               const type = store.get('task_type', t.type_id);
               const Icon = typeIcon(type?.icon);
               return (
-                <RacButton key={t.id} className="card countdown-card" onPress={() => ui.openEditor(t.id)}>
+                <RacButton key={t.id} className={`card countdown-card${ui.editingId === t.id ? ' is-selected' : ''}`} data-task-id={t.id} aria-current={ui.editingId === t.id ? 'true' : undefined} onPress={() => ui.openEditor(t.id)}>
                   <span className="countdown-title">
                     {type && type.layout !== 'text' && <Icon size={14} style={{ color: type.color }} />}
                     {title(t)}

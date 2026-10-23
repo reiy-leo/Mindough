@@ -50,9 +50,11 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const TypeIcon = typeIcon(v.type?.icon);
   const isCheckInRow = checkIn && (task.completion_mode !== 'once' || !!rec);
   const relatedCount = store.relatedTasks(task.id).length;
+  // 三列布局：右列正在显示这件
+  const selected = ui.editingId === task.id;
 
   return (
-    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}`} data-task-id={task.id}>
+    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}${selected ? ' is-selected' : ''}`} data-task-id={task.id}>
       {isCheckInRow ? (
         <span className="row-lead" aria-hidden>
           {rec ? <Repeat size={17} /> : <TypeIcon size={18} style={{ color: v.type?.color }} />}
@@ -70,7 +72,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
         </Checkbox>
       )}
       <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} name={v.artName} />
-      <RacButton className="row-main" onPress={() => ui.openEditor(task.id)}>
+      <RacButton className="row-main" aria-current={selected ? 'true' : undefined} onPress={() => ui.openEditor(task.id)}>
         <span className="row-title">{v.title}</span>
         <span className="row-meta">
           {v.type && v.type.layout !== 'text' && (

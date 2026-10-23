@@ -240,7 +240,8 @@ function GraphInner({ store, tasks, height }: { store: Store; tasks: Task[]; hei
         }}
         onEdgesDelete={(es) => es.forEach((e) => (e.id.startsWith('rel:') ? store.unlinkTasks(e.source, e.target) : store.removeDependency(e.source, e.target)))}
         onNodeDoubleClick={(_, n) => ui.openEditor(n.id)}
-        onNodeClick={(_, n) => layout === 'mobile' && ui.openEditor(n.id)}
+        // 三列布局（Rei 2026-10-23）：桌面单击也在右列显示详情（不弹窗，不挡图）；节点照样被选中，可按删除键删线
+        onNodeClick={(_, n) => ui.openEditor(n.id)}
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
         fitViewOptions={{ padding: 0.12, maxZoom: layout === 'mobile' ? 0.9 : 1.1 }}

@@ -649,7 +649,7 @@
   color: var(--accent-soft-text);
   box-shadow: none;
 }
-[data-skin='material'] .detail.is-mobile .prop-list {
+[data-skin='material'] .detail.is-stacked .prop-list {
   background: var(--surface);
 }
 [data-skin='material'] .modal-alert {
@@ -1086,4 +1086,175 @@
   border-radius: 16px;
   box-shadow: none;
   background: var(--surface-2);
+}
+
+/* ═════════════ 三列布局的右列 / 手机整页详情（Rei 2026-10-23） ═════════════ */
+/* macOS 无标题栏：图标栏要比红绿灯宽 */
+.platform-macos-overlay .app-desktop.is-narrow {
+  --rail-w: 80px;
+}
+/* 右列顶栏顶到窗口最上，空白处可拖动窗口（TaskDetail 给它 data-tauri-drag-region） */
+.platform-macos-overlay .app-desktop .pane-head {
+  min-height: var(--titlebar-h, 38px);
+}
+
+/* Apple：像「提醒事项」的检查器——白底、左边一条细线、顶栏底栏不分色 */
+[data-skin='apple'] {
+  --pane-bg: var(--surface);
+  --row-selected-bg: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+[data-skin='apple'] .detail-pane-box {
+  border-left: 0.5px solid var(--border-strong);
+}
+[data-skin='apple'] .pane-detail .pane-foot {
+  border-top: 0.5px solid var(--border);
+  background: transparent;
+  padding: var(--space-3) var(--space-5);
+}
+[data-skin='apple'] .pane-detail .detail.is-stacked .prop-list {
+  background: var(--surface-2);
+}
+[data-skin='apple'] .task-list .task-row.is-selected {
+  border-radius: 0;
+}
+[data-skin='apple'] .page-detail .pane-back {
+  color: var(--accent);
+  font-size: 17px;
+  padding-left: 0;
+}
+[data-skin='apple'] .pane-back-label {
+  display: inline;
+  margin-left: -2px;
+}
+[data-skin='apple'] .page-detail {
+  --pane-page-bg: var(--bg);
+}
+[data-skin='apple'] .page-detail .pane-head {
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+[data-skin='apple'] .page-detail .pane-foot {
+  border-top: 0.5px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+/* WinUI：像 Mail 的阅读窗格——内容层右边再一块圆角 8 的卡片，和列表之间留缝 */
+[data-skin='winui'] {
+  --pane-bg: rgba(255, 255, 255, 0.72);
+  --row-selected-bg: rgba(0, 0, 0, 0.055);
+}
+[data-skin='winui'][data-theme='dark'] {
+  --pane-bg: rgba(255, 255, 255, 0.05);
+  --row-selected-bg: rgba(255, 255, 255, 0.08);
+}
+[data-skin='winui'] .app-desktop .detail-pane {
+  padding: 8px 8px 8px 4px;
+}
+[data-skin='winui'] .detail-pane-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+[data-skin='winui'] .pane-resizer {
+  left: -2px;
+}
+[data-skin='winui'] .pane-detail .pane-foot {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+}
+[data-skin='winui'][data-theme='dark'] .pane-detail .pane-foot {
+  background: rgba(0, 0, 0, 0.14);
+}
+/* 列表选中：浅底 + 左边强调色竖条（同 NavigationView / ListView） */
+[data-skin='winui'] .task-row.is-selected,
+[data-skin='winui'] .habit-row.is-selected {
+  position: relative;
+}
+[data-skin='winui'] .task-row.is-selected::before,
+[data-skin='winui'] .habit-row.is-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+[data-skin='winui'] .page-detail {
+  --pane-page-bg: var(--bg);
+}
+[data-skin='winui'] .page-detail .pane-back {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 4px;
+}
+
+/* Material 3：list-detail 规范布局——列表和详情是两块圆角 16 的 surface container，中间 24dp 的拖动把手 */
+[data-skin='material'] {
+  --pane-bg: var(--surface);
+  --row-selected-bg: var(--accent-soft);
+}
+[data-skin='material'] .app-desktop .detail-pane {
+  padding: 16px 16px 16px 8px;
+}
+[data-skin='material'] .detail-pane-box {
+  border: 0;
+  border-radius: 16px;
+}
+[data-skin='material'] .pane-resizer {
+  left: -8px;
+  width: 16px;
+}
+[data-skin='material'] .pane-resizer::after {
+  top: 50%;
+  bottom: auto;
+  left: 6px;
+  width: 4px;
+  height: 48px;
+  margin-top: -24px;
+  background: var(--border-strong);
+}
+[data-skin='material'] .pane-resizer:hover::after,
+[data-skin='material'] .pane-resizer:focus-visible::after,
+[data-skin='material'] .is-resizing .pane-resizer::after {
+  background: var(--text-2);
+  width: 4px;
+}
+[data-skin='material'] .pane-detail .pane-head {
+  min-height: 64px;
+}
+[data-skin='material'] .pane-detail .pane-foot {
+  border-top: 0;
+  background: transparent;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+[data-skin='material'] .pane-detail .detail.is-stacked .prop-list {
+  background: var(--surface-2);
+}
+[data-skin='material'] .page-detail .detail.is-stacked .prop-list {
+  background: var(--surface);
+}
+[data-skin='material'] .task-row.is-selected .row-title {
+  color: var(--accent-soft-text);
+}
+[data-skin='material'] .page-detail {
+  --pane-page-bg: var(--bg);
+}
+[data-skin='material'] .page-detail .pane-head {
+  height: 64px;
+}
+[data-skin='material'] .page-detail .pane-back {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
 }

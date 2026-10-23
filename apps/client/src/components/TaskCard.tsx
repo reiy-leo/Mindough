@@ -24,7 +24,7 @@ export function TaskCard({ store, task }: { store: Store; task: Task }) {
     .filter(Boolean)
     .slice(0, 3);
   return (
-    <RacButton className={`task-card layout-${layout} ${STATE_CLASS[v.derived?.state ?? ''] ?? ''}${task.status === '完成' ? ' is-done' : ''}${task.status === '关闭' ? ' is-closed' : ''}`} onPress={() => ui.openEditor(task.id)}>
+    <RacButton className={`task-card layout-${layout} ${STATE_CLASS[v.derived?.state ?? ''] ?? ''}${task.status === '完成' ? ' is-done' : ''}${task.status === '关闭' ? ' is-closed' : ''}${ui.editingId === task.id ? ' is-selected' : ''}`} data-task-id={task.id} aria-current={ui.editingId === task.id ? 'true' : undefined} onPress={() => ui.openEditor(task.id)}>
       {layout !== 'text' && (
         <div className="task-card-media" style={{ '--type-color': v.type?.color } as CSSProperties}>
           {v.media ? <img src={v.media} alt="" className={v.mediaIsAvatar ? 'is-avatar' : undefined} /> : v.artName ? <ItemArt src={null} name={v.artName} shape={layoutShape(layout)} className="task-card-art" /> : <Icon size={layout === 'poster' ? 32 : 22} />}

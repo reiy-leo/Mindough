@@ -738,7 +738,7 @@
   gap: var(--space-8);
   align-items: start;
 }
-.detail.is-mobile {
+.detail.is-stacked {
   grid-template-columns: 1fr;
   gap: 0;
 }
@@ -1043,16 +1043,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.detail.is-mobile .prop-list {
+.detail.is-stacked .prop-list {
   margin: var(--space-1) 0 var(--space-5);
   padding: 0 var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
-.detail.is-mobile .prop-row {
+.detail.is-stacked .prop-row {
   min-height: 46px;
 }
-.detail.is-mobile .prop-value {
+.detail.is-stacked .prop-value {
   max-width: 60%;
 }
 
@@ -1067,7 +1067,7 @@
   padding-top: var(--space-5);
   border-top: 1px solid var(--border);
 }
-.detail.is-mobile .relations {
+.detail.is-stacked .relations {
   padding-top: 0;
   border-top: 0;
 }

@@ -51,7 +51,7 @@ apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）
   ui/primitives.tsx     React Aria 包装（Button、Sheet、PopoverPanel、OverflowMenu、ConfirmDialog、InlineNumber、AutoTextarea、Tip…）
-  components/task/      新建面板 TaskComposer、任务详情 TaskDetail、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
+  components/task/      新建面板 TaskComposer、任务详情 TaskDetail（外框 DetailFrame：右列 / 手机整页 / 小窗弹窗）、三列布局右列 DetailPane、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
   components/library/   资料库共用件：占位图 ItemArt、选择框 LibraryPicker、资料编辑 ItemEditor / ItemSheet、资料卡 ItemCard
                         LinkFields（站点编号 / 更多链接 / 链接小标签）、MoneyField（金额 + 可搜索币种）、NoteField（Markdown 备注）
   components/attachments/  附件区 Attachments（拖放 useFileDrop + DropOverlay、图片网格、文件列表、重命名）、灯箱 Lightbox、文件类型图标 FileIcon（手写 SVG，颜色令牌 --file-*）；样式 styles/attachments.css
@@ -92,12 +92,13 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 | Android | `pnpm tauri android init` → `pnpm tauri android build --apk --debug` |
 | 打包 CI | GitHub Actions `build.yml`（手动 / 推 `v*` 标签）；`ci.yml` 每次推送跑检查 |
 
-截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍。
+截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍（动到外壳或详情时再加 960 宽的中等宽度：图标栏 + 两栏）。
 
 ## 代码规范
 - 界面文案中文，**一律按 [docs/COPY.md](docs/COPY.md)**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；新词先补进术语表。HTTP 状态码出现时附中文说明（如「408 请求超时」）。
 - 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
 - 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
+- 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不是弹窗——桌面在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开一律 `ui.openEditor(id)`（选中写在 hash 的 `?task=`，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
 - 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
 - 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时一律用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
 - 类型编辑（M4）：取类型列表用 `store.pickableTypes()` / `orderedTypes()` / `editableTypes()`，不要自己按 sort 排；显示字段用 `shownFields` / `itemFieldsOf` / `taskFieldsOf`（不含隐藏、删掉的），别直接遍历 `type.fields` 去显示；删字段用 `removeField`（留墓碑），不要从数组里真删。

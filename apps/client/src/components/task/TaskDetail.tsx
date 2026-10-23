@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { AlertTriangle, Bell, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, Bell, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
@@ -55,12 +55,125 @@ import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachmen
 import { ChainToggle, TaskChainInline } from './TaskChain';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
-export function TaskDetail() {
+/**
+ * 任务详情怎么摆（Rei 2026-10-23「任务链不要再弹窗了，任务详情如果不弹窗最好了，最好做成三列布局」）：
+ * - pane：桌面 / 平板的右列（侧边栏 | 列表 | 详情），外框在 components/task/DetailPane.tsx；
+ * - page：手机上整页推入（返回按钮、右滑、系统返回键回列表）；
+ * - modal：桌面置顶小窗里还是弹窗（小窗太窄放不下第三列）。
+ */
+export type DetailMode = 'pane' | 'page' | 'modal';
+
+export function TaskDetail({ mode = 'modal' }: { mode?: DetailMode }) {
   const ui = useUi();
   const store = useStore();
   const task = store.get('task', ui.editingId);
   if (!task) return null;
-  return <Detail key={task.id} task={task} />;
+  return <Detail key={task.id} task={task} mode={mode} />;
+}
+
+/** 选中的任务还在不在（右列显示详情还是空状态）。 */
+export function useSelectedTask(): Task | undefined {
+  const ui = useUi();
+  const store = useStore();
+  return store.get('task', ui.editingId);
+}
+
+/**
+ * 详情的外框：小窗里是弹窗（Sheet），右列和手机整页是普通的面板（顶栏 + 可滚动内容 + 底栏）。
+ * 手机整页：左上「返回」，从屏幕左边缘往右滑也能返回（跟着手指走，松手过一段距离才回去）。
+ */
+function DetailFrame({
+  mode,
+  title,
+  finished,
+  onClose,
+  headerStart,
+  headerEnd,
+  footer,
+  children,
+}: {
+  mode: DetailMode;
+  title: string;
+  finished: boolean;
+  onClose: () => void;
+  headerStart: ReactNode;
+  headerEnd: ReactNode;
+  footer: ReactNode;
+  children: ReactNode;
+}) {
+  const { skin } = useSettings();
+  const pageRef = useRef<HTMLElement>(null);
+  const swipe = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
+  if (mode === 'modal')
+    return (
+      <Sheet isOpen wide className={`modal-detail${finished ? ' is-finished' : ''}`} onOpenChange={(o) => !o && onClose()} title={title} titleHidden headerStart={headerStart} headerEnd={headerEnd} footer={footer}>
+        {children}
+      </Sheet>
+    );
+  const page = mode === 'page';
+  const setX = (dx: number, animate: boolean) => {
+    const el = pageRef.current;
+    if (!el) return;
+    el.style.transition = animate ? 'transform 0.2s var(--ease)' : 'none';
+    el.style.transform = dx ? `translateX(${dx}px)` : '';
+  };
+  const swipeProps = page
+    ? {
+        onTouchStart: (e: TouchEvent) => {
+          const t = e.touches[0];
+          // 只认从左边缘开始的（别和编辑器里选字、横向滚动的表格抢）
+          swipe.current = t && t.clientX < 28 ? { x: t.clientX, y: t.clientY, dx: 0, on: false } : null;
+        },
+        onTouchMove: (e: TouchEvent) => {
+          const s = swipe.current;
+          const t = e.touches[0];
+          if (!s || !t) return;
+          const dx = t.clientX - s.x;
+          if (!s.on && Math.abs(t.clientY - s.y) > Math.abs(dx)) {
+            swipe.current = null;
+            return;
+          }
+          s.on = dx > 8;
+          s.dx = Math.max(0, dx);
+          if (s.on) setX(s.dx, false);
+        },
+        onTouchEnd: () => {
+          const s = swipe.current;
+          swipe.current = null;
+          if (!s?.on) return;
+          if (s.dx > Math.min(120, window.innerWidth * 0.3)) {
+            setX(window.innerWidth, true);
+            window.setTimeout(onClose, 180);
+          } else setX(0, true);
+        },
+      }
+    : {};
+  const BackIcon = skin === 'apple' ? ChevronLeft : ArrowLeft;
+  return (
+    <section ref={pageRef} className={`pane-detail${page ? ' page-detail' : ''}${finished ? ' is-finished' : ''}`} aria-label={title} {...swipeProps}>
+      <div className="dialog-head pane-head" {...(page ? {} : { 'data-tauri-drag-region': true })}>
+        {page && (
+          <RacButton className="pane-back" aria-label={tr('返回')} onPress={onClose}>
+            <BackIcon size={skin === 'apple' ? 24 : 20} aria-hidden />
+            <span className="pane-back-label">{tr('返回')}</span>
+          </RacButton>
+        )}
+        {headerStart}
+        <h2 className="sr-only">{title}</h2>
+        <span className="grow" />
+        {headerEnd}
+        {!page && (
+          <Tip content={<>{tr('关闭')} <kbd className="kbd">Esc</kbd></>}>
+            <RacButton className="icon-btn dialog-close" aria-label={tr('关闭')} onPress={onClose}>
+              <X size={18} />
+            </RacButton>
+          </Tip>
+        )}
+      </div>
+      <div className="dialog-body pane-body">{children}</div>
+      {footer && <div className="dialog-foot pane-foot">{footer}</div>}
+    </section>
+  );
 }
 
 /**
@@ -687,14 +800,19 @@ function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task:
   );
 }
 
-function Detail({ task }: { task: Task }) {
+function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   const ui = useUi();
   const store = useStore();
   const { layout } = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addRel, setAddRel] = useState<RelKind | null>(null);
-  const close = () => ui.openEditor(null);
-  const { primary, secondary, today, complete } = useActions(store, task, close);
+  // 关掉详情：手机整页走「返回」（退回进来前那条浏览记录），右列 / 小窗直接取消选中
+  const close = mode === 'page' ? ui.closeDetail : () => ui.openEditor(null);
+  // 完成 / 关闭这件：弹窗和手机整页像以前一样收起；右列留着，显示「已完成」和「重新打开」
+  const afterFinish = mode === 'pane' ? () => {} : close;
+  // 右列和手机整页都是一栏：属性跟在正文后面（弹窗在宽屏上属性在右边一栏）
+  const stacked = mode !== 'modal' || layout === 'mobile';
+  const { primary, secondary, today, complete } = useActions(store, task, afterFinish);
   // 附件：拖文件到详情上就加（Rei 2026-10-17）
   const owner = useMemo(() => ({ type: 'task' as const, id: task.id }), [task.id]);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -745,7 +863,7 @@ function Detail({ task }: { task: Task }) {
     done: complete,
     close: () => {
       closeTask(store, ui, task.id);
-      close();
+      afterFinish();
     },
     reopen: () => {
       store.reopenTask(task.id);
@@ -875,13 +993,11 @@ function Detail({ task }: { task: Task }) {
 
   return (
     <>
-      <Sheet
-        isOpen
-        wide
-        className={`modal-detail${finished ? ' is-finished' : ''}`}
-        onOpenChange={(o) => !o && close()}
+      <DetailFrame
+        mode={mode}
         title={title}
-        titleHidden
+        finished={finished}
+        onClose={close}
         headerStart={
           <>
             {badge}
@@ -934,7 +1050,7 @@ function Detail({ task }: { task: Task }) {
           ) : null
         }
       >
-        <div ref={dropRef} className={`detail${layout === 'mobile' ? ' is-mobile' : ''}${dropping ? ' is-dropping' : ''}`}>
+        <div ref={dropRef} className={`detail${stacked ? ' is-stacked' : ''}${layout === 'mobile' ? ' is-mobile' : ''}${dropping ? ' is-dropping' : ''}`}>
           <DropOverlay active={dropping} />
           <div className="detail-main">
             {!lib && typed && type && (
@@ -968,12 +1084,12 @@ function Detail({ task }: { task: Task }) {
                 </DisclosurePanel>
               </Disclosure>
             )}
-            {layout === 'mobile' && props}
+            {stacked && props}
             <Relations store={store} task={task} />
           </div>
-          {layout !== 'mobile' && <aside className="detail-side">{props}</aside>}
+          {!stacked && <aside className="detail-side">{props}</aside>}
         </div>
-      </Sheet>
+      </DetailFrame>
       <RelationPicker store={store} task={task} kind={addRel} onClose={() => setAddRel(null)} />
       <ConfirmDialog
         isOpen={confirmDelete}

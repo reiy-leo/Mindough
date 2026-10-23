@@ -526,6 +526,11 @@ export const EN: Record<string, EnValue> = {
   没有可开始的任务: 'Nothing ready to start',
   琐事: 'Errands',
 
+  // ── 三列布局：右列任务详情 / 手机整页详情（Rei 2026-10-23）──
+  任务详情: 'Task Details',
+  选一件任务查看详情: 'Select a task to see its details',
+  调整详情宽度: 'Resize Details',
+  返回: 'Back',
   // ── 任务链（详情「关系」）──
   任务链: 'Task Chain',
   '任务链：把前面的前面、后面的后面都列出来': 'Task Chain: show every step before and after this one',

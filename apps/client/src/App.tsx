@@ -17,6 +17,8 @@ import { CheckInsPage } from './pages/CheckIns';
 import { SettingsPage } from './pages/Settings';
 import { JournalPage } from './pages/Journal';
 import { TaskDetail } from './components/task/TaskDetail';
+import { DetailPane } from './components/task/DetailPane';
+import { WIDE_MIN } from './lib/detail-pane';
 import { DeepLinks } from './components/DeepLinks';
 import { TaskComposer } from './components/task/TaskComposer';
 import { CommandPalette } from './components/CommandPalette';
@@ -80,6 +82,8 @@ const NAV_SECTIONS: NavSection[] = [
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 const SETTINGS: NavItem = { page: 'settings', get label() { return tr('设置'); }, icon: Settings, match: ['settings'] };
 const MOBILE_TABS: Route['page'][] = ['myday', 'backlog', 'checkin', 'agenda'];
+/** 有任务列表的页面：宽屏上右列常驻（没选中时是空状态）；别的页面（日记、资料库、设置…）只在打开任务时才出现右列。 */
+const LIST_PAGES: Route['page'][] = ['myday', 'backlog', 'agenda', 'groups', 'group', 'doable', 'checkin'];
 const COLLAPSED_KEY = 'mindough:nav_collapsed';
 
 function useCollapsed() {
@@ -99,10 +103,23 @@ function useCollapsed() {
   return [collapsed, toggle] as const;
 }
 
+/** 窗口是不是比宽屏窄（中等宽度：侧边栏收成图标栏）。 */
+function useNarrow(): boolean {
+  const query = `(max-width: ${WIDE_MIN - 0.02}px)`;
+  const [match, setMatch] = useState(() => matchMedia(query).matches);
+  useEffect(() => {
+    const m = matchMedia(query);
+    const on = () => setMatch(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
+
 function NavLink({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
   const Icon = item.icon;
   return (
-    <a href={href({ page: item.page } as Route)} className={`nav-item${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined}>
+    <a href={href({ page: item.page } as Route)} className={`nav-item${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}>
       <span className="nav-icon">
         <Icon size={18} />
       </span>
@@ -239,7 +256,7 @@ export function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         ui.setPaletteOpen(true);
-      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !isTyping(e.target) && !ui.editingId && !ui.paletteOpen) {
+      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !isTyping(e.target) && !ui.paletteOpen && !ui.quickCreate) {
         e.preventDefault();
         ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
       }
@@ -251,22 +268,25 @@ export function App() {
   const newTask = () => ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
   const backlogCount = store.backlog(toDateKey(store.now())).length;
   const current = [...NAV, SETTINGS].find(isActive);
+  // 中等宽度：侧边栏是图标栏，小节标题不显示，收起的小节也照样列出来（不然点不开）
+  const narrow = useNarrow();
+  const selected = !!store.get('task', ui.editingId);
 
   let shell: ReactNode;
   if (layout === 'desktop') {
     shell = (
-      <div className="app app-desktop">
+      <div className={`app app-desktop${narrow ? ' is-narrow' : ''}${selected ? ' has-detail' : ''}${LIST_PAGES.includes(route.page) ? '' : ' no-list'}`}>
         <aside className="sidebar">
           {/* macOS 无标题栏时给红绿灯让位、可拖动窗口（双击放大）；其他平台不显示 */}
           <div className="titlebar-space" data-tauri-drag-region aria-hidden />
-          <RacButton className="sidebar-search" onPress={() => ui.setPaletteOpen(true)}>
+          <RacButton className="sidebar-search" aria-label={tr('搜索')} onPress={() => ui.setPaletteOpen(true)}>
             <Search size={15} />
             <span className="grow">{tr('搜索')}</span>
             <kbd className="kbd">{skin === 'apple' ? '⌘K' : 'Ctrl K'}</kbd>
           </RacButton>
           <nav className="nav" aria-label={tr('主导航')}>
             {NAV_SECTIONS.map((sec) => {
-              const isCollapsed = collapsed.includes(sec.id) && !sec.items.some(isActive);
+              const isCollapsed = !narrow && collapsed.includes(sec.id) && !sec.items.some(isActive);
               return (
                 <div key={sec.id} className="nav-section" role="group" aria-labelledby={`nav-sec-${sec.id}`}>
                   <RacButton id={`nav-sec-${sec.id}`} className="nav-section-title" aria-expanded={!isCollapsed} onPress={() => toggleSection(sec.id)}>
@@ -283,23 +303,27 @@ export function App() {
             <NavLink item={SETTINGS} active={isActive(SETTINGS)} />
           </div>
         </aside>
-        <main className="main">
-          <div className="titlebar-space" data-tauri-drag-region aria-hidden />
-          <div className="main-scroll">
-            <LoginErrorBanner />
-            <Page route={route} />
-          </div>
-        </main>
-        <Tip content={<>{tr('新建任务')} <kbd className="kbd">N</kbd></>}>
-          <NewTaskFab onPress={newTask} />
-        </Tip>
+        {/* 中间一列：当前视图的列表；新建按钮浮在这一列右下角（不压住右列的详情） */}
+        <div className="main-col">
+          <main className="main">
+            <div className="titlebar-space" data-tauri-drag-region aria-hidden />
+            <div className="main-scroll">
+              <LoginErrorBanner />
+              <Page route={route} />
+            </div>
+          </main>
+          <Tip content={<>{tr('新建任务')} <kbd className="kbd">N</kbd></>}>
+            <NewTaskFab onPress={newTask} />
+          </Tip>
+        </div>
+        <DetailPane />
       </div>
     );
   } else {
     const tabs = NAV.filter((n) => MOBILE_TABS.includes(n.page));
     const moreActive = !tabs.some(isActive);
     shell = (
-      <div className="app app-mobile">
+      <div className={`app app-mobile${selected ? ' has-detail' : ''}`}>
         <div className="topbar">
           <span className="topbar-title">{current?.label ?? 'Mindough'}</span>
           <RacButton className="icon-btn" aria-label={tr('搜索')} onPress={() => ui.setPaletteOpen(true)}>
@@ -330,6 +354,8 @@ export function App() {
             <span className="tab-label">{tr('更多')}</span>
           </a>
         </nav>
+        {/* 手机：任务详情整页推入（不是底部弹窗），返回 / 右滑 / 系统返回键回到列表 */}
+        <TaskDetail mode="page" />
       </div>
     );
   }
@@ -337,7 +363,6 @@ export function App() {
   return (
     <>
       {shell}
-      <TaskDetail />
       <TaskComposer />
       <ReminderHost />
       <CommandPalette />

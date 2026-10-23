@@ -54,6 +54,8 @@
   min-height: 32px;
 }
 .att-title {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -66,6 +68,10 @@
   color: var(--text-3);
 }
 .att-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--fs-small);
   color: var(--text-3);
 }
@@ -73,6 +79,8 @@
   flex: 1;
 }
 .att-add {
+  flex: none;
+  white-space: nowrap;
   color: var(--accent-soft-text);
 }
 

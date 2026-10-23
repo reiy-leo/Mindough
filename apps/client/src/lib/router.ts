@@ -18,8 +18,15 @@ export type Route =
   | { page: 'settings' }
   | { page: 'more' };
 
+/** hash 里 ? 之前的路径部分（?task= 等参数不算路由）。 */
+function hashPath(hash: string): string {
+  const h = hash.replace(/^#/, '');
+  const qi = h.indexOf('?');
+  return qi >= 0 ? h.slice(0, qi) : h;
+}
+
 export function parseHash(hash: string): Route {
-  const [, a, b, c] = hash.replace(/^#/, '').split('/');
+  const [, a, b, c] = hashPath(hash).split('/');
   switch (a) {
     case 'agenda':
       return { page: 'agenda' };
@@ -63,6 +70,30 @@ export function href(route: Route): string {
   }
 }
 
+/**
+ * 三列布局里选中的任务（Rei 2026-10-23「任务详情如果不弹窗最好了，最好做成三列布局」）：
+ * 写在当前页面 hash 的 ?task=<id> 上（#/agenda?task=…），刷新后还在；换页面（navigate）就不带了。
+ */
+export function taskInHash(hash: string): string | null {
+  const h = hash.replace(/^#/, '');
+  const qi = h.indexOf('?');
+  if (qi < 0) return null;
+  const id = new URLSearchParams(h.slice(qi + 1)).get('task');
+  return id ? id : null;
+}
+
+/** 当前 hash 换上（或去掉）选中的任务，其他参数和路径不变。没有路径时当作我的一天。 */
+export function hashWithTask(hash: string, id: string | null): string {
+  const h = hash.replace(/^#/, '');
+  const qi = h.indexOf('?');
+  const path = (qi >= 0 ? h.slice(0, qi) : h) || '/myday';
+  const q = new URLSearchParams(qi >= 0 ? h.slice(qi + 1) : '');
+  if (id) q.set('task', id);
+  else q.delete('task');
+  const qs = q.toString();
+  return `#${path}${qs ? `?${qs}` : ''}`;
+}
+
 export function navigate(route: Route) {
   location.hash = href(route);
 }
@@ -70,7 +101,11 @@ export function navigate(route: Route) {
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseHash(location.hash));
   useEffect(() => {
-    const on = () => setRoute(parseHash(location.hash));
+    // 只是 ?task= 变了：路由对象不换，页面不用重来
+    const on = () => {
+      const next = parseHash(location.hash);
+      setRoute((cur) => (JSON.stringify(cur) === JSON.stringify(next) ? cur : next));
+    };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
