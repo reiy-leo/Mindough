@@ -31,7 +31,7 @@ import { useAppMenu } from './lib/app-menu';
 
 const DidaImportSheet = lazy(() => import('./components/DidaImport').then((m) => ({ default: m.DidaImportSheet })));
 
-import { tr, trc } from './lib/i18n';
+import { appName, tr, trc } from './lib/i18n';
 interface NavItem {
   page: Route['page'];
   label: string;
@@ -325,7 +325,7 @@ export function App() {
     shell = (
       <div className={`app app-mobile${selected ? ' has-detail' : ''}`}>
         <div className="topbar">
-          <span className="topbar-title">{current?.label ?? 'Mindough'}</span>
+          <span className="topbar-title">{current?.label ?? appName()}</span>
           <RacButton className="icon-btn" aria-label={tr('搜索')} onPress={() => ui.setPaletteOpen(true)}>
             <Search size={20} />
           </RacButton>

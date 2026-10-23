@@ -30,7 +30,11 @@
     "category": "Productivity",
     "shortDescription": "用依赖把任务串起来的任务管理",
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "files": {
+        "Resources/zh-Hans.lproj/InfoPlist.strings": "locales/apple/zh-Hans.lproj/InfoPlist.strings",
+        "Resources/en.lproj/InfoPlist.strings": "locales/apple/en.lproj/InfoPlist.strings"
+      }
     },
     "icon": [
       "icons/32x32.png",

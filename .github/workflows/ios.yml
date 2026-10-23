@@ -74,6 +74,8 @@ jobs:
           echo "app: $APP"
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          # 简体中文系统下主屏幕显示「思想团」（zh-Hans.lproj/InfoPlist.strings），bundle id 不变
+          scripts/native-locales.sh ios "$RUNNER_TEMP/ipa/Payload/$(basename "$APP")"
           cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/Mindough-unsigned.ipa" Payload
           ls -la "$GITHUB_WORKSPACE/Mindough-unsigned.ipa"
 

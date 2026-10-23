@@ -1,6 +1,6 @@
-# Mindough 产品说明
+# Mindough（思想团）产品说明
 
-名字来自“满都”（都读 dōu），英文读 /ˈmaɪn.doʊ/。
+名字（Rei 2026-10-24 定）：英文「Mindough」，中文「思想团」。中文界面显示思想团、英文界面显示 Mindough（网页标题、主屏幕名、关于、菜单栏都随语言）；安装包名、bundle id、PWA manifest 的 name 仍是 Mindough。
 
 ## 给谁 / 解决什么
 给 Rei 自己（登录范围待定）。市面任务工具都靠多层分类管理；Mindough 让任务完成后自然接上后续任务（一个或多个，FS 完成→开始），像前导图 PDM，同时有一条 Agenda 式时间线记琐事。

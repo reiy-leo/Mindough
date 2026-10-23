@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Tauri 会把这个文件合进 macOS / iOS 的 Info.plist。显示名的本地化（Rei 2026-10-24：中文「思想团」）在 locales/apple/*.lproj/InfoPlist.strings。 -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>zh-Hans</string>
+  </array>
+  <key>LSHasLocalizedDisplayName</key>
+  <true/>
+</dict>
+</plist>

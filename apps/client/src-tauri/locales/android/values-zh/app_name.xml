@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 中文系统下桌面图标和最近任务里显示的名字（Rei 2026-10-24：中文「思想团」，默认 values/strings.xml 仍是 Mindough）。
+     由 scripts/native-locales.sh 在 `tauri android init` 之后拷进 gen/android/app/src/main/res/。 -->
+<resources>
+    <string name="app_name">思想团</string>
+    <string name="main_activity_title">思想团</string>
+</resources>

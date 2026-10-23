@@ -8,7 +8,7 @@ import { migrateFromTurso, openWebSqlite, terminateWebSqlite, webSqliteSupported
 import { acquireTabLock, type TabLock } from './tab-lock';
 import { isTauri, openTauriSqlite } from './sqlite-tauri';
 
-import { tr } from '../lib/i18n';
+import { appName, tr } from '../lib/i18n';
 const Ctx = createContext<Store | null>(null);
 
 /** 记在 localStorage 里：这台设备已经用上 SQLite。之后 SQLite 打不开就报错，而不是悄悄退回 localStorage（会分叉数据）。 */
@@ -118,7 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return (
       <div className="tab-blocked" role="alert">
         <div className="tab-blocked-card">
-          <div className="tab-blocked-title">{tr('Mindough 已在另一个标签页打开')}</div>
+          <div className="tab-blocked-title">{tr('思想团已在另一个标签页打开')}</div>
           <p className="tab-blocked-text">
             {blocked === 'taken' ? tr('你在另一个标签页里点了「在这里用」，这一页先停下了。') : tr('同一时间只能在一个标签页里用，免得两边的改动打架。')}
           </p>
@@ -135,7 +135,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         </div>
       </div>
     );
-  if (!store) return <div className="boot">Mindough</div>;
+  if (!store) return <div className="boot">{appName()}</div>;
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
 

@@ -18,7 +18,7 @@ import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
-import { getLocale, tr, trc } from '../lib/i18n';
+import { appName, getLocale, tr, trc } from '../lib/i18n';
 import tmdbLogo from '../assets/tmdb-logo.svg';
 import { useLocalePref } from '../lib/locale';
 import { exportToZip } from '../lib/archive';
@@ -241,7 +241,7 @@ function ArchiveRows() {
       <div className="setting">
         <div className="setting-text">
           <div className="setting-name">{tr('导入')}</div>
-          <div className="setting-hint">{tr('Mindough 导出的 zip，或任何 Markdown 文件夹；导入前先看一眼会改什么')}</div>
+          <div className="setting-hint">{tr('思想团导出的 zip，或任何 Markdown 文件夹；导入前先看一眼会改什么')}</div>
         </div>
         <Button variant="secondary" onPress={() => setImporting(true)}>
           {tr('导入…')}
@@ -266,13 +266,13 @@ function ArchiveRows() {
 }
 
 /**
- * 关于：Mindough 自己的标识在前；TMDB 的署名按它的要求放（认可的 logo、比我们的标识不显眼、原文声明、链接到 themoviedb.org）。
+ * 关于：app 自己的标识（名字随语言：思想团 / Mindough）在前；TMDB 的署名按它的要求放（认可的 logo、比我们的标识不显眼、原文声明、链接到 themoviedb.org）。
  */
 function AboutSection() {
   return (
     <section className="about" aria-label={tr('关于')}>
       <img src="/icons/icon-192.png" alt="" className="about-icon" width={36} height={36} />
-      <div className="about-name">Mindough</div>
+      <div className="about-name">{appName()}</div>
       <p className="muted small">{tr('数据先存在这台设备上，离线也能用')}</p>
       <div className="about-credits">
         <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="about-tmdb" aria-label="TMDB">
@@ -517,15 +517,15 @@ function ReminderSection() {
     ? tr('关着：到点不提醒。只影响这台设备。')
     : perm === 'granted'
       ? web
-        ? tr('到点发系统通知；Mindough 开着（标签页可以在后台）才会提醒。')
+        ? tr('到点发系统通知；思想团开着（标签页可以在后台）才会提醒。')
         : tr('到点发系统通知。')
       : perm === 'denied'
         ? web
-          ? tr('通知被浏览器关掉了：到点只在 Mindough 里提示。要系统通知，到浏览器的网站设置里允许通知。')
-          : tr('通知被系统关掉了：到点只在 Mindough 里提示。要系统通知，到系统设置里允许 Mindough 发通知。')
+          ? tr('通知被浏览器关掉了：到点只在思想团里提示。要系统通知，到浏览器的网站设置里允许通知。')
+          : tr('通知被系统关掉了：到点只在思想团里提示。要系统通知，到系统设置里允许思想团发通知。')
         : perm === 'unsupported'
-          ? tr('这里发不了系统通知：到点只在 Mindough 里提示。')
-          : tr('还没允许通知：到点只在 Mindough 里提示。');
+          ? tr('这里发不了系统通知：到点只在思想团里提示。')
+          : tr('还没允许通知：到点只在思想团里提示。');
   return (
     <Section title={tr('提醒')}>
       <div className="card settings-card">

@@ -1,4 +1,6 @@
-# Mindough
+# Mindough（思想团）
+
+中文名「思想团」，英文名 Mindough。
 
 多端任务管理：用 FS（完成→开始）依赖把任务串起来，再配一条 Agenda 式琐事时间线。macOS / Windows / iOS / Android / Web，本地优先、多端同步。
 

@@ -17,7 +17,7 @@ class MindoughWidget : AppWidgetProvider() {
         for (id in ids) {
             val views = RemoteViews(context.packageName, R.layout.mindough_widget)
             views.setTextViewText(R.id.widget_title, "我的一天")
-            views.setTextViewText(R.id.widget_body, snap ?: "打开 Mindough 看看今天")
+            views.setTextViewText(R.id.widget_body, snap ?: "打开思想团看看今天")
             // 点小组件打开 app（以后可以带 mindough://task/<id> 直接打开某件）
             val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
             if (open != null) {

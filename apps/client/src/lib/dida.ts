@@ -50,7 +50,7 @@ export function didaCall(token: string, signal?: AbortSignal, fetcher: typeof fe
     }
     const data = (await res.json().catch(() => null)) as { error?: string; upstream_status?: number } | null;
     if (res.ok) return data;
-    if (res.status === 401 && !data?.upstream_status) throw new DidaApiError(tr('先登录 Mindough（401 未登录）'), -401);
+    if (res.status === 401 && !data?.upstream_status) throw new DidaApiError(tr('先登录思想团（401 未登录）'), -401);
     throw new DidaApiError(data?.error ?? tr('{status} 出错了', { status: res.status }), data?.upstream_status ?? res.status);
   };
 }

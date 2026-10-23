@@ -6,7 +6,7 @@
  * （LWW、不进 outbox——写的那个窗口已经进过了；落盘是同一行，WHERE updated_at > 不会重复写）。
  * 小窗不跑同步、不排提醒（都交给主窗口）。
  */
-import type { Change, Store } from '@mindough/core';
+import { appName, type Change, type Store } from '@mindough/core';
 import { isTauri } from '../store/sqlite-tauri';
 
 export const isMiniWindow = (): boolean => typeof location !== 'undefined' && new URLSearchParams(location.search).get('window') === 'mini';
@@ -49,7 +49,7 @@ export async function openMiniWindow(): Promise<void> {
   }
   new WebviewWindow('mini', {
     url: 'index.html?window=mini#/mini',
-    title: 'Mindough',
+    title: appName(),
     width: 340,
     height: 540,
     minWidth: 280,

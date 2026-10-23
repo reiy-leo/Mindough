@@ -127,7 +127,7 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
       }
       let message = e instanceof Error ? e.message : String(e);
       if (e instanceof DidaApiError && e.status === 401) message = tr('令牌不对或已经失效（401 未授权）：在滴答清单里重新生成一个，粘贴到这里再试。');
-      if (e instanceof DidaApiError && e.status === -401) message = tr('先在「设置 → 账户」登录 Mindough（401 未登录），连接要经过 Mindough 的服务器转一下。');
+      if (e instanceof DidaApiError && e.status === -401) message = tr('先在「设置 → 账户」登录思想团（401 未登录），连接要经过思想团的服务器转一下。');
       setStage({ kind: 'failed', message });
     }
   };
@@ -208,7 +208,7 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
                   {tr('打开滴答清单')}
                 </a>
               </p>
-              {!signedIn && <p className="dida-warn small">{tr('先在「设置 → 账户」登录 Mindough：连接要经过 Mindough 的服务器转一下（令牌不会存在服务器上）。')}</p>}
+              {!signedIn && <p className="dida-warn small">{tr('先在「设置 → 账户」登录思想团：连接要经过思想团的服务器转一下（令牌不会存在服务器上）。')}</p>}
               <Field label={tr('API 令牌')} type="password" value={token} onChange={setToken} placeholder={tr('粘贴令牌')} />
               <Select
                 label={tr('已完成的导入最近多久')}

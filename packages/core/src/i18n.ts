@@ -85,6 +85,15 @@ export function trc(ctx: string, zh: string, params?: Params): string {
   return tr(zh, params);
 }
 
+/**
+ * App 名字（Rei 2026-10-24 定）：英文「Mindough」，中文「思想团」。界面上凡是要写 app 名的地方用 appName()，随界面语言切换；
+ * 安装包名、bundle id、PWA manifest、导出文件夹名、User-Agent 这些不随语言的地方固定用 APP_NAME_EN。
+ */
+export const APP_NAME_EN = 'Mindough';
+export function appName(): string {
+  return tr('思想团');
+}
+
 /** 英文单复数：plural(3, 'task', 'tasks') → 'tasks'。 */
 export function plural(n: number, one: string, other: string): string {
   return new Intl.PluralRules('en').select(n) === 'one' ? one : other;

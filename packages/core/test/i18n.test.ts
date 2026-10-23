@@ -13,6 +13,8 @@ import {
   localeFromSystem,
   relativeDayZh,
   setLocale,
+  appName,
+  APP_NAME_EN,
   tr,
   trc,
   TASK_STATUS_LABEL,
@@ -22,6 +24,13 @@ import {
 afterEach(() => setLocale('zh'));
 
 describe('i18n（core）', () => {
+  it('app 名字：中文思想团，英文 Mindough（Rei 2026-10-24）', () => {
+    expect(appName()).toBe('思想团');
+    setLocale('en');
+    expect(appName()).toBe('Mindough');
+    expect(APP_NAME_EN).toBe('Mindough');
+  });
+
   it('中文原样、英文按词典；没有的 key 退回中文', () => {
     expect(tr('还有 {n} 天', { n: 3 })).toBe('还有 3 天');
     setLocale('en');
