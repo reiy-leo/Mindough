@@ -625,6 +625,8 @@ export const MESSAGES: Record<string, MessageValue> = {
   "编辑链接": "Modifier le lien",
   "文字": "Texte",
   "不填就用网址": "Laissez vide pour afficher l’URL",
+  "登录并联网后才能把图片放进正文": "Connectez-vous et passez en ligne pour ajouter des images au texte",
+  "图片没传上去，稍后再试": "L’image n’a pas été envoyée. Réessayez plus tard",
   "填一个网址": "Saisissez une URL",
   "这不像网址，检查一下": "Cela ne ressemble pas à une URL",
   "注意": "Remarque",

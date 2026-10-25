@@ -83,11 +83,21 @@ if (typeof window !== 'undefined') {
   // drop 之后才清（捕获阶段先于各区域的处理，直接清掉它们就分不出来了）；拖到页面外面时只有 dragend
   window.addEventListener('drop', () => setTimeout(end, 0), true);
 }
-const isFileDrag = (e: DragEvent) => !internalDrag && hasFiles(e);
+/**
+ * 拖进来的只有图片、又落在能改的正文（编辑器）上：交给编辑器上传、插进正文（Rei 2026-10-25 换 Tiptap 时加的，见 extensions.ts uploadPlugin），
+ * 不当附件。拖到正文外面、或者混着别的文件，照旧是附件。
+ */
+export function dropGoesToEditor(e: DragEvent): boolean {
+  const t = e.target as Element | null;
+  if (!t?.closest?.('.md-editor-root .ProseMirror[contenteditable="true"]')) return false;
+  const items = [...(e.dataTransfer?.items ?? [])].filter((i) => i.kind === 'file');
+  return items.length > 0 && items.every((i) => i.type.startsWith('image/'));
+}
+const isFileDrag = (e: DragEvent) => !internalDrag && hasFiles(e) && !dropGoesToEditor(e);
 
 /**
  * 拖放：把文件拖到 ref 这块区域上时 active = true（显示高亮层），松手把文件交给 onFiles。
- * 用捕获阶段，免得编辑器先接住（Milkdown 不处理文件，浏览器会直接打开文件）。只认文件，拖文字不管。
+ * 用捕获阶段，免得编辑器先接住（拖进正文的图片除外，见 dropGoesToEditor）。只认文件，拖文字不管。
  */
 export function useFileDrop(ref: RefObject<HTMLElement | null>, onFiles: (files: File[]) => void, enabled = true): boolean {
   const [active, setActive] = useState(false);
