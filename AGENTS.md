@@ -1,26 +1,26 @@
 # AGENTS.md — Mindough（念头团）
 
-给 AI 编程代理与协作者的项目说明。产品细节见 [docs/PRODUCT.md](docs/PRODUCT.md)，完整计划与决策见 [docs/PLAN.md](docs/PLAN.md)。
+写给 AI 编程代理和协作者看。产品细节见 [docs/PRODUCT.md](docs/PRODUCT.md)，完整的计划和决定见 [docs/PLAN.md](docs/PLAN.md)。
 
 ## 目标
-多端任务管理 app：任务不靠层层分类，而靠 FS（完成→开始）依赖串起来（前导图 PDM）；琐事用 Agenda 式时间线随手记。macOS、Windows、iOS、Android、Web 都可用，本地优先 + 多端同步。
+做一个多端任务管理 app。任务不靠层层分类，靠 FS 依赖（完成→开始）串起来，也就是前导图（PDM）；琐事记在 Agenda 式的时间线上，随手就记。macOS、Windows、iOS、Android、Web 都能用；数据先存本机，再多端同步。
 
 ## 边界（MVP 不做）
 - 多人协作与共享
 - 多层文件夹式分类
-- SS/FF/SF、lag、关键路径、甘特图（数据模型先留字段）
-- 任务正文逐字合并（同步按整段后写赢）
+- SS/FF/SF、lag、关键路径、甘特图（数据模型里先留好字段）
+- 任务正文逐字合并（同步时整段比，后写的赢）
 
-## 技术栈（M0 已落定的版本标 ✅）
+## 技术栈（M0 定下来的标 ✅）
 - ✅ TypeScript 5.9（strict + noUncheckedIndexedAccess）、React 19、Vite 8、Vitest 4、pnpm workspace
 - ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（+ marked-footnote）；GitHub 提示块 / 公式（KaTeX，本地打包按需加载）见 `components/editor/gh-syntax.ts`、`lib/gh-alerts.ts`、`lib/math.ts`；✅ 编辑 Milkdown 7（`components/editor/`，所见即所得，存 markdown）
-- Tauri 2（桌面 + iOS/Android；本机 cargo check 通过，GitHub Actions build.yml 打包）
-- UI：React Aria Components（headless）+ 每端原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可用 Konsta UI；lucide 线条图标；明暗主题跟随系统。不用 Kumo
-- ✅ Markdown 编辑：Milkdown 7（commonmark + gfm 预设），正文以 .md 文本入库；详情 / 备注带工具栏，新建面板 `toolbar="none"`
+- Tauri 2（桌面 + iOS/Android；本机 cargo check 能过，GitHub Actions 的 build.yml 打包）
+- UI：React Aria Components（headless），每端配一套原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可以用 Konsta UI；图标用 lucide 线条图标；明暗主题跟着系统走。不用 Kumo
+- ✅ Markdown 编辑：Milkdown 7（commonmark + gfm 预设），正文存成 .md 文本；详情和备注带工具栏，新建面板 `toolbar="none"`
 - 依赖图：React Flow（xyflow）+ elkjs
-- ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），同一 schema 与迁移（packages/core/src/storage/schema.ts）
-- ✅ 同步：云端默认是 Turso Cloud 库 `mindough`（东京），也可用 Worker 环境变量 `STORAGE_BACKEND=d1` 换成 Cloudflare D1 库 `mindough`（存储层 `apps/server/src/sql.ts` / `storage.ts`，切换前跑 `pnpm --filter server storage:copy`，见 PLAN“云端存储：Turso / D1”）；客户端经 Worker `/api/sync/*` 用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）；Worker `mindough`（`mindough.rei8t.dev`）负责 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
-- 包管理：pnpm；测试 Vitest
+- ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），两边用同一份 schema 和迁移（packages/core/src/storage/schema.ts）
+- ✅ 同步：云端默认是 Turso Cloud 库 `mindough`（东京），也可用 Worker 环境变量 `STORAGE_BACKEND=d1` 换成 Cloudflare D1 库 `mindough`（存储层 `apps/server/src/sql.ts` / `storage.ts`，切换前跑 `pnpm --filter server storage:copy`，见 PLAN“云端存储：Turso / D1”）；客户端走 Worker 的 `/api/sync/*`，用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）。Worker `mindough`（`mindough.rei8t.dev`）管 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
+- 包管理用 pnpm，测试用 Vitest
 
 ## 目录（M1 实际）
 ```
@@ -93,29 +93,29 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 | Android | `pnpm tauri android init` → `pnpm tauri android build --apk --debug` |
 | 打包 CI | GitHub Actions `build.yml`（手动 / 推 `v*` 标签）；`ci.yml` 每次推送跑检查 |
 
-截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍（动到外壳或详情时再加 960 宽的中等宽度：图标栏 + 两栏）。
+截图检查：地址后加 `?skin=apple|winui|material&theme=light|dark` 能临时换皮肤。桌面 1366 宽、手机 390 宽各看一遍；动了外壳或详情，再看一遍 960 宽的中等宽度（图标栏 + 两栏）。
 
 ## 代码规范
-- App 名字（Rei 2026-10-24 定，2026-10-25 中文名由「思想团」改为「念头团」）：英文「Mindough」，中文「念头团」。界面上要写 app 名一律用 core 的 `appName()`（或在 tr 的中文原文里写「念头团」、英文写 Mindough），别写死 'Mindough'；网页标题由 `lib/i18n.ts` 的 `applyAppTitle` 随语言改。原生显示名的本地化在 `src-tauri/locales/`（Apple `*.lproj/InfoPlist.strings`、Android `values-zh*`，`scripts/native-locales.sh` 在 CI 里拷进 gen/；macOS 经 `bundle.macOS.files`）。productName、bundle id、manifest name、导出文件夹名不改。
-- 界面文案中文，**一律按 [docs/COPY.md](docs/COPY.md)**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；新词先补进术语表。HTTP 状态码出现时附中文说明（如「408 请求超时」）。
-- 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
-- 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
-- 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不是弹窗——桌面在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开一律 `ui.openEditor(id)`（选中写在 hash 的 `?task=`，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
-- 进度一律由 check_in 事件累加得出，不直接覆盖进度字段（多端合并靠它）。
-- 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时一律用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
+- App 名字（Rei 2026-10-24 定，2026-10-25 中文名从「思想团」改成「念头团」）：英文「Mindough」，中文「念头团」。界面上要写 app 名，都用 core 的 `appName()`（或者在 tr 的中文原文里写「念头团」、英文写 Mindough），别写死 'Mindough'；网页标题由 `lib/i18n.ts` 的 `applyAppTitle` 跟着语言改。原生显示名的本地化在 `src-tauri/locales/`（Apple `*.lproj/InfoPlist.strings`、Android `values-zh*`，`scripts/native-locales.sh` 在 CI 里拷进 gen/；macOS 经 `bundle.macOS.files`）。productName、bundle id、manifest name、导出文件夹名不改。
+- 界面文案用中文，**都按 [docs/COPY.md](docs/COPY.md) 写**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；有新词先补进术语表。出现 HTTP 状态码时附中文说明（如「408 请求超时」）。
+- 代码和文档里的概念名是固定的：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上怎么叫，以 COPY.md 为准（比如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
+- 新建和详情是两个组件：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
+- 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不用弹窗。桌面上在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开都用 `ui.openEditor(id)`（选中的任务写在 hash 的 `?task=` 里，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
+- 进度都由 check_in 事件累加出来，不直接改写进度字段（多端合并靠的就是这个）。
+- 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时都用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
 - 类型编辑（M4）：取类型列表用 `store.pickableTypes()` / `orderedTypes()` / `editableTypes()`，不要自己按 sort 排；显示字段用 `shownFields` / `itemFieldsOf` / `taskFieldsOf`（不含隐藏、删掉的），别直接遍历 `type.fields` 去显示；删字段用 `removeField`（留墓碑），不要从数组里真删。
 - 新字段种类（多选、金额、站点编号、更多链接、看到哪）逻辑写在 core，界面在 `FieldInput` 里按 kind 分派；改内置类型定义就把 `BUILTIN_TYPES_REVISION` 加一，旧值的迁移写进 `planFieldMigration`（只动旧形状的值）。
-- 类型只管展示与新建模板，不替代正文；内置类型与自定义类型走同一套 layout + fields + body_template 机制，不要写死特例。
-- 任务没有标题字段，列表里显示 body_md 首行作预览。
-- 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
-- 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
-- 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，经 `openDb(env)` 拿库，别直接调 turso.ts）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
-- 附件（PLAN「附件」）：加附件一律经 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回），下载用 `downloadAttachment`（先用本机队列 / 缓存；Web 浏览器下载，Tauri 桌面系统保存框 + `save_to_path` / `att_cache_copy`，手机 `save_download`）。本机缓存一律经 `lib/attachment-cache.ts`（`cacheAttachment` / `uncacheAttachment`、`useCacheRecord`），记录只存本机 localStorage、不进同步表；24 小时从缓存那刻起算。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，附件读要登录。
-- 农历（PLAN「农历」）：日期一律存公历，农历只在显示和选择时换算（core `lunar/`，本地查表，别用 `Intl` 的 chinese 历——ICU 有几年初一差一天）；格子小字一律经 `useLunar(store).day(d)`（订阅的节日名优先、休 / 班角标），不要自己拼；每年农历重复是 `lunarYearly`（RRULE `RSCALE=CHINESE`）。
-- 滴答清单导入（docs/IMPORT-DIDA.md）：解析、拉取、映射都在 core `dida/`，客户端只做界面；两种来源都先变成 `DidaRow` 再走 `planDida` / `applyDida`，别另写一套写入。任务 id 由滴答清单 taskId 算（`didaTaskId`），这是幂等的依据，别改算法。令牌只存本机（`lib/dida.ts`），不进同步表、不发给云端库；Worker 代理只转发白名单路径。菜单栏文字改动要同时改 `menu.rs` 的 `MenuLabels` 和 `lib/app-menu.ts`。
-- 外链：在 Tauri 里一律经 `lib/external.ts`（全局拦截 + `openExternal`）交给系统浏览器；不要自己 `window.open` 或另装 opener 调用。
-- 资料 / 人物合并后来源是墓碑 + `merged_into`：读任务挂的资料一律经 `store.itemOf(task)` / `resolveItemId` / `resolvePersonId`（会顺着 merged_into 找到留下的那条），不要直接 `get('library_item', task.library_item_id)`。
-- 相关任务（task_link）不是依赖：不进 dependency 表、不过环检测、不影响派生状态；同一对任务有前后关系时只按前后关系显示。
+- 类型只管怎么显示、新建时带什么模板，不代替正文；内置类型和自定义类型走同一套 layout + fields + body_template，不要写死特例。
+- 任务没有标题字段，列表里拿 body_md 的第一行当预览。
+- 本地优先：界面从不等网络；写操作先写本地，再进 outbox。
+- 每条记录都有 UUIDv7 id、HLC updated_at 和 deleted 墓碑，不真删。
+- 同步：所有写入走 Store（进了 outbox 才会推上去）；拉下来的行只能走 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（比 `updated_at` 字符串），别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，用 `openDb(env)` 拿库，别直接调 turso.ts）和 `MemoryRemote` 的规则一样，改一处就两处一起改。云端只存整行 JSON：客户端加列、加表都不用动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系都用 `store.edges()`（已经去重，也去掉了合并后成环的边），成环的边在 `store.conflictEdges()` 里。
+- 附件（PLAN「附件」）：加附件都走 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回）。下载用 `downloadAttachment`：先用本机队列或缓存；Web 走浏览器下载，Tauri 桌面弹系统保存框（`save_to_path` / `att_cache_copy`），手机用 `save_download`。本机缓存都走 `lib/attachment-cache.ts`（`cacheAttachment` / `uncacheAttachment`、`useCacheRecord`），记录只存本机 localStorage，不进同步表；24 小时从缓存那一刻算起。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前先 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，读附件要登录。
+- 农历（PLAN「农历」）：日期都存公历，农历只在显示和选择时换算（core `lunar/`，本地查表，别用 `Intl` 的 chinese 历——ICU 有几年初一差一天）；格子小字都走 `useLunar(store).day(d)`（订阅的节日名优先、休 / 班角标），不要自己拼；每年农历重复是 `lunarYearly`（RRULE `RSCALE=CHINESE`）。
+- 滴答清单导入（docs/IMPORT-DIDA.md）：解析、拉取、映射都在 core `dida/`，客户端只做界面；两种来源都先变成 `DidaRow`，再走 `planDida` / `applyDida`，别另写一套写入。任务 id 用滴答清单的 taskId 算（`didaTaskId`），重复导入不出重复任务就靠它，别改算法。令牌只存本机（`lib/dida.ts`），不进同步表、不发给云端库；Worker 代理只转发白名单路径。改菜单栏文字时，要同时改 `menu.rs` 的 `MenuLabels` 和 `lib/app-menu.ts`。
+- 外链：在 Tauri 里都走 `lib/external.ts`（全局拦截 + `openExternal`），交给系统浏览器打开；不要自己 `window.open` 或另装 opener 调用。
+- 资料 / 人物合并后，并进去的那条变成墓碑并记下 `merged_into`：读任务挂的资料都走 `store.itemOf(task)` / `resolveItemId` / `resolvePersonId`（会顺着 merged_into 找到留下的那条），不要直接 `get('library_item', task.library_item_id)`。
+- 相关任务（task_link）不是依赖：不进 dependency 表，不过环检测，不影响派生状态；同一对任务如果有前后关系，只按前后关系显示。
 - 加依赖边必须过环检测；组件外观只写在皮肤层（tokens + 平台样式），业务组件不写死某个平台的样式；改界面后在三种皮肤（Apple / WinUI / Material）× 桌面 / 手机下截图检查。
 
 ## 禁止事项
@@ -123,6 +123,25 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 不引入遥测或第三方统计。
 
 ## 工作约定
-- 每轮修改完成后 commit 并 push 到 `main`（提交信息中文，前缀 feat/fix/docs/chore）。
-- 推送前跑类型检查与单测。
-- 决策有变时同步更新 `docs/PLAN.md`。
+- 每轮改完就 commit 并 push 到 `main`（提交说明用中文，前缀 feat/fix/docs/chore，写法同下面「中文文档」）。
+- 推送前跑类型检查和单测；动了中文文档再跑 `pnpm lint:zh`。
+- 决定变了，就跟着改 `docs/PLAN.md`。
+
+## 中文文档
+中文文档要像人说话（Rei 2026-10-25：「现在中文的语言非常难懂，包括句式啦，用词了，被动主动啦，非常不像人说的」）。README、AGENTS、`docs/` 和提交说明都按下面写：
+
+1. 先说结论，再说理由和细节。一段讲一件事，一句讲一层意思，超过 40 字就拆开。
+2. 少用被动：写「数据会同步到云端」，不写「数据会被同步到云端」。
+3. 删空动词：写「同步数据」，不写「对数据进行同步」；「进行」「加以」「予以」「实现」后面跟动词的，直接用那个动词。
+4. 少用「通过」「基于」「作为」「对于」「关于」开头；「该」「其」「此」「一个」能删就删。
+5. 「的」连用不超过两个，长定语拆成短句。
+6. 用口语常用词：「用」不写「使用」，「改」不写「变更」，「删」不写「移除」（界面文案以 COPY.md 为准）；不用公文腔（旨在、进而、从而、鉴于）。
+7. 不改事实：改写只改说法，不改数字、日期、代码、路径、链接和 Rei 的原话（引号里的原话照抄）。
+
+排版交给 AutoCorrect（[huacnlee/autocorrect](https://github.com/huacnlee/autocorrect)），配置在 `.autocorrectrc` 和 `.autocorrectignore`：
+
+- `pnpm lint:zh`：检查中英文空格和标点，只看 Markdown 文档，不改文件。提交前跑一遍。
+- `pnpm fix:zh`：自动修。修完看一眼 diff 再提交。
+- 不检查的：代码、i18n、`docs/COPY.md`（「」里的字符串要和代码里 tr() 的原文一致，不能自动改）。Rei 原话、界面上的实际字符串、外部文件的列名，在 `.autocorrectrc` 的 `textRules` 里加一条设成 `0`，那一段就不改。
+- 目前没接进 CI，只是本地提醒。
+- `autocorrect-node` 没有 Linux arm64 的包；在 arm64 Linux 上要用官方发布页的 `autocorrect` 二进制，参数一样。

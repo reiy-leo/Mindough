@@ -1,0 +1,46 @@
+# AutoCorrect（https://github.com/huacnlee/autocorrect）：管中文文档里的中英文空格和标点。
+# 只检查 Markdown 文档。代码、i18n 和界面文案不在检查范围，见 .autocorrectignore。
+rules:
+  # 中文和英文、数字之间加空格
+  space-word: 1
+  # 中文和标点、括号、反引号之间的空格
+  space-punctuation: 1
+  space-bracket: 1
+  space-backticks: 1
+  # 破折号两边加空格：文档里「——」很多，先不管
+  space-dash: 0
+  # 中文里用全角标点
+  fullwidth: 1
+  no-space-fullwidth: 1
+  # 英文里的全角字母、标点换成半角
+  halfwidth-word: 1
+  halfwidth-punctuation: 1
+  # 拼写检查会改专有名词大小写，容易误伤代码名，先关
+  spellcheck: 0
+fileTypes:
+  "*.md": markdown
+# 下面这些原样保留：命中的那一行整行不检查。
+# - Rei 的原话引用（引号里的原话不动）
+# - 界面上的实际字符串、外部文件的列名、文件名、片名
+textRules:
+  "添加从dida365导入任务的功能": 0
+  "英文Journal": 0
+  "5个太少了": 0
+  "动画svg图标": 0
+  "5点": 0
+  "晚上9点": 0
+  "可以一键展示整个FS的一条线": 0
+  "任务窗口底部的close按钮": 0
+  "侧边栏的Graph选项卡": 0
+  "macOS的边栏框要贯通": 0
+  "侧边栏不要添加软件title": 0
+  "但没有FS关系": 0
+  "settings中的这个google登录": 0
+  "开工M3": 0
+  "侧边栏分一下section": 0
+  "附件是图片则小图显示点击可放大": 0
+  "2026年10月17日": 0
+  "9月1日完成": 0
+  "沙丘2": 0
+  "父任务ID": 0
+  "合同-2026": 0

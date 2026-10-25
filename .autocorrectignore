@@ -1,0 +1,16 @@
+# AutoCorrect 不检查的路径，写法同 .gitignore
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+# 代码和 i18n：只查文档
+apps/
+packages/
+scripts/
+.github/
+.agents/
+# 界面文案：「」里的字符串和代码里 tr() 的原文一一对应，自动改会对不上
+docs/COPY.md
+pnpm-lock.yaml
+LICENSE
+CLAUDE.md

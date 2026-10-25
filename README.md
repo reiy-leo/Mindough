@@ -2,17 +2,22 @@
 
 中文名「念头团」，英文名 Mindough。
 
-多端任务管理：用 FS（完成→开始）依赖把任务串起来，再配一条 Agenda 式琐事时间线。macOS / Windows / iOS / Android / Web，本地优先、多端同步。
+一个多端任务管理 app。任务之间用 FS 依赖（完成→开始）串起来，琐事记在一条 Agenda 式的时间线上。支持 macOS、Windows、iOS、Android 和 Web，数据先存在本机，再在各端之间同步。
 
-- 产品：[docs/PRODUCT.md](docs/PRODUCT.md)
+- 产品说明：[docs/PRODUCT.md](docs/PRODUCT.md)
 - 计划与里程碑：[docs/PLAN.md](docs/PLAN.md)
 - 协作约定：[AGENTS.md](AGENTS.md)
 
-状态：**M1 进行中**——本地 SQLite 存储（Web：Turso wasm + OPFS；原生：rusqlite），从 localStorage 自动迁移；GitHub Actions 打桌面与 Android 包；Worker 的 Google 登录写好未部署；同步在 M2。
+现状：**M1 进行中**。
+
+- 本地用 SQLite 存数据（Web 端是 Turso wasm + OPFS，原生端是 rusqlite），旧的 localStorage 数据会自动搬过来。
+- GitHub Actions 打桌面包和 Android 包。
+- Worker 的 Google 登录写好了，还没部署。
+- 同步放在 M2。
 
 ## 运行
 
-需要 Node 22+ 与 pnpm。
+要先装 Node 22+ 和 pnpm。
 
 ```bash
 pnpm install
@@ -22,17 +27,20 @@ pnpm typecheck           # 全部类型检查
 pnpm build               # 构建（客户端产物在 apps/client/dist）
 pnpm --filter client preview   # 预览构建产物：http://localhost:4173
 pnpm --filter server dev       # Worker 本地（http://localhost:8787，需 apps/server/.dev.vars，参考 .dev.vars.example）
+pnpm lint:zh             # 检查中文文档的空格和标点（AutoCorrect）
 ```
 
-Web 端的 SQLite 需要页面跨源隔离（COOP / COEP），dev 与 preview 已配好；浏览器不支持 OPFS 时自动退回 localStorage。本地联调登录：同时开 `pnpm dev` 与 `pnpm --filter server dev`，vite 会把 `/api`、`/auth` 转给 Worker。
+Web 端的 SQLite 要求页面跨源隔离（COOP / COEP），dev 和 preview 都配好了；浏览器不支持 OPFS 时，自动退回 localStorage。
 
-第一次打开会生成一份演示数据（组、依赖链、人物、各类型任务、一年的打卡记录）。设置 → 重置演示数据 可重来。
+本地联调登录：同时开 `pnpm dev` 和 `pnpm --filter server dev`，vite 会把 `/api`、`/auth` 转给 Worker。
 
-调试皮肤：设置里切换，或在地址后加 `?skin=apple|winui|material&theme=light|dark`。
+第一次打开时，app 会生成一份演示数据：组、依赖链、人物、各种类型的任务，还有一年的打卡记录。想重来，就到「设置 → 重置演示数据」。
+
+调试皮肤：在设置里切，或者在地址后面加 `?skin=apple|winui|material&theme=light|dark`。
 
 ### 桌面 / 移动端（Tauri 2）
 
-需要 Rust 工具链（https://rustup.rs）和各平台依赖（见 https://tauri.app/start/prerequisites/）。
+要装 Rust 工具链（https://rustup.rs）和各平台的依赖（见 https://tauri.app/start/prerequisites/）。
 
 ```bash
 pnpm tauri dev           # 桌面开发
@@ -51,5 +59,9 @@ apps/client/src-tauri Tauri 2 外壳（identifier dev.rei8t.mindough）
 apps/server/          Cloudflare Worker `mindough`：Google 登录、/api、静态资源（未部署）
 .github/workflows/    ci.yml（检查）、build.yml（打包：macOS / Windows / Linux / Android）
 ```
+
+## 写中文文档
+
+中文文档按「像人说话」的写法来：先说结论，少用「被」「进行」「通过」，长句拆短。提交前跑一遍 `pnpm lint:zh`，它只检查空格和标点，用 `pnpm fix:zh` 自动修。详见 [AGENTS.md](AGENTS.md)「中文文档」一节。
 
 MIT License

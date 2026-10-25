@@ -10,9 +10,12 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "tauri": "pnpm --filter client tauri"
+    "tauri": "pnpm --filter client tauri",
+    "lint:zh": "autocorrect --lint .",
+    "fix:zh": "autocorrect --fix ."
   },
   "devDependencies": {
+    "autocorrect-node": "^2.14.0",
     "typescript": "~5.9.3"
   }
 }
