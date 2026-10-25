@@ -34,7 +34,7 @@ Web 端的 SQLite 要求页面跨源隔离（COOP / COEP），dev 和 preview �
 
 本地联调登录：同时开 `pnpm dev` 和 `pnpm --filter server dev`，vite 会把 `/api`、`/auth` 转给 Worker。
 
-第一次打开时，app 会生成一份演示数据：组、依赖链、人物、各种类型的任务，还有一年的打卡记录。想重来，就到「设置 → 重置演示数据」。
+第一次打开时，app 会生成一份演示数据：项目、依赖链、人物、各种类型的任务，还有一年的打卡记录。想重来，就到「设置 → 重置演示数据」。
 
 调试皮肤：在设置里切，或者在地址后面加 `?skin=apple|winui|material&theme=light|dark`。
 

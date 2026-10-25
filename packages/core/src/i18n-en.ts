@@ -40,7 +40,7 @@ export const CORE_EN: Record<string, V> = {
   '每年{date}': (p) => `Yearly on ${p.date}`,
   // ── 导入导出（archive/） ──
   无标题: 'Untitled',
-  未命名组: 'Untitled group',
+  未命名项目: 'Untitled project',
   其他: 'Other',
   'id 写得不对，没导入': 'The id isn’t valid, so this file wasn’t imported',
   '和别的文件 id 重复，没导入': 'Another file has the same id, so this one wasn’t imported',
@@ -52,7 +52,7 @@ export const CORE_EN: Record<string, V> = {
   '找不到它挂的资料，没接上': 'Its library entry is missing, so it wasn’t linked',
   '找不到它的类型，当普通任务导入': 'Its type is missing, so it was imported as a plain task',
   '找不到它的类型，没导入': 'Its type is missing, so it wasn’t imported',
-  '找不到它的组，放进所在的文件夹': 'Its group is missing, so it went into the group of its folder',
+  '找不到它的项目，放进所在的文件夹': 'Its project is missing, so it went into the project of its folder',
   '有 {n} 个人物找不到，没关联': (p) => `${count(p.n, 'person', 'people')} couldn’t be found and weren’t linked`,
   '有 {n} 件关联的任务找不到，没连上': (p) => `${count(p.n, 'linked task', 'linked tasks')} couldn’t be found and weren’t connected`,
   '有一条前后关系会绕成圈，没连上': 'One “do this first” link would make a loop, so it wasn’t added',
@@ -260,7 +260,7 @@ export const CORE_EN: Record<string, V> = {
   同名: 'Same name',
   '{label} 编号相同': 'Same {label} ID',
   空白任务: 'Untitled',
-  组: 'Group',
+  '属性|项目': 'Project',
 
   // ── 重复 ──
   只做一次: 'Once',

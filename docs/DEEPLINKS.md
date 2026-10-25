@@ -7,8 +7,8 @@
 | host | 写法 | 示例 | 用途 |
 |---|---|---|---|
 | task | mindough://task/{任务id} | mindough://task/0199f2a4-7c1e-7000-8000-1a2b3c4d5e6f | 打开某件任务的详情（通知、小组件、别的 app 里的链接）；2026-10-23 起，桌面上在当前页面的右列打开，手机上整页推入 |
-| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 组、available 可做、checkin 打卡、journal 日记、library 资料库、people 人物、settings 设置 |
-| group | mindough://group/{组id} | mindough://group/0199f2a4-… | 打开某个组 |
+| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 项目、available 可做、checkin 打卡、journal 日记、library 资料库、people 人物、settings 设置 |
+| group | mindough://group/{项目id} | mindough://group/0199f2a4-… | 打开某个组 |
 | library | mindough://library/{类型}/{资料id} | mindough://library/movie/0199f2a4-…；mindough://library/book | 打开某条资料；不带 id 就是这个类型的库。类型用英文短名：movie、book、game、project、course、travel、shopping、restaurant、meal |
 | person | mindough://person/{人物id} | mindough://person/0199f2a4-… | 打开某个人 |
 | search | mindough://search?q={关键词} | mindough://search?q=沙丘 | 打开搜索并填好关键词 |

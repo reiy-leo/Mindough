@@ -33,6 +33,7 @@ export function parseHash(hash: string): Route {
     case 'backlog':
       return { page: 'backlog' };
     case 'groups':
+    case 'projects': // 界面上「组」改叫「项目」（Rei 2026-10-25）：#/projects 是别名，链接仍生成 #/groups
       return b ? { page: 'group', id: b } : { page: 'groups' };
     case 'people':
       return b ? { page: 'person', id: b } : { page: 'people' };

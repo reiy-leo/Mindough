@@ -512,7 +512,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     let group: string | null = null;
     if (isId(fm.group) && (archiveGroups.has(fm.group.trim()) || store.get('group', fm.group.trim()))) group = fm.group.trim();
     else {
-      if (fm.group !== undefined && fm.group !== null && ownFile) warn(p.path, tr('找不到它的组，放进所在的文件夹'));
+      if (fm.group !== undefined && fm.group !== null && ownFile) warn(p.path, tr('找不到它的项目，放进所在的文件夹'));
       group = dir ? groupForFolder(dir) : null;
     }
     let type: string | null = isId(fm.type) ? fm.type.trim() : null;

@@ -6,7 +6,7 @@ import { isFinished, type Group, type JournalEntry, type LibraryItem, type Perso
 import { formatDate } from './dates';
 import { moodLabel } from './journal';
 
-import { tr } from './i18n';
+import { tr, trc } from './i18n';
 export type SearchHit =
   | { kind: 'task'; id: string; title: string; snippet: string; score: number; task: Task }
   | { kind: 'person'; id: string; title: string; snippet: string; score: number; person: Person }
@@ -105,7 +105,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
   }
   for (const g of groupById.values()) {
     const s = scoreText(g.name, terms);
-    if (s > 0) hits.push({ kind: 'group', id: g.id, title: g.name, snippet: tr('组'), score: s + 4, group: g });
+    if (s > 0) hits.push({ kind: 'group', id: g.id, title: g.name, snippet: trc('属性', '项目'), score: s + 4, group: g });
   }
   for (const e of input.journal ?? []) {
     if (e.deleted || !(e.body_md.trim() || e.mood)) continue;

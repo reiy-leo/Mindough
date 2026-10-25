@@ -250,7 +250,7 @@ function ArchiveRows() {
       <div className="setting">
         <div className="setting-text">
           <div className="setting-name">{tr('从滴答清单导入')}</div>
-          <div className="setting-hint">{tr('连接滴答清单（TickTick）账户，或用它的备份文件；清单变成组，再导一次不会重复')}</div>
+          <div className="setting-hint">{tr('连接滴答清单（TickTick）账户，或用它的备份文件；清单变成项目，再导一次不会重复')}</div>
         </div>
         <Button variant="secondary" onPress={() => setDidaImportOpen(true)}>
           {tr('从滴答清单导入…')}

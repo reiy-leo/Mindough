@@ -220,7 +220,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
   const rootDirs = new NameSet([...RESERVED_DIRS]);
   const groupDir = new Map<string, string>();
   for (const g of groups) {
-    const dir = rootDirs.take(safeName(g.name, tr('未命名组')));
+    const dir = rootDirs.take(safeName(g.name, tr('未命名项目')));
     groupDir.set(g.id, dir);
     const fm = stringifyFrontMatter(groupFront(g, store));
     files.push({ path: `${dir}/_group.md`, data: utf8(`${fm}\n# ${g.name.replace(/\n/g, ' ')}\n`) });

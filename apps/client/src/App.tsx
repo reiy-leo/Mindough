@@ -67,7 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
     get title() { return tr('计划'); },
     items: [
       { page: 'agenda', get label() { return trc('导航', '列表'); }, icon: CalendarDays, match: ['agenda'] },
-      { page: 'groups', get label() { return trc('导航', '组'); }, icon: Shapes, match: ['groups', 'group'] },
+      { page: 'groups', get label() { return trc('导航', '项目'); }, icon: Shapes, match: ['groups', 'group'] },
     ],
   },
   {

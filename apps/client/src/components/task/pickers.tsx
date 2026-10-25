@@ -48,7 +48,7 @@ import { typeIcon } from '../../lib/icons';
 import { imageUrl } from '../../lib/view';
 import { saveImageAsset } from '../../lib/upload';
 
-import { dataLabel, tr } from '../../lib/i18n';
+import { dataLabel, tr, trc } from '../../lib/i18n';
 import { trx } from '../../lib/trx';
 import { useLunarUi } from '../../lib/lunar';
 export const MODE_ICON: Record<CompletionMode, typeof Timer> = { once: CircleCheck, timer: Timer, count: Hash, countdown: CalendarClock };
@@ -344,7 +344,7 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
   const groups = store.list('group');
   return (
     <ListBox
-      aria-label={tr('组')}
+      aria-label={trc('属性', '项目')}
       className="listbox pick-list"
       selectionMode="single"
       selectedKeys={[value ?? NO_GROUP]}
@@ -354,9 +354,9 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
         if (k !== undefined) onChange(String(k) === NO_GROUP ? null : String(k));
       }}
     >
-      <ListBoxItem id={NO_GROUP} className="listbox-item pick-item" textValue={tr('不放进组')}>
+      <ListBoxItem id={NO_GROUP} className="listbox-item pick-item" textValue={tr('不放进项目')}>
         <span className="pick-icon muted">—</span>
-        <span className="grow">{tr('不放进组')}</span>
+        <span className="grow">{tr('不放进项目')}</span>
         <Check size={14} className="pick-check" />
       </ListBoxItem>
       {groups.map((g) => (

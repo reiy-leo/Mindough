@@ -24,6 +24,8 @@ const VIEWS: Record<string, Route> = {
   inbox: { page: 'backlog' },
   timeline: { page: 'agenda' },
   groups: { page: 'groups' },
+  // 界面上「组」改叫「项目」（Rei 2026-10-25）：view/projects 是别名，旧的 view/groups 照样能用
+  projects: { page: 'groups' },
   // 关系图页删掉了（Rei 2026-10-23）：旧链接 view/graph 打开默认页「我的一天」，不报错
   graph: { page: 'myday' },
   available: { page: 'doable' },

@@ -13,7 +13,7 @@ import { Avatar } from './Avatar';
 import { ItemArt, artShape } from './library/Library';
 import { imageUrl } from '../lib/view';
 
-import { dataLabel, tr } from '../lib/i18n';
+import { dataLabel, tr, trc } from '../lib/i18n';
 /** ⌘K / Ctrl+K 全局搜索：搜正文、类型字段、人物、组；结果直接“加入我的一天”。 */
 export function CommandPalette() {
   const ui = useUi();
@@ -101,7 +101,7 @@ export function CommandPalette() {
       <Modal className="modal palette">
         <Dialog aria-label={tr('搜索')} className="dialog">
           <SearchField
-            aria-label={tr('搜索任务、资料库、人物、组')}
+            aria-label={tr('搜索任务、资料库、人物、项目')}
             className="palette-search"
             value={q}
             onChange={(v) => {
@@ -135,7 +135,7 @@ export function CommandPalette() {
             }}
           >
             <Search size={18} className="palette-icon" aria-hidden />
-            <Input className="palette-input" placeholder={tr('搜索任务、资料库、人物、组…')} />
+            <Input className="palette-input" placeholder={tr('搜索任务、资料库、人物、项目…')} />
             <kbd className="kbd">Esc</kbd>
           </SearchField>
           <ul className="palette-list">
@@ -221,7 +221,7 @@ export function CommandPalette() {
                     <span className="palette-text">
                       <span className="palette-title">{h.title}</span>
                       <span className="palette-snippet">
-                        {h.kind === 'person' ? <><UserRound size={11} /> {tr('人物')}{h.snippet ? ` · ${h.snippet}` : ''}</> : tr('组')}
+                        {h.kind === 'person' ? <><UserRound size={11} /> {tr('人物')}{h.snippet ? ` · ${h.snippet}` : ''}</> : trc('属性', '项目')}
                       </span>
                     </span>
                   </RacButton>

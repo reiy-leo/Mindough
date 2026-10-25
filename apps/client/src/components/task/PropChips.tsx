@@ -26,7 +26,7 @@ import {
 } from '@mindough/core';
 import { useUi } from '../../lib/ui';
 import { useLunarUi } from '../../lib/lunar';
-import { dataLabel, tr } from '../../lib/i18n';
+import { dataLabel, tr, trc } from '../../lib/i18n';
 import { typeIcon } from '../../lib/icons';
 import { clearPatch, setProps, unsetProps, type PropId } from '../../lib/prop-chips';
 import { AvatarStack } from '../Avatar';
@@ -52,7 +52,7 @@ export function propLabel(id: PropId): string {
     case 'remind':
       return tr('提醒');
     case 'group':
-      return tr('组');
+      return trc('属性', '项目');
     case 'people':
       return tr('和谁有关');
   }

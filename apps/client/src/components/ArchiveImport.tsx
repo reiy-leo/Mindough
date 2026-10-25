@@ -93,7 +93,7 @@ export function ArchiveImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; 
       />
       {stage.kind === 'pick' && (
         <div className="import-pick">
-          <p className="muted">{tr('选念头团导出的 zip，或者任何 Markdown 文件夹：每个 .md 是一件任务，文件夹是组。')}</p>
+          <p className="muted">{tr('选念头团导出的 zip，或者任何 Markdown 文件夹：每个 .md 是一件任务，文件夹是项目。')}</p>
           <div className="import-pick-actions">
             <Button variant="secondary" onPress={() => zipInput.current?.click()}>
               <FileArchive size={16} />
@@ -125,7 +125,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
   const warnings = plan.issues.filter((i) => i.level === 'warning');
   const kinds: Array<[keyof typeof s.byKind, (n: number) => string]> = [
     ['task', (n) => tr('{n} 件任务', { n })],
-    ['group', (n) => tr('{n} 个组', { n })],
+    ['group', (n) => tr('{n} 个项目', { n })],
     ['library', (n) => tr('{n} 条资料', { n })],
     ['person', (n) => tr('{n} 位人物', { n })],
     ['type', (n) => tr('{n} 个类型', { n })],

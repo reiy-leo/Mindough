@@ -343,13 +343,13 @@ function Preview({
       </div>
 
       <div className="dida-section">
-        <div className="dida-section-title">{tr('清单放进哪个组')}</div>
+        <div className="dida-section-title">{tr('清单放进哪个项目')}</div>
         {plan.lists.map((l) => {
           const value = targets[l.name] ?? l.defaultTarget;
           const label = l.name || tr('（没写清单）');
           const options = [
-            ...(l.existingGroupId ? [] : [{ id: 'new', label: tr('新建组「{name}」', { name: l.name || tr('滴答清单') }) }]),
-            { id: 'none', label: tr('不放进组（进待安排）') },
+            ...(l.existingGroupId ? [] : [{ id: 'new', label: tr('新建项目「{name}」', { name: l.name || tr('滴答清单') }) }]),
+            { id: 'none', label: tr('不放进项目（进待安排）') },
             ...groups.map((g) => ({ id: `group:${g.id}`, label: tr('并入「{name}」', { name: g.name }) })),
           ];
           return (
@@ -364,7 +364,7 @@ function Preview({
             </div>
           );
         })}
-        {pv.newGroups.length > 0 && <p className="muted small dida-note">{tr('会新建 {n} 个组：{names}', { n: pv.newGroups.length, names: pv.newGroups.map((g) => g || tr('滴答清单')).join(tr('、')) })}</p>}
+        {pv.newGroups.length > 0 && <p className="muted small dida-note">{tr('会新建 {n} 个项目：{names}', { n: pv.newGroups.length, names: pv.newGroups.map((g) => g || tr('滴答清单')).join(tr('、')) })}</p>}
       </div>
 
       {(pv.already > 0 || pv.filtered > 0) && (
@@ -413,7 +413,7 @@ function Result({ receipt, parseErrors, source }: { receipt: DidaReceipt; parseE
       <div className="import-counts dida-result-counts" role="group" aria-label={tr('导入结果')}>
         <Count n={receipt.created} label={tr('成功')} />
         <Count n={skipped} label={trc('导入计数', '跳过')} />
-        <Count n={receipt.groups} label={tr('新建的组')} />
+        <Count n={receipt.groups} label={tr('新建的项目')} />
       </div>
       {reasons.length > 0 && <p className="muted small import-breakdown">{tr('跳过的：{list}', { list: reasons.join(' · ') })}</p>}
       {receipt.issues.length > 0 && (
@@ -429,7 +429,7 @@ function Result({ receipt, parseErrors, source }: { receipt: DidaReceipt; parseE
           </ul>
         </details>
       )}
-      {receipt.created > 0 && <p className="muted small dida-note">{tr('不满意可以撤销，这次导入的任务和新建的组会一起去掉。')}</p>}
+      {receipt.created > 0 && <p className="muted small dida-note">{tr('不满意可以撤销，这次导入的任务和新建的项目会一起去掉。')}</p>}
     </div>
   );
 }

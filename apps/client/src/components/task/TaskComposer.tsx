@@ -55,7 +55,7 @@ function EpisodeChip({ text, pending, onUndo }: { text: string; pending: boolean
 }
 import { markdownHelp } from '../Markdown';
 
-import { dataLabel, tr } from '../../lib/i18n';
+import { dataLabel, tr, trc } from '../../lib/i18n';
 import { trx } from '../../lib/trx';
 interface Draft extends CompletionValue {
   body: string;
@@ -390,7 +390,7 @@ function Composer() {
               )}
             </PopoverPanel>
           )}
-          <PopoverPanel label={tr('组')} trigger={<PropChip icon={<Shapes size={14} />} label={tr('组')} {...(group ? { value: `${group.icon} ${group.name}` } : {})} />}>
+          <PopoverPanel label={trc('属性', '项目')} trigger={<PropChip icon={<Shapes size={14} />} label={trc('属性', '项目')} {...(group ? { value: `${group.icon} ${group.name}` } : {})} />}>
             {(close) => (
               <GroupList
                 store={store}

@@ -29,7 +29,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
     <Sheet
       isOpen
       onOpenChange={(o) => !o && onClose()}
-      title={tr('新建组')}
+      title={tr('新建项目')}
       footer={
         <Button
           variant="primary"
@@ -76,20 +76,20 @@ export function GroupsPage() {
   return (
     <div className="page">
       <PageHeader
-        title={trc('导航', '组')}
-        subtitle={tr('一组相关的任务，有起止时间和分类')}
+        title={trc('导航', '项目')}
+        subtitle={tr('一批相关的任务，有起止时间和分类')}
         icon={<Shapes size={22} />}
         actions={
           <Button variant="primary" onPress={() => setCreating(true)}>
             <Plus size={16} />
-            {tr('新建组')}</Button>
+            {tr('新建项目')}</Button>
         }
       />
       <div className="filter-row">
         <Segmented label={tr('按分类筛选')} value={cat} onChange={setCat} options={[{ id: 'all', label: tr('全部') }, ...categories.map((c) => ({ id: c.id, label: c.name }))]} />
       </div>
       {groups.length === 0 ? (
-        <Empty title={tr('还没有组')} hint={tr('组用来装一批相关任务，比如“搬家”“开发某个功能”')} />
+        <Empty title={tr('还没有项目')} hint={tr('项目用来装一批相关任务，比如“搬家”“开发某个功能”')} />
       ) : (
         <div className="card-grid">
           {groups.map((g) => {
@@ -131,7 +131,7 @@ export function GroupDetailPage({ id }: { id: string }) {
   const ui = useUi();
   const [view, setView] = useState<'list' | 'cards' | 'graph'>('list');
   const g = store.get('group', id);
-  if (!g) return <Empty title={tr('找不到这个组')} hint={tr('可能已经删除了')} />;
+  if (!g) return <Empty title={tr('找不到这个项目')} hint={tr('可能已经删除了')} />;
   const tasks: Task[] = store.tasks().filter((t) => t.group_id === id);
   const c = store.get('category', g.category_id);
   const open = tasks.filter((t) => !isFinished(t.status));
@@ -182,7 +182,7 @@ export function GroupDetailPage({ id }: { id: string }) {
             {open.map((t) => (
               <TaskRow key={t.id} store={store} task={t} showGroup={false} showDate />
             ))}
-            {!open.length && <Empty title={tr('组里的任务都做完了')} />}
+            {!open.length && <Empty title={tr('项目里的任务都做完了')} />}
           </div>
           {ended.length > 0 && (
             <Section title={tr('已结束 {length}', { length: ended.length })}>

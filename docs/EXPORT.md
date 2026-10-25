@@ -14,7 +14,7 @@ Mindough 2026-10-16/              zip 里的根文件夹（导入时自动去掉
     mindough.json                 格式标记：{ "format": "mindough-markdown", "version": 1, exported_at, device, counts }
     types.json                    任务类型（内置 + 自定义，含归档的；整行，不含 updated_at / deleted；归档写 "archived": true，导入也认旧文件的 "hidden"）
     checkin-categories.json       打卡分类（含隐藏的）
-    categories.json               组的分类（名字 + 颜色）
+    categories.json               项目的分类（名字 + 颜色）
     checkins.json                 打卡记录（每条 start / pause / resume / stop / add 事件，带 id）
     assets.json                   用到的图片的 asset 行；有文件的写 "file": "assets/…"
     attachments.json              附件的行（挂在哪：owner_type task / journal + owner_id、file_name、mime、size、宽高、r2_key、thumb_key、created_at）；有文件的写 "file": "attachments/…"
@@ -24,12 +24,12 @@ Mindough 2026-10-16/              zip 里的根文件夹（导入时自动去掉
   library/<库名>/<名字>.md        资料库里的一条（影视库 / 书库 / 好物清单…，库名按导出时的界面语言）
   people/<名字>.md                人物
   journal/<YYYY>/<MM>/<YYYY-MM-DD>.md  日记（Rei 2026-10-17；一天一篇，没写东西的那天不导出）
-  <组名>/_group.md                组的属性
-  <组名>/<正文首行>.md            组里的任务
-  <正文首行>.md                   不在组里的任务
+  <项目名>/_group.md                项目的属性
+  <项目名>/<正文首行>.md            项目里的任务
+  <正文首行>.md                   不在项目里的任务
 ```
 
-- 组只有一层文件夹，不做多层。组名和 `_meta`、`library`、`people`、`assets`、`journal`、`attachments` 重名时，在后面加空格和 2（`library 2`）。
+- 项目只有一层文件夹，不做多层。项目名和 `_meta`、`library`、`people`、`assets`、`journal`、`attachments` 重名时，在后面加空格和 2（`library 2`）。
 - 文件名：取正文第一行（去掉 `#`、`- [ ]` 等标记；正文空着时用资料名，再没有就「空白任务」），去掉 `\ / : * ? " < > | # ^ [ ]` 和控制字符、首尾的空格与点，最长 60 个字；Windows 保留名（CON、NUL…）后面加 `_`。同一个文件夹里重名（不分大小写）时，在后面加空格和序号（`x 2`、`x 3`）。
 
 ## 任务文件
@@ -79,7 +79,7 @@ checkins:
 | `status` | status | 内部值：待办 / 进行中 / 完成 / 关闭 |
 | `created` / `done` | created_at / done_at | ISO 时间；done 只在结束了才有 |
 | `scheduled` | scheduled_date | YYYY-MM-DD |
-| `group` | group_id | 组的 id；行尾注释是组名 |
+| `group` | group_id | 项目的 id；行尾注释是项目名 |
 | `type` / `item` | type_id / library_item_id | 类型、挂的资料（id） |
 | `fields` | type_data | 只有任务字段（看到哪、读到第几页…）；资料字段在资料文件里。图片字段写 `assets/…` |
 | `completion` `target` `unit` `target_date` | 完成方式与目标 | once / timer / count / countdown；计时的 target 是毫秒 |
@@ -94,7 +94,7 @@ checkins:
 | `my_day` | my_day | 放进过「我的一天」的日期 |
 | `checkins` | — | 摘要（次数、最近一次），只给人看；完整记录在 `_meta/checkins.json` |
 
-- 值为空的键不写。`# …` 后面是给人看的名字（组名、片名、对方任务的首行），导入时不看。
+- 值为空的键不写。`# …` 后面是给人看的名字（项目名、片名、对方任务的首行），导入时不看。
 - 正文就是 body_md，紧跟在 front matter 后面，原样写（清单、表格、链接都不动）；正文里的图片（`data:` 图、取得到的网上图）存进 `assets/`，链接改成相对这个文件的路径。网上的图片取不到，就照原链接写。
 - 没有「标签」这个概念，不写 `tags`。
 - 有附件时，正文后面接一段附件清单。它只给人看：在 Obsidian 里点得开，图片能预览。
@@ -123,21 +123,21 @@ checkins:
 
 ## 其他文件
 
-- `_group.md`：`id`、`name`、`icon`、`start`、`end`、`category`（id）、`default_type`（id）；正文是一行 `# 组名`（导入时忽略）。
+- `_group.md`：`id`、`name`、`icon`、`start`、`end`、`category`（id）、`default_type`（id）；正文是一行 `# 项目名`（导入时忽略）。
 - `library/…/x.md`：`id`、`type`（id）、`name`、`image`（`assets/…`，或没取到文件时的 asset id / 链接）、`fields`（资料字段：年份、作者、IMDb 编号、价格 `{ amount, currency }`、更多链接 `[{ url, label? }]`…）、`created`；正文是备注。
 - `people/x.md`：`id`、`name`、`avatar`、`relation`、`birthday`；正文是备注。
 - `journal/2026/10/2026-10-17.md`（日记，方案见 JOURNAL.md）：`id`（由日期算出的固定 id，只用来核对）、`date`（YYYY-MM-DD）、`mood`（心情的英文 id：happy、calm、tired…，没填不写）、`created`；正文是日记内容（图片同任务改成相对路径）。导入时按日期认，同一天就是同一篇：日期不对的算「没导入」，id 和日期对不上的按日期导入并提示。规则和任务一样（新建 / 跳过 / 可选覆盖、整批撤销），预览里数「N 篇日记」。「这一天」汇总是算出来的，不导出。把按日期命名的普通 Markdown（Obsidian 每日笔记）当日记导入，留到 J2 做。
 
 ## 导入
 
-1. 选一个 zip，或选一个文件夹（网页 `webkitdirectory`）。系统文件（`__MACOSX`、`.DS_Store`、`.obsidian/`、隐藏文件）不看。如果所有文件都在同一个顶层文件夹里，就去掉这一层：zip 的根文件夹、选中的那个文件夹本身都不算组。
+1. 选一个 zip，或选一个文件夹（网页 `webkitdirectory`）。系统文件（`__MACOSX`、`.DS_Store`、`.obsidian/`、隐藏文件）不看。如果所有文件都在同一个顶层文件夹里，就去掉这一层：zip 的根文件夹、选中的那个文件夹本身都不算项目。
 2. **有 `_meta/mindough.json`，就是 Mindough 格式。** 按 id 认：
    - 库里没有（或已删掉）：新建。
    - 有，内容一样：跳过。
    - 有，内容不同：默认跳过；打开「已有的用文件覆盖」，就改成文件里的样子（连同它的先做完这些、相关任务、人物；我的一天、打卡记录只补不删）。
-   - 没有 id 的 .md（在 Obsidian 里新写的）当新任务，放进它所在文件夹对应的组。
+   - 没有 id 的 .md（在 Obsidian 里新写的）当新任务，放进它所在文件夹对应的项目。
 3. **没有，就当普通 Markdown 文件夹。** 每个 `.md` 是一件任务：
-   - 最上一层文件夹 → 组（同名的已有组直接用，没有就建；更深的子文件夹并进最上一层）；
+   - 最上一层文件夹 → 项目（同名的已有项目直接用，没有就建；更深的子文件夹并进最上一层）；
    - 文件名就是标题：正文第一行不是文件名时，在最前面补一行 `# 文件名`；
    - 正文原样，`- [ ]` 清单不拆成多件任务；
    - front matter 认几样常见的：`status`（done / completed / doing / closed / 中文状态…）、`done: true`、`due` / `date` / `scheduled`（YYYY-MM-DD → 日期），其余忽略；
@@ -148,4 +148,4 @@ checkins:
 
 ## 往返
 
-导出后再导入一个空库，数据不变（`archive.test.ts`、`journal.test.ts`、`attachments.test.ts`）：任务、组、资料、人物、类型、打卡分类、打卡记录、日记、图片、附件（带文件的 r2_key 留空、重新上传）按 id 原样回来；前后关系、相关任务、人物关联、我的一天按内容一样（前后关系 / 人物关联 / 我的一天的行 id 是新生成的）。`data:` 图片按内容一样（回来是 base64 写法）。网上的图片导出时取回了内容的，导入后变成本地（或重新上传到 R2 的）地址。
+导出后再导入一个空库，数据不变（`archive.test.ts`、`journal.test.ts`、`attachments.test.ts`）：任务、项目、资料、人物、类型、打卡分类、打卡记录、日记、图片、附件（带文件的 r2_key 留空、重新上传）按 id 原样回来；前后关系、相关任务、人物关联、我的一天按内容一样（前后关系 / 人物关联 / 我的一天的行 id 是新生成的）。`data:` 图片按内容一样（回来是 base64 写法）。网上的图片导出时取回了内容的，导入后变成本地（或重新上传到 R2 的）地址。
