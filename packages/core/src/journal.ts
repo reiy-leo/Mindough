@@ -10,7 +10,7 @@
  */
 import { addDays, parseDateKey, toDateKey } from './dates';
 import { parseHlc } from './hlc';
-import { tr } from './i18n';
+import { tr, weekStartsOn as localeWeekStart } from './i18n';
 import type { DateKey, JournalEntry } from './types';
 
 // ───────────── id 与日期 ─────────────
@@ -257,11 +257,11 @@ export function journalOfMonth(entries: readonly JournalEntry[], month: string):
   return sortedJournal(entries).filter((e) => e.date.startsWith(`${month}-`));
 }
 
-/** 月历：周一开始，前后补齐成整周。null = 不属于这个月的格子。 */
-export function monthGrid(month: string): Array<DateKey | null> {
+/** 月历：前后补齐成整周。null = 不属于这个月的格子。一周从哪天开始默认按界面语言（中文周一）。 */
+export function monthGrid(month: string, weekStart: 0 | 1 = localeWeekStart()): Array<DateKey | null> {
   const [y, m] = month.split('-').map(Number) as [number, number];
   const first = `${month}-01`;
-  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 7 - weekStart) % 7;
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const cells: Array<DateKey | null> = Array.from({ length: lead }, () => null);
   for (let i = 0; i < days; i++) cells.push(addDays(first, i));

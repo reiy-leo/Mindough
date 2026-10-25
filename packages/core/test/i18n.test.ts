@@ -72,10 +72,11 @@ describe('i18n（core）', () => {
     expect(dataLabel('用户自己起的名字')).toBe('用户自己起的名字');
   });
 
-  it('跟随系统：中文系 → 中文，其余英文', () => {
+  it('跟随系统：按系统语言顺序找第一个支持的，中文系 → 中文，都不支持用英文（2026-10-25 加了七种语言）', () => {
     expect(localeFromSystem(['zh-TW'])).toBe('zh');
-    expect(localeFromSystem(['ja-JP', 'en-US'])).toBe('en');
-    expect(localeFromSystem(['fr-FR'])).toBe('en');
+    expect(localeFromSystem(['ja-JP', 'en-US'])).toBe('ja');
+    expect(localeFromSystem(['fr-FR'])).toBe('fr');
+    expect(localeFromSystem(['ko-KR', 'it-IT'])).toBe('en');
   });
 });
 

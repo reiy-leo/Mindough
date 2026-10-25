@@ -56,7 +56,8 @@ export function useLookupAvailable(): boolean {
   return useSyncExternalStore(subscribeAvailability, lookupAvailable);
 }
 
-const lang = () => (getLocale() === 'en' ? 'en' : 'zh');
+/** 在线查资料：中文界面按中文查，其他语言都按英文查（来源只有中英两种结果；2026-10-25 加七种语言时定的）。 */
+const lang = () => (getLocale() === 'zh' ? 'zh' : 'en');
 
 async function getJson<T>(path: string, signal?: AbortSignal, fetcher: typeof fetch = (...a) => fetch(...a)): Promise<T> {
   const res = await fetcher(`${API_BASE}${path}`, authInit(signal ? { signal } : {}));

@@ -38,7 +38,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType, weekdayLabel, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
+  type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -170,7 +170,7 @@ export function modeDefaults(mode: CompletionMode, cur: CompletionValue): Partia
   return { completion_mode: mode };
 }
 
-const WEEK = [1, 2, 3, 4, 5, 6, 0];
+const WEEK = () => weekOrder();
 type Freq = Recurrence['kind'];
 const FREQ: Array<{ id: Freq; label: string }> = [
   { id: 'daily', get label() { return tr('每天'); } },
@@ -247,7 +247,7 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
             <div className="sentence">
               <span>{tr('在每周的')}</span>
               <div className="weekday-picker" role="group" aria-label={tr('每周哪几天')}>
-                {WEEK.map((d) => (
+                {WEEK().map((d) => (
                   <ToggleButton
                     key={d}
                     className="weekday"

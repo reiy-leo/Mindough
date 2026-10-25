@@ -614,7 +614,7 @@ export const EN: Record<string, EnValue> = {
   // ── 设置 ──
   外观: 'Appearance',
   语言: 'Language',
-  '跟随系统时，系统是中文就用中文，其他语言用英文；会同步到你的其他设备': 'With System, Mindough uses Chinese if your system is in Chinese and English otherwise. Syncs to your other devices.',
+  '跟随系统时按系统语言显示，系统语言不在这几种里就用英文；会同步到你的其他设备': 'With System, Mindough follows your system language, or English if it isn’t one of these. Syncs to your other devices.',
   皮肤: 'Style',
   '自动：检测到 {p}，使用 {p2}。当前：{p3}': 'Automatic: detected {p}, using {p2}. Current: {p3}',
   自动: 'Automatic',

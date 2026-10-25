@@ -24,7 +24,7 @@ export function formatRemindTime(hhmm: string | null): string {
   const v = normalizeRemindTime(hhmm);
   if (!v) return tr('不提醒');
   const [h, m] = v.split(':').map(Number) as [number, number];
-  return new Intl.DateTimeFormat(intlLocale(getLocale()), { hour: getLocale() === 'en' ? 'numeric' : '2-digit', minute: '2-digit' }).format(new Date(2000, 0, 1, h, m));
+  return new Intl.DateTimeFormat(intlLocale(getLocale()), { hour: getLocale() === 'zh' ? '2-digit' : 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, h, m));
 }
 
 export function RemindPanel({ value, onChange, task }: { value: string | null; onChange: (v: string | null) => void; task: Pick<Task, 'recurrence' | 'completion_mode' | 'target_value'> }) {

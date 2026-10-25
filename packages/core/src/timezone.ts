@@ -113,7 +113,7 @@ export function formatUtcOffset(minutes: number): string {
 
 /** 城市名：「上海」/「New York」；没收录的用 IANA 最后一段（下划线换空格）。 */
 export function timeZoneCity(tz: string): string {
-  if (getLocale() !== 'en' && CITY_ZH[tz]) return CITY_ZH[tz]!;
+  if (getLocale() === 'zh' && CITY_ZH[tz]) return CITY_ZH[tz]!;
   if (tz === 'UTC') return 'UTC';
   const last = tz.split('/').pop() ?? tz;
   return last.replace(/_/g, ' ');
@@ -121,7 +121,7 @@ export function timeZoneCity(tz: string): string {
 
 /** 「上海 (UTC+8)」「New York (UTC−4)」，偏移按 date 那天算。UTC 本身只写「UTC」。 */
 export function timeZoneLabel(tz: string, date: DateKey): string {
-  if (tz === 'UTC') return getLocale() === 'en' ? 'UTC' : tr('协调世界时 (UTC)');
+  if (tz === 'UTC') return getLocale() === 'zh' ? tr('协调世界时 (UTC)') : 'UTC';
   return `${timeZoneCity(tz)} (${formatUtcOffset(offsetMinutesOn(tz, date))})`;
 }
 

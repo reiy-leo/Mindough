@@ -1,20 +1,18 @@
 /**
  * 界面语言的根：决定当前语言、换语言时整棵界面重新挂载（key = 语言），并把 React Aria 的 I18nProvider 跟上。
- * 语言设置存在同步的偏好 pref `locale`（跟随系统 / 中文 / English，各设备一致）；本机另存一份，启动时立即用上（不闪中文）。
- * 地址栏 ?lang=zh|en 临时覆盖（截图 / 调试），不写进设置。
+ * 语言设置存在同步的偏好 pref `locale`（跟随系统或九种语言之一，各设备一致）；本机另存一份，启动时立即用上（不闪中文）。
+ * 地址栏 ?lang=zh|en|es|pt-BR|ru|ja|de|fr|id 临时覆盖（截图 / 调试），不写进设置。
+ * 换到一种还没加载的语言时，先照旧显示，词典加载好再整棵换掉。
  */
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { I18nProvider } from 'react-aria-components';
 import { getLocale, intlLocale } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
-import { applyLocalePref, LOCALE_KEY, type LocalePref } from './i18n';
+import { applyLocalePref, isLocalePref, loadLocale, LOCALE_KEY, resolveLocale, urlLocale, type LocalePref } from './i18n';
 
 const PREF_KEY = 'locale';
-const isPref = (v: unknown): v is LocalePref => v === 'system' || v === 'zh' || v === 'en';
-const urlLang = (): LocalePref | null => {
-  const q = new URLSearchParams(location.search).get('lang');
-  return q === 'zh' || q === 'en' ? q : null;
-};
+const isPref = isLocalePref;
+const urlLang = (): LocalePref | null => urlLocale();
 const localPref = (): LocalePref => {
   const v = localStorage.getItem(LOCALE_KEY);
   return isPref(v) ? v : 'system';
@@ -45,7 +43,18 @@ export function LocaleRoot({ children }: { children: ReactNode }) {
     window.addEventListener('languagechange', on);
     return () => window.removeEventListener('languagechange', on);
   }, []);
-  // 渲染前就切好（tr 是全局的，子组件这一轮就读到新语言）
+  // 渲染前就切好（tr 是全局的，子组件这一轮就读到新语言）；词典还没加载的先加载，好了再渲染一次
+  const want = resolveLocale(pref);
+  useEffect(() => {
+    let live = true;
+    loadLocale(want).then(
+      () => live && bump((n) => n + 1),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [want]);
   const locale = applyLocalePref(pref);
   useEffect(() => {
     // 别的设备改了语言、同步下来：本机这份也跟上，下次启动直接用

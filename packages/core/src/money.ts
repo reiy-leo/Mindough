@@ -44,13 +44,15 @@ export const CURRENCIES: Currency[] = [
 
 export const DEFAULT_CURRENCY = 'CNY';
 
-let enNames: Intl.DisplayNames | null = null;
-/** 币种的显示名：中文用表里的中文名，英文用 Intl（「US Dollar」「Singapore Dollar」）。 */
+const names = new Map<string, Intl.DisplayNames>();
+/** 币种的显示名：中文用表里的中文名，其他语言用 Intl（「US Dollar」「Dólar estadounidense」「доллар США」）。 */
 export function currencyName(c: Currency): string {
-  if (getLocale() !== 'en') return c.name;
+  if (getLocale() === 'zh') return c.name;
   try {
-    enNames ??= new Intl.DisplayNames(['en'], { type: 'currency' });
-    return enNames.of(c.code) ?? c.code;
+    const tag = intlLocale();
+    let dn = names.get(tag);
+    if (!dn) names.set(tag, (dn = new Intl.DisplayNames([tag], { type: 'currency' })));
+    return dn.of(c.code) ?? c.code;
   } catch {
     return c.code;
   }

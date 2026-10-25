@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BUILTIN_TYPE_IDS, MemoryAdapter, SOURCE_KEY, Store, type LookupResult } from '@mindough/core';
+import { BUILTIN_TYPE_IDS, MemoryAdapter, SOURCE_KEY, Store, setLocale, type LookupResult } from '@mindough/core';
 import { createItemFromLookup, fetchLookupItem, searchOnline } from './lookup';
 
 const r: LookupResult = {
@@ -76,5 +76,18 @@ describe('在线找资料（客户端）', () => {
     // 所有来源都失败（如 503）但带 sources：照样返回，界面按来源显示
     const g = vi.fn(async () => Response.json({ results: [], sources: [{ source: 'tmdb', status: 'unconfigured', code: 503 }] }, { status: 503 }));
     expect((await searchOnline('movie', 'x', undefined, g as unknown as typeof fetch)).sources[0]!.status).toBe('unconfigured');
+  });
+
+  it('查询语言：中文界面 lang=zh，英文和其他语言都按英文查（2026-10-25）', async () => {
+    const f = vi.fn(async () => Response.json({ results: [], sources: [] }));
+    try {
+      for (const [l, want] of [['zh', 'zh'], ['en', 'en'], ['de', 'en'], ['ja', 'en'], ['pt-BR', 'en']] as const) {
+        setLocale(l);
+        await searchOnline('book', 'x', undefined, f as unknown as typeof fetch);
+        expect(String((f.mock.calls.at(-1) as unknown[])[0])).toContain(`&lang=${want}`);
+      }
+    } finally {
+      setLocale('zh');
+    }
   });
 });

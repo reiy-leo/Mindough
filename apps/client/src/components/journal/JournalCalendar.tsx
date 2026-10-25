@@ -4,7 +4,7 @@
  */
 import { Button as RacButton } from 'react-aria-components';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { addMonths, formatDate, getLocale, hasJournalContent, intlLocale, journalOfMonth, journalPreview, journalWordCount, monthGrid, moodLabel, parseDateKey, weekdayLabel, type JournalEntry } from '@mindough/core';
+import { addMonths, formatDate, getLocale, hasJournalContent, intlLocale, journalOfMonth, journalPreview, journalWordCount, monthGrid, moodLabel, parseDateKey, weekdayLabel, weekOrder, type JournalEntry } from '@mindough/core';
 import { MoodIcon } from './MoodIcon';
 import { LunarMark, lunarTitle } from '../task/DatePanel';
 import { useLunar } from '../../lib/lunar';
@@ -52,7 +52,7 @@ export function JournalCalendar({
       </div>
       <div className="jcal-grid" role="grid" aria-label={monthTitle(month)}>
         <div className="jcal-row jcal-weekdays" role="row">
-          {[1, 2, 3, 4, 5, 6, 0].map((dow) => (
+          {weekOrder().map((dow) => (
             <span key={dow} className="jcal-wd" role="columnheader" aria-label={weekdayLabel(dow, 'long')}>
               {weekdayLabel(dow, 'narrow')}
             </span>

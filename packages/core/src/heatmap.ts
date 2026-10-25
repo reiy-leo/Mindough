@@ -1,9 +1,10 @@
 /**
- * GitHub 式活动热力图数据。一列 = 一周（默认周一开始），一格 = 一天。
+ * GitHub 式活动热力图数据。一列 = 一周（从哪天开始按界面语言，见 i18n weekStartsOn），一格 = 一天。
  * 档位：0 = 没打卡（或当天无需打卡）、1 = <50%、2 = <100%、3 = 达标。
  */
 import { addDays, diffDays, monthShort, parseDateKey, startOfWeek } from './dates';
 import type { DateKey } from './types';
+import { weekStartsOn as localeWeekStart } from './i18n';
 
 export type HeatLevel = 0 | 1 | 2 | 3;
 
@@ -42,7 +43,7 @@ export interface HeatmapOptions {
   ratioFor: (date: DateKey) => number | null;
 }
 
-export function buildHeatmap({ end, weeks = 53, weekStartsOn = 1, ratioFor }: HeatmapOptions): HeatmapData {
+export function buildHeatmap({ end, weeks = 53, weekStartsOn = localeWeekStart(), ratioFor }: HeatmapOptions): HeatmapData {
   const lastWeekStart = startOfWeek(end, weekStartsOn);
   const start = addDays(lastWeekStart, -(weeks - 1) * 7);
   const columns: HeatCell[][] = [];

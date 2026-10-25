@@ -17,6 +17,7 @@ import {
   type DateKey,
   type LunarDate,
   type QuickDateKind,
+  weekStartsOn,
 } from '@mindough/core';
 import { Button, Segmented, Select, TipButton } from '../../ui/primitives';
 import { LUNAR_PICK_KEY, useLunar, type DayLunar } from '../../lib/lunar';
@@ -115,7 +116,7 @@ export function DatePanel({
         <Calendar
           aria-label={tr('选择日期')}
           className="calendar"
-          firstDayOfWeek="mon"
+          firstDayOfWeek={weekStartsOn() === 0 ? 'sun' : 'mon'}
           value={value ? parseDate(value) : null}
           defaultFocusedValue={parseDate(value ?? zoneToday)}
           onChange={(d) => onChange(toKey(d))}

@@ -42,13 +42,13 @@ export function lunarMonthName(month: number, leap = false): string {
 
 /** 选择器 / 重复规则里的月份：中文「闰六月」，英文「Leap Month 6」。 */
 export function lunarMonthLabel(month: number, leap = false): string {
-  if (getLocale() === 'en') return `${leap ? 'Leap ' : ''}Month ${month}`;
+  if (getLocale() !== 'zh') return `${leap ? 'Leap ' : ''}Month ${month}`;
   return lunarMonthName(month, leap);
 }
 
 /** 选择器 / 重复规则里的日子：中文「初一」，英文「Day 1」。 */
 export function lunarDayLabel(day: number): string {
-  return getLocale() === 'en' ? `Day ${day}` : lunarDayName(day);
+  return getLocale() !== 'zh' ? `Day ${day}` : lunarDayName(day);
 }
 
 /** 格子提示用的全称（中英文都是中文）：「农历九月初一」。 */
@@ -58,7 +58,7 @@ export function lunarFullName(month: number, day: number, leap = false): string 
 
 /** 「农历九月初一」/「Lunar Month 9, Day 1」。 */
 export function lunarDateLabel(month: number, day: number, leap = false): string {
-  if (getLocale() === 'en') return `Lunar ${lunarMonthLabel(month, leap)}, Day ${day}`;
+  if (getLocale() !== 'zh') return `Lunar ${lunarMonthLabel(month, leap)}, Day ${day}`;
   return `农历${lunarMonthName(month, leap)}${lunarDayName(day)}`;
 }
 
@@ -72,6 +72,6 @@ export function ganzhiYear(year: number): string {
 
 /** 年份：中文「2026 丙午」，英文「2026」。 */
 export function lunarYearLabel(year: number): string {
-  if (getLocale() === 'en') return String(year);
+  if (getLocale() !== 'zh') return String(year);
   return `${year} ${ganzhiYear(year).slice(0, 2)}`;
 }

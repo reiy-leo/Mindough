@@ -18,7 +18,7 @@ import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
 import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
-import { appName, getLocale, tr, trc } from '../lib/i18n';
+import { appName, getLocale, LOCALE_NAMES, LOCALES, tr, trc } from '../lib/i18n';
 import tmdbLogo from '../assets/tmdb-logo.svg';
 import { useLocalePref } from '../lib/locale';
 import { exportToZip } from '../lib/archive';
@@ -68,17 +68,14 @@ export function SettingsPage() {
           <div className="setting">
             <div className="setting-text">
               <div className="setting-name">{tr('语言')}</div>
-              <div className="setting-hint">{tr('跟随系统时，系统是中文就用中文，其他语言用英文；会同步到你的其他设备')}</div>
+              <div className="setting-hint">{tr('跟随系统时按系统语言显示，系统语言不在这几种里就用英文；会同步到你的其他设备')}</div>
             </div>
-            <Segmented<LocalePref>
+            <Select
               label={tr('语言')}
+              className="setting-select"
               value={localePref}
-              onChange={setLocalePref}
-              options={[
-                { id: 'system', label: tr('跟随系统') },
-                { id: 'zh', label: '中文' }, // i18n-ignore 语言名用它自己的写法
-                { id: 'en', label: 'English' },
-              ]}
+              onChange={(v) => setLocalePref(v as LocalePref)}
+              options={[{ id: 'system', label: tr('跟随系统') }, ...LOCALES.map((l) => ({ id: l, label: LOCALE_NAMES[l] }))]}
             />
           </div>
           <div className="setting">

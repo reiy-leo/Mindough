@@ -10,6 +10,7 @@ import {
   buildHeatmap,
   formatDateZh,
   weekdayShort,
+  weekOrder,
   type DateKey,
   type MonthMarker,
 } from "@mindough/core";
@@ -17,16 +18,8 @@ import { useSettings } from "../lib/settings";
 import { fitHeatmap } from "../lib/habit-heatmap";
 
 import { tr } from "../lib/i18n";
-/** 左侧星期标签（周一开始，隔行显示）：按当前语言（weekdayShort）。 */
-const weekLabels = () => [
-  weekdayShort(1),
-  "",
-  weekdayShort(3),
-  "",
-  weekdayShort(5),
-  "",
-  weekdayShort(0),
-];
+/** 左侧星期标签（隔行显示）：一周从哪天开始、叫什么都按当前语言（weekOrder / weekdayShort）。 */
+const weekLabels = () => weekOrder().map((d, i) => (i % 2 ? "" : weekdayShort(d)));
 
 /**
  * GitHub 式热力图。格子严格正方形（固定像素，不随容器拉伸）；每月 1 号做标记。

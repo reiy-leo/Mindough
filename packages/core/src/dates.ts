@@ -1,6 +1,6 @@
 /** 本地日期工具。DateKey = YYYY-MM-DD；日期运算一律在 UTC 午夜上做，避免时区与夏令时偏差。 */
 import type { DateKey } from './types';
-import { getLocale, tr } from './i18n';
+import { getLocale, intlLocale, tr, weekStartsOn as localeWeekStart } from './i18n';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -49,7 +49,8 @@ export function mondayIndex(key: DateKey): number {
   return (weekday(key) + 6) % 7;
 }
 
-export function startOfWeek(key: DateKey, weekStartsOn: 0 | 1 = 1): DateKey {
+/** 这一周的第一天；不传就按界面语言（weekStartsOn：中文周一、英文周日…）。 */
+export function startOfWeek(key: DateKey, weekStartsOn: 0 | 1 = localeWeekStart()): DateKey {
   const offset = weekStartsOn === 1 ? mondayIndex(key) : weekday(key);
   return addDays(key, -offset);
 }
@@ -71,7 +72,7 @@ export function dateRange(from: DateKey, to: DateKey): DateKey[] {
 
 /** 星期的短名（0=周日）：中文「日 一 二…」，英文「Sun Mon…」。 */
 export function weekdayShort(dow: number): string {
-  if (getLocale() === 'en') return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + dow)));
+  if (getLocale() !== 'zh') return new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + dow)));
   return WEEKDAY_LABEL[dow]!;
 }
 
@@ -79,7 +80,7 @@ export function weekdayShort(dow: number): string {
  * 星期（0=周日）的三种宽度：narrow 中文「一」/ 英文「M」（星期选择钮）；short「周一」/「Mon」；long「星期一」/「Monday」（读屏）。
  */
 export function weekdayLabel(dow: number, width: 'narrow' | 'short' | 'long'): string {
-  if (getLocale() === 'en') return new Intl.DateTimeFormat('en-US', { weekday: width, timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + dow)));
+  if (getLocale() !== 'zh') return new Intl.DateTimeFormat(intlLocale(), { weekday: width, timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + dow)));
   const c = WEEKDAY_LABEL[dow]!;
   return width === 'narrow' ? c : width === 'short' ? `周${c}` : `星期${c}`; // i18n-ignore 中文分支
 }
@@ -93,8 +94,8 @@ export const WEEKDAY_LABEL = ['日', '一', '二', '三', '四', '五', '六'] a
 export function formatDate(key: DateKey, opts: { weekday?: boolean; year?: boolean } = {}): string {
   const { y, m, d } = parseDateKey(key);
   const withWeekday = opts.weekday ?? true;
-  if (getLocale() === 'en') {
-    return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', ...(withWeekday ? { weekday: 'short' } : {}), ...(opts.year ? { year: 'numeric' } : {}) }).format(new Date(Date.UTC(y, m - 1, d)));
+  if (getLocale() !== 'zh') {
+    return new Intl.DateTimeFormat(intlLocale(), { timeZone: 'UTC', month: 'short', day: 'numeric', ...(withWeekday ? { weekday: 'short' } : {}), ...(opts.year ? { year: 'numeric' } : {}) }).format(new Date(Date.UTC(y, m - 1, d)));
   }
   const base = `${opts.year ? `${y}年` : ''}${m}月${d}日`; // i18n-ignore 中文分支
   return withWeekday ? `${base} 周${WEEKDAY_LABEL[weekday(key)]}` : base; // i18n-ignore 中文分支
@@ -118,6 +119,6 @@ export function relativeDayZh(key: DateKey, today: DateKey): string {
 
 /** 月份短名（1–12）：中文「3月」，英文「Mar」。 */
 export function monthShort(m: number): string {
-  if (getLocale() === 'en') return new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, m - 1, 1)));
+  if (getLocale() !== 'zh') return new Intl.DateTimeFormat(intlLocale(), { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, m - 1, 1)));
   return `${m}月`; // i18n-ignore 中文分支
 }
