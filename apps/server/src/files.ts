@@ -4,13 +4,14 @@
  *
  * - POST /api/files                 会话（cookie / Bearer）或同步凭据；body 是文件本身（任何格式，≤ 50 MB）
  *                                   → { r2_key, sha256, mime, size }。同一个人的同一份内容只存一份。
- * - GET  /api/files/<key>[?name=…&dl=1]
+ * - GET / HEAD /api/files/<key>[?name=…&dl=1]
  *                                   要登录，key 的前缀（用户哈希）得是自己的，不是一律 404 未找到。
  *                                   安全的图片格式 inline（缩略图、灯箱里显示）；其余、或带 dl=1，一律 attachment 下载，
  *                                   文件名用 ?name=（RFC 5987 编码）。都带 nosniff + CSP sandbox，HTML / SVG 里的脚本不会执行。
- * key = <用户哈希 16 位>/f/<内容 SHA-256>。
+ *                                   HEAD 只回头（客户端用它查文件还在不在：404 未找到 = 已经清掉了）。
+ * key = <用户哈希 16 位>/f/<内容 SHA-256>。没人用的文件会清掉，见 purge.ts。
  */
-import type { AssetBucket, AssetEnv } from './assets';
+import type { AssetBucket, AssetEnv, R2Object } from './assets';
 import { requestUser } from './assets';
 
 /** 单个附件最大 50 MB（待 Rei 确认；客户端 core/attachments.ts 的 MAX_ATTACHMENT_BYTES 同一个数）。 */
@@ -49,7 +50,9 @@ export async function handleFileUpload(req: Request, env: AssetEnv): Promise<Res
 export async function storeFile(files: AssetBucket, who: string, buf: ArrayBuffer, mime: string): Promise<{ r2_key: string; sha256: string; mime: string; size: number }> {
   const sha = hex(await crypto.subtle.digest('SHA-256', buf));
   const key = `${await ownerHash(who)}/f/${sha}`;
-  if (!(await files.head(key))) await files.put(key, buf, { httpMetadata: { contentType: mime } });
+  // 同内容同一个 key。已经有了也重写一遍：刷新上传时间，免得刚被清理判成「旧文件」（purge.ts 的 FRESH_UPLOAD_MS），
+  // 也让清理后从本机补传回来的文件 key 不变。
+  await files.put(key, buf, { httpMetadata: { contentType: mime } });
   return { r2_key: key, sha256: sha, mime, size: buf.byteLength };
 }
 
@@ -69,20 +72,31 @@ export async function handleFileGet(req: Request, key: string, env: AssetEnv, ur
   if (who instanceof Response) return who;
   if (m[1] !== (await ownerHash(who))) return json({ error: '404 未找到' }, 404);
   if (!env.FILES) return json({ error: '503 服务不可用：文件存储还没配置' }, 503);
-  const obj = await env.FILES.get(key);
-  if (!obj) return json({ error: '404 未找到' }, 404);
+  const head = req.method === 'HEAD';
+  const obj = head ? await headObject(env.FILES, key) : await env.FILES.get(key);
+  if (!obj) return head ? new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } }) : json({ error: '404 未找到' }, 404);
   const mime = cleanMime(obj.httpMetadata?.contentType ?? null);
   const inline = INLINE.test(mime) && url.searchParams.get('dl') !== '1';
-  return new Response(obj.body, {
+  return new Response(head ? null : (obj as R2Object).body, {
     headers: {
       'content-type': mime,
       'content-length': String(obj.size),
       'content-disposition': contentDisposition(inline ? 'inline' : 'attachment', url.searchParams.get('name')),
-      // 内容按 SHA-256 定址，不会变；只给这个人的浏览器缓存
-      'cache-control': 'private, max-age=31536000, immutable',
+      // 内容按 SHA-256 定址，不会变；只给这个人的浏览器缓存。HEAD 不缓存（要知道现在还在不在）
+      'cache-control': head ? 'no-store' : 'private, max-age=31536000, immutable',
       'cross-origin-resource-policy': 'cross-origin',
       'x-content-type-options': 'nosniff',
       'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     },
   });
+}
+
+/** HEAD：R2 的 head 带大小和类型；测试里的假桶可能只回 {}，那就退回 get。 */
+async function headObject(files: AssetBucket, key: string): Promise<{ size: number; httpMetadata?: { contentType?: string } } | null> {
+  const h = (await files.head(key)) as { size?: number; httpMetadata?: { contentType?: string } } | null;
+  if (!h) return null;
+  if (typeof h.size === 'number') return { size: h.size, httpMetadata: h.httpMetadata };
+  const o = await files.get(key);
+  if (o) await o.body.cancel();
+  return o;
 }

@@ -21,5 +21,7 @@
   "vars": { "STORAGE_BACKEND": "turso" },
   // Cloudflare D1 库 mindough（APAC，Rei 2026-10-17 建）；STORAGE_BACKEND=d1 时同步数据存这里
   "d1_databases": [{ "binding": "DB", "database_name": "mindough", "database_id": "eb0e708a-8764-42fe-a41c-13c9906f16fe" }],
+  // 每天 UTC 19:00（北京 03:00）清理没人用的附件文件（src/purge.ts，Rei 2026-10-25）
+  "triggers": { "crons": ["0 19 * * *"] },
   "observability": { "enabled": true }
 }

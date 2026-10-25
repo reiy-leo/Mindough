@@ -8,6 +8,7 @@
  * - 每个附件：下载、缓存 / 删除缓存（Rei 2026-10-25，本机副本 24 小时后自动清除）、重命名、删除（提示里可撤销）
  *   桌面：悬停出现 ··· / 右键；触屏：··· / 长按，都是同一个菜单。缓存着的附件有个小硬盘标记。
  * - 离线时没缓存的附件下载不了（按钮灰掉，点了提示）
+ * - 云端文件清掉了（撤销删除、别的设备恢复了这一行）：本机有就补传，没有就显示「文件已删除」，下载、缓存灰掉（lib/attachment-gone.ts）
  */
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Button as RacButton, Dialog, Heading, Input, Modal, ModalOverlay, TextField } from 'react-aria-components';
@@ -42,6 +43,7 @@ import {
   type UploadState,
 } from '../../lib/attachments';
 import { attachmentCache, useCacheRecord } from '../../lib/attachment-cache';
+import { checkAttachment, goneState, useGoneState, useGoneVersion, type GoneState } from '../../lib/attachment-gone';
 import { Button, OverflowMenu, Tip, type MenuAction } from '../../ui/primitives';
 import { FileIcon } from './FileIcon';
 import { Lightbox } from './Lightbox';
@@ -178,7 +180,10 @@ export function Attachments({ owner, disabled, bare }: { owner: AttachmentOwner;
   const ui = useUi();
   const { layout } = useSettings();
   const list = store.attachmentsOf(owner.type, owner.id);
+  useGoneVersion();
   const images = list.filter((a) => attachmentPressAction(a) === 'lightbox');
+  // 灯箱只翻还在的图片
+  const viewable = images.filter((a) => goneState(a) !== 'gone');
   const files = list.filter((a) => attachmentPressAction(a) === 'download');
   const online = useOnline();
   const input = useRef<HTMLInputElement>(null);
@@ -188,10 +193,23 @@ export function Attachments({ owner, disabled, bare }: { owner: AttachmentOwner;
 
   const remove = (a: Attachment) => {
     store.removeAttachment(a.id);
-    ui.toast({ message: tr('已删除「{name}」', { name: a.file_name }), actions: [{ label: tr('撤销'), onPress: () => store.restoreAttachment(a.id) }] }, 6000);
+    const undo = () => {
+      const back = store.restoreAttachment(a.id);
+      // 云端文件可能已经清掉了：本机有就补传，没有就显示「文件已删除」
+      if (back) void checkAttachment(store, back, true);
+    };
+    ui.toast({ message: tr('已删除「{name}」', { name: a.file_name }), actions: [{ label: tr('撤销'), onPress: undo }] }, 6000);
   };
+  const goneHint = () => ui.toast({ tone: 'error', message: tr('云端的文件已经删了，这台设备上也没有副本') }, 5000);
   const download = async (a: Attachment) => {
-    downloadToast(ui, a, await downloadAttachment(a));
+    if (goneState(a) === 'gone') return goneHint();
+    let r = await downloadAttachment(a);
+    if (!r.ok && r.reason === 'gone') {
+      // 本机有副本就先补传回去再下载
+      if ((await checkAttachment(store, a, true)) === 'restored') r = await downloadAttachment(a);
+    }
+    if (!r.ok && r.reason === 'gone') return goneHint();
+    downloadToast(ui, a, r);
   };
   const cache = async (a: Attachment) => {
     if (await cacheAttachment(a)) ui.toast({ tone: 'success', message: tr('已缓存「{name}」，24 小时后自动清除', { name: a.file_name }) }, 4000);
@@ -202,7 +220,8 @@ export function Attachments({ owner, disabled, bare }: { owner: AttachmentOwner;
     ui.toast({ message: tr('已删除「{name}」的本机缓存', { name: a.file_name }) }, 3000);
   };
   const offlineHint = () => ui.toast({ message: tr('离线中，没缓存的附件下载不了，联网后再试') }, 4000);
-  const actions: Actions = { remove, download, rename: setRenaming, cache, uncache, offlineHint, online };
+  const check = (a: Attachment, fresh?: boolean) => void checkAttachment(store, a, fresh);
+  const actions: Actions = { remove, download, rename: setRenaming, cache, uncache, offlineHint, goneHint, check, online };
 
   if (bare && !list.length) return null;
 
@@ -250,7 +269,7 @@ export function Attachments({ owner, disabled, bare }: { owner: AttachmentOwner;
         </ul>
       )}
       <Lightbox
-        images={images}
+        images={viewable}
         openId={viewing}
         onClose={() => setViewing(null)}
         onDownload={(a) => void download(a)}
@@ -285,7 +304,9 @@ function downloadToast(ui: Toaster, a: Attachment, r: DownloadResult) {
         message:
           r.reason === 'missing'
             ? tr('文件还没传上来，在添加它的设备上联网后就能下载')
-            : r.reason === 'offline'
+            : r.reason === 'gone'
+              ? tr('云端的文件已经删了，这台设备上也没有副本')
+              : r.reason === 'offline'
               ? tr('离线中，没缓存的附件下载不了，联网后再试')
               : tr('没下载成功，稍后再试'),
       },
@@ -300,12 +321,24 @@ interface Actions {
   cache: (a: Attachment) => Promise<void>;
   uncache: (a: Attachment) => Promise<void>;
   offlineHint: () => void;
+  goneHint: () => void;
+  /** 查云端文件还在不在（不在就补传或标已删除）；fresh = 不用 10 分钟内的结论。 */
+  check: (a: Attachment, fresh?: boolean) => void;
   online: boolean;
 }
 
 /** 这个附件的操作能不能用（缓存记录 + 是否在本机队列 + 联网）。 */
-function actionStateOf(a: Attachment, online: boolean, pending = false): AttachmentActionState {
-  return attachmentActionState(a, { cached: !!attachmentCache().record(a), online, pending });
+function actionStateOf(a: Attachment, online: boolean, pending = false, gone: GoneState | null = null): AttachmentActionState {
+  const st = attachmentActionState(a, { cached: !!attachmentCache().record(a), online, pending });
+  // 云端没了（或正在补传）：下载、缓存都先不能点
+  return gone ? { ...st, download: false, cacheItem: null, cacheEnabled: false } : st;
+}
+
+/** 显示时查一次云端文件还在不在（正在上传的不查；10 分钟内只问一次）。 */
+function useFileCheck(a: Attachment, actions: Actions, uploading: boolean) {
+  useEffect(() => {
+    if (!uploading && a.r2_key && actions.online) actions.check(a);
+  }, [a.id, a.r2_key, a.thumb_key, uploading, actions.online]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function menuOf(a: Attachment, act: Pick<Actions, 'remove' | 'download' | 'rename' | 'cache' | 'uncache'>, st: AttachmentActionState): MenuAction[] {
@@ -398,7 +431,9 @@ function CachedBadge({ a, className }: { a: Attachment; className: string }) {
 }
 
 /** 上传状态那一行字。 */
-export function uploadText(s: UploadState | undefined, a: Attachment): string | null {
+export function uploadText(s: UploadState | undefined, a: Attachment, gone: GoneState | null = null): string | null {
+  if (gone === 'gone') return tr('文件已删除');
+  if (gone === 'restoring') return tr('正在补传…');
   if (s?.phase === 'uploading') return tr('正在上传 {p}%', { p: s.total ? Math.min(99, Math.floor((s.loaded / s.total) * 100)) : 0 });
   if (s?.phase === 'queued') return tr('等着上传');
   if (s?.phase === 'offline') return tr('等联网后上传');
@@ -442,18 +477,30 @@ function Progress({ s }: { s: UploadState | undefined }) {
 function ImageTile({ a, onOpen, actions }: { a: Attachment; onOpen: () => void; actions: Actions }) {
   const url = useAttachmentUrl(a, 'thumb');
   const s = useUploadState(a.id);
-  const status = uploadText(s, a);
+  const gone = useGoneState(a);
+  const status = uploadText(s, a, gone);
   useCacheRecord(a);
-  const st = actionStateOf(a, actions.online, !!s);
+  useFileCheck(a, actions, !!s);
+  const st = actionStateOf(a, actions.online, !!s, gone);
   const menu = useItemMenu(!s);
+  const press = () => {
+    if (menu.consume()) return;
+    if (gone === 'gone') actions.goneHint();
+    else if (!gone) onOpen();
+  };
   return (
-    <li className={`att-tile${s ? ` is-${s.phase}` : ''}`} {...menu.bind}>
-      <RacButton className="att-tile-btn" aria-label={tr('查看图片「{name}」', { name: a.file_name })} onPress={() => !menu.consume() && onOpen()}>
-        {url ? <img src={url} alt="" loading="lazy" draggable={false} /> : <FileIcon name={a.file_name} mime={a.mime} size={36} />}
+    <li className={`att-tile${s ? ` is-${s.phase}` : ''}${gone ? ` is-${gone}` : ''}`} {...menu.bind}>
+      <RacButton className="att-tile-btn" aria-label={gone === 'gone' ? `${a.file_name} · ${tr('文件已删除')}` : tr('查看图片「{name}」', { name: a.file_name })} onPress={press}>
+        {url && !gone ? (
+          // 缩略图取不到（可能云端清掉了）：马上重新查一次
+          <img src={url} alt="" loading="lazy" draggable={false} onError={() => actions.check(a, true)} />
+        ) : (
+          <FileIcon name={a.file_name} mime={a.mime} size={36} />
+        )}
       </RacButton>
       <CachedBadge a={a} className="att-cached att-tile-cached" />
       {status && (
-        <span className={`att-tile-status${s?.phase === 'failed' ? ' is-error' : ''}`} aria-live="polite">
+        <span className={`att-tile-status${s?.phase === 'failed' || gone === 'gone' ? ' is-error' : ''}`} aria-live="polite">
           {status}
         </span>
       )}
@@ -467,20 +514,25 @@ function ImageTile({ a, onOpen, actions }: { a: Attachment; onOpen: () => void; 
 
 function FileRow({ a, actions }: { a: Attachment; actions: Actions }) {
   const s = useUploadState(a.id);
-  const status = uploadText(s, a);
+  const gone = useGoneState(a);
+  const status = uploadText(s, a, gone);
   const kind = fileKind(a.file_name, a.mime);
   useCacheRecord(a);
-  const st = actionStateOf(a, actions.online, !!s);
+  useFileCheck(a, actions, !!s);
+  const st = actionStateOf(a, actions.online, !!s, gone);
   const menu = useItemMenu(!s);
-  const meta: ReactNode = status ? <span className={s?.phase === 'failed' ? 'is-error' : undefined}>{status}</span> : `${fileKindLabel(kind)} · ${formatFileSize(a.size)}`;
-  // 不预览：点一下就是下载；离线又没缓存时只提示
+  const meta: ReactNode = status ? <span className={s?.phase === 'failed' || gone === 'gone' ? 'is-error' : undefined}>{status}</span> : `${fileKindLabel(kind)} · ${formatFileSize(a.size)}`;
+  // 不预览：点一下就是下载；离线又没缓存、云端文件没了时只提示
   const press = () => {
     if (menu.consume()) return;
-    if (st.downloadBlocked === 'offline') actions.offlineHint();
+    if (gone === 'gone') actions.goneHint();
+    else if (gone) return;
+    else if (st.downloadBlocked === 'offline') actions.offlineHint();
     else void actions.download(a);
   };
+  const dlTip = gone === 'gone' ? tr('文件已删除') : st.download ? tr('下载') : tr('离线中，没缓存的附件下载不了');
   return (
-    <li className={`att-file${s ? ` is-${s.phase}` : ''}${st.download ? '' : ' is-unavailable'}${menu.open ? ' is-menu-open' : ''}`} {...menu.bind}>
+    <li className={`att-file${s ? ` is-${s.phase}` : ''}${gone ? ` is-${gone}` : ''}${st.download ? '' : ' is-unavailable'}${menu.open ? ' is-menu-open' : ''}`} {...menu.bind}>
       <RacButton className="att-file-btn" aria-label={tr('下载「{name}」', { name: a.file_name })} onPress={press}>
         <FileIcon name={a.file_name} mime={a.mime} kind={kind} size={36} />
         <span className="att-file-text">
@@ -497,8 +549,8 @@ function FileRow({ a, actions }: { a: Attachment; actions: Actions }) {
           <UploadControls a={a} s={s} />
         ) : (
           <>
-            <Tip content={st.download ? tr('下载') : tr('离线中，没缓存的附件下载不了')}>
-              <RacButton className="icon-btn att-dl" aria-label={st.download ? tr('下载') : tr('离线中，没缓存的附件下载不了')} isDisabled={!st.download} onPress={() => void actions.download(a)}>
+            <Tip content={dlTip}>
+              <RacButton className="icon-btn att-dl" aria-label={dlTip} isDisabled={!st.download} onPress={() => void actions.download(a)}>
                 <Download size={16} />
               </RacButton>
             </Tip>

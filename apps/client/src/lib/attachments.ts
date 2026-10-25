@@ -12,6 +12,7 @@ import { attachmentCache } from './attachment-cache';
 import { MAX_ATTACHMENT_BYTES, canThumbnail, formatFileSize, tooLarge, type Attachment, type AttachmentOwnerType, type Store } from '@mindough/core';
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
 import { pendingQueue } from './attachments-queue';
+import { forgetProbe, probeKey } from './attachment-gone';
 import { isTauri } from '../store/sqlite-tauri';
 import { tr } from './i18n';
 
@@ -412,6 +413,7 @@ export async function remoteBytes(a: Attachment): Promise<Blob | null> {
   if (!a.r2_key) return null;
   try {
     const r = await fetch(fileUrl(a.r2_key), authInit());
+    if (r.status === 404) forgetProbe(a.r2_key);
     return r.ok ? await r.blob() : null;
   } catch {
     return null;
@@ -443,7 +445,8 @@ function anchorDownload(href: string, name: string) {
   el.remove();
 }
 
-export type DownloadResult = { ok: true; path?: string; folder?: 'downloads' | 'chosen' } | { ok: false; reason: 'missing' | 'failed' | 'offline' | 'cancelled'; error?: string };
+/** reason：missing = 还没传上来；gone = 云端的文件清掉了（attachment-gone.ts）；offline / failed / cancelled。 */
+export type DownloadResult = { ok: true; path?: string; folder?: 'downloads' | 'chosen' } | { ok: false; reason: 'missing' | 'gone' | 'failed' | 'offline' | 'cancelled'; error?: string };
 
 /** 缓存：取回原文件存进本机（24 小时后自动清掉）。 */
 export function cacheAttachment(a: Attachment): Promise<boolean> {
@@ -471,6 +474,8 @@ export async function downloadAttachment(a: Attachment): Promise<DownloadResult>
   if (!local) {
     if (!a.r2_key) return { ok: false, reason: 'missing' };
     if (!isOnline()) return { ok: false, reason: 'offline' };
+    // 云端清掉了就别让浏览器去下一个「404 未找到」
+    if ((await probeKey(a.r2_key)) === 'missing') return { ok: false, reason: 'gone' };
   }
   if (!isTauri()) {
     if (local) {

@@ -551,3 +551,18 @@ html:not(:lang(zh)) .att-hint {
   opacity: 0.4;
   cursor: default;
 }
+
+/* 云端文件清掉了（文件已删除）/ 正在从本机补传（Rei 2026-10-25，lib/attachment-gone.ts） */
+.att-tile.is-gone .att-tile-btn,
+.att-tile.is-restoring .att-tile-btn,
+.att-file.is-gone .att-file-btn,
+.att-file.is-restoring .att-file-btn {
+  cursor: default;
+}
+.att-tile.is-gone .file-icon {
+  opacity: 0.45;
+}
+.att-tile.is-restoring .att-tile-status {
+  color: var(--text-2);
+  text-shadow: none;
+}

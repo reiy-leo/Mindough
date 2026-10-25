@@ -134,7 +134,13 @@ const UPSERT =
   `ON CONFLICT ("user_id", "tbl", "id") DO UPDATE SET "updated_at" = excluded."updated_at", "deleted" = excluded."deleted", "data" = excluded."data", "seq" = excluded."seq" ` +
   `WHERE excluded."updated_at" > "sync_row"."updated_at" RETURNING "seq"`;
 
-export async function handlePush(req: Request, env: SyncEnv, fetcher: typeof fetch = fetch): Promise<Response> {
+/**
+ * 推送写库之后要做的事（index.ts 传进来）：tombstones 是这次真写进库的墓碑行（整行 JSON）。
+ * 用来即时删没人用的附件文件（purge.ts），放进 ctx.waitUntil，不等它。
+ */
+export type AfterPush = (db: SqlDb, user: string, tombstones: string[]) => void;
+
+export async function handlePush(req: Request, env: SyncEnv, fetcher: typeof fetch = fetch, afterPush?: AfterPush): Promise<Response> {
   const user = await syncUser(req, env);
   if (user instanceof Response) return user;
   let body: { rows?: unknown };
@@ -146,16 +152,23 @@ export async function handlePush(req: Request, env: SyncEnv, fetcher: typeof fet
   const rows = body.rows;
   if (!Array.isArray(rows) || rows.length > MAX_ROWS || !rows.every(validRow)) return json({ error: `400 请求有误：rows 要是最多 ${MAX_ROWS} 行的数组` }, 400);
   const stmts: Stmt[] = [];
+  const datas: string[] = [];
   for (const r of rows) {
     const data = JSON.stringify({ ...r.row, id: r.id, updated_at: r.updated_at, deleted: !!r.deleted });
     if (data.length > MAX_ROW_BYTES) return json({ error: '413 内容太大：单行超过 2 MB（图片请先上传）' }, 413);
     stmts.push({ sql: UPSERT, args: [user, r.table, r.id, r.updated_at, r.deleted ? 1 : 0, data] });
+    datas.push(data);
   }
   if (!stmts.length) return json({ applied: 0 });
   try {
     const db = openDb(env, fetcher);
     await ensureSchema(db);
     const results = await db.transaction(stmts);
+    if (afterPush) {
+      // 整批都写进库了再挑墓碑：同一批里新加的行引用同一个文件，判断时已经在库里
+      const tombstones = rows.flatMap((r, i) => (r.deleted && (results[i]?.length ?? 0) > 0 && datas[i]!.includes('/f/') ? [datas[i]!] : []));
+      if (tombstones.length) afterPush(db, user, tombstones);
+    }
     return json({ applied: results.filter((x) => x.length > 0).length });
   } catch (e) {
     return dbError(e);

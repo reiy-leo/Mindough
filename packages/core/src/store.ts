@@ -1175,7 +1175,8 @@ export class Store {
   setAttachmentFile(id: string, keys: { r2_key: string; thumb_key?: string | null }): Attachment | undefined {
     const cur = this.get('attachment', id);
     if (!cur) return undefined;
-    return this.update('attachment', id, { r2_key: keys.r2_key, thumb_key: keys.thumb_key ?? cur.thumb_key });
+    // thumb_key 不传 = 不动；传 null = 去掉缩略图（云端缩略图清掉了、本机又生成不出来，网格退回用原图）
+    return this.update('attachment', id, { r2_key: keys.r2_key, thumb_key: keys.thumb_key === undefined ? cur.thumb_key : keys.thumb_key });
   }
 
   /** 改名（没写扩展名时补回原来的）；空名字不改，返回 undefined。 */

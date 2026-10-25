@@ -36,7 +36,7 @@ async function call(path: string, env: Env, init: RequestInit = {}, who: string 
 const upload = (env: Env, body: BodyInit, type: string, who?: string | null) => call('/api/files', env, { method: 'POST', body, headers: { 'content-type': type } }, who);
 
 describe('附件 /api/files', () => {
-  it('传上去：任何格式都收，key = 用户哈希/f/SHA-256，同内容只存一份', async () => {
+  it('传上去：任何格式都收，key = 用户哈希/f/SHA-256，同内容同一个 key（重写一遍刷新上传时间）', async () => {
     const FILES = new MemBucket();
     const env = envOf(FILES);
     const pdf = new TextEncoder().encode('%PDF-1.7 hello');
@@ -48,7 +48,8 @@ describe('附件 /api/files', () => {
     expect(up).toMatchObject({ mime: 'application/pdf', size: pdf.byteLength });
     const again = (await (await upload(env, pdf, 'application/pdf')).json()) as { r2_key: string };
     expect(again.r2_key).toBe(up.r2_key);
-    expect(FILES.puts).toBe(1);
+    expect(FILES.puts).toBe(2);
+    expect(FILES.data.size).toBe(1);
     // 怪的 content-type 存成 octet-stream
     const odd = (await (await upload(env, new Uint8Array([1, 2, 3]), 'not a mime')).json()) as { mime: string };
     expect(odd.mime).toBe('application/octet-stream');

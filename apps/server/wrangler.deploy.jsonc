@@ -9,7 +9,7 @@
   "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
   "r2_buckets": [
     { "binding": "WEB", "bucket_name": "mindough-web" },
-    // 用户上传的图片（/api/assets）
+    // 用户上传的图片（/api/assets）和附件（/api/files）
     { "binding": "FILES", "bucket_name": "mindough-assets" }
   ],
   // 控制台里配的 GOOGLE_CLIENT_ID 等明文变量，部署时保留
@@ -19,5 +19,7 @@
   "vars": { "STORAGE_BACKEND": "turso" },
   // Cloudflare D1 库 mindough（APAC，Rei 2026-10-17 建）；STORAGE_BACKEND=d1 时同步数据存这里
   "d1_databases": [{ "binding": "DB", "database_name": "mindough", "database_id": "eb0e708a-8764-42fe-a41c-13c9906f16fe" }],
+  // 每天 UTC 19:00（北京 03:00）清理没人用的附件文件（src/purge.ts，Rei 2026-10-25）
+  "triggers": { "crons": ["0 19 * * *"] },
   "observability": { "enabled": true }
 }
