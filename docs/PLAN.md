@@ -1,109 +1,119 @@
 # Mindough 计划（v1，2026-10-15）
 
 ## 一句话
-多端任务管理：任务不靠层层分类，而靠“完成后接什么”（FS 依赖）串起来；琐事用流水式列表记。
+做一个多端任务管理 app：任务不靠层层分类，靠“做完后接什么”（FS 依赖）串起来；琐事记在流水式的列表里。
 
 ## 技术方案
-- 平台（MVP 全部要可用）：macOS、Windows、iOS、Android、Web。
-- 外壳：Tauri 2，一套 React 前端同时打 macOS / Windows（Linux 顺带）、iOS、Android 安装包；Web 端是同一份前端的浏览器构建，部署在 `mindough.rei8t.dev`。
-- 前端：TypeScript + React + Vite；UI 为 headless 组件 + 每端原生风格皮肤（见“设计风格”）；浅/深色跟随系统。
-- 存储：本地优先、离线可用。原生端 SQLite；Web 端 SQLite WASM（OPFS 持久化）。两端同一套 schema，前端只写一层数据访问接口，底下按平台换驱动。
-- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；也可以换成 Cloudflare D1 库 `mindough`，用 Worker 环境变量 `STORAGE_BACKEND` 切（Rei 2026-10-17，见“云端存储：Turso / D1”）；客户端只和 Worker（同域 `mindough.rei8t.dev/api/sync`）说话，Worker 经 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端走系统浏览器 + deep link 回调。见“多端同步怎么做”。
-- Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文以 .md 文本入库。
+- 平台（MVP 都要能用）：macOS、Windows、iOS、Android、Web。
+- 外壳：Tauri 2。一套 React 前端，同时打 macOS / Windows（顺带 Linux）、iOS、Android 的安装包；Web 端是同一份前端的浏览器版，部署在 `mindough.rei8t.dev`。
+- 前端：TypeScript + React + Vite；UI 用 headless 组件，每端配一套原生风格的皮肤（见“设计风格”）；浅色、深色跟着系统走。
+- 存储：数据先存本机，离线能用。原生端用 SQLite，Web 端用 SQLite WASM（存在 OPFS 里）。两端用同一套 schema；前端只写一层数据访问接口，底下按平台换驱动。
+- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；也可以换成 Cloudflare D1 库 `mindough`，用 Worker 环境变量 `STORAGE_BACKEND` 切（Rei 2026-10-17，见“云端存储：Turso / D1”）；客户端只跟 Worker（同域 `mindough.rei8t.dev/api/sync`）打交道，Worker 用 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端先开系统浏览器登录，再用 deep link 跳回 app。见“多端同步怎么做”。
+- Markdown 编辑：Milkdown 或 TipTap（所见即所得，支持任务清单、代码块），原文存成 .md 文本。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
 
 ### 为什么用 Tauri 2（含移动端）
-- Tauri 2 正式支持 iOS / Android，五端一套 React 前端 + Rust 后端；移动端界面跑在系统 WebView（iOS WKWebView、Android System WebView）。
-- 适合本项目：列表、依赖图、热力图都是 Web 界面强项；Rust 后端能直接用 Turso。
-- 短板与对策：移动端插件生态比桌面小，原生能力（通知、分享、相机选图）用官方插件，没有的写 Swift / Kotlin 小插件；桌面小组件 / iOS 主屏小组件 / 灵动岛计时需要原生扩展，放到以后；后台同步受系统限制，改为回到前台时同步 + 推送唤醒（以后）。
-- 退路：`packages/core`（数据模型、DAG、打卡、同步）保持纯 TS，界面层若移动端体验不达标，可换 Expo / React Native（Turso 有 `@tursodatabase/sync-react-native`）只重写外壳。
-- 已看过 MyGo（mygo.egoist.dev）：Go 写桌面 app，体积小，但只支持 macOS / Windows / Linux，没有 iOS / Android，不采用。
+- Tauri 2 正式支持 iOS / Android，五端共用一套 React 前端和 Rust 后端；移动端的界面跑在系统 WebView 里（iOS 是 WKWebView，Android 是 System WebView）。
+- 为什么适合：列表、依赖图、热力图都是 Web 界面擅长的；Rust 后端能直接用 Turso。
+- 短板和对策：
+  - 移动端插件比桌面少。原生能力（通知、分享、拍照选图）用官方插件，没有的就写 Swift / Kotlin 小插件。
+  - 桌面小组件、iOS 主屏小组件、灵动岛计时要原生扩展，放到以后。
+  - 后台同步受系统限制，改成回到前台时同步，以后再加推送唤醒。
+- 退路：`packages/core`（数据模型、DAG、打卡、同步）保持纯 TS。如果移动端体验不够好，可以换成 Expo / React Native（Turso 有 `@tursodatabase/sync-react-native`），只重写外壳。
+- 已看过 MyGo（mygo.egoist.dev）：用 Go 写桌面 app，体积小，但只支持 macOS / Windows / Linux，没有 iOS / Android，不用。
 
 ### 设计风格：每个系统用对应的原生风格（Rei 2026-10-15 提）
-可行，做法是“一套结构 + 每端一层皮肤”，而不是五套界面。
-- 共用：数据、状态、交互逻辑、页面结构全部一份；组件用无样式的 headless 组件（React Aria Components），自己不带外观。
-- 每端一套皮肤（启动时按平台选，设置里可手动切）：
-  - Apple（macOS + iOS 共用）：SF 字体、HIG 圆角与间距；macOS 侧边栏 + 工具栏 + 窗口毛玻璃（Tauri window-vibrancy），iOS 大标题、底部标签栏、左滑操作、底部弹层。Liquid Glass 只能用 backdrop-filter 近似。
-  - Windows：Windows 11 / Microsoft Store 那种 WinUI 3 风格（Windows 版 Fluent 2）：Segoe UI Variable、Mica / Acrylic 窗口材质、NavigationView 侧栏、圆角卡片、系统强调色。不用 Fluent UI React v9（它是 Office / Teams 网页那套外观）；按微软 Windows UI Kit（Figma）和 WinUI 3 的设计令牌自己写皮肤。
+能做。办法是“一套结构，每端一层皮肤”，不做五套界面。
+- 共用的：数据、状态、交互逻辑、页面结构都只有一份；组件用不带样式的 headless 组件（React Aria Components）。
+- 每端一套皮肤（启动时按平台选，设置里能手动切）：
+  - Apple（macOS + iOS 共用）：SF 字体、HIG 圆角与间距；macOS 侧边栏 + 工具栏 + 窗口毛玻璃（Tauri window-vibrancy），iOS 大标题、底部标签栏、左滑操作、底部弹层。Liquid Glass 只能用 backdrop-filter 做个近似。
+  - Windows：Windows 11 / Microsoft Store 那种 WinUI 3 风格（Windows 版 Fluent 2）：Segoe UI Variable、Mica / Acrylic 窗口材质、NavigationView 侧栏、圆角卡片、系统强调色。不用 Fluent UI React v9（那是 Office / Teams 网页的外观）；照着微软的 Windows UI Kit（Figma）和 WinUI 3 的设计令牌自己写皮肤。
   - Android：Material 3（Roboto、动态取色、底部导航栏、FAB、底部弹层、返回手势）。
-  - Web：默认跟随访问者的系统，也可固定一种。
-- 移动端可用 Konsta UI（同一组件出 iOS 和 Material 两种外观）加速。
-- 原生部分直接用系统：菜单栏、右键菜单、托盘、通知、文件选择走 Tauri 原生 API，不用网页模拟。
-- 代价：界面工作量约 1.5 倍，每次改界面要在三种皮肤（Web 跟随访问者系统，复用其一）× 桌面 / 手机下截图检查；导航结构（侧边栏 vs 底部标签栏）按“桌面 / 手机”两种布局写，不按五个平台写。
-- 因此本项目不用 Kumo（Kumo 是 Cloudflare 自己的统一风格，与“各端原生”冲突）。
+  - Web：默认跟着访问者的系统走，也能固定一种。
+- 移动端可以用 Konsta UI 提速（同一个组件能出 iOS 和 Material 两种外观）。
+- 能用系统的就用系统：菜单栏、右键菜单、托盘、通知、选文件都走 Tauri 原生 API，不用网页模拟。
+- 代价：界面工作量大约是 1.5 倍。每次改界面，都要在三种皮肤（Web 跟着访问者的系统，用其中一种）× 桌面 / 手机下截图检查。导航结构（侧边栏还是底部标签栏）只按桌面、手机两种布局写，不按五个平台写。
+- 所以不用 Kumo：它是 Cloudflare 自己的统一风格，和“各端原生”冲突。
 
 ## 前导图（PDM）怎么实现
 - 依赖是一张有向无环图（DAG）：表 `dependency(pred_id, succ_id, type, lag)`。
-- MVP 只做 FS（完成→开始），一个任务可有多个前置、多个后续；type/lag 字段先留着，以后加 SS/FF/SF 和延迟。
-- 加边时做环检测（DFS），出现环直接拒绝并提示。
-- 任务状态派生：所有前置都已结束（完成或关闭）→ “可开始”；否则 → “被阻塞”（显示还差哪几个）。
+- MVP 只做 FS（完成→开始）。一件任务能有多个前置、多个后续；type / lag 字段先留着，以后加 SS/FF/SF 和延迟。
+- 加边时做环检测（DFS），会绕成环就不让加，并提示。
+- 任务状态是算出来的：前置都结束了（完成或关闭），就是“可开始”；不然就是“被阻塞”，并显示还差哪几件。
 - 任务没有“取消”（Rei 2026-10-15：“任务没有取消之说，只有完成和关闭两种，关闭也完成状态”）。结束态两种：
   - 完成：做成了，算成就（热力图、连续天数、组进度、我的一天“x/y 已完成”）。
-  - 关闭：不做了 / 不需要了。同样算已结束：解锁后续并弹“解锁了 N 个后续”、不进待办 / 可做 / 搜索前排、在我的一天沉底；但不算成就（不计入组进度和“已完成”计数，重复任务关闭当天起不再应打卡、历史格子保留）。界面上不划线、整体变淡、带“关闭”标记，勾选框显示 ×。
-  - 两种都能“重新打开”（回到待办，清空 done_at）。M0 存过的“取消”在打开时自动迁移为“关闭”（改写一次并进 outbox）。
-- 完成一个任务时，弹出它的后续任务，提示“已解锁 N 个”；也可在完成时一键新建后续（“然后呢？”）。
-- 相关任务（Rei 2026-10-15：“任务只是有关系，但没有FS关系”）：表 `task_link(a_task_id, b_task_id, note, created_at)`，无方向、不阻塞——不解锁、不进环检测、不影响可开始 / 被阻塞。去重：规范顺序 a < b，id 由这一对算出（`related.ts` 的 `taskLinkId`，UUID 形状），两台设备各自连同一对得到同一行；去掉再连上 = 同一行墓碑翻回来。不能连自己；两件已有前后关系时不让再连相关（前后关系已经说明有关系），先相关后加了前后关系时只按前后关系显示（相关行不删，去掉前后关系后又出现）。删任务时它的相关行一起打墓碑。note 先留着，界面暂不编辑。
-- 有组的起止时间时，可沿依赖链推算最早开始，超出组结束时间就标红（后期做，关键路径同理）。
+  - 关闭：不做了、不需要了。它也算结束：会解锁后续并弹出“解锁了 N 个后续”，不进待办 / 可做 / 搜索的前排，在我的一天里沉到底。但它不算成就：不计入组进度和“已完成”的数，重复任务从关闭那天起不用再打卡，以前的格子留着。界面上不划线，整体变淡，带“关闭”标记，勾选框显示 ×。
+  - 两种都能“重新打开”（回到待办，清空 done_at）。M0 存过的“取消”，打开时自动改成“关闭”（改写一次，进 outbox）。
+- 完成一件任务时，弹出它的后续任务，提示“已解锁 N 个”；完成时也能一键新建后续（“然后呢？”）。
+- 相关任务（Rei 2026-10-15：“任务只是有关系，但没有FS关系”）：表 `task_link(a_task_id, b_task_id, note, created_at)`。没有方向，也不阻塞：不解锁，不进环检测，不影响可开始 / 被阻塞。
+  - 去重：两个 id 按 a < b 排好，行 id 由这一对算出（`related.ts` 的 `taskLinkId`，UUID 形状），所以两台设备各自连同一对，得到的是同一行；去掉再连上，就是把同一行的墓碑翻回来。
+  - 不能连自己。两件已经有前后关系的，不让再连相关（前后关系已经说明它们有关系）；先连了相关、后来又加了前后关系的，只按前后关系显示（相关那行不删，去掉前后关系后又会出现）。
+  - 删任务时，它的相关行一起打墓碑。note 先留着，界面上暂时不能编辑。
+- 组有起止时间时，可以顺着依赖链推算最早什么时候开始，超过组的结束时间就标红（后期做，关键路径也一样）。
 
 ## 多端同步怎么做（M2 ✅ 2026-10-15）
-Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其他设备”。现在的样子：每台设备都是完整的本地 SQLite（Web 是 OPFS 里的 Turso wasm，退回 localStorage 时也一样能同步；原生端是 rusqlite），写入先落本地；登录后后台自动推拉，云端是 Turso Cloud 里的一个库。
+Rei 的要求：“确实是 SQLite，但有数据写入时能自动同步给其他设备”。现在是这样：每台设备上都有一份完整的本地 SQLite（Web 是 OPFS 里的 Turso wasm，退回 localStorage 时也一样能同步；原生端是 rusqlite），写入先存本地；登录后在后台自动推拉，云端是 Turso Cloud 里的一个库。
 
-- 每条记录 UUIDv7 id、`updated_at`（HLC：`13 位毫秒-4 位计数-设备 id`，字典序即全序）、`deleted` 墓碑，不物理删除。
-- 推：本机写入进 outbox；写入后防抖 1.5 秒推送（同一行多次改动只推当前值），成功才 ack。
-- 拉：云端每采纳一行就给它一个新的 seq（每个用户各自递增），客户端记住拉到的最大 seq（游标），只拉更大的，每页 500 行。拉下来的行经 `Store.applyRemote` 合并，落盘但不进 outbox（不会回推）。
-- 冲突：**行级 LWW**，比 `updated_at`；HLC 末尾是设备 id，同毫秒同计数时按设备 id 定先后，各端结果一致。云端用同样的规则（`ON CONFLICT … WHERE excluded.updated_at > updated_at`），所以晚推上来的旧改动不会覆盖新的。墓碑也只是一次写入，按同样规则比：删除晚于编辑就删，编辑晚于删除就留（行级，不是“删除永远赢”）。任务正文 body_md 整段 LWW，MVP 不做逐字合并。
-- 打卡 check_in 只追加（每次一行新 id），两台设备离线各打一次卡，合并后进度是两次之和。
-- 前后关系：`Store.edges()` 把依赖行按 updated_at 依次加入、同一对只算一条；加入后会成环的那条（后到的）进 `Store.conflictEdges()`，不生效（不阻塞、不进排布）。详情的「关系」顶上提示「先后关系绕成了圈」+「去掉这条」。两台设备连了同一对 → 两行算一条，去掉时一起去掉。
-- 第一次在一台设备上登录（bootstrap）：先把云端全部拉下来；云端已有数据、而这台设备只有没动过的演示数据时，演示数据打墓碑不带上去（判断：`demo_stamp` 之后没有写入；M2 前播的演示数据用“全部在 10 秒内写入”判断）；再按 LWW 合并云端，把本机比云端新的行全部推上去——本机数据不丢。之后只做增量。
-- 什么时候同步：登录后立刻、本机写入后（防抖）、窗口获得焦点 / 回到前台、联网、前台每 60 秒。全部在后台，界面永不等待；离线时照常用，联网后自动补上。
-- 退出登录：只停同步，本机数据原样保留。登录同步时不能「重置演示数据」（会影响其他设备）；退出后重置会清掉同步游标，下次登录重新合并，云端数据会回来。
+- 每条记录 UUIDv7 id、`updated_at`（HLC：`13 位毫秒-4 位计数-设备 id`，按字典序比就能排出先后）、`deleted` 墓碑，不真删。
+- 推：本机写入先进 outbox；写完防抖 1.5 秒再推（同一行改了几次，只推最新的值），推成功了才 ack。
+- 拉：云端每收下一行，就给它一个新的 seq（每个用户各自递增）。客户端记住拉到的最大 seq（游标），下次只拉比它大的，每页 500 行。拉下来的行用 `Store.applyRemote` 合并，存进本地，但不进 outbox（不会再推回去）。
+- 冲突：**行级 LWW**，比 `updated_at`；HLC 末尾是设备 id，毫秒和计数都一样时，按设备 id 定先后，各端算出来的结果一致。云端也用这条规则（`ON CONFLICT … WHERE excluded.updated_at > updated_at`），所以晚推上来的旧改动，盖不掉新的。墓碑也只是一次写入，按同样的规则比：删除比编辑晚就删，编辑比删除晚就留（按行比，不是“删除永远赢”）。任务正文 body_md 整段比，MVP 不做逐字合并。
+- 打卡 check_in 只追加（每次一行，新 id）。两台设备离线各打一次卡，合并后进度是两次加起来。
+- 前后关系：`Store.edges()` 按 updated_at 顺序一条条加入依赖行，同一对只算一条；加进去会成环的那条（后到的）放进 `Store.conflictEdges()`，不生效（不阻塞，也不参与排布）。详情的「关系」顶上提示「先后关系绕成了圈」和「去掉这条」。两台设备连了同一对，两行算一条，去掉时一起去掉。
+- 在一台设备上第一次登录（bootstrap）：
+  1. 先把云端的数据全拉下来。
+  2. 如果云端已经有数据，而这台设备上只有没动过的演示数据，就给演示数据打墓碑，不推上去。怎么判断没动过：`demo_stamp` 之后没写过东西；M2 之前生成的演示数据，看是不是“全在 10 秒内写入”。
+  3. 按 LWW 合并云端，把本机比云端新的行都推上去，本机数据不会丢。
+  4. 之后只同步增量。
+- 什么时候同步：刚登录时；本机写入后（防抖）；窗口获得焦点或回到前台时；联网时；在前台时每 60 秒一次。都在后台跑，界面从不等它；离线照常用，联网后自动补上。
+- 退出登录：只停同步，本机数据原样留着。登录同步时不能「重置演示数据」，因为会影响其他设备；退出后再重置，会清掉同步游标，下次登录重新合并，云端的数据会回来。
 - 状态（设置 → 账户）：已同步 · 刚刚 / 正在同步… / 离线，联网后自动同步 / 同步出错（带 HTTP 状态码中文说明）+ 重试；凭据被拒（401 未登录 / 403 无权限）时按钮变「重新登录」。另有「立即同步」。
-- 服务端按 user_id（登录邮箱，小写）隔离数据；Web 端与原生端共用一个账号。
+- 服务端按 user_id（登录邮箱，小写）把各人的数据分开；Web 端和原生端用同一个账号。
 
 ### 同步引擎选型（Rei 2026-10-15 定 A：Turso Sync；实现时的取舍）
-Rei 选了 A（Turso）。落地时用的是 **Turso Cloud 当云端存储 + 自己的 outbox / 游标协议（经 Worker）**，没有直接用 Turso Sync 的客户端 SDK（`@tursodatabase/sync-wasm` / Rust `turso` crate 的 sync）。2026-10-15 实测与原因：
+Rei 选了 A（Turso）。真正做的时候，用的是 **Turso Cloud 当云端存储，加上自己的 outbox / 游标协议（走 Worker）**，没直接用 Turso Sync 的客户端 SDK（`@tursodatabase/sync-wasm` / Rust `turso` crate 的 sync）。2026-10-15 的实测和原因：
 - SDK 本身能用：`@tursodatabase/sync@0.8.3` 在 node 里对 Turso Cloud push / pull 成功。但它是**“最后推送者赢”**：实测设备 B 用更旧的 `updated_at` 改同一行后推送，A 拉下来是 B 的旧值——和我们要的“按 updated_at 行级 LWW”相反（可以用 `transform` 钩子改写成带条件的 upsert，但下面几条更难绕）。
-- 它同步的是**整个数据库文件**（物理页 + 本地改动回放）：本机专用的 `meta`（device_id、游标）、`outbox` 会被云端版本盖掉；建表 / `ALTER TABLE` 也会同步，离线设备回放同一条 `ADD COLUMN` 会失败、把拉取卡死，以后加迁移很危险。
+- 它同步的是**整个数据库文件**（物理页 + 本地改动回放）：只属于本机的 `meta`（device_id、游标）和 `outbox` 会让云端版本盖掉；建表、`ALTER TABLE` 也会跟着同步，离线设备回放同一条 `ADD COLUMN` 会失败，把拉取卡死，以后加迁移很危险。
 - Safari / iOS / macOS 的 WKWebView 没有 `COEP: credentialless`，跑不了 wasm 引擎（Web 端在 Safari 上本来就退回 localStorage），Apple 端只能换 Rust `turso` crate 重写原生存储层并实测移动端交叉编译。我们的协议是纯 TS，localStorage、rusqlite、OPFS 三种存储都能同步，Rust 侧不用动。
-- 鉴权：Turso Sync 要把数据库 token 交给客户端；Turso 的 token 只能经 Platform API（org 级权限）或长期 token 签发，没法在 Worker 里不带 Platform API token 就签短期 token。现在数据库 token 只放在 Worker 的密钥里，客户端拿的是 Worker 签的 1 小时同步凭据，只能读写自己的行。
-- 留的路：core 的 `SyncTransport` 接口与 `SyncEngine` 和存储无关，以后 Turso Sync 成熟（逻辑行级冲突、DDL 不随同步走）可以换；云端数据本来就在 Turso。
+- 鉴权：Turso Sync 要把数据库 token 交给客户端；Turso 的 token 只能经 Platform API（org 级权限）或长期 token 签发，没法在 Worker 里不带 Platform API token 就签短期 token。现在数据库 token 只放在 Worker 的密钥里，客户端拿到的是 Worker 签发的 1 小时同步凭据，只能读写自己的行。
+- 留的路：core 的 `SyncTransport` 接口和 `SyncEngine` 跟存储无关。以后 Turso Sync 成熟了（按逻辑行处理冲突，DDL 不跟着同步），可以换过去；云端数据本来就在 Turso。
 - 备选：B 自建 Worker + D1——2026-10-17 已做成可切换的第二个后端（见下“云端存储：Turso / D1”），默认仍是 Turso；cr-sqlite；PowerSync（需要 Postgres）。
 
 ### 云端（Turso `mindough`）
-- `sync_row(user_id, tbl, id, updated_at, deleted, data, seq)`，主键 (user_id, tbl, id)，索引 (user_id, seq)；`data` 是整行 JSON，云端不关心业务列——客户端加列 / 加表不用改云端。
+- `sync_row(user_id, tbl, id, updated_at, deleted, data, seq)`，主键 (user_id, tbl, id)，索引 (user_id, seq)；`data` 是整行 JSON，云端不管业务列，所以客户端加列、加表都不用改云端。
 - `auth_code(code, payload, challenge, expires_at, used)`：原生端一次性登录码（5 分钟）。
-- `server_schema`：云端迁移版本；Worker 第一次用到时自动应用（`apps/server/src/sync.ts` 的 `SERVER_MIGRATIONS`，只追加）。
+- `server_schema`：云端迁移版本；Worker 第一次用到时自动执行迁移（`apps/server/src/sync.ts` 的 `SERVER_MIGRATIONS`，只追加）。
 - Worker 密钥：`TURSO_DB_URL`、`TURSO_DB_TOKEN`（全权限数据库 token，只在 Worker 里，不进仓库、不给客户端）。
 - 接口：`POST /api/sync/token`（会话 → `{ url, token, expires_at }`，401 未登录 / 403 无权限 / 503 服务不可用）、`POST /api/sync/push`（`{ rows }` → `{ applied }`，单次最多 500 行、单行 ≤ 2 MB）、`POST /api/sync/pull`（`{ cursor, limit }` → `{ rows, cursor, more }`）。
 
 ### 云端存储：Turso / D1（Rei 2026-10-17）
-Rei：「settings中的这个google登录写清楚数据流向，先经过worker认证是你自己，再存到turso中，也可以选择存在D1中」，随后改成「这个切换数据库用环境变量切换」——不在界面上选、服务端也不存“选了哪个”，由 Worker 环境变量决定。默认仍是 Turso（Rei 2026-10-16 定过云端先继续用 Turso），线上部署保持 `turso`。
+Rei：「settings中的这个google登录写清楚数据流向，先经过worker认证是你自己，再存到turso中，也可以选择存在D1中」，随后改成「这个切换数据库用环境变量切换」。也就是不在界面上选，服务端也不记“选了哪个”，由 Worker 的环境变量决定。默认还是 Turso（Rei 2026-10-16 定过云端先继续用 Turso），线上部署保持 `turso`。
 - 存储层：`apps/server/src/sql.ts` 定义 `SqlDb { execute, transaction }`；`turso.ts` 的 `tursoDb`（Hrana HTTP）、`d1.ts` 的 `d1Db`（Worker 绑定 `DB`，事务用 D1 batch，整批原子）和 `d1RestDb`（Cloudflare REST API，迁移脚本用）；`storage.ts` 的 `openDb(env)` 按 `STORAGE_BACKEND` 选。同步协议、`SERVER_MIGRATIONS`、upsert / RETURNING SQL 两边完全同一份；auth_code（原生端登录码）也跟着后端走。
-- `STORAGE_BACKEND`：没设或 `turso` → Turso；`d1` → D1；别的值 → 503 服务不可用（不悄悄回退，免得两边数据分叉）。写在 `wrangler.deploy.jsonc` 的 `vars` 里（git 里看得到；`keep_vars` 只保留配置里没写的控制台变量）。
+- `STORAGE_BACKEND`：没设或 `turso` → Turso；`d1` → D1；别的值 → 503 服务不可用（不悄悄换回默认，免得两边数据对不上）。写在 `wrangler.deploy.jsonc` 的 `vars` 里（git 里看得到；`keep_vars` 只保留配置里没写的控制台变量）。
 - D1 库：`mindough`（id `eb0e708a-8764-42fe-a41c-13c9906f16fe`，APAC，账户 9151f72e…）2026-10-17 建好、云端 schema v1 已应用、`sync_row` 是空的；绑定名 `DB`。
 - 只读显示：`GET /api/health` 和 `POST /api/sync/token` 的响应带 `storage: 'turso' | 'd1'`（写错了 health 报 `null`）；设置 → 账户卡最后一行「数据怎么走」显示当前库名和流向（文案见 COPY.md）。
 - 切换步骤（手动，Turso → D1；反向把 turso / d1 对调）：
-  1. 复制并核对：`cd apps/server && TURSO_DB_TOKEN_FILE=<数据库 token 文件> CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… pnpm storage:copy -- --from turso --to d1`（先加 `--dry-run` 看源库有多少行；Hark 沙箱里 Node 要走代理，前面加 `NODE_USE_ENV_PROXY=1`）。脚本 `scripts/copy-storage.ts`（核心 `src/copy.ts`）：在目标库应用迁移 → 目标库已有同步数据就 409 冲突停下（确认要覆盖目标库加 `--replace`，只清目标库）→ 按主键翻页全量复制 `sync_row`（原样保留 seq，各设备的拉取游标切换后照样能用）→ 核对总行数、每个用户的行数与最大 seq、每张表的行数、逐行摘要（user/tbl/id/updated_at/deleted/seq/data 的 SHA-256）。任何一项对不上就退出码 1、提示“不要切换”。源库只读，从不删改。
+  1. 复制并核对：`cd apps/server && TURSO_DB_TOKEN_FILE=<数据库 token 文件> CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… pnpm storage:copy -- --from turso --to d1`（先加 `--dry-run` 看源库有多少行；Hark 沙箱里 Node 要走代理，前面加 `NODE_USE_ENV_PROXY=1`）。脚本 `scripts/copy-storage.ts`（核心 `src/copy.ts`）：在目标库应用迁移 → 目标库已有同步数据就 409 冲突停下（确认要覆盖目标库加 `--replace`，只清目标库）→ 按主键翻页全量复制 `sync_row`（原样保留 seq，各设备的拉取游标切换后照样能用）→ 核对总行数、每个用户的行数与最大 seq、每张表的行数、逐行摘要（user/tbl/id/updated_at/deleted/seq/data 的 SHA-256）。任何一项对不上就以退出码 1 结束，提示“不要切换”。源库只读，从不删改。
   2. 把 `wrangler.deploy.jsonc` 的 `STORAGE_BACKEND` 改成 `d1`，提交并 `pnpm deploy`。
   3. 打开 `/api/health` 看 `storage` 是不是 `d1`，设置页库名跟着变。
   - 复制和切换之间不要有设备往旧库写：那几行不在新库里，而且新库会从旧的最大 seq 往上重新编号，已经拉到更大游标的设备会漏掉这些编号的新行。所以在没人用的时候做，复制完马上切；担心的话切换前再跑一次 `--replace` 复制。
-- 测试：`apps/server/test/storage.test.ts`：STORAGE_BACKEND 解析与写错 503、D1 存储层（Miniflare 的本地 D1：编号参数、batch 原子回滚、迁移可重复）、同步 API 整套跑在 D1 上（push / pull / LWW / 游标 / 原生登录码，不发任何网络请求）、Turso ⇄ D1 双向复制（seq / 墓碑 / 中文原样、源库不变、409 与 --replace、--dry-run 不写、丢行和改值都能被核对发现）。
+- 测试：`apps/server/test/storage.test.ts`：STORAGE_BACKEND 解析与写错 503、D1 存储层（Miniflare 的本地 D1：编号参数、batch 原子回滚、迁移可重复）、同步 API 整套跑在 D1 上（push / pull / LWW / 游标 / 原生登录码，不发任何网络请求）、Turso ⇄ D1 双向复制（seq / 墓碑 / 中文原样、源库不变、409 与 --replace、--dry-run 不写、丢行和改值都能核对出来）。
 
 ### 原生端登录（Tauri）
-- 「用 Google 登录」→ app 生成 verifier，用系统浏览器打开 `/auth/login?native=1&challenge=base64url(SHA-256(verifier))` → Google → Worker 发一次性登录码，结果页（“已登录，回到 Mindough 继续”）跳回 `mindough://auth?code=…` → app `POST /auth/exchange { code, verifier }` 换成会话（30 天），存本机，之后请求带 `Authorization: Bearer`。别的 app 截到 deep link 没有 verifier 换不走；码只能用一次。
+- 「用 Google 登录」→ app 生成 verifier，用系统浏览器打开 `/auth/login?native=1&challenge=base64url(SHA-256(verifier))` → Google → Worker 发一次性登录码，结果页（“已登录，回到 Mindough 继续”）跳回 `mindough://auth?code=…` → app `POST /auth/exchange { code, verifier }` 换成会话（30 天），存本机，之后请求带 `Authorization: Bearer`。别的 app 就算截到 deep link，没有 verifier 也换不走；码只能用一次。
 - Tauri 插件：opener（系统浏览器）、deep-link（`mindough://`，桌面与移动端都注册）、桌面端 single-instance（带 deep-link 特性：Windows / Linux 再开一个进程时把链接交给已开着的窗口）。Worker 给 `tauri://localhost`、`http(s)://tauri.localhost` 开 CORS。
-- 状态：代码写完、`cargo check`（Linux）通过、Worker 端单测覆盖；**还没在真机上走过**（需要打包安装后点一次登录）。`rust-ini` 锁在 0.21.1（0.21.3 给 `ParseOption` 加了字段，deep-link 2.6.2 编译不过）。
+- 状态：代码写完了，`cargo check`（Linux）能过，Worker 端有单测；**还没在真机上试过**（要打包安装后点一次登录）。`rust-ini` 锁在 0.21.1（0.21.3 给 `ParseOption` 加了字段，deep-link 2.6.2 编译不过）。
 
 ### 图片（R2）
 - `POST /api/assets`（会话或同步凭据，image/*，≤ 10 MB）存进 R2 桶 `mindough-assets`，key = 用户邮箱哈希前 16 位 / 内容 SHA-256（同一张图只存一份）；`GET /api/assets/<key>` 公开读、长缓存（key 猜不到）。
-- 客户端上传图片时：登录且在线 → 传 R2，asset 行只存地址（`url`、`r2_key`、`sha256`）；离线或没登录 → 仍存 data: 地址（照样同步，只是行大一些）。以前存的 data: 图片暂不自动搬到 R2（以后做）。
+- 客户端上传图片时：登录且在线 → 传 R2，asset 行只存地址（`url`、`r2_key`、`sha256`）；离线或没登录 → 还是存 data: 地址（照样同步，只是行大一些）。以前存的 data: 图片暂时不自动搬到 R2（以后做）。
 - 附件（2026-10-17）另走 `POST /api/files`（任何格式，≤ 50 MB）/ `GET /api/files/<key>`（要登录、只能读自己的），同一个桶，key = 用户哈希 / `f` / SHA-256，见下面「附件」。
 
 ### 风险与缺口
-- 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖单写者串行（Turso 与 D1 都是）；若以后开 `BEGIN CONCURRENT` 要改成计数表。
+- 每用户 seq 用 `MAX(seq) + 1` 在事务里算，依赖单写者串行（Turso 与 D1 都是）；以后要是开 `BEGIN CONCURRENT`，就得改成计数表。
 - 行级 LWW：两台设备离线改同一件任务的不同字段，只留晚的那次（整行）。字段级合并以后再说。
 - 旧版本客户端不认识的新列：拉下来能存（JSON 里有），但旧版本改这一行再推，会丢掉新列的值。
-- 同步凭据 1 小时、会话 30 天；会话是 HMAC 签名、无服务端状态，泄露只能靠换 `SESSION_SECRET` 失效。
+- 同步凭据 1 小时、会话 30 天；会话用 HMAC 签名，服务端不存状态；泄露了只能换 `SESSION_SECRET` 让它失效。
 - Turso 免费档（starter）；2026 年 Turso 宣布加入 Supabase，留意产品走向。
 
 ## 任务类型（显示变体 + 创建模板）
@@ -126,7 +136,7 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
 
 - 资料库（2026-10-15 加，见下“资料库”）：每个类型的字段分 资料字段（属于这部片 / 这本书）和 任务字段（属于这一次）；资料存在资料库里，任务引用它。
 - 人物列表：独立的一张人物表（姓名、头像、关系、生日、备注 md）。“人物”类型的任务显示对方头像 + 姓名；任何任务也可以关联多个人物，在卡片上显示小头像。人物详情页列出与 TA 相关的所有任务。
-- 自定义类型：选一种版式（海报 / 图标+名称 / 横幅 / 纯文字），定义字段（文本、数字、进度、日期、链接、图片、单选、人物），写一段正文模板，配名称、图标、颜色。内置类型走同一套机制，不写死特例。
+- 自定义类型：选一种版式（海报 / 图标 + 名称 / 横幅 / 纯文字），定义字段（文本、数字、进度、日期、链接、图片、单选、人物），写一段正文模板，配名称、图标、颜色。内置类型走同一套机制，不写死特例。
 - 新建任务时先选类型（快捷键直接新建普通任务）；组可设“默认类型”，组里新建自动套用。
 - 改类型（Rei 2026-10-16 改）：清空原来的资料与字段，新类型从「未选」开始；只留新类型也有的同 key 任务字段。不再把资料抄回、也不在新类型库里找同名或新建。
 - 图片：本地上传或粘贴链接；原生端存本地文件，同步时上传到 Cloudflare R2，D1 只存引用。
@@ -134,7 +144,7 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
 
 ## 资料库（Rei 2026-10-15：“可以添加影视库、书库、项目库、游戏库、课程库等等，这样不用每次都添加这些资料而是可以选，如果没有再新建”）
 - 每个非“普通”的类型有一个库，自定义类型自动有库。库名（界面）：影视库、书库、游戏库、项目库、课程库、目的地、好物清单、餐厅库、菜谱、人物；写在 `library.ts` 的 `LIBRARY_COPY`。
-- 表 `library_item`：id（UUIDv7）、type_id、name（= 主字段：片名、书名…）、image（图片字段：asset id / 外链 / data URL）、fields（JSON，其余资料字段）、note_md、created_at、updated_at（HLC）、deleted 墓碑。task 加 `library_item_id`（可空）。一条资料可被多件任务引用（重看、再去一次）。
+- 表 `library_item`：id（UUIDv7）、type_id、name（= 主字段：片名、书名…）、image（图片字段：asset id / 外链 / data URL）、fields（JSON，其余资料字段）、note_md、created_at、updated_at（HLC）、deleted 墓碑。task 加 `library_item_id`（可空）。一条资料可以给多件任务用（重看一遍、再去一次）。
 - 字段定义 `FieldDef.scope`：`item`（默认，资料字段）/ `task`（任务字段）；主字段和图片字段总是资料字段。任务的 `type_data` 只存任务字段；显示时 `Store.taskData()` = 资料展开 + 任务字段（同名以任务为准）。
 - 内置类型拆分（资料 → 任务）：影视 片名·海报·年份·电影/剧集·平台 → 看到哪；书 书名·封面·作者·页数 → 读到第几页；游戏 游戏名·图标·平台 → 进度 %；项目 项目名·图标·链接 → （无）；课程 课程名·图标·平台·链接 → 学到第几课；旅行 目的地·照片 → 出发 / 返回日期；购物 名称·图片·价格·链接 → 买几件；餐厅 店名·照片·地址·链接 → （无）；饮食 菜名·照片·食材清单 → 餐次；人物 人物（person 表）→ 事由。
 - 人物库 = person 表（不迁移，风险大）：`Store.libraryEntries(typeId)` 把资料和人物统一成 `LibraryEntry`（kind item / person），选择框、资料库页、⌘K 用同一套；人物详情仍在 `#/people/:id`。
@@ -192,14 +202,14 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
    - 任何地方都能加入：搜索结果、列表、组、组里的依赖图节点、人物详情、打卡页，右键 / 长按 / 悬停按钮“加入我的一天”，快捷键可一键加。
    - 全局搜索（⌘K / Ctrl+K）：搜正文、类型字段（片名、店名…）、人物、组；结果项直接带“加入我的一天”按钮。
    - 每天零点清空（按本机时区），没做完的不自动顺延，放进“昨天没做完”区一键带回今天。
-   - 建议区：今天到期的、今天要打卡的、刚被解锁可开始的任务，点一下加入。
+   - 建议区：今天到期的、今天要打卡的、刚解锁可以开始的任务，点一下就加进来。
    - 可拖动排序；完成的沉到底部。
-1. 列表（Agenda 式）：按日期往下流的时间线，今天居中，过去在上、将来在下；琐事随手记，无需建组。
+1. 列表（Agenda 式）：按日期往下流的时间线，今天居中，过去在上、将来在下；琐事随手记，不用建组。
 2. 组：组卡片（名称、图标、起止、分类、进度），点开看组内任务列表 + 组内依赖图（组页的「关系图」视图）。
 3. 人物：人物列表（头像 + 姓名），点开看相关任务
 4. 依赖图：按组看 DAG（组页的「关系图」视图），拖线连依赖，颜色区分 完成 / 可开始 / 被阻塞。全局关系图页 2026-10-23 删掉（Rei：「侧边栏的Graph选项卡并不是我想要的」），换成详情里的「任务链」（原叫「整条线」，见下）。
 5. 可做清单：所有“可开始”的任务，按组和日期排。
-6. 打卡：今天要打卡的任务、正在计时的任务、倒数日，一屏看完。采用 GitHub contribution graph（活动热力图）样式：
+6. 打卡：今天要打卡的任务、正在计时的任务、倒数日，一屏看完。样式照 GitHub contribution graph（活动热力图）：
    - 顶部一张总热力图：过去一年，每天一格，颜色深浅 = 当天完成的打卡数占应打卡数的比例；悬停/长按看当天明细。
    - 每个重复打卡任务一行迷你热力图 + 连续天数 + 今日操作按钮（勾 / 开始·结束 / +1）。
    - 计量与计时按达成比例分 4 档深浅（0、<50%、<100%、达标）；颜色跟随任务类型颜色，明暗主题各一套。
@@ -267,7 +277,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - 界面：详情的分区改叫「关系」，下分 先做完这些 / 做完后解锁 / 相关任务（「添加」可搜索、「新建相关任务」、行可点开、悬停 × 去掉、显示对方状态）；新建面板多一颗「相关任务」胶囊（多选）；列表行在元信息里显示小链环 + 个数；关系图把相关画成没有箭头的点线（前后关系里还没完成的是虚线带箭头，所以相关用圆点线区分），参与排布让两件挨着，图例「相关（不分先后）」，「有关系的」范围包含相关任务；选中点线按 Delete 去掉。
 
 ### M2 ✅（2026-10-15）：多端同步
-- ✅ 引擎：Rei 定 A（Turso）；实现为 Turso Cloud + 自己的 outbox / 游标协议经 Worker（原因见“同步引擎选型”）。core `sync/`：`SyncEngine`（防抖推送、游标拉取、第一次登录的合并、演示数据不带上去、状态）、`SyncTransport` 接口、`MemoryRemote` 假云端；Store `applyRemote` / `onLocalWrite` / `raw` / `conflictEdges`；适配器 `applyRemoteChanges`（不进 outbox）。
+- ✅ 引擎：Rei 定 A（Turso）；做成了 Turso Cloud + 自己的 outbox / 游标协议经 Worker（原因见“同步引擎选型”）。core `sync/`：`SyncEngine`（防抖推送、游标拉取、第一次登录的合并、演示数据不带上去、状态）、`SyncTransport` 接口、`MemoryRemote` 假云端；Store `applyRemote` / `onLocalWrite` / `raw` / `conflictEdges`；适配器 `applyRemoteChanges`（不进 outbox）。
 - ✅ 合并规则：行级 LWW（HLC + 设备 id 定先后）、墓碑同样比较、check_in 只追加、合并后成环的后到边标冲突。core 测试用两台模拟设备 + 假云端覆盖：互相看到、第一次合并两边数据都留、LWW 与推送先后无关、同毫秒按设备 id、删除 vs 编辑、打卡相加、成环冲突一致、同一对去重、新设备只有演示数据、改过的演示数据照常合并、离线后补推、401、防抖不回推、退出后不推、SQLite 落盘不进 outbox、重置后重新合并。
 - ✅ Worker：`/api/sync/token`、`/api/sync/push`、`/api/sync/pull`、云端 schema 自动迁移、`/api/me` 移出白名单 403、Bearer 会话、Tauri CORS；单测用 node:sqlite 实现的假 Turso（真跑 SQL）；`apps/server/e2e/real-turso.test.ts` 对真实 Turso 跑两台设备（默认跳过，2026-10-15 跑通后清掉了测试行）。
 - ✅ 客户端：`lib/sync.ts`（凭据缓存与 401 重取、HTTP 传输层、跟着账户开停、焦点 / 联网 / 60 秒触发）、`lib/account.ts` 改成全局账户状态（Web cookie / 原生 Bearer）、设置 → 账户的同步状态行与「立即同步」、详情里的成环提示、登录同步时不能重置。
@@ -289,7 +299,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - 用在：任务详情的内容（点进去就能改，Esc 收起）、资料 / 人物备注、**新建面板的内容框**（不带工具栏的轻量版 `toolbar="none"`：只靠写法变样子，`# `、`- [ ] `、`**粗体**` 打出来就排好；字号同以前 18px；Esc 关面板、⌘/Ctrl+Enter 添加照旧）。编辑器约 140 KB（gzip）按需加载，启动后空闲时预加载，新建面板一打开就能写。
    - 详情和备注编辑时下方出现格式工具栏（标题 / 粗体 / 斜体 / 删除线 · 清单 / 列表 / 编号列表 / 引用 / 代码 · 链接 / 表格），按钮不抢焦点，悬停提示带快捷键，⌘K 加链接；点清单的勾直接切换。
    - ✅ 链接能改了（Rei 2026-10-17：「放上去就展示吧，点一下是访问链接」）：编辑器里点链接 = 打开（Web 新标签页 noopener，App 经 `lib/external.ts` 的 `openExternal` 交给系统浏览器；mousedown 不放光标、不进编辑；全局外链拦截跳过编辑器里的链接，免得开两次）。鼠标移到链接上出小浮层（`.md-link-pop`）：原地址（省略号，可点）+「编辑」（浮层里改，预填原地址，回车保存）+「去掉链接」，鼠标能移进浮层，移开 250 毫秒收起。触屏没有悬停：点按仍是打开，长按选中链接里的字（光标 / 选区落在链接里，编辑器有焦点时）出同一个浮层——选这个而不是「第一次点放光标、第二次打开」，因为 Rei 要的是「点一下是访问」。⌘K / 工具栏链接按钮在已有链接里：输入框预填原地址，按钮变「保存」，旁边多「去掉链接」。更新逻辑：按 link mark 的连续范围 removeMark + addMark（`setLinkTr`，保留 title），不再用 toggleLinkCommand（它对已有链接会去掉）；选中普通文字加链接也改成 addMark。
-   - ✅ 链接的文字和网址一起改（Rei 2026-10-17：「编辑器中链接要支持编辑名称和链接」）：浮层「编辑」、工具栏链接按钮、⌘K 开同一个链接框，两栏「文字」「链接」。**形式按 Rei 定的**：桌面 = 那个悬停浮层原地展开（锚在链接旁；新加时锚在光标 / 选区处），不是居中弹窗；触屏（最后一次是触摸 / 笔，或 `(hover: none) and (pointer: coarse)`）= 底部弹出面板 `.md-link-sheet`（遮罩点一下取消；`visualViewport` 算键盘高度把面板抬上去，没键盘时留 `safe-area-inset-bottom`；输入框 44px 高、16px 字防 iOS 放大）。预填：在链接里 = 原文字 + 原地址，焦点在「文字」；选了字 = 文字预填（选的字本身像网址就顺手填进「链接」），焦点在「链接」；空光标 = 都空。保存（`applyLinkTr`）：文字没改只换地址（保留链接里的粗斜体），改了就整段换成新文字（带第一个字的格式）；文字空着用网址当名字；跨段落的选区文字不能改、只加链接；保存后光标在链接后面，接着打的字不进链接（storedMarks 去掉 link）。网址规范（`normalizeHref`）：去两头空白、中间空格编成 %20、没协议补 https://、`//` 开头补 https:、mailto: / tel: / 站内 `#/…` 照原样，javascript: / data: / vbscript: 不收，http(s) 主机名要带点（或 localhost / IP），不像就在框里红字「这不像网址，检查一下」（空着「填一个网址」）、框不关。回车保存（输入法选字的回车不算：isComposing / keyCode 229），Esc 取消（不冒泡关详情弹窗），Tab / Shift+Tab 只在两栏和按钮间转；点框外面 = 取消。开框前先 `domObserver.flush()` 读进刚改的选区（Shift+方向键后马上 ⌘K 会读到旧选区）。工具栏里原来的单栏链接输入框去掉了。WinUI 浮层 / 面板用实色 `--popup-bg`（`--surface` 半透明，下面的工具栏会透上来）。测试 `components/editor/link-edit.test.ts`（规范网址、改文字和网址、保留粗体、留空用网址、网址不对不改、新加、含括号 / 空格网址 + 含方括号 / 星号的中文文字往返稳定、跨段落）；截图 work/shots-linkedit/（脚本 work/shots-tool/le-link2.mjs）。
+   - ✅ 链接的文字和网址一起改（Rei 2026-10-17：「编辑器中链接要支持编辑名称和链接」）：浮层「编辑」、工具栏链接按钮、⌘K 开同一个链接框，两栏「文字」「链接」。**形式按 Rei 定的**：桌面 = 那个悬停浮层原地展开（锚在链接旁；新加时锚在光标 / 选区处），不是居中弹窗；触屏（最后一次是触摸 / 笔，或 `(hover: none) and (pointer: coarse)`）= 底部弹出面板 `.md-link-sheet`（遮罩点一下取消；`visualViewport` 算键盘高度把面板抬上去，没键盘时留 `safe-area-inset-bottom`；输入框 44px 高、16px 字防 iOS 放大）。预填：在链接里 = 原文字 + 原地址，焦点在「文字」；选了字 = 文字预填（选的字本身像网址就顺手填进「链接」），焦点在「链接」；空光标 = 都空。保存（`applyLinkTr`）：文字没改只换地址（保留链接里的粗斜体），改了就整段换成新文字（带第一个字的格式）；文字空着用网址当名字；跨段落的选区文字不能改、只加链接；保存后光标在链接后面，接着打的字不进链接（storedMarks 去掉 link）。网址规范（`normalizeHref`）：去两头空白、中间空格编成 %20、没协议补 https://、`//` 开头补 https:、mailto: / tel: / 站内 `#/…` 照原样，javascript: / data: / vbscript: 不收，http(s) 主机名要带点（或 localhost / IP），不像就在框里红字「这不像网址，检查一下」（空着「填一个网址」）、框不关。回车保存（输入法选字的回车不算：isComposing / keyCode 229），Esc 取消（不冒泡关详情弹窗），Tab / Shift+Tab 只在两栏和按钮间转；点框外面 = 取消。开框前先 `domObserver.flush()` 读进刚改的选区（按 Shift + 方向键后马上按 ⌘K 会读到旧选区）。工具栏里原来的单栏链接输入框去掉了。WinUI 浮层 / 面板用实色 `--popup-bg`（`--surface` 半透明，下面的工具栏会透上来）。测试 `components/editor/link-edit.test.ts`（规范网址、改文字和网址、保留粗体、留空用网址、网址不对不改、新加、含括号 / 空格网址 + 含方括号 / 星号的中文文字往返稳定、跨段落）；截图 work/shots-linkedit/（脚本 work/shots-tool/le-link2.mjs）。
    - ✅ 手打即时渲染逐项查过（Rei 2026-10-17，真实 Chromium 里一个字一个字打）：标题 # ~ ######、**粗**、*斜* / _斜_、~~删~~、`行内代码`、``` 代码块（回车或空格）、> 引用、- / * / + 列表、1. 编号、- [ ] / - [x] 清单、--- / *** 分隔线、|3x2| 空格 本来就行；补了四个：`[文字](网址)` 打完右括号变链接（网址缺协议补 https://，`[](网址)` 用网址当文字，也认全角括号，`![…](…)` 图片语法不碰，代码里不转）、`<网址>`、裸网址后打空格（末尾标点不算，www. 补 https://）、一行 `|a|b|` 回车变表格（这行当表头，下面一行空的，光标进第一格；`|---|` 分隔行、列表 / 引用里不转）。检查脚本 `work/shots-tool/le-syntax.mjs`。
    - ✅ 修：列表里 Tab 让焦点跑出编辑器（Rei 2026-10-17「ul ol 还是用 tab 缩进会 unfocus 整个编辑器」）：缩进其实做了（Milkdown 列表 keymap 的 Tab → sinkListItem），但详情是弹层，React Aria FocusScope（contain）在 document 上自己接 Tab 挪焦点，不看 defaultPrevented；happy-dom 单测里没有弹层所以测不出来。改为编辑器根节点上拦下 Tab 的冒泡（preventDefault + stopPropagation），测试里断言 document 收不到 Tab。
    - 去掉了备注标签旁的「支持 Markdown」小字（写的时候就是排好的样子，用不着说）；新建面板的 ? 提示改成「直接这样写，会自动排好版：」。
@@ -313,8 +323,8 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - ✅ 桌面小窗：我的一天标题旁「打开小窗」（只在桌面 app）→ Tauri 第二个窗口 `mini`（`?window=mini`，340 × 540，置顶，可调大小）：我的一天 + 今天要打卡，用 TaskRow 直接勾 / 计时 / +1，底部「加到今天…」，图钉切换置顶、「打开主窗口」。两个窗口共用 rusqlite，内存快照经 Tauri 事件 `mindough:changes` 互相 applyRemote；小窗不跑同步 / 提醒 / 登录回调。`cargo check` 通过，真机待验。
    - 🟡 Android：app 写快照 ✅（`lib/widget-snapshot.ts` → Rust `widget_snapshot` → app 数据目录 `widget-snapshot.json`，有测试）；AppWidget 的 Kotlin + 布局写在 `src-tauri/mobile/android-widget/`，**没接进构建**（gen/android 由 CI 生成、本机没 SDK 验证不了；接入步骤在 WIDGETS.md）。
    - 🟡 iOS：WidgetKit 脚手架（`src-tauri/mobile/ios-widget/MindoughWidget.swift`）+ 步骤（要 App Group，快照得写到共享容器）；待 Rei 在 Mac 上接。
-4. ✅ 桌面 app 外链用系统浏览器打开（Tauri opener）：`lib/external.ts` 在 document 上捕获 click / auxclick，指向别的源的 http(s) 和 mailto / tel 链接一律交给 `openUrl`（Markdown 渲染的链接、资料卡小标签、编辑器里的链接都不用各自处理）；Web 端照常新标签页；权限沿用 `opener:default`（只放行 http / https / mailto / tel）。真机待验。
-5. 🟡 各平台安装包：版本 0.1.0、macOS ad-hoc 签名、notification npm 与 crate 对齐；已推标签 v0.1.0-alpha.1 触发 build.yml（macOS / Windows / Linux / Android debug），结果由 Rei 在 Actions 查看；iOS 用免费 Apple ID + Xcode 直装（docs/IOS.md）。 打包规则（Rei 2026-10-17）：alpha 标签也建 Release（预发布草稿），APK 一并挂上。
+4. ✅ 桌面 app 外链用系统浏览器打开（Tauri opener）：`lib/external.ts` 在 document 上捕获 click / auxclick，指向别的源的 http(s) 和 mailto / tel 链接都交给 `openUrl`（Markdown 渲染的链接、资料卡小标签、编辑器里的链接都不用各自处理）；Web 端照常新标签页；权限沿用 `opener:default`（只放行 http / https / mailto / tel）。真机待验。
+5. 🟡 各平台安装包：版本 0.1.0、macOS ad-hoc 签名、notification npm 与 crate 对齐；已推标签 v0.1.0-alpha.1 触发 build.yml（macOS / Windows / Linux / Android debug），结果由 Rei 在 Actions 查看；iOS 用免费 Apple ID + Xcode 直装（docs/IOS.md）。打包规则（Rei 2026-10-17）：alpha 标签也建 Release（预发布草稿），APK 一并挂上。
 6. ✅ 界面收尾：
    - ✅ 27 个打卡分类改「常用 6 个 + 更多」：常用 = 重复任务用得最多的（件数一样按最近），不够用 健康 / 运动 / 学习 / 读书 / 饮食 / 作息 补齐（core `pickFrequentCategories`、`Store.frequentCheckInCategories`）；当前选中的总在第一屏；「更多 · 21」展开搜索框和其余分类；分类改成随宽度换行的小胶囊。
    - ✅ 手机端细节：弹层底部轻提示（「改动会同步到用到它的 N 件任务」）放不下时自己占一行，不再把「保存」挤到下一行；更多链接每条一张小卡（上面名字 + 上移 / 下移 / 去掉，下面整行网址）；IMDb / 豆瓣预览链接太长时省略号。
@@ -343,13 +353,13 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
   - 一个类型：名字（失焦保存；内置名字没改动不写回）、图标（lucide 网格 56 个 + 自己填一个 emoji；`lib/icons.ts` 的 `typeIcon` 认 emoji）、颜色（14 个色板 + 自己调）、资料库版式（竖版海报 2:3 / 方形 / 横幅 16:9 / 圆形——`TypeLayout` 加了 `round`，卡片、行缩略图、资料库都按它出圆图）、默认怎么算完成、新建时的正文、归档（不能删）。
   - 字段：增（名字 + 种类：文字 / 数字 / 进度 / 日期 / 单选 / 多选 / 链接 / 更多链接 / 站点编号 / 图片 / 清单 / 金额 / 看到第几集）、行内改名、拖动排序（设置弹层里也有上移 / 下移）、隐藏、删除；设置弹层里改种类、资料字段 / 任务字段、单选多选的选项（选项改名连同资料和任务里存着的旧选项一起改：`Store.renameFieldOption`）、单位、站点、提示文字。主字段和图片字段固定是资料字段，不能隐藏、删除、改种类。
   - 关键决定：字段 key 随机生成（`f` + 8 位）、永不随改名变；删字段只在定义里留墓碑 `removed: true`（值留在 JSON 里不显示），加回同名同种类的字段就翻回同一个 key、旧值又出现——墓碑也让 `withNewBuiltinFields` 不会把用户删掉的内置字段补回来；影视 r2 去掉的「平台」记在 `LEGACY_BUILTIN_FIELDS`，加回「平台」（文字）用回旧 key `platform`。隐藏字段 `hidden: true`：`itemFieldsOf` / `taskFieldsOf` / `shownFields` / `linkChips` 都不含它，改类型时要留的值用 `allTaskFieldsOf`（含隐藏、删掉的）。字段已经有值时不让改种类和归属（`Store.fieldHasData`），免得旧值对不上。
-  - 类型顺序存在同步偏好 `type_order`（id 列表，`orderTypes`；没写进去的按 sort 接后面），不改类型行——否则排一下顺序内置类型就变成「改过」，以后内置升级不再覆盖它。界面上取类型一律 `store.pickableTypes()`（新建 / 改类型 / 组默认类型）/ `store.orderedTypes()`（资料库标签条）/ `store.editableTypes()`（编辑器）/ `store.archivedTypes()`（编辑器底部已归档），前三个都不含归档的。改名字、图标、字段、归档这些会写类型行：内置类型的 updated_at 变成真实 HLC，按 `ensureBuiltinTypes` 的老规矩不再整体替换（只补新字段）。
+  - 类型顺序存在同步偏好 `type_order`（id 列表，`orderTypes`；没写进去的按 sort 接后面），不改类型行——否则排一下顺序内置类型就变成「改过」，以后内置升级不再覆盖它。界面上取类型都用 `store.pickableTypes()`（新建 / 改类型 / 组默认类型）/ `store.orderedTypes()`（资料库标签条）/ `store.editableTypes()`（编辑器）/ `store.archivedTypes()`（编辑器底部已归档），前三个都不含归档的。改名字、图标、字段、归档这些会写类型行：内置类型的 updated_at 变成真实 HLC，按 `ensureBuiltinTypes` 的老规矩不再整体替换（只补新字段）。
   - ✅ 类型只能改和归档、不能删（Rei 2026-10-17：「类型创建后只能修改和归档，不支持删除，归档的类型不再可见，但旧的引用它的任务不破坏。」）。取代原来的「隐藏」+「没人用的自定义类型能删」。
     - 存储沿用 `task_type.hidden` 列（不加列、不加迁移），语义改成归档；旧数据里 `hidden = true`（以前的「隐藏」）读出来就是归档。导出的 `_meta/types.json` 写 `archived`，导入兼容旧文件的 `hidden`。`isArchivedType`（library.ts）、`Store.archiveType` / `unarchiveType` / `archivedTypes` / `effectiveDefaultTypeId`；`deleteType` / `canDeleteType` 删掉了，`updateType` 不再改归档。内置、自定义一样；「普通」「人物」不能归档。
     - 归档的不出现在：新建 / 改类型 / 组默认类型的选择器、资料库标签条、类型编辑器主列表、深链 `new?type=`（退回普通）；资料详情页不再给「用它新建任务」。⌘K 照常搜得到归档类型的资料（见下方纠正）。
     - ✅ Rei 2026-10-17 纠正：「组的类型被归档后不退回，搜索里出它的资料。归档只是让它不能被后续任务使用呀」。所以归档只管选择器（不让后续任务选到它），已经用上它的地方不变：组的默认类型照样生效、⌘K 照常搜到它的资料。
     - 归档类型的库按 id 打开（`#/library/<id>`，如从它的资料页点「‹ 某某库」回来）照常显示这个库，不再落到第一个库；标签条里仍没有它，工具栏条数后面轻标「已归档」。选这个而不是「回来源页」：返回链接本来就是 href，不用记来源，深链 / 刷新也对。
-    - 旧任务不破坏：任务和资料照常显示该类型的图标、名字、字段、资料行、完成方式，能改字段值；详情「类型」一行照常显示当前值，只是选择器里没有它；从任务详情点资料行仍能进资料页。
+    - 旧任务不受影响：任务和资料照常显示这个类型的图标、名字、字段、资料行、完成方式，能改字段值；详情「类型」一行照常显示当前值，只是选择器里没有它；从任务详情点资料行仍能进资料页。
     - 组的默认类型是归档的：照样生效（Rei 2026-10-17 纠正，取代上一版「不生效、退回普通」）——在组里新建任务仍用它，组页副标题照常显示；`effectiveDefaultTypeId` 只在类型行不在了（旧墓碑没被找回）时退回普通。新建任务面板的类型选择器里不列它，但类型小标签照常显示它是当前值。组目前只有新建时选默认类型（`GroupDialog`，选择器不列归档的），没有改已有组默认类型的界面，所以「已选的归档类型显示为当前值」暂时只体现在组页副标题和新建面板。
     - 以前版本删掉的类型（墓碑）：被任务 / 资料引用的，打开时 `reviveReferencedTypes` 照旧找回来，找回来就是归档状态（两台各做一遍内容相同，LWW 后一致）；没人引用的墓碑留着不动。还没升级的旧客户端同步过来的删除也走这条。
   - core：`typedef.ts`（纯函数 `addField` / `updateField` / `removeField` / `reorderFields` / `moveField` / `orderTypes` / `isEditableType`、`FIELD_KIND_LABEL`、`LIBRARY_LAYOUTS`），Store 的 `createType` / `updateType` / `setTypeFields` / `addTypeField` / `renameFieldOption` / `reorderTypes` / `moveType` / `typeUsage` / `archiveType` / `unarchiveType` / `archivedTypes`；测试 `packages/core/test/typedef.test.ts`（类型增改、字段排序隐藏、删字段数据保留与加回、内置改过不被覆盖、排序不改内置行、不能删、归档后不在 pickable / ordered / editable、引用归档类型的任务照常解析、⌘K 搜得到归档类型的资料、组默认类型归档后照样生效、旧 hidden 兼容与导出导入、选项改名、两端同步 LWW、复活的墓碑是归档状态）。没加表也没加列（字段定义本来就是 JSON），SQLite / Tauri 不用迁移。
@@ -366,7 +376,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 - ✅ 资料合并（两条其实是同一部片）（2026-10-16，分支 m4-merge）
   - core `merge.ts`（纯逻辑：`planItemMerge` / `planPersonMerge` 算合并后的值与冲突、`mergeNotes`、`duplicateGroups`、`resolveMerged`、`mergeCycleSurvivors`）+ `Store.mergeLibraryItems(targetId, sourceIds, choices?)` / `mergePeople` / `undoMerge` / `settleMerges` / `duplicateGroups` / `dismissDuplicateGroup`；测试 `packages/core/test/merge.test.ts`。
   - 规则：同类型才能合并（不同类、只选一条、来源不在了抛 `MergeError`，不写入）。默认目标的非空值优先、空的按来源顺序补；`choices`（字段 key → 用哪条的 id）定冲突字段；主字段（名字）、图片也可选；「更多链接」不算冲突，按网址去重合并；类型里已经没有的旧字段同样目标优先补空、不丢。备注拼接：已包含的那段不重复。
-  - 数据：`library_item.merged_into`、`person.merged_into`（SQLite 迁移 v5；localStorage / 旧行读入时补 null，写入也总带上）。来源打墓碑 + `merged_into = 目标`，用到来源的任务一次写入里改指目标。读取一律顺着 `merged_into` 解析（`store.itemOf`、`resolveItemId`、`resolvePersonId`、`tasksOfItem`、`libraryEntries` 的用到次数、`peopleOf`、详情的资料行），所以别的设备离线新建、还指着旧 id 的任务同步后立刻显示成目标；`settleMerges()` 在打开时和每次 `applyRemote` 后把这些任务（和人物关联）改写到目标 id（没事做不写）。链式合并（A→B→C）解析到最后一条。
+  - 数据：`library_item.merged_into`、`person.merged_into`（SQLite 迁移 v5；localStorage / 旧行读入时补 null，写入也总带上）。来源打墓碑 + `merged_into = 目标`，用到来源的任务一次写入里改指目标。读的时候都顺着 `merged_into` 找（`store.itemOf`、`resolveItemId`、`resolvePersonId`、`tasksOfItem`、`libraryEntries` 的用到次数、`peopleOf`、详情的资料行），所以别的设备离线新建、还指着旧 id 的任务同步后立刻显示成目标；`settleMerges()` 在打开时和每次 `applyRemote` 后把这些任务（和人物关联）改写到目标 id（没事做不写）。链式合并（A→B→C）解析到最后一条。
   - 多设备：同时合并同一对 → 两边写的内容一样，LWW 收敛成一条；反方向同时合并（A 并进 B、B 并进 A）可能两条都成墓碑互相指着 → `settleMerges` 把每个环里 id 最小的那条翻回来（各端算出来一样），任务都解析到它。迁移出来的确定 id（`migratedItemId`）如果已经被并掉，旧任务迁移时直接挂到合并后的那条，不复活墓碑。
   - 撤销：返回 `MergeUndo`（合并前的目标 / 来源 / 改指过的任务或人物关联）；`undoMerge` 让目标回到合并前、来源翻回来、改指过且现在还指着目标的任务指回去（是一次新写入，照常同步）。
   - 人物：`task_person` 改指留下的人，同一件任务已经关联了留下的人就把重复那条打墓碑；旧人物类型任务 `type_data` 里写着的人也改过来。
@@ -398,22 +408,22 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
      - **Worker**（`apps/server/src/lookup/`，都要登录：会话或同步凭据，同 /api/assets）：`GET /api/lookup/search?kind=movie|book|game&q=&lang=zh|en[&media=movie|tv][&alt=]`、`GET /api/lookup/item?source=tmdb|douban|openlibrary|steam|imdb&id=`、`POST /api/lookup/image {url}`（把选中的封面拉进 R2 `mindough-assets`，key 同 /api/assets，资料里存 asset 引用，不热链；只拉 image.tmdb.org、covers.openlibrary.org、*.steamstatic.com、img*.doubanio.com，豆瓣带 Referer）。Cache API：每个来源的搜索 1 天、详情 7 天，只缓存成功的；对外请求 8 秒超时（504 网关超时）、连不上 502 错误网关、限流 429 请求太多；错误都带中文说明。一个来源出错不影响别的，所有来源都失败才返回第一个的状态码。
      - **来源适配器**各一个文件，统一输出 `{source, sourceId, name, year?, image?, thumb?, subtitle?, fields, url}`，fields 的 key 是内置类型的字段 key：
        - `tmdb.ts`：search/multi（不知道电影还是剧集时）或 search/movie、search/tv（知道时，排序也准）；movie / tv 详情 + `append_to_response=external_ids` 拿 IMDb；`find/{imdb}`。密钥 Worker secret `TMDB_API_KEY`：v4 读访问令牌（eyJ… 开头）走 Bearer，其余当 v3 key 走 `api_key`；没配置或密钥不对 → 503 服务不可用（`unconfigured`），界面写「TMDB 还没配置」。中文界面 zh-CN、英文 en-US。
-       - `douban.ts`（尽力而为）：建议接口 `movie.douban.com/j/subject_suggest`；详情先用手机版 JSON `m.douban.com/rexxar/api/v2/movie/<id>`（剧集 301 到 /tv/），不行再解析 subject 页面（会被跳去验证页）。拿不到算 `blocked`，静静降级。2026-10-16 沙箱实测建议接口和手机版 JSON 都通。豆瓣的结果只在中文界面列出。
+       - `douban.ts`（尽力而为）：建议接口 `movie.douban.com/j/subject_suggest`；详情先用手机版 JSON `m.douban.com/rexxar/api/v2/movie/<id>`（剧集 301 到 /tv/），不行再解析 subject 页面（会跳到验证页）。拿不到算 `blocked`，静静降级。2026-10-16 沙箱实测建议接口和手机版 JSON 都通。豆瓣的结果只在中文界面列出。
        - `openlibrary.ts`：search.json（少于 3 个字改按 `title:` 搜，否则 422）；详情 `q=key:/works/<id>`；作者只取 author_name 第一位（后面常是译者、插画师）。按名字得到的是作品（OL…W），只有作品级字段：作者、首版年份、页数。按 ISBN（`/api/lookup/item?source=isbn&id=`）：`/isbn/<isbn>.json`（302 到那一版 `/books/OL…M.json`），取书名、出版社 publishers[0]、出版年份（publish_date 里的年）、页数 number_of_pages、ISBN；作者先看这一版的 authors，没有（常见）就取作品的第一位，再查 `/authors/<id>.json` 的名字；ISBN 校验位不对 400。不给封面（见下）。
        - `steam.ts`：storesearch + appdetails（中文 l=schinese&cc=CN，英文 l=english&cc=US）；平台 windows → PC（Steam）、mac → macOS、linux → Linux / Steam Deck；官网进「更多链接」；图标用 header 图（卡片里方形裁）。
      - **按 Rei 20 部真实数据试跑改的**（work/m4/tmdb_try.json：按 IMDb find 18/18 对，按中文名 search/multi 11/20 对）：搜之前去掉季 / 集标记（第三季、Season 2、S03、S02E03，复用 episode.ts，见 core `lookupSearchText`），带季标记的按剧集搜，季数由新建面板照旧填进「看到哪」；有 IMDb / 豆瓣编号先按编号取；影视资料「电影/剧集」已填时只搜那一种（`media`）；TMDB 按中文名没搜到时，用 `alt` 给的名字、再用豆瓣同名条目的原名（带豆瓣年份收窄）补搜（「海绵宝宝大电影·寻找方裤」→ The SpongeBob Movie: Search for SquarePants → TMDB「海绵宝宝：深海大冒险」）；按名字永远给候选让人选，不自动采用第一条。
      - **core** `lookup.ts`：哪些类型能在线找（按内置 id：影视 / 书籍 / 游戏）、结果形状（与 Worker 的 `lookup/types.ts` 一致，两处一起改）、`lookupSearchText` / `lookupQueryOf`（按什么找）、`findLookupTwin`（库里已有的同一条：同来源编号、同 IMDb / 豆瓣编号、或同名且年份不冲突）、`planAutofill` / `applyAutofill`（逐项计划）、`itemOfLookup`。资料来源存在 `library_item.fields._source`（「tmdb:movie/693134」），**不加列、不动 schema**；下划线开头的键不是类型字段，不显示、不进搜索。
-     - **界面**：新建面板 / 详情「换一个」的选择框里，本地结果和「新建“xxx”」下面是「从 TMDB、豆瓣找」/「从 Open Library 找」/「从 Steam 找」（`components/library/Lookup.tsx` 的 `OnlineOptions`，防抖 350 毫秒、新输入取消旧请求、离线或没登录整块不出现，键盘上下和本地结果连着；粘贴 IMDb / 豆瓣链接按编号取；库里已有的同一条不重复列）。选中马上建资料（界面不等网络），后台补详情（IMDb 编号等）和封面，只补空缺（`lib/lookup.ts` 的 `createItemFromLookup`）；新建面板里选了又取消 / 换掉的、没有任务用到的资料，关掉面板时删掉。编辑资料底部「自动补全」：先按已填的 IMDb、再豆瓣编号取，都没有按名字给候选列表挑一条；然后逐项列出要填的值（勾选框 + 字段名 + 新值 +「现在：旧值」），空缺默认勾上，已有的默认不勾（勾上 = 覆盖），更多链接是合并；「填进去 N 项」才拉图、填进草稿，最后还是「保存」才落库。资料卡（详情大卡）和资料页名字下面「资料来自 TMDB」小字 + 链接。设置最下面「关于」：Mindough 图标与名字在前，TMDB 认可的 logo（blue_short，10px 高，比我们的标识不显眼，链到 https://www.themoviedb.org）+ 原文声明 “This product uses the TMDB API but is not endorsed or certified by TMDB.”，中文界面再附译文。样式在 `styles/lookup.css`。
+     - **界面**：新建面板 / 详情「换一个」的选择框里，本地结果和「新建“xxx”」下面是「从 TMDB、豆瓣找」/「从 Open Library 找」/「从 Steam 找」（`components/library/Lookup.tsx` 的 `OnlineOptions`，防抖 350 毫秒、新输入取消旧请求、离线或没登录整块不出现，键盘上下和本地结果连着；粘贴 IMDb / 豆瓣链接按编号取；库里已有的同一条不重复列）。选中马上建资料（界面不等网络），后台补详情（IMDb 编号等）和封面，只补空缺（`lib/lookup.ts` 的 `createItemFromLookup`）；新建面板里选了又取消 / 换掉的、没有任务用到的资料，关掉面板时删掉。编辑资料底部「自动补全」：先按已填的 IMDb、再豆瓣编号取，都没有按名字给候选列表挑一条；然后逐项列出要填的值（勾选框 + 字段名 + 新值 +「现在：旧值」），空缺默认勾上，已有的默认不勾（勾上 = 覆盖），更多链接是合并；「填进去 N 项」才拉图、填进草稿，最后还是「保存」才落库。资料卡（详情大卡）和资料页名字下面「资料来自 TMDB」小字 + 链接。设置最下面「关于」：Mindough 图标与名字在前，TMDB 认可的 logo（blue_short，10px 高，比我们的标识不显眼，链到 https://www.themoviedb.org）+ 原文声明“This product uses the TMDB API but is not endorsed or certified by TMDB.”，中文界面再附译文。样式在 `styles/lookup.css`。
      - 测试：core `test/lookup.test.ts`；server `test/lookup.test.ts`（全部用 mock fetch：TMDB 两种密钥、没配置 503、超时 504、限流 429、豆瓣跳验证页降级、media 过滤、按原名补搜、拉图进 R2、缓存 TTL）；`e2e/real-lookup.test.ts`（`E2E_LOOKUP=1` 真实请求 Open Library、Steam、豆瓣、拉图进 R2，有 `TMDB_API_KEY` 时也试 TMDB）；client `lib/lookup.test.ts`。截图 work/screens/m4-lookup-*.png（脚本 work/shots-tool/m4lookup.mjs，mock 接口）。
      - **待 Rei 确认**（我先这样定的）：
        1. 来源存在 `fields._source`，不加 `library_item.source` 列（免得和别的分支的迁移撞号）；以后想要单独一列再迁移。
-       2. 没加 Google Books：沙箱里没法验证无 key 接口（被网关拦成 403），Cloudflare 出口 IP 也常被它限流；书只用 Open Library，中文书覆盖一般。
+       2. 没加 Google Books：沙箱里没法验证无 key 接口（网关拦下来回 403 禁止访问），Cloudflare 出口 IP 也常被它限流；书只用 Open Library，中文书覆盖一般。
        3. 豆瓣结果只在中文界面列出；英文界面只拿它给原名补搜 TMDB。
        4. 选择框里在线结果放在「新建“xxx”」下面（位置稳定，结果晚到不会把「新建」挤走）；库里同名（年份不冲突）的条目视为同一条，在线列表里不再列，选中时用库里那条、只补空缺。
        5. 按 IMDb / 豆瓣编号取到的直接进逐项确认（编号是精确的），按名字一定先给候选。
        6. 「自动补全」和在线结果只在登录且在线时出现；没登录不提示（克制）。
        7. 游戏图标用 Steam header 图（横图，方形裁中间），Steam 没有方形图标接口。
-     - ✅ **书的封面不对接任何平台，纯手填（Rei 2026-10-17 定）**：只去掉书的封面，Open Library 仍补书名、作者、年份、页数等。Worker 的 openlibrary 适配器不取 cover_i、不输出 image / thumb；`/api/lookup/image` 白名单去掉 covers.openlibrary.org（现在只拉 image.tmdb.org、*.steamstatic.com、img*.doubanio.com）。core 的来源表加 `covers`（Open Library 为 false）和 `lookupCover(r)`：自动补全不列图片那行、选中在线结果建资料不拉图、候选列表里书一律用占位图——就算旧 Worker / 缓存还带着封面地址也不用。书的封面只走现有的手动图片字段（上传 / 粘贴，照旧按海报 600×900 统一裁切）。已经拉进 R2 的旧封面不动。
+     - ✅ **书的封面不对接任何平台，纯手填（Rei 2026-10-17 定）**：只去掉书的封面，Open Library 仍补书名、作者、年份、页数等。Worker 的 openlibrary 适配器不取 cover_i、不输出 image / thumb；`/api/lookup/image` 白名单去掉 covers.openlibrary.org（现在只拉 image.tmdb.org、*.steamstatic.com、img*.doubanio.com）。core 的来源表加 `covers`（Open Library 为 false）和 `lookupCover(r)`：自动补全不列图片那行、选中在线结果建资料不拉图、候选列表里的书都用占位图——就算旧 Worker / 缓存还带着封面地址也不用。书的封面只走现有的手动图片字段（上传 / 粘贴，照旧按海报 600×900 统一裁切）。已经拉进 R2 的旧封面不动。
      - ✅ **书按 ISBN 精确取那一版（Rei 2026-10-17 同意）**：书籍类型加三个资料字段 出版社（publisher，文字）、出版年份（year，数字）、ISBN（isbn，站点编号 `site: 'isbn'`，链到 openlibrary.org/isbn/…），插在作者和页数之间；内置版本升到 r3（`BUILTIN_TYPES_REVISION` 0003），没改过的内置书籍直接换新定义，改过的照 `withNewBuiltinFields` 只补这三个新字段、已有的不动。core `links.ts` 的 `isbnOf`：ISBN-10 / 13，容许连字符、空格、「ISBN」前缀，也认 openlibrary.org/isbn/ 链接，校验位不对的不认（免得把一串数字当 ISBN）。选择框里输入 / 粘贴 ISBN（只在书里认）就按 ISBN 取一条候选；编辑资料「自动补全」先认已填的 ISBN（名字栏里粘的 ISBN 也认），取到的直接进逐项确认（同 IMDb 编号）；按书名找到的是作品，逐项确认上面说明「只补作者、首版年份、页数；要出版社和 ISBN，先填 ISBN 再自动补全」。按 ISBN 取到的来源记成这一版（`openlibrary:OL25840916M`，链接到 /books/）；同一 ISBN 算库里的同一本。仍然不带封面。2026-10-17 沙箱实测 978-7-5366-9293-0 → 三体 · 刘慈欣 · Chongqing Press · 2008 · 302 页。
 
 ### 日记 J1 ✅（2026-10-17，方案 docs/JOURNAL.md）
@@ -426,7 +436,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
 Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为附件，附件是图片则小图显示点击可放大(有关闭、下载按钮)，其他文件格式上传后显示图标，点击下载」。
 - **挂在哪**：任务详情、日记（每天那篇）。资料项暂不做（待问）。正文下面一块「附件」。
 - **数据**：新表 `attachment`（SQLite 迁移 **v7**）：`owner_type`（task / journal）、`owner_id`（任务 id，或日记 `journalEntryId(date)`）、`file_name`、`mime`、`size`、`r2_key`、`thumb_key`、`width` / `height`（原图）、`created_at`，加 `id` / `updated_at` / `deleted`。按现有同步协议加表（云端只存整行 JSON，不动云端 schema），行级 LWW。给日记加附件时先 `Store.ensureJournal(date)` 建一行空日记（导出靠这一行认日期；只有附件的日子在月历和列表里也算写了，列表里写「N 个附件」）。删任务 / 删那天日记一起把附件打墓碑。Store：`attachmentsOf` / `addAttachment` / `setAttachmentFile` / `renameAttachment`（没写扩展名补回原来的）/ `removeAttachment` / `restoreAttachment`。纯逻辑 core `attachments.ts`（文件类型 10 种、大小显示、文件名安全化与去重、`MAX_ATTACHMENT_BYTES`）。测试 core `test/attachments.test.ts`、client `lib/attachments.test.ts`、`components/attachments/FileIcon.test.tsx`、server `test/files.test.ts`。
-- **存储**：原文件原样传 R2 `mindough-assets`（不压缩不改尺寸），图片在本机另生成一张缩略图（长边 480，WebP，编不了退 JPEG）也传上去，网格用它。Worker `apps/server/src/files.ts`：`POST /api/files`（会话或同步凭据；≤ 50 MB，超过 413 内容太大；同内容只存一份）、`GET /api/files/<用户哈希>/f/<sha256>[?name=&dl=1]`（要登录，key 前缀不是自己的一律 404 未找到；安全的图片格式 inline，其余或 dl=1 一律 attachment 带原文件名；nosniff + CSP sandbox，HTML / SVG 附件里的脚本不跑；`cache-control: private`）。
+- **存储**：原文件原样传 R2 `mindough-assets`（不压缩不改尺寸），图片在本机另生成一张缩略图（长边 480，WebP，编不了退 JPEG）也传上去，网格用它。Worker `apps/server/src/files.ts`：`POST /api/files`（会话或同步凭据；≤ 50 MB，超过 413 内容太大；同内容只存一份）、`GET /api/files/<用户哈希>/f/<sha256>[?name=&dl=1]`（要登录，key 前缀不是自己的都回 404 未找到；安全的图片格式 inline，其余的或 dl=1 都按 attachment 下载，带原文件名；nosniff + CSP sandbox，HTML / SVG 附件里的脚本不跑；`cache-control: private`）。
 - **上传**（client `lib/attachments.ts` + `lib/attachments-queue.ts`）：选进来 / 拖进来 → 先建行（r2_key 空）+ 文件和缩略图存进本机 IndexedDB 队列 `mindough-files` → 登录且在线时传（XMLHttpRequest，有进度；同时 2 个；先传缩略图再传原图）→ 填上 key、删本机那份。界面显示「正在上传 45%」+ 进度条，能取消（停掉上传、删行，不留撤销）；失败显示「上传失败」+ 重试（悬停看原因，带状态码中文说明）；离线「等联网后上传」、没登录「登录后上传」，联网 / 登录后自动接着传；关掉 app 再开，队列里的接着传。别的设备加的、还没传上来的显示「还在另一台设备上」。上传器只在主窗口跑（同同步）。
 - **显示**（`components/attachments/`）：图片（浏览器能直接显示的，HEIC 等有缩略图才算）方形小图网格；点开灯箱 `Lightbox`：全屏深色底、先放大缩略图顶着、原图到了换上；顶栏文件名、「2 / 5」、下载、关闭；多张时左右箭头、← → 键、手机左右滑；Esc、点图片外面关闭；四周 `env(safe-area-inset-*)`。其他文件：按类型的图标 + 文件名 + 「PDF · 380 KB」，点一下下载。每个附件 ··· 菜单：下载、重命名…（选中主干，不写扩展名就保留原来的）、删除（提示里「撤销」）。
 - **文件类型图标** `FileIcon`：自绘一组 SVG（折角的纸 + 中间一个线条图形 + 扩展名），10 种：图片、PDF、文档、表格、演示、压缩包、音频、视频、代码 / 文本、通用；颜色令牌 `--file-*`（三皮肤 × 明暗，`skin/tokens.css`）。
@@ -446,8 +456,8 @@ Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为
   9. 还没升级的旧客户端会跳过 attachment 表的行（同 journal_entry 当时的情况），升级后要等那些行再被改一次才会拉到。
 
 #### 附件：只预览图片 + 本机缓存 ✅（2026-10-25）
-Rei 2026-10-25：「任务详情页中，attachments如果是图片，添加后是缩略图，点击可放大查看。其他类似的附件都不可预览。附件可以下载、删除、缓存、删除缓存。缓存的附件24小时后清除本地缓存。」
-- **预览**：图片照旧小图网格 + 灯箱（灯箱只翻图片）；其他文件（PDF、视频、音频、文档…）一律不预览，图标 + 文件名 + 大小，点一下下载（原来就没有内嵌预览，这次只是写明）。core `attachmentPressAction`（lightbox / download）。
+Rei 2026-10-25：「任务详情页中，attachments 如果是图片，添加后是缩略图，点击可放大查看。其他类似的附件都不可预览。附件可以下载、删除、缓存、删除缓存。缓存的附件 24 小时后清除本地缓存。」
+- **预览**：图片照旧小图网格 + 灯箱（灯箱只翻图片）；其他文件（PDF、视频、音频、文档…）都不预览，图标 + 文件名 + 大小，点一下下载（原来就没有内嵌预览，这次只是写明）。core `attachmentPressAction`（lightbox / download）。
 - **操作**：··· 菜单 下载 / 缓存（或「删除缓存」）/ 重命名… / 删除（删除前加分隔线，仍是提示里撤销）。桌面悬停出现 ···、右键也打开同一个菜单；触屏点 ··· 或长按 500 ms（iOS 不发 contextmenu，自己计时；长按后那次点击吞掉，不会顺手打开灯箱 / 下载）。哪些能点由 core `attachmentActionState` 算（缓存着 / 在本机上传队列 / 联网）。
 - **缓存**：「缓存」把原文件存到这台设备。Web 用 **Cache Storage**（缓存名 `mindough-attachments-v1`，假地址 `/__attachment-cache/<id>`；选它不选 OPFS：iOS Safari 等的 OPFS 写入接口支持不齐，Cache Storage 各家都稳；sw.js 不碰这个缓存，外壳清理只删 `mindough-shell-*`，所以 SHELL 版本没动）；Tauri 用 app 缓存目录 `attachments/<id>`（`files.rs` 的 `att_cache_put / get / delete / list / copy`，先写 .part 再改名）。缓存记录（附件 id、r2_key、大小、缓存时间）存 localStorage `mindough:att_cache`，只在本机、不同步；附件换了文件（r2_key 变了）就不算缓存着。缓存着的附件有个小硬盘标记（悬停看还剩几小时）。「删除缓存」只删本机副本。缩略图不算缓存的附件，照旧。client `lib/attachment-cache.ts`（`AttachmentCache`、`useCacheRecord`、`installAttachmentCache`），纯逻辑 core `attachment-cache.ts`。
 - **24 小时清理**：从缓存那一刻起算（打开、下载都不续期；对已缓存的再点一次缓存不会出现，因为菜单那时是「删除缓存」）。启动时、回到前台（visibilitychange / focus）、运行中每小时各查一次；读的时候发现到期也当没缓存并删掉。附件被删了（墓碑）、没有记录的孤儿文件也一并清。
@@ -493,7 +503,7 @@ Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida
 - 删掉：`pages/Graph.tsx`、路由 `#/graph`（旧地址打开我的一天）、侧边栏 / 「更多」里的「关系图」、深链接 `view/graph`（打开我的一天，不提示写错）、关系图页专用的文案。组页的「关系图」视图（`DependencyGraph` / `LazyGraph`）保留。⌘K 本来就没有跳关系图的命令。
 - core `dag.ts` `taskChain(id, deps, tasks?)`：沿前后关系（不含相关任务）传递地取所有上游 + 下游；只走未删除的边和未删除的任务；按层排（层号 = 从最上游数过来最长的那条路，汇合点排在最晚的那条之后），返回 `ids`（拓扑顺序）、`ancestors`、`descendants`、`layers`、`currentLayer`、线内的 `edges`；只取当前任务的祖先和后代（上游分叉出去的兄弟不算）；有环（不该发生）也不会卡住。测试：直线、只有一层、分叉、汇合、菱形、孤立、已删除的边 / 任务、重复边、环。
 - 第一版（c75664f）是「整条线」按钮 → Sheet 弹窗、每层写「第 N 步」、同层多件桌面并排；同日 Rei：「整条线不要弹窗。每个步骤显示相对时间，而不是第几步。改名成‘任务链’」，改成下面的样子。
-- 界面 `components/task/TaskChain.tsx`：详情「关系」标题右边「任务链」开关（RAC ToggleButton，Lucide route，有前置或后续时才显示，开着强调色浅底）。开着时 `TaskChainInline` 在「关系」原地替换「先做完这些 / 做完后解锁」两段（这时没有逐条「去掉关系」的 ×，要去掉先关掉任务链），「相关任务」、成环提醒照常；关掉恢复。开关存本机设置 `settings.taskChain`（localStorage `mindough:settings`，不同步），换一件任务沿用。内容：顶上「已完成 N / 共 M」+ 进度条（只算完成，关闭不算）；每层左边小圆点（当前所在层强调色实心）+ 竖线 + 箭头，右边这一步的时间（见下，多件时带「N 件」）和任务卡；同层多件一律纵向叠着、左边缩进一道线（详情栏窄，桌面也不并排）；卡上状态点 + 标题（最多两行）+ 状态，当前这件强调色底 +「这件」；接的不正好是上一层全部时写「接在「X」后面」。点别的卡打开那件的详情（任务链还开着）。去掉了第一版的说明句「从上往下做…」（内联后箭头已经说明顺序）。
+- 界面 `components/task/TaskChain.tsx`：详情「关系」标题右边「任务链」开关（RAC ToggleButton，Lucide route，有前置或后续时才显示，开着强调色浅底）。开着时 `TaskChainInline` 在「关系」原地替换「先做完这些 / 做完后解锁」两段（这时没有逐条「去掉关系」的 ×，要去掉先关掉任务链），「相关任务」、成环提醒照常；关掉恢复。开关存本机设置 `settings.taskChain`（localStorage `mindough:settings`，不同步），换一件任务沿用。内容：顶上「已完成 N / 共 M」+ 进度条（只算完成，关闭不算）；每层左边小圆点（当前所在层强调色实心）+ 竖线 + 箭头，右边这一步的时间（见下，多件时带「N 件」）和任务卡；同一层有几件时都纵向叠着、左边缩进一道线（详情栏窄，桌面也不并排）；卡上状态点 + 标题（最多两行）+ 状态，当前这件强调色底 +「这件」；接的不正好是上一层全部时写「接在「X」后面」。点别的卡打开那件的详情（任务链还开着）。去掉了第一版的说明句「从上往下做…」（内联后箭头已经说明顺序）。
 - 每一步的时间（core `dag.ts`：`taskPlannedDate`、`chainStepWhen`、`chainWhenLabel`，单测中英文）：一步里的任务都结束了（完成 / 关闭）→ 最晚那件的 `done_at`（本机日期）相对今天：今天完成 / 昨天完成 / N 天前完成 / 超过 30 天写「9月1日完成」（不是今年带年份）；没记 `done_at` 写「已完成」。否则只看没结束的几件，取最早的计划日期：一件的计划日期 = 倒数日用 `target_date`（就是截止日）> `scheduled_date`（「日期」，任务表没有单独的截止字段，这个日期就当要做 / 截止的那天）> 最晚一次进「我的一天」的日期；相对今天写 今天 / 明天 / N 天后 / 已过 N 天（色调 overdue，红色 `--danger`），超过 30 天写日期；都没有写「未定时间」。英文 Done Today / Done 3 Days Ago / Today / Tomorrow / In 5 Days / 2 Days Overdue / No Date。
 - 为什么用纵向列表不用关系图：手机 390 宽也能读全标题和状态，不用缩放拖动；层就是「先做哪步」，和「先做完这些 / 做完后解锁」的说法一致。
 - 截图 `work/shots-chain/`（第一版）、`work/shots-chain2/`（任务链内联 + 相对时间：三皮肤 × 桌面 / 手机）。
@@ -502,7 +512,7 @@ Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida
 - Rei 2026-10-23：「任务链不要再弹窗了，任务详情如果不弹窗最好了，最好做成三列布局」。
 - 宽屏（≥ 1100 px）：侧边栏 | 当前视图的列表 | 任务详情（`components/task/DetailPane.tsx`）。有任务列表的页面（我的一天、待安排、列表、组、组详情、可做、打卡）右列常驻，没选中时是空状态「选一件任务查看详情」（Lucide mouse-pointer-click）；日记、资料库、人物、设置等没有任务列表的页面只在打开任务时才出现右列。点列表里一件 → 右列显示，那一行高亮（`is-selected`，`aria-current`）；不在列表里的任务（⌘K、资料库关联任务、通知、深链接）也在右列显示，列表不高亮。右列左边分隔条可拖（双击 / Home 恢复默认，键盘 ← → 调，Shift 大步），宽度 320–720、还要给列表留 360，存本机 `mindough:detail_w`（不同步）；默认 400。Esc（不在输入框、弹层里时）或右上角关闭 = 取消选中；↑ ↓ 在当前页面的任务里换一件（按 `.main [data-task-id]` 的显示顺序，没选中时 ↓ 第一件、↑ 最后一件，自动滚到可见）。
 - 中等宽度（761–1099 px）：侧边栏收成图标栏（64 px，macOS 无标题栏时 80 px 给红绿灯；悬停看名字，小节标题变成细线，收起的小节照样列出），列表 + 详情两列；没选中时右列不占地方（列表铺满）。选「图标栏」而不是「侧边栏可收起」：不用多一个开关，导航一直在手边。
-- 手机（≤ 760 px，沿用原来的手机断点 `MOBILE_MAX_WIDTH`，不是 720）：详情整页推入（盖住标签栏，从右滑入），左上返回（Apple 「‹ 返回」、WinUI / Material 箭头）；从屏幕左边缘右滑跟手返回；进详情时 `history.pushState`，所以浏览器 / 安卓返回键回列表；返回按钮在有这条记录时用 `history.back()`，不攒重复记录。
+- 手机（≤ 760 px，沿用原来的手机断点 `MOBILE_MAX_WIDTH`，不是 720）：详情整页推入（盖住标签栏，从右滑入），左上返回（Apple「‹ 返回」、WinUI / Material 箭头）；从屏幕左边缘右滑跟手返回；进详情时 `history.pushState`，所以浏览器 / 安卓返回键回列表；返回按钮在有这条记录时用 `history.back()`，不攒重复记录。
 - 选中的任务写在当前页面 hash 的 `?task=<id>` 上（`#/agenda?task=…`，`lib/router.ts` 的 `taskInHash` / `hashWithTask`；`parseHash` 忽略 ? 后面的参数），刷新后还在；换页面就不带（取消选中）。桌面上选中 / 换一件用 `replaceState`（不攒浏览记录）。`ui.editingId` 就是它（`lib/ui.tsx` 跟着 hashchange / popstate 走），所有入口照旧调 `ui.openEditor(id)`，不用各自改。深链接 `#/task/{id}`（Web）还是先换成 `#/myday` 再在右列打开；`mindough://task/{id}` 在当前页面的右列打开。
 - 详情外框 `DetailFrame`（`TaskDetail.tsx`）：`mode="pane"`（右列）/ `"page"`（手机整页）/ `"modal"`（桌面置顶小窗里照旧弹窗，小窗太窄放不下第三列）。右列和整页都是一栏：属性跟在正文、附件后面（`.detail.is-stacked`，原来 `.is-mobile` 的样式改名过来）。顶栏：完成状态 / 进度胶囊 | 我的一天、添加关系、··· | 关闭（整页是返回）；macOS 无标题栏时顶栏空白处可拖窗口。完成 / 关闭这件后：右列留着显示「已完成」+「重新打开」（方便撤回）；手机整页、小窗照旧收起。删除后右列回空状态。
 - 新建面板（FAB）不变，还是自己的面板；新建后提示里的「查看」在右列打开。FAB 挪进中间一列（`.main-col`）右下角，不压住右列底栏的主操作。组页关系图单击节点就在右列显示（以前桌面要双击）。
@@ -515,14 +525,14 @@ Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida
 Rei 2026-10-24 定：英文「Mindough」，中文「思想团」；2026-10-25 中文名改成「念头团」（英文不变），全仓「思想团」→「念头团」（i18n key 一起改，英文译文不变），manifest description 跟着改，sw.js SHELL v3 → v4。
 - **界面**：core `appName()` = `tr('念头团')`（英文 Mindough）；tr 的中文原文里写「念头团」（「登录念头团」「关于念头团」），英文词典写 Mindough。设置「关于」、启动占位、手机顶栏兜底、置顶小窗标题、桌面菜单栏（关于 / 隐藏 / 退出）、通知相关说明、Worker 的原生登录结果页（只有中文）都随语言或改成念头团。没有文字字标（关于里是图标 + 文字名，文字随语言）。
 - **网页标题**：`lib/i18n.ts` `applyAppTitle` 在启动和换语言时改 `document.title` 与 `apple-mobile-web-app-title`；index.html 里静态写 Mindough（JS 跑之前 / 爬虫）。
-- **PWA manifest**：只有一种语言，`name` / `short_name` 保持 Mindough（装到桌面后的名字是 Mindough；iOS 「添加到主屏幕」读的是 apple-mobile-web-app-title，随语言）；description 写「Mindough（念头团）：…」。改了 manifest，sw.js SHELL v2 → v3（10-25 改名再 v3 → v4）。
+- **PWA manifest**：只有一种语言，`name` / `short_name` 保持 Mindough（装到桌面后的名字是 Mindough；iOS「添加到主屏幕」读的是 apple-mobile-web-app-title，随语言）；description 写「Mindough（念头团）：…」。改了 manifest，sw.js SHELL v2 → v3（10-25 改名再 v3 → v4）。
 - **原生**：`src-tauri/locales/`——Apple `zh-Hans.lproj` / `en.lproj` 的 `InfoPlist.strings`（CFBundleDisplayName、CFBundleName），macOS 经 `bundle.macOS.files` 打进 Contents/Resources，`src-tauri/Info.plist` 合进 CFBundleLocalizations + LSHasLocalizedDisplayName；iOS 在 ios.yml 打 ipa 前 `scripts/native-locales.sh ios` 放进 .app；Android `values-zh` / `values-zh-rCN` 的 app_name（+ main_activity_title），build.yml 在 `tauri android init` 后 `scripts/native-locales.sh android` 拷进 gen/。
 - **不改**：Tauri productName（Mindough，安装包名、.app 文件夹名、数据目录、更新都靠它）、bundle id `dev.rei8t.mindough`、Windows 安装包名、导出文件夹名「Mindough 日期」、User-Agent、`/api/health` 的 `name: 'mindough'`（标识，不是显示名）、仓库名、深链接 `mindough://`。Windows 安装后开始菜单里也还是 Mindough（productName 单语言）。
 
 ### 列表行去掉建议徽章和加入按钮 ✅（2026-10-25）
-Rei 2026-10-25 先说「任务列表，如果很窄不显示右边的两个按钮」，又说「再宽一点显示图标按钮，很宽则显示图标 + 文本」，最后定「任何情况下都不显示这两个按钮」——不按宽度分档。
-- 我的一天「建议」行尾的原因徽章（今天到期 / 今天要打卡 / 刚解锁 / 倒数日到了）和「+ 加入」按钮在任何宽度都不显示；到期靠元信息行里的日期（过期红色）。core 的 `SUGGESTION_REASON_LABEL` 和排序原因还在，界面不再用。
-- 加入我的一天的入口：`TaskRow` 加了右键 / 长按（触屏 500 ms，移动 > 10 px 取消，长按后松手不点开）/ 键盘菜单键菜单，项目由 `lib/task-menu.ts` 的 `rowMenu` 给出：查看详情 ｜ 加入 / 移出我的一天。所有用 TaskRow 的列表（我的一天、待安排、列表、组、可做、资料 / 人物详情…）都有。任务详情「…」菜单里的「加入我的一天」照旧。
+Rei 2026-10-25 先说「任务列表，如果很窄不显示右边的两个按钮」，又说「再宽一点显示图标按钮，很宽则显示图标 + 文本」，最后定了「任何情况下都不显示这两个按钮」，所以不按宽度分档。
+- 我的一天「建议」行尾的原因徽章（今天到期 / 今天要打卡 / 刚解锁 / 倒数日到了）和「+ 加入」按钮，多宽都不显示；到期看元信息行里的日期（过期是红色）。core 的 `SUGGESTION_REASON_LABEL` 和排序原因还留着，只是界面不再用。
+- 加入我的一天的入口：`TaskRow` 加了右键 / 长按（触屏 500 ms，移动超过 10 px 就取消，长按后松手不会打开任务）/ 键盘菜单键都能打开菜单，菜单项由 `lib/task-menu.ts` 的 `rowMenu` 给出：查看详情 ｜ 加入 / 移出我的一天。所有用 TaskRow 的列表（我的一天、待安排、列表、组、可做、资料 / 人物详情…）都有。任务详情「…」菜单里的「加入我的一天」照旧。
 
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
