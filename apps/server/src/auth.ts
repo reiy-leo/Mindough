@@ -126,7 +126,7 @@ export async function handleLogin(req: Request, env: AuthEnv): Promise<Response>
   const challenge = url.searchParams.get('challenge');
   const native = url.searchParams.get('native') === '1' && !!challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge);
   const returnTo = native ? NATIVE_RETURN : safeReturnTo(url.searchParams.get('return_to'), url, env);
-  if (!configured(env)) return native ? nativeResult(withLoginError(NATIVE_RETURN, 'config_missing'), false) : redirect(withLoginError(returnTo, 'config_missing'));
+  if (!configured(env)) return native ? nativeResult(withLoginError(NATIVE_RETURN, 'config_missing'), false, req.headers.get('accept-language')) : redirect(withLoginError(returnTo, 'config_missing'));
   const state = randomToken();
   const oauth = await sign(
     { state, return_to: returnTo, exp: Date.now() + OAUTH_TTL_S * 1000, ...(native ? { native: { challenge: challenge! } } : {}) } satisfies OAuthState,
@@ -143,17 +143,54 @@ export async function handleLogin(req: Request, env: AuthEnv): Promise<Response>
 }
 
 /**
- * 原生端登录的结果页：浏览器里显示一句话，并自动跳回 app（mindough://auth?code=… 或 ?login_error=…）。
- * 不直接 302 到自定义协议：有的浏览器会静默拦下，留一个按钮可以再点。
+ * 原生端登录结果页的文案（Rei 2026-10-25 加了七种语言）：按浏览器的 Accept-Language 选，认不出用英文。
+ * app 名字中文写「念头团」，其他语言都写 Mindough（同客户端 appName）。
  */
-export function nativeResult(link: string, ok: boolean): Response {
+type NativeLang = 'zh' | 'en' | 'es' | 'pt' | 'ru' | 'ja' | 'de' | 'fr' | 'id';
+const NATIVE_COPY: Record<NativeLang, { html: string; ok: string; fail: string; close: string; back: string; open: string }> = {
+  zh: { html: 'zh-CN', ok: '已登录，回到念头团继续', fail: '没有登录成功', close: '这个页面可以关掉了。', back: '回到念头团看看是怎么回事。', open: '打开念头团' },
+  en: { html: 'en', ok: 'Signed in. Go back to Mindough to continue', fail: 'Sign-in didn’t work', close: 'You can close this page.', back: 'Go back to Mindough to see what happened.', open: 'Open Mindough' },
+  es: { html: 'es', ok: 'Sesión iniciada. Vuelve a Mindough para continuar', fail: 'No se pudo iniciar sesión', close: 'Ya puedes cerrar esta página.', back: 'Vuelve a Mindough para ver qué ha pasado.', open: 'Abrir Mindough' },
+  pt: { html: 'pt-BR', ok: 'Login feito. Volte ao Mindough para continuar', fail: 'Não foi possível entrar', close: 'Você já pode fechar esta página.', back: 'Volte ao Mindough para ver o que aconteceu.', open: 'Abrir Mindough' },
+  ru: { html: 'ru', ok: 'Вход выполнен. Вернитесь в Mindough', fail: 'Не удалось войти', close: 'Эту страницу можно закрыть.', back: 'Вернитесь в Mindough, чтобы узнать, что случилось.', open: 'Открыть Mindough' },
+  ja: { html: 'ja', ok: 'ログインしました。Mindoughに戻って続けてください', fail: 'ログインできませんでした', close: 'このページは閉じてかまいません。', back: 'Mindoughに戻って状況を確認してください。', open: 'Mindoughを開く' },
+  de: { html: 'de', ok: 'Angemeldet. Zurück zu Mindough, um weiterzumachen', fail: 'Anmeldung hat nicht geklappt', close: 'Du kannst diese Seite schließen.', back: 'Geh zurück zu Mindough, um zu sehen, was passiert ist.', open: 'Mindough öffnen' },
+  fr: { html: 'fr', ok: 'Connecté. Revenez dans Mindough pour continuer', fail: 'La connexion n’a pas abouti', close: 'Vous pouvez fermer cette page.', back: 'Revenez dans Mindough pour voir ce qui s’est passé.', open: 'Ouvrir Mindough' },
+  id: { html: 'id', ok: 'Sudah masuk. Kembali ke Mindough untuk melanjutkan', fail: 'Gagal masuk', close: 'Halaman ini boleh ditutup.', back: 'Kembali ke Mindough untuk melihat apa yang terjadi.', open: 'Buka Mindough' },
+};
+
+/** Accept-Language → 结果页语言：按权重顺序找第一个认得的（in = 印尼语旧代码），都不认得用英文。 */
+export function nativeLang(acceptLanguage: string | null | undefined): NativeLang {
+  const tags = (acceptLanguage ?? '')
+    .split(',')
+    .map((part, i) => {
+      const [tag = '', ...params] = part.trim().split(';');
+      const q = params.map((x) => x.trim()).find((x) => x.startsWith('q='));
+      return { tag: tag.toLowerCase(), q: q ? Number(q.slice(2)) || 0 : 1, i };
+    })
+    .filter((t) => t.tag)
+    .sort((a, b) => b.q - a.q || a.i - b.i);
+  for (const { tag } of tags) {
+    const base = tag.split('-')[0]!;
+    if (base === 'in') return 'id';
+    if (base in NATIVE_COPY) return base as NativeLang;
+  }
+  return 'en';
+}
+
+/**
+ * 原生端登录的结果页：浏览器里显示一句话，并自动跳回 app（mindough://auth?code=… 或 ?login_error=…）。
+ * 不直接 302 到自定义协议：有的浏览器会静默拦下，留一个按钮可以再点。文案跟着浏览器语言（nativeLang）。
+ */
+export function nativeResult(link: string, ok: boolean, acceptLanguage?: string | null): Response {
   const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  const title = ok ? '已登录，回到念头团继续' : '没有登录成功';
-  const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+  const c = NATIVE_COPY[nativeLang(acceptLanguage)];
+  const title = ok ? c.ok : c.fail;
+  const html = `<!doctype html><html lang="${c.html}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{font:16px/1.6 -apple-system,"Segoe UI Variable","Segoe UI",system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#1d1d1f;background:#f5f5f7}main{text-align:center;padding:24px}a{display:inline-block;margin-top:12px;padding:8px 18px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none}p{color:#6e6e73}@media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}p{color:#a1a1a6}}</style></head>
-<body><main><h1 style="font-size:22px;font-weight:600">${title}</h1><p>${ok ? '这个页面可以关掉了。' : '回到念头团看看是怎么回事。'}</p><a href="${esc(link)}">打开念头团</a></main>
+<body><main><h1 style="font-size:22px;font-weight:600">${title}</h1><p>${ok ? c.close : c.back}</p><a href="${esc(link)}">${c.open}</a></main>
 <script>location.href=${JSON.stringify(link)}</script></body></html>`;
-  return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'set-cookie': setCookie(OAUTH_COOKIE, '', { maxAge: 0, secure: true, path: '/auth' }) } });
+  return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', vary: 'accept-language', 'set-cookie': setCookie(OAUTH_COOKIE, '', { maxAge: 0, secure: true, path: '/auth' }) } });
 }
 
 export interface CallbackHooks {
@@ -169,7 +206,7 @@ export async function handleCallback(req: Request, env: AuthEnv, hooks: Callback
   const oauth = await verify<OAuthState>(readCookie(req, OAUTH_COOKIE), env.SESSION_SECRET!);
   const returnTo = oauth?.return_to ?? '/';
   const fail = (code: LoginError) =>
-    oauth?.native ? nativeResult(withLoginError(NATIVE_RETURN, code), false) : redirect(withLoginError(returnTo, code), [clearOauth]);
+    oauth?.native ? nativeResult(withLoginError(NATIVE_RETURN, code), false, req.headers.get('accept-language')) : redirect(withLoginError(returnTo, code), [clearOauth]);
 
   if (url.searchParams.get('error')) return fail('access_denied');
   const code = url.searchParams.get('code');
@@ -208,7 +245,7 @@ export async function handleCallback(req: Request, env: AuthEnv, hooks: Callback
     if (!hooks.issueNativeCode) return fail('config_missing');
     try {
       const code = await hooks.issueNativeCode(user, oauth.native.challenge);
-      return nativeResult(`${NATIVE_RETURN}?code=${encodeURIComponent(code)}`, true);
+      return nativeResult(`${NATIVE_RETURN}?code=${encodeURIComponent(code)}`, true, req.headers.get('accept-language'));
     } catch {
       return fail('config_missing');
     }

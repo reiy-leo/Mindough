@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 这种语言下桌面图标和最近任务里的名字（Rei 2026-10-25 加了西、葡、俄、日、德、法、印尼七种语言）：除了中文都叫 Mindough。
+     名字和默认 values/strings.xml 一样，单独写一份是为了声明支持这种语言。印尼语用 Android 的旧代码 values-in（系统设成 id 也会匹配到）。
+     由 scripts/native-locales.sh 在 `tauri android init` 之后拷进 gen/android/app/src/main/res/。 -->
+<resources>
+    <string name="app_name">Mindough</string>
+    <string name="main_activity_title">Mindough</string>
+</resources>

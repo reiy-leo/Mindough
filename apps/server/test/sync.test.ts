@@ -237,7 +237,8 @@ describe('原生端登录（deep link + 一次性登录码）', () => {
     expect(cb.status).toBe(200);
     expect(cb.headers.get('content-type')).toContain('text/html');
     const html = await cb.text();
-    expect(html).toContain('已登录，回到念头团继续');
+    // 没带 Accept-Language → 英文（结果页按浏览器语言选，见 auth.test 的 nativeLang）
+    expect(html).toContain('Signed in. Go back to Mindough to continue');
     const code = html.match(/mindough:\/\/auth\?code=([A-Za-z0-9_-]+)/)![1]!;
     expect(html).not.toContain('md_session');
 

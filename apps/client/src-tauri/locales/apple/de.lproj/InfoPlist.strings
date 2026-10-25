@@ -1,0 +1,3 @@
+/* 这种语言下主屏幕 / Finder / 程序坞显示的名字：除中文外都叫 Mindough（Rei 2026-10-25 加了七种语言）。写这份是为了让系统知道 app 支持这种语言。 */
+"CFBundleDisplayName" = "Mindough";
+"CFBundleName" = "Mindough";
