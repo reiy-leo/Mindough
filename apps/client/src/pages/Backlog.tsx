@@ -45,9 +45,9 @@ export function BacklogPage() {
         }
       />
       {list.length ? (
-        <GridList aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} items={list}>
+        <GridList aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={list}>
           {(t) => (
-            <GridListItem id={t.id} textValue={titleOf(store, t) || tr('任务')} className="list-item">
+            <GridListItem id={t.id} textValue={titleOf(store, t) || tr('任务')} className={`list-item${ui.editingId === t.id ? ' is-selected' : ''}`}>
               <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
                 <GripVertical size={14} />
               </RacButton>

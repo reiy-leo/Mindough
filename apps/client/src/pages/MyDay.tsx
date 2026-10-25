@@ -105,9 +105,9 @@ export function MyDayPage() {
       </Form>
 
       {items.length ? (
-        <GridList aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} items={items.map((i) => ({ ...i, id: i.task.id }))}>
+        <GridList aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={items.map((i) => ({ ...i, id: i.task.id }))}>
           {(item) => (
-            <GridListItem id={item.id} textValue={item.task.body_md.slice(0, 40) || tr('任务')} className="list-item">
+            <GridListItem id={item.id} textValue={item.task.body_md.slice(0, 40) || tr('任务')} className={`list-item${ui.editingId === item.id ? ' is-selected' : ''}`}>
               <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
                 <GripVertical size={14} />
               </RacButton>

@@ -722,6 +722,40 @@ button {
   min-width: 0;
   padding-left: 4px;
 }
+/* 能拖动的行（我的一天、待安排）：悬停、选中、聚焦的底色放在整行上，左边拖动把手那段也一起染（Rei 2026-10-25） */
+.list-item:hover {
+  background: var(--surface-hover);
+}
+.list-item .task-row,
+.list-item .task-row:hover,
+.list-item .task-row.is-selected,
+.list-item .task-row.is-selected:hover {
+  background: transparent;
+}
+.list-item.is-selected,
+.list-item.is-selected:hover {
+  background: var(--row-selected-bg, var(--accent-soft));
+}
+/* 键盘聚焦画在行里面：外圈会被卡片的圆角裁掉 */
+.list-item[data-focus-visible] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* 第一行、最后一行的底色跟着卡片圆角走（卡片 1px 边框，往里收 1px） */
+.task-list,
+.habit-list,
+.agenda-items {
+  --list-inner-r: calc(var(--radius-lg) - 1px);
+}
+.task-list > :first-child,
+.habit-list > :first-child {
+  border-top-left-radius: var(--list-inner-r);
+  border-top-right-radius: var(--list-inner-r);
+}
+.task-list > :last-child,
+.habit-list > :last-child {
+  border-bottom-left-radius: var(--list-inner-r);
+  border-bottom-right-radius: var(--list-inner-r);
+}
 .task-row {
   /* 长按出行菜单（TaskRow），别让 iOS 先弹系统的拷贝 / 查询 */
   -webkit-touch-callout: none;

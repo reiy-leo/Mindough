@@ -44,6 +44,7 @@
 [data-skin='apple'][data-layout='mobile'] .habit-list {
   border-radius: 12px;
   border: 0;
+  --list-inner-r: 12px;
 }
 [data-skin='apple'][data-layout='mobile'] .topbar {
   background: color-mix(in srgb, var(--bg) 85%, transparent);
@@ -321,6 +322,11 @@
   border: 0;
   background: var(--surface);
   border-radius: 12px;
+}
+[data-skin='material'] .task-list,
+[data-skin='material'] .habit-list,
+[data-skin='material'] .agenda-items {
+  --list-inner-r: 12px;
 }
 [data-skin='material'] .task-list.plain .task-row + .task-row,
 [data-skin='material'] .list-item + .list-item,
@@ -1172,6 +1178,7 @@
 [data-skin='winui'] .habit-row.is-selected {
   position: relative;
 }
+[data-skin='winui'] .list-item.is-selected::before,
 [data-skin='winui'] .task-row.is-selected::before,
 [data-skin='winui'] .habit-row.is-selected::before {
   content: '';
@@ -1183,6 +1190,10 @@
   margin-top: -8px;
   border-radius: 2px;
   background: var(--accent);
+}
+/* 能拖动的行：竖条画在整行最左边（把手左边），里面的任务行不再画一条 */
+[data-skin='winui'] .list-item .task-row.is-selected::before {
+  content: none;
 }
 [data-skin='winui'] .page-detail {
   --pane-page-bg: var(--bg);
