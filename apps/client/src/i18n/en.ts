@@ -1045,4 +1045,13 @@ export const EN: Record<string, EnValue> = {
   '没有这个闰月的年份按{month}': (p) => `In years without this leap month, uses ${p.month}`,
   小月取廿九: 'Uses day 29 in short months',
   '下次：{date}': (p) => `Next: ${p.date}`,
+  // ── 任务时区（Rei 2026-10-25）──
+  时区: 'Time Zone',
+  '（跟着设备）': '', // 英文面板太窄，不写「跟着设备」
+  搜索城市或时区: 'Search city or time zone',
+  全部时区: 'All Time Zones',
+  常用时区: 'Common Time Zones',
+  没有找到这个时区: 'No matching time zone',
+  '时区：{zone}': (p) => `Time zone: ${p.zone}`,
+  显示更多: 'Show More',
 };

@@ -13,6 +13,7 @@ import {
   lunarYearMonths,
   quickDates,
   solarToLunar,
+  todayIn,
   type DateKey,
   type LunarDate,
   type QuickDateKind,
@@ -20,6 +21,7 @@ import {
 import { Button, Segmented, Select, TipButton } from '../../ui/primitives';
 import { LUNAR_PICK_KEY, useLunar, type DayLunar } from '../../lib/lunar';
 import { useStore } from '../../store/StoreProvider';
+import { TimeZoneRow } from './TimeZonePicker';
 
 import { tr } from '../../lib/i18n';
 function toKey(d: CalendarDate): DateKey {
@@ -60,14 +62,21 @@ export function DatePanel({
   onChange,
   clearLabel = tr('不设日期'),
   quick = true,
+  timeZone,
+  onTimeZoneChange,
 }: {
   value: DateKey | null;
   today: DateKey;
   onChange: (d: DateKey | null) => void;
   clearLabel?: string | null;
   quick?: boolean;
+  /** 任务时区（空 = 跟着设备）。给了 onTimeZoneChange 才显示「时区」一行（Rei 2026-10-25）。 */
+  timeZone?: string | null;
+  onTimeZoneChange?: (tz: string) => void;
 }) {
   const store = useStore();
+  // 快捷「今天 / 明天…」和日历上的「今天」按所选时区的今天算
+  const zoneToday = timeZone ? todayIn(timeZone, store.now()) : today;
   const lunar = useLunar(store);
   const [mode, setModeState] = useState<PickMode>(() => (localStorage.getItem(LUNAR_PICK_KEY) === 'lunar' ? 'lunar' : 'solar'));
   const setMode = (m: PickMode) => {
@@ -79,7 +88,7 @@ export function DatePanel({
     <div className={`date-panel${lunar.show ? ' has-lunar' : ''}`}>
       {quick && (
         <div className="date-quick">
-          {quickDates(today).map((q) => {
+          {quickDates(zoneToday).map((q) => {
             const Icon = QUICK_ICON[q.kind];
             return (
               <TipButton key={q.kind} tip={q.label} isPressed={value === q.date} className={`date-quick-item${value === q.date ? ' is-selected' : ''}`} onPress={() => onChange(q.date)}>
@@ -101,14 +110,14 @@ export function DatePanel({
         />
       )}
       {lunarMode ? (
-        <LunarPicker value={value} today={today} onChange={onChange} />
+        <LunarPicker value={value} today={zoneToday} onChange={onChange} />
       ) : (
         <Calendar
           aria-label={tr('选择日期')}
           className="calendar"
           firstDayOfWeek="mon"
           value={value ? parseDate(value) : null}
-          defaultFocusedValue={parseDate(value ?? today)}
+          defaultFocusedValue={parseDate(value ?? zoneToday)}
           onChange={(d) => onChange(toKey(d))}
         >
           <header className="calendar-head">
@@ -127,7 +136,7 @@ export function DatePanel({
                 const key = toKey(date);
                 const info = lunar.show ? lunar.day(key) : null;
                 return (
-                  <CalendarCell date={date} className={`calendar-cell${key === today ? ' is-today' : ''}`} {...(info ? { title: lunarTitle(info) } : {})}>
+                  <CalendarCell date={date} className={`calendar-cell${key === zoneToday ? ' is-today' : ''}`} {...(info ? { title: lunarTitle(info) } : {})}>
                     {info ? (
                       <>
                         <span className="calendar-num">{date.day}</span>
@@ -143,6 +152,7 @@ export function DatePanel({
           </CalendarGrid>
         </Calendar>
       )}
+      {onTimeZoneChange && <TimeZoneRow value={timeZone ?? null} date={value ?? zoneToday} onChange={onTimeZoneChange} />}
       {clearLabel && value && (
         <RacButton className="date-clear" onPress={() => onChange(null)}>
           {clearLabel}

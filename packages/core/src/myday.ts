@@ -7,6 +7,7 @@ import type { DerivedStatus } from './dag';
 import { isFinished, type CheckIn, type DateKey, type MyDayEntry, type Task } from './types';
 
 import { tr } from './i18n';
+import { taskToday } from './timezone';
 export function entriesFor(entries: readonly MyDayEntry[], date: DateKey): MyDayEntry[] {
   const seen = new Set<string>();
   // 同一 task_id + date 只保留一条（同步时按此合并）
@@ -105,8 +106,9 @@ export function suggestions({ tasks, entries, checkIns, derived, recentlyUnlocke
     out.push({ task, reason });
   };
   const live = tasks.filter((t) => !t.deleted && !isFinished(t.status));
-  for (const t of live) if (t.scheduled_date && t.scheduled_date <= today && !t.recurrence) push(t, '今天到期');
-  for (const t of live) if (t.completion_mode === 'countdown' && t.target_date === today) push(t, '倒数日到了');
+  // 到期按任务时区的今天（Rei 2026-10-25 任务时区；没设时区就是 today）
+  for (const t of live) if (t.scheduled_date && t.scheduled_date <= taskToday(t, now, today) && !t.recurrence) push(t, '今天到期');
+  for (const t of live) if (t.completion_mode === 'countdown' && t.target_date === taskToday(t, now, today)) push(t, '倒数日到了');
   for (const t of live)
     if (dueToday(t, today) && !progressOn(t, checkIns.filter((c) => c.task_id === t.id), today, now).met) push(t, '今天要打卡');
   const byId = new Map(live.map((t) => [t.id, t]));

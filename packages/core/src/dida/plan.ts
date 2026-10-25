@@ -213,6 +213,7 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
       checkin_category_id: null,
       library_item_id: null,
       remind_time: didaRemindTime(r.reminder, when, r.allDay || !when?.minutes),
+      time_zone: null,
       done_at: finished ? (didaInstant(r.completed) ?? created) : null,
       sort: ++sort,
       created_at: created,

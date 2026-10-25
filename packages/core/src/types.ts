@@ -118,6 +118,11 @@ export interface Task extends BaseRow {
    * 定期打卡：每个要打卡的日子这个时间提醒（「每天 X 点提醒」）。计时到点的提醒不靠它（总会提醒）。SQLite 迁移 v4。
    */
   remind_time: string | null;
+  /**
+   * 任务时区（Rei 2026-10-25）：IANA 名，如 'America/New_York'；空 = 跟着设备当前时区（浮动），老任务都是空。
+   * 日期和提醒时间按这个时区的墙上时间解释（见 timezone.ts）。SQLite 迁移 v8。
+   */
+  time_zone: string | null;
   done_at: Timestamp | null;
   sort: number;
   created_at: Timestamp;

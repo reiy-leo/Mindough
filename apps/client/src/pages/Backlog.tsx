@@ -68,6 +68,8 @@ export function BacklogPage() {
                         value={t.scheduled_date}
                         today={today}
                         clearLabel={null}
+                        timeZone={t.time_zone}
+                        onTimeZoneChange={(tz) => store.updateTask(t.id, { time_zone: tz })}
                         onChange={(d) => {
                           store.updateTask(t.id, { scheduled_date: d });
                           close();

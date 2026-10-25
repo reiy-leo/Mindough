@@ -1,12 +1,13 @@
 import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { Button as RacButton, Checkbox, Menu, MenuItem, Popover, Separator } from 'react-aria-components';
 import { Check, Link2, Lock, PanelRight, Repeat, Sun, SunDim, X } from 'lucide-react';
-import { describeRecurrence, isCheckInTask, parseRecurrence, relativeDayZh, toDateKey, type Store, type Task } from '@mindough/core';
+import { describeRecurrence, isCheckInTask, isTaskOverdue, parseRecurrence, timeZoneBadge, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { rowMenu } from '../lib/task-menu';
 import { typeIcon } from '../lib/icons';
+import { TaskDateText } from './TaskDateText';
 import { useLunarUi } from '../lib/lunar';
 import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
@@ -44,6 +45,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const v = viewOf(store, task);
   const today = toDateKey(store.now());
   const lunarUi = useLunarUi();
+  const tzBadge = timeZoneBadge(task, task.scheduled_date);
   const checkIn = isCheckInTask(task);
   const closed = task.status === '关闭';
   const done = !closed && (doneOverride ?? task.status === '完成');
@@ -158,7 +160,13 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               {v.group.icon} {v.group.name}
             </span>
           )}
-          {showDate && task.scheduled_date && <span className={`meta-date${task.scheduled_date < today && !done && !closed ? ' is-overdue' : ''}`}>{relativeDayZh(task.scheduled_date, today)}</span>}
+          {showDate && task.scheduled_date && (
+            <span className={`meta-date${isTaskOverdue(task, store.now(), today) && !done && !closed ? ' is-overdue' : ''}`}>
+              <TaskDateText task={task} today={today} relative />
+            </span>
+          )}
+          {/* 按天分组的列表不写日期，但任务时区和设备不同时照样标出偏移（Rei 2026-10-25 任务时区） */}
+          {!showDate && tzBadge && <span className="tz-badge" title={tr('时区：{zone}', { zone: task.time_zone ?? '' })}>{tzBadge}</span>}
           {rec && (
             <span className="meta-rec">
               <Repeat size={11} />

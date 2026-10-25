@@ -496,6 +496,14 @@ Rei 原话：「日期部分，只有在设置中打开中国农历switch才显�
 - **顺手修**：农历选择三个下拉挤一行在 292 宽会截成「Mo…」「Da…」：改成「年」一整行、「月 / 日」各半，值超长时省略号。
 - **待 Rei 确认**：① 原来的同步偏好「显示农历」作废、改本机开关后，之前在中文界面默认看到农历的设备升级后会先看不到（要去设置里打开一次）；② 今天图标用 Sun（和「我的一天」同一个图标）；③ 本周末 / 下周末的提示文字沿用现有说法（Rei 原话写的「下个周末」，周一到周五是「本周末」）。
 
+### 任务时区 ✅（2026-10-25）
+Rei 原话：「日期可以选择时区，时区默认是当前时区，时区默认只显示常用的一些时区，点击显示更多显示完整时区列表」。具体做法是派活时替 Rei 定的（见下面待确认）。
+- **数据**：`task.time_zone`（IANA 名，可空），SQLite 迁移 v8 `ALTER TABLE "task" ADD COLUMN "time_zone" TEXT`，`COLUMNS.task.time_zone = 'text?'`；同步照常（云端存整行 JSON，不动云端 schema；行级 LWW）。空 = 跟着设备当前时区（浮动），老任务、滴答清单导入的都是空；在日期面板里选过就存具体名字（哪怕等于设备时区）。旧版本客户端收到带 time_zone 的行会原样存着、不认（不丢）。导出 Markdown 写 `time_zone:`，导入只收认得的（`normalizeTimeZone`）。
+- **core `timezone.ts`**：`deviceTimeZone` / `COMMON_TIME_ZONES` / `commonTimeZones(device, recent)` / `allTimeZones()`（`Intl.supportedValuesOf('timeZone')` + UTC）/ `offsetMinutesOn(tz, date)`（那天当地正午的偏移，处理夏令时）/ `formatUtcOffset`（UTC+8、UTC−4、UTC+5:30）/ `timeZoneLabel`（「上海 (UTC+8)」；中文城市名在 `timezone-names.ts`，英文用 IANA 最后一段）/ `matchTimeZone`（城市、IANA、偏移都能搜）/ `taskToday` / `todayIn` / `isTaskOverdue` / `timeZoneBadge` / `pushRecentTimeZone`。单测 `test/timezone.test.ts`。
+- **影响**：提醒（`upcomingReminders`）按任务时区的那天、那个钟点换算成绝对时刻，在设备上按换算后的时刻响；我的一天建议「今天到期 / 倒数日到了」按任务时区的今天；列表、详情胶囊的过期红字按任务时区的今天；「今天 / 明天…」快捷按钮和日历上的今天按面板里选的时区算。列表 / 详情日期旁：任务时区和设备那天的偏移不同才标小字「UTC−4」（上海和新加坡偏移一样，不标）；按天分组的列表（列表页）照旧按任务的公历日期归到那一天，行里只标偏移。
+- **界面**：`DatePanel` 底部「时区」一行（Lucide globe +「上海 (UTC+8)（跟着设备）」），点开在面板里原地展开：常用（这台设备、最近用过的 5 个（本机 `mindough:tz-recent`）、UTC、上海、新加坡、东京、首尔、洛杉矶、纽约、伦敦、巴黎、柏林、悉尼，去重）+「显示更多」→ 完整列表 + 搜索框；选了不关面板。新建、详情胶囊的日期、待安排里排日期都有；倒数日目标日面板没接。组件 `components/task/TimeZonePicker.tsx`、`components/TaskDateText.tsx`。
+- **待 Rei 确认**（派活时替 Rei 定的）：① 时区挂在任务上、存具体名字，空 = 浮动；② 常用列表的这一批城市；③ 只在偏移不同时才标、标「UTC−4」而不是 EDT 缩写；④「今天 / 明天」按所选时区算（东八区早上选纽约「明天」会落在设备的今天）；⑤ 倒数日目标日面板没有时区一行，定期打卡的周期、连续天数仍按设备日期（只有提醒按任务时区的那天那个钟点）；⑥ 英文面板太窄，不写「跟着设备」。
+
 ### 从滴答清单导入 ✅（2026-10-21，详见 [docs/IMPORT-DIDA.md](IMPORT-DIDA.md)）
 Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida365，点击后弹出一个导入窗口」；追加「不能直接连接dida365么」——直接连账户为默认，备份 CSV 留作备选。
 - **core** `dida/`（单独入口 `@mindough/core/dida`，导入窗口打开时才加载）：`csv.ts`（RFC 4180，带行号）、`parse.ts`（备份 CSV → `DidaRow`：跳过说明行、表头按名字 / 别名认）、`api.ts`（Open API JSON → `DidaRow`；`fetchDidaAccount(call, opts)` 拉清单 / 文件夹 / 未完成 / 已完成（200 条一页，满了时间窗口对半切）/ 已放弃（`task/filter status [-1]`，试的））、`map.ts`（时区换算、提醒、RRULE → Mindough 能存的子集、正文拼法）、`plan.ts`（`planDida` 预览、`previewDida`、`applyDida` 一批写入、`undoDida` 整批撤销）。

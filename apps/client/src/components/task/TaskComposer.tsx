@@ -67,6 +67,8 @@ interface Draft extends CompletionValue {
   date: string | null;
   /** 提醒时间「HH:MM」（有日期 / 倒数日 / 定期打卡时才出现）。 */
   remindTime: string | null;
+  /** 任务时区（Rei 2026-10-25）：在日期面板里选过才有，空 = 跟着设备。 */
+  timeZone: string | null;
   groupId: string | null;
   people: string[];
   /** 相关任务：建好后连成「相关」（只是有关系，不分先后）。 */
@@ -100,6 +102,7 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     categoryId: d.checkin_category_id ?? null,
     date: d.scheduled_date ?? null,
     remindTime: d.remind_time ?? null,
+    timeZone: d.time_zone ?? null,
     groupId: d.group_id ?? null,
     people: [],
     related: [],
@@ -202,6 +205,7 @@ function Composer() {
       recurrence: d.recurrence,
       checkin_category_id: recurring ? d.categoryId : null,
       remind_time: remindable ? d.remindTime : null,
+      time_zone: d.timeZone,
     };
     const t = req.after ? store.createSuccessor(req.after, input) : store.createTask(input);
     for (const pid of d.people) store.linkPerson(t.id, pid);
@@ -363,6 +367,8 @@ function Composer() {
               <DatePanel
                 value={d.date}
                 today={today}
+                timeZone={d.timeZone}
+                onTimeZoneChange={(tz) => set({ timeZone: tz })}
                 onChange={(v) => {
                   set({ date: v });
                   close();

@@ -11,6 +11,7 @@ export * from './heatmap';
 export * from './myday';
 export * from './backlog';
 export * from './reminders';
+export * from './timezone';
 export * from './preview';
 export * from './describe';
 export * from './search';

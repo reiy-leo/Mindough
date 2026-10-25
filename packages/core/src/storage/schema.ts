@@ -32,6 +32,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     checkin_category_id: 'text?',
     library_item_id: 'text?',
     remind_time: 'text?',
+    time_zone: 'text?',
     done_at: 'text?',
     sort: 'real',
     created_at: 'text',
@@ -222,6 +223,13 @@ CREATE TABLE IF NOT EXISTS "attachment" (
   "size" INTEGER NOT NULL DEFAULT 0, "r2_key" TEXT, "thumb_key" TEXT, "width" INTEGER, "height" INTEGER, "created_at" TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "attachment_owner" ON "attachment" ("owner_type", "owner_id");
+`,
+  },
+  {
+    version: 8,
+    name: '任务时区（task.time_zone）',
+    sql: `
+ALTER TABLE "task" ADD COLUMN "time_zone" TEXT;
 `,
   },
 ];

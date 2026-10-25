@@ -272,6 +272,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       repeat: t.recurrence ?? undefined,
       checkin_category: t.checkin_category_id ? new Noted(t.checkin_category_id, dataLabel(store.get('checkin_category', t.checkin_category_id)?.name ?? '')) : undefined,
       remind: t.remind_time ? new Quoted(t.remind_time) : undefined,
+      time_zone: t.time_zone ?? undefined,
       sort: t.sort,
       people: listOf(peopleOf.get(t.id), (id) => store.get('person', id)?.name ?? ''),
       after: listOf(

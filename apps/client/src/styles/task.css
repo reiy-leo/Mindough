@@ -628,6 +628,140 @@
   color: var(--danger);
 }
 
+/* ───────── 日期面板：时区（Rei 2026-10-25） ───────── */
+.tz-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+.tz-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-ctl);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+.tz-toggle[data-hovered] {
+  background: var(--surface-hover);
+}
+.tz-toggle[data-focus-visible] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.tz-name {
+  flex: none;
+}
+.tz-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text);
+}
+.tz-follow {
+  color: var(--text-3);
+}
+.tz-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tz-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+}
+.tz-search .input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  font-size: 13px;
+}
+.tz-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 168px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tz-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-ctl);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+.tz-item[data-hovered],
+.tz-item[data-focus-visible] {
+  background: var(--surface-hover);
+}
+.tz-item.is-selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+.tz-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tz-item-note {
+  flex: none;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.tz-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.tz-more {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px;
+  cursor: pointer;
+}
+/* 列表 / 详情日期旁的时区小字：「后天 UTC−4」 */
+.tz-badge {
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: var(--radius-xs, 4px);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface-hover);
+  white-space: nowrap;
+}
+
 /* ───────── 类型字段 ───────── */
 .type-fields {
   --chip-color: var(--accent);

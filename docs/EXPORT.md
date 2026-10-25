@@ -86,6 +86,7 @@ checkins:
 | `repeat` | recurrence | RRULE 子集（见 recurrence.ts） |
 | `checkin_category` | checkin_category_id | |
 | `remind` | remind_time | 「HH:MM」，加了引号（有的 YAML 1.1 解析器会把 08:00 当数字） |
+| `time_zone` | time_zone | 任务时区，IANA 名（如 America/New_York），没设不写；导入时不认识的当没设（2026-10-25） |
 | `sort` | sort | |
 | `people` | task_person | 人物 id 列表 |
 | `after` | dependency（FS） | **先做完这些**：前置任务的 id；后续不用写，从对方文件的 after 推出来 |

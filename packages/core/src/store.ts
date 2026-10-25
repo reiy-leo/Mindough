@@ -146,6 +146,8 @@ export class Store {
         if (t === 'task' && (row as Task).library_item_id === undefined) (row as Task).library_item_id = null;
         // v4 之前没有 remind_time：同上
         if (t === 'task' && (row as Task).remind_time === undefined) (row as Task).remind_time = null;
+        // v8 之前没有 time_zone（空 = 跟着设备）：同上
+        if (t === 'task' && (row as Task).time_zone === undefined) (row as Task).time_zone = null;
         // v5 之前没有 merged_into：同上
         if ((t === 'library_item' || t === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
         map.set(row.id, row);
@@ -341,6 +343,7 @@ export class Store {
         if (t.checkin_category_id === undefined) t.checkin_category_id = null;
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
+        if (t.time_zone === undefined) t.time_zone = null;
       }
       if (c.table === 'attachment') {
         const a = row as Attachment;
@@ -822,6 +825,7 @@ export class Store {
       checkin_category_id: input.checkin_category_id ?? null,
       library_item_id: input.library_item_id ?? null,
       remind_time: input.remind_time ?? null,
+      time_zone: input.time_zone ?? null,
       done_at: input.done_at ?? null,
       sort: input.sort ?? maxSort + 1,
       created_at: input.created_at ?? now.toISOString(),

@@ -16,7 +16,10 @@ import {
   describeRecurrence,
   friendlyDate,
   isFinished,
+  isTaskOverdue,
   parseRecurrence,
+  taskToday,
+  timeZoneBadge,
   type Person,
   type Store,
   type Task,
@@ -30,6 +33,7 @@ import { AvatarStack } from '../Avatar';
 import { CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
+import { TaskDateText } from '../TaskDateText';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
 
 /** 属性名（胶囊的 aria-label、「+」菜单、弹层标题共用；叫法同原来的属性列表）。 */
@@ -95,8 +99,16 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
         return { icon: <Icon size={14} />, text: s, aria: s };
       }
       case 'date': {
-        const s = task.scheduled_date ? friendlyDate(task.scheduled_date, today) : '';
-        return { icon: <CalendarDays size={14} />, text: s, aria: s, danger: !!task.scheduled_date && task.scheduled_date < today && !isFinished(task.status) };
+        // 按任务时区的今天说「明天」、判断过期；时区和设备不同时旁边小字「UTC−4」（Rei 2026-10-25 任务时区）
+        const zoneToday = taskToday(task, store.now(), today);
+        const s = task.scheduled_date ? friendlyDate(task.scheduled_date, zoneToday) : '';
+        const badge = timeZoneBadge(task, task.scheduled_date);
+        return {
+          icon: <CalendarDays size={14} />,
+          text: task.scheduled_date ? <TaskDateText task={task} today={today} /> : '',
+          aria: badge ? `${s} ${badge}` : s,
+          danger: isTaskOverdue(task, store.now(), today) && !isFinished(task.status),
+        };
       }
       case 'repeat': {
         const s = describeRecurrence(parseRecurrence(task.recurrence), { lunar: lunarUi, today });
@@ -183,6 +195,8 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
           <DatePanel
             value={task.scheduled_date}
             today={today}
+            timeZone={task.time_zone}
+            onTimeZoneChange={(tz) => patch({ time_zone: tz })}
             onChange={(v) => {
               patch({ scheduled_date: v });
               close();

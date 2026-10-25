@@ -12,6 +12,7 @@ import { normalizeName } from '../library';
 import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
 import { tr } from '../i18n';
+import { normalizeTimeZone } from '../timezone';
 import { isDateKey, journalEntryId } from '../journal';
 import { isFileKey, safeFileName } from '../attachments';
 import {
@@ -550,6 +551,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       checkin_category_id: cat,
       library_item_id: item,
       remind_time: remind && /^\d{1,2}:\d{2}$/.test(remind) ? remind.padStart(5, '0') : null,
+      time_zone: normalizeTimeZone(fm.time_zone),
       done_at: iso(fm.done) ?? null,
       sort: num(fm.sort) ?? ++sort,
       created_at: iso(fm.created) ?? now.toISOString(),

@@ -109,6 +109,8 @@ export const CORE_EN: Record<string, V> = {
   // 农历界面隐藏时的每年农历重复（Rei 2026-10-25）
   '每年 · 下次 {date}': (p) => `Yearly · next ${p.date}`,
   每年: 'Yearly',
+  // 任务时区（Rei 2026-10-25）
+  '协调世界时 (UTC)': 'UTC',
   下周末: 'Next Weekend',
   本周末: 'This Weekend',
   下周一: 'Next Monday',

@@ -7,7 +7,8 @@
  *   checkin    定期打卡：每个要打卡的日子 remind_time 提醒（这个周期已经达标就不提醒）
  *   timer      正在计时、有目标时长：到点提醒（不用设 remind_time，总会提醒）
  *   journal    每天写日记（Rei 2026-10-17：晚上 9 点，不论是不是已经写了）：不属于任务，taskId 是空串，见 journalReminders
- * 已完成 / 已关闭 / 删除的任务不提醒。remind_time 是本机（或传入的 timeZone）的墙上时间「HH:MM」；
+ * 已完成 / 已关闭 / 删除的任务不提醒。remind_time 是任务时区（task.time_zone，空 = 本机或传入的 timeZone）的墙上时间「HH:MM」，
+ * 响的时刻换算成绝对时间（Rei 2026-10-25 任务时区）；
  * 夏令时跳过的时刻（如纽约 3 月 02:30）顺延到跳过后的同一刻，重复的时刻取第一次。
  *
  * id 稳定：同一次提醒（任务 + 种类 + 那天 / 那段计时）每次算出来的 id 一样，客户端用它去重、记「已响过」、稍后再提醒。
@@ -17,6 +18,7 @@ import { foldTimer, formatDuration, periodKeyForTask, progressOn } from './check
 import { isDueOn, parseRecurrence } from './recurrence';
 import { isFinished, type CheckIn, type DateKey, type Task } from './types';
 import { tr } from './i18n';
+import { normalizeTimeZone } from './timezone';
 
 export type ReminderKind = 'due' | 'countdown' | 'checkin' | 'timer' | 'journal';
 
@@ -112,7 +114,6 @@ export function upcomingReminders(tasks: readonly Task[], checkIns: readonly Che
   const nowMs = opts.now.getTime();
   const from = nowMs - (opts.graceMs ?? 15 * 60_000);
   const to = nowMs + (opts.horizonMs ?? 48 * 3_600_000);
-  const tz = opts.timeZone;
   const fired = opts.fired ?? new Set<string>();
   const snoozed = opts.snoozed ?? new Map<string, number>();
   const out: Reminder[] = [];
@@ -129,11 +130,12 @@ export function upcomingReminders(tasks: readonly Task[], checkIns: readonly Che
     if (r.at >= from && r.at <= to) out.push({ ...r, snoozed: false });
   };
 
-  const firstDay = dateKeyIn(from, tz);
-  const lastDay = dateKeyIn(to, tz);
-
   for (const t of tasks) {
     if (t.deleted || isFinished(t.status)) continue;
+    // 任务自己的时区（空 = 本机 / 传入的 timeZone）：那天、那个钟点都按它算
+    const tz = normalizeTimeZone(t.time_zone) ?? opts.timeZone;
+    const firstDay = dateKeyIn(from, tz);
+    const lastDay = dateKeyIn(to, tz);
     const events = byTask.get(t.id) ?? [];
     const time = normalizeRemindTime(t.remind_time);
     const rec = parseRecurrence(t.recurrence);

@@ -38,6 +38,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   attachment-cache.ts   附件本机缓存的纯逻辑（Rei 2026-10-25）：缓存记录、24 小时到期与清理、点一下做什么（图片灯箱 / 其他下载）、每个附件哪些操作能用
   attachments.ts        附件（Rei 2026-10-17）：文件类型（10 种）、大小显示、文件名安全化 / 改名保留扩展名 / 导出去重、50 MB 上限；写入在 Store（attachmentsOf / addAttachment / setAttachmentFile / renameAttachment / removeAttachment / restoreAttachment / ensureJournal）
   lunar/                农历（Rei 2026-10-17）：data.ts（1900–2100 表，scripts/gen-lunar-data.mjs 生成，别手改）、lunar.ts（公历 ⇄ 农历、节气、节日、格子小字）、names.ts（月名日名节气节日，i18n 白名单）、ics.ts（订阅日历解析）、subscription.ts（默认源、偏好 lunar.*、什么时候同步、状态文案）
+  timezone.ts           任务时区（Rei 2026-10-25）：task.time_zone（IANA，空 = 跟着设备）、常用 / 全部时区、那天的偏移（夏令时）、taskToday / isTaskOverdue / timeZoneBadge；中文城市名在 timezone-names.ts
   journal.ts            日记（Rei 2026-10-17）：日期 → 固定 id、「一天从几点开始」、将来不能写、12 个心情 id、字数、同步保护（两边都改时输家收进折叠块，base_at 判断有没有看到对方）
   merge.ts              资料 / 人物合并：合并后的值与冲突、可能重复的分组、merged_into 解析与成环处理（写入在 Store.mergeLibraryItems / mergePeople）
   links.ts money.ts episode.ts  字段种类的逻辑：站点编号（IMDb / 豆瓣）与更多链接、金额 + 币种、看到第几季第几集
@@ -111,6 +112,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 每条记录都有 UUIDv7 id、HLC updated_at 和 deleted 墓碑，不真删。
 - 同步：所有写入走 Store（进了 outbox 才会推上去）；拉下来的行只能走 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（比 `updated_at` 字符串），别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，用 `openDb(env)` 拿库，别直接调 turso.ts）和 `MemoryRemote` 的规则一样，改一处就两处一起改。云端只存整行 JSON：客户端加列、加表都不用动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系都用 `store.edges()`（已经去重，也去掉了合并后成环的边），成环的边在 `store.conflictEdges()` 里。
 - 附件（PLAN「附件」）：加附件都走 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回）。下载用 `downloadAttachment`：先用本机队列或缓存；Web 走浏览器下载，Tauri 桌面弹系统保存框（`save_to_path` / `att_cache_copy`），手机用 `save_download`。本机缓存都走 `lib/attachment-cache.ts`（`cacheAttachment` / `uncacheAttachment`、`useCacheRecord`），记录只存本机 localStorage，不进同步表；24 小时从缓存那一刻算起。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前先 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，读附件要登录。
+- 任务时区（PLAN「任务时区」）：判断任务的「今天」、过期都用 core `taskToday` / `isTaskOverdue`（空时区 = 设备），列表 / 详情日期用 `components/TaskDateText`（带时区小字）；提醒按任务时区换算在 `upcomingReminders` 里，别另算。
 - 农历（PLAN「农历」）：日期都存公历，农历只在显示和选择时换算（core `lunar/`，本地查表，别用 `Intl` 的 chinese 历——ICU 有几年初一差一天）；格子小字都走 `useLunar(store).day(d)`（订阅的节日名优先、休 / 班角标），不要自己拼；每年农历重复是 `lunarYearly`（RRULE `RSCALE=CHINESE`）。农历界面显不显示一律用 `useLunarUi()`（本机设置 `chineseLunar` 开着 且 core `isChineseLocale()`，Rei 2026-10-25），新加农历 UI 也要经它；隐藏时 `describeRecurrence(r, { lunar: false, today })`。
 - 滴答清单导入（docs/IMPORT-DIDA.md）：解析、拉取、映射都在 core `dida/`，客户端只做界面；两种来源都先变成 `DidaRow`，再走 `planDida` / `applyDida`，别另写一套写入。任务 id 用滴答清单的 taskId 算（`didaTaskId`），重复导入不出重复任务就靠它，别改算法。令牌只存本机（`lib/dida.ts`），不进同步表、不发给云端库；Worker 代理只转发白名单路径。改菜单栏文字时，要同时改 `menu.rs` 的 `MenuLabels` 和 `lib/app-menu.ts`。
 - 外链：在 Tauri 里都走 `lib/external.ts`（全局拦截 + `openExternal`），交给系统浏览器打开；不要自己 `window.open` 或另装 opener 调用。
