@@ -13,7 +13,7 @@ export function JournalCard() {
   const e = store.journalOf(day);
   const preview = e ? journalPreview(e.body_md) : '';
   return (
-    <a className="card journal-card" href={href({ page: 'journal' })}>
+    <a className="card journal-card" href={href({ page: 'journal', date: day })}>
       <span className="journal-card-icon">{e?.mood ? <MoodIcon mood={e.mood} size={28} /> : <NotebookPen size={20} />}</span>
       <span className="journal-card-text">
         <span className="journal-card-title">{tr('今天的日记')}</span>

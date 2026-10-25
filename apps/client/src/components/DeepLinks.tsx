@@ -38,7 +38,7 @@ export function runDeepLink(store: Store, ui: Ui, a: DeepLinkAction): void {
       return;
     case 'journal': {
       // 今天 = 按「一天从几点开始」算的那天；不是真日期 → 打开今天并提示；将来的日子 → 打开那天（页面上写不了）并提示
-      if (a.date === 'today') return navigate({ page: 'journal' });
+      if (a.date === 'today') return navigate({ page: 'journal', date: store.journalToday() });
       if (!isDateKey(a.date)) {
         navigate({ page: 'journal' });
         return ui.toast({ tone: 'error', message: tr('没有这一天：{date}', { date: a.date }) });

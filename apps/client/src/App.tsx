@@ -271,6 +271,7 @@ export function App() {
   // 中等宽度：侧边栏是图标栏，小节标题不显示，收起的小节也照样列出来（不然点不开）
   const narrow = useNarrow();
   const selected = !!store.get('task', ui.editingId);
+  const hideFab = route.page === 'journal';
 
   let shell: ReactNode;
   if (layout === 'desktop') {
@@ -312,9 +313,12 @@ export function App() {
               <Page route={route} />
             </div>
           </main>
-          <Tip content={<>{tr('新建任务')} <kbd className="kbd">N</kbd></>}>
-            <NewTaskFab onPress={newTask} />
-          </Tip>
+          {/* 日记页不放新建按钮（改版 B 按原型默认，待 Rei 确认）：写作区像一页纸，按钮会压在正文上；N 和 ⌘K 照常能新建任务 */}
+          {!hideFab && (
+            <Tip content={<>{tr('新建任务')} <kbd className="kbd">N</kbd></>}>
+              <NewTaskFab onPress={newTask} />
+            </Tip>
+          )}
         </div>
         <DetailPane />
       </div>
@@ -334,7 +338,7 @@ export function App() {
           <LoginErrorBanner />
           <Page route={route} />
         </main>
-        <NewTaskFab onPress={newTask} />
+        {!hideFab && <NewTaskFab onPress={newTask} />}
         <nav className="tabbar" aria-label={tr('主导航')}>
           {tabs.map((n) => {
             const Icon = n.icon;

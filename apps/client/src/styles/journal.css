@@ -102,142 +102,216 @@
 @keyframes mi-pulse { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.3); } 50% { transform: scale(0.9); } 75% { transform: scale(1.2); } }
 @keyframes mi-frown { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(1.2px); } }
 
-/* ───────── 心情选择 ───────── */
-.mood-picker {
+/* ═════════ 日记改版 B（Rei 2026-10-25「按B实现」）：情绪月历 + 心情轮 + 大字写作 ═════════ */
+
+.journal-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ───────── 心情轮 ───────── */
+.mood-wheel {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  align-items: stretch;
 }
-.mood-picker-head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+.mood-wheel-hint {
+  margin: 0 0 var(--space-2);
+  text-align: center;
   font-size: var(--fs-small);
-}
-.mood-picker-label {
   color: var(--text-2);
-  font-weight: 600;
 }
-.mood-picker-value {
-  color: var(--text);
+.mood-wheel-arc {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 520 / 300;
+  container-type: inline-size;
 }
-.mood-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-1);
-}
-.mood-btn {
+.mood-wheel-face {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 2px 5px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-2);
-  cursor: pointer;
   font: inherit;
-  min-width: 0;
-  transition: background 0.15s, border-color 0.15s;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), color 0.15s;
 }
-.mood-btn:hover {
-  background: var(--surface-hover);
+.mood-wheel-face .mood-icon {
+  width: 7.6cqw;
+  height: 7.6cqw;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
 }
-.mood-btn[data-focus-visible] {
-  outline: none;
-  box-shadow: var(--focus);
-}
-.mood-btn .mood-icon {
-  opacity: 0.78;
-  filter: saturate(0.75);
-  transition: opacity 0.15s, filter 0.15s;
-}
-.mood-btn:hover .mood-icon,
-.mood-btn.is-selected .mood-icon {
-  opacity: 1;
-  filter: none;
-}
-.mood-btn.is-selected {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+.mood-wheel-face:hover,
+.mood-wheel-face.is-preview {
+  transform: translate(-50%, -50%) scale(1.14);
   color: var(--text);
 }
-.mood-btn-label {
+.mood-wheel-face.is-selected {
+  transform: translate(-50%, -50%) scale(1.2);
+  color: var(--text);
+  font-weight: 650;
+}
+.mood-wheel-face.is-selected .mood-icon {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor;
+}
+.mood-wheel-face:focus {
+  outline: none;
+}
+.mood-wheel-face:focus-visible .mood-icon {
+  box-shadow: var(--focus);
+}
+.mood-wheel-label {
   font-size: 11px;
   line-height: 1.2;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
-[data-layout='mobile'] .mood-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+.mood-wheel-center {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  transition: opacity 0.15s;
 }
-[data-layout='mobile'] .mood-btn-label {
-  font-size: 10px;
+.mood-wheel-center .mood-icon {
+  width: 19cqw;
+  height: 19cqw;
+}
+.mood-wheel-center.is-preview {
+  opacity: 0.6;
+}
+.mood-wheel-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.mood-wheel-name.is-muted {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.mood-wheel-empty {
+  width: 21cqw;
+  height: 21cqw;
+  border-radius: 50%;
+  border: 2px dashed var(--border-strong);
+  outline: 1px solid var(--border);
+  outline-offset: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+}
+.mood-wheel-tones {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--space-2) 2% 0;
+  font-size: 11px;
+  color: var(--text-3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mood-wheel-face {
+    animation: mw-in 0.34s cubic-bezier(0.3, 1.3, 0.5, 1) backwards;
+    animation-delay: calc(var(--i) * 16ms);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mood-wheel-face,
+  .mood-wheel-center {
+    transition: none;
+  }
+}
+@keyframes mw-in {
+  from {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3);
+    opacity: 0;
+  }
 }
 
-/* ───────── 日记页 ───────── */
+/* ───────── 日记页：桌面两列铺满（月历列 | 写作区），手机月历首页 / 写作页 ───────── */
 .journal-page {
-  max-width: 1160px;
+  max-width: none;
+  padding: 0;
+  height: 100%;
 }
 .journal-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
 }
-.journal-page.is-mobile .journal-layout {
-  grid-template-columns: minmax(0, 1fr);
+.app-desktop.is-narrow .journal-layout,
+.app-desktop.has-detail .journal-layout {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
 }
 .journal-side {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  position: sticky;
-  top: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-5) var(--space-6);
+  border-right: 1px solid var(--border);
 }
-.journal-page.is-mobile .journal-side {
-  position: static;
-}
-.journal-main {
-  padding: var(--space-4) var(--space-5) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-height: 420px;
-}
-.journal-page.is-mobile .journal-main {
-  padding: var(--space-3) var(--space-4);
-}
-.journal-daynav {
+.journal-side-head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.journal-date {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  justify-content: center;
-  text-align: center;
-}
-.journal-date-title {
+.journal-side-head .page-title {
   margin: 0;
-  font-family: var(--font-title);
-  font-size: 19px;
-  font-weight: 650;
 }
-.journal-date-rel {
-  font-size: var(--fs-small);
-  color: var(--accent-soft-text);
-  background: var(--accent-soft);
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
+.journal-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface);
+  --jmood: var(--accent);
+}
+.journal-wash {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 400px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 70%);
+}
+.journal-pane.has-mood .journal-wash {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--jmood) 22%, transparent) 0%, transparent 100%);
+}
+[data-theme='dark'] .journal-pane.has-mood .journal-wash {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--jmood) 16%, transparent) 0%, transparent 100%);
+}
+.journal-paper {
+  position: relative;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: var(--space-8) clamp(var(--space-5), 5vw, 64px) var(--space-8);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.journal-paper > .empty {
+  margin: auto 0;
 }
 .journal-entry {
   display: flex;
@@ -245,41 +319,189 @@
   gap: var(--space-4);
   flex: 1;
 }
+
+/* 页头：大号日期 + 心情大脸 */
+.journal-dayhead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+.journal-dayhead-date {
+  flex: 1;
+  min-width: 0;
+}
+.journal-bigday {
+  font-family: var(--font-title);
+  font-size: 92px;
+  line-height: 0.9;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.journal-dayline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  margin-top: var(--space-3);
+  font-size: 15px;
+  color: var(--text-2);
+}
+.journal-dayline > b {
+  color: var(--text);
+  font-size: 17px;
+}
+.journal-dayline > span:not(.journal-daystep)::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--text-3);
+}
+.journal-daystep {
+  display: inline-flex;
+  margin-left: var(--space-1);
+}
+.journal-daystep .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+.journal-face {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.journal-face-ring {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  box-shadow: var(--shadow-card), 0 0 0 1px var(--border);
+  transition: transform 0.18s var(--ease);
+}
+.journal-face:hover .journal-face-ring {
+  transform: scale(1.04);
+}
+.journal-face.is-empty .journal-face-ring {
+  box-shadow: none;
+  background: transparent;
+  border: 2px dashed var(--border-strong);
+  color: var(--text-3);
+}
+.journal-face:focus {
+  outline: none;
+}
+.journal-face:focus-visible .journal-face-ring {
+  box-shadow: var(--focus);
+}
+.journal-face > b {
+  font-size: 16px;
+  font-weight: 650;
+}
+.journal-face.is-empty > b {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.journal-face > small {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.journal-face.is-empty > small {
+  display: none;
+}
+.journal-wheel {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  box-shadow: var(--shadow-pop);
+  border: 1px solid var(--border);
+}
+
+/* 还没写：大字问一句 + 心情轮 */
+.journal-ask {
+  text-align: center;
+  padding-top: var(--space-2);
+}
+.journal-ask-date {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.journal-ask-q {
+  margin: var(--space-1) 0 var(--space-6);
+  font-family: var(--font-title);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.journal-ask-hint {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  text-align: center;
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+.journal-entry.is-asking .journal-editor {
+  flex: none;
+  width: 100%;
+  max-width: 560px;
+  margin: var(--space-6) auto 0;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+.journal-entry.is-asking .journal-editor .md-editor,
+.journal-entry.is-asking .journal-editor .md-editor-root,
+.journal-entry.is-asking .journal-editor .md-editor-content {
+  min-height: 96px;
+}
+
+/* 正文：大字、宽行距、没有白框（借方案 C） */
 .journal-editor {
   flex: 1;
-  min-height: 240px;
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-3);
+  margin-top: var(--space-4);
 }
 .journal-editor .md-editor,
-.journal-editor .md-editor-root {
-  min-height: 220px;
+.journal-editor .md-editor-root,
+.journal-editor .md-editor-content {
+  min-height: 240px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 .journal-editor .md-editor-content {
-  min-height: 220px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+}
+.journal-editor .md-editor-content p {
+  margin: 0 0 0.8em;
 }
 .journal-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 32px;
+  min-height: 36px;
 }
 
-/* 月历 */
-.jcal {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-3);
-}
+/* ───────── 情绪月历 ───────── */
 .jcal-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 2px;
   margin-bottom: var(--space-2);
 }
 .jcal-title {
+  flex: 1;
   margin: 0;
   font-size: 15px;
   font-weight: 650;
@@ -287,111 +509,222 @@
 .jcal-grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 .jcal-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
+  gap: 6px;
 }
 .jcal-wd {
   text-align: center;
   font-size: 11px;
   color: var(--text-3);
-  padding: 2px 0 4px;
+  padding: 2px 0 0;
 }
 .jcal-cellwrap {
   display: flex;
-}
-.jcal-cell {
-  flex: 1;
-  aspect-ratio: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 1.5px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  padding: 0;
   min-width: 0;
 }
-.jcal-cell.is-blank {
-  cursor: default;
+.jcal-cell {
+  --cell-r: 14px;
+  flex: 1;
+  aspect-ratio: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--cell-r);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s;
+}
+.jcal-top {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  right: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  line-height: 1;
+  min-width: 0;
+}
+.jcal-num {
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.jcal-face {
+  display: grid;
+  place-items: center;
+  margin-top: 9px;
+}
+.jcal-face .mood-icon {
+  width: 46cqw;
+  height: 46cqw;
+}
+.jcal-cellwrap {
+  container-type: inline-size;
+}
+.jcal-cell.has-mood {
+  background: color-mix(in srgb, var(--cell-mood) 22%, transparent);
+}
+[data-theme='dark'] .jcal-cell.has-mood {
+  background: color-mix(in srgb, var(--cell-mood) 30%, transparent);
+}
+.jcal-cell.has-entry {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text-2);
+}
+.jcal-cell.is-missed {
+  background: color-mix(in srgb, var(--text) 3.5%, transparent);
+}
+.jcal-cell.is-missed .jcal-num {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.jcal-cell.is-future {
+  background: transparent;
+  cursor: not-allowed;
+  outline: 1.5px dashed var(--border-strong);
+  outline-offset: -1.5px;
+}
+.jcal-cell.is-future .jcal-num {
+  color: var(--text-3);
+  opacity: 0.7;
+  font-weight: 500;
+}
+.jcal-cell.is-ask {
+  background: transparent;
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -1.5px;
+  color: var(--accent);
+}
+.jcal-cell.is-ask .jcal-num {
+  color: var(--accent);
 }
 .jcal-cell:hover:not([data-disabled]) {
-  background: var(--surface-hover);
+  transform: scale(1.05);
+}
+.jcal-cell.is-today:not(.is-ask) {
+  box-shadow: 0 0 0 2.5px var(--accent);
+}
+.jcal-cell.is-selected:not(.is-today) {
+  box-shadow: 0 0 0 2.5px var(--text);
+}
+.jcal-cell.is-selected.is-ask {
+  outline-style: solid;
+  outline-width: 2.5px;
 }
 .jcal-cell[data-focus-visible] {
   outline: none;
   box-shadow: var(--focus);
 }
-.jcal-cell.is-today {
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 650;
-}
-.jcal-cell.is-selected {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: var(--accent);
-}
-.jcal-cell.is-selected:hover {
-  background: var(--accent-hover);
-}
-.jcal-cell.is-future {
+.jcal .lunar-text {
+  font-size: 8.5px;
   color: var(--text-3);
-  opacity: 0.45;
-  cursor: not-allowed;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.jcal-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: transparent;
+.jcal .lunar-badge {
+  top: 3px;
+  right: 4px;
 }
-.jcal-cell.has-entry .jcal-dot {
-  background: var(--accent);
-}
-.jcal-cell.is-selected.has-entry .jcal-dot {
-  box-shadow: 0 0 0 1.5px var(--accent-contrast);
-}
-.journal-page.is-mobile .jcal-cell {
-  aspect-ratio: auto;
-  height: 44px;
+@media (prefers-reduced-motion: reduce) {
+  .jcal-cell,
+  .journal-face-ring {
+    transition: none;
+  }
+  .jcal-cell:hover:not([data-disabled]),
+  .journal-face:hover .journal-face-ring {
+    transform: none;
+  }
 }
 
-/* 这个月的列表 */
-.jlist {
+/* ───────── 这个月的心情 ───────── */
+.jmood {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.jmood-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.jmood-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.jmood-bar > i {
+  flex-basis: 0;
+  min-width: 4px;
+}
+.jmood-legend {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.jmood-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jmood-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.jmood i.is-none {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ───────── 这个月的列表 ───────── */
+.jlist {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .jlist-empty {
   font-size: var(--fs-small);
-  padding: 0 var(--space-2);
+  padding: var(--space-2) var(--space-1) 0;
   margin: 0;
+  border-top: 1px solid var(--border);
 }
 .jlist-item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-2);
+  gap: var(--space-3);
+  padding: 8px var(--space-2);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
   font: inherit;
+  font-size: 13.5px;
   text-align: left;
   cursor: pointer;
   min-width: 0;
@@ -408,14 +741,23 @@
 }
 .jlist-date {
   flex: none;
-  font-size: var(--fs-small);
+  font-size: 12.5px;
   color: var(--text-2);
-  min-width: 76px;
+  min-width: 78px;
   font-variant-numeric: tabular-nums;
 }
 .jlist-mood {
   flex: none;
   display: flex;
+  width: 20px;
+  justify-content: center;
+}
+.jlist-nomood {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  opacity: 0.5;
 }
 .jlist-text {
   flex: 1;
@@ -424,10 +766,140 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.jlist-count {
+
+/* ───────── 手机 ───────── */
+.journal-page.is-mobile {
+  height: auto;
+}
+.app-mobile .journal-page.is-home {
+  padding: var(--space-2) var(--space-4) calc(var(--tabbar-h) + 96px + env(safe-area-inset-bottom));
+}
+.journal-page.is-home .journal-side {
+  padding: 0;
+  border: 0;
+  overflow: visible;
+}
+.journal-page.is-home .jcal-row,
+.journal-page.is-home .jcal-grid {
+  gap: 5px;
+}
+.journal-cta-wrap {
+  position: sticky;
+  bottom: calc(var(--tabbar-h) + var(--space-3) + env(safe-area-inset-bottom));
+  margin-top: var(--space-5);
+  display: flex;
+  justify-content: center;
+  z-index: 5;
+}
+.journal-cta {
+  width: 100%;
+  max-width: 420px;
+  height: 50px;
+  border: 0;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--text);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-pop);
+}
+[data-theme='dark'] .journal-cta {
+  color: #1c1b1f;
+}
+.journal-cta .mood-icon {
+  border-radius: 50%;
+  background: var(--surface);
+}
+.journal-cta[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.app-mobile .journal-page.is-entry {
+  padding: 0 0 calc(var(--tabbar-h) + var(--space-6) + env(safe-area-inset-bottom));
+}
+.journal-page.is-entry .journal-pane {
+  overflow: visible;
+  background: transparent;
+  min-height: 100%;
+}
+.journal-mnav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4) 0;
+}
+.journal-mnav-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 650;
+  font-size: 16px;
+}
+.journal-round {
   flex: none;
-  font-size: 11px;
-  color: var(--text-3);
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card), 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.journal-round.is-spacer {
+  visibility: hidden;
+}
+.journal-round[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.journal-page.is-entry .journal-paper {
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+.journal-page.is-entry .journal-bigday {
+  font-size: 64px;
+}
+.journal-page.is-entry .journal-dayline {
+  font-size: 14px;
+  margin-top: var(--space-2);
+}
+.journal-page.is-entry .journal-dayline > b {
+  font-size: 15px;
+}
+.journal-page.is-entry .journal-face-ring {
+  width: 76px;
+  height: 76px;
+}
+.journal-page.is-entry .journal-face-ring .mood-icon {
+  width: 56px;
+  height: 56px;
+}
+.journal-page.is-entry .journal-face > b {
+  font-size: 14px;
+}
+.journal-page.is-entry .journal-editor .md-editor-content {
+  font-size: 18px;
+}
+.journal-page.is-entry .journal-ask-q {
+  font-size: 28px;
+  margin-bottom: var(--space-4);
+}
+.journal-page.is-entry .journal-entry.is-asking .journal-editor {
+  margin-top: var(--space-5);
+}
+.journal-page.is-entry .journal-wheel {
+  padding: var(--space-3) var(--space-2) var(--space-3);
+}
+.journal-page.is-entry .journal-cta-wrap {
+  bottom: calc(var(--tabbar-h) + var(--space-3) + env(safe-area-inset-bottom));
 }
 
 /* 我的一天的「今天的日记」小卡 */
@@ -485,4 +957,12 @@
 }
 .setting-select {
   min-width: 120px;
+}
+
+/* 到头了（下个月 / 后一天）：灰掉 */
+.jcal-head .icon-btn[data-disabled],
+.journal-daystep .icon-btn[data-disabled],
+.journal-mnav .icon-btn[data-disabled] {
+  opacity: 0.3;
+  cursor: default;
 }

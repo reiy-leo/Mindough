@@ -314,7 +314,7 @@ html:not(:lang(zh)) .att-hint {
 
 /* ── 拖放高亮层 ── */
 .detail,
-.journal-main {
+.journal-pane {
   position: relative;
 }
 .drop-overlay {

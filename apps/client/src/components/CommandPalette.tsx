@@ -43,7 +43,7 @@ export function CommandPalette() {
   const showJournal = !q.trim() || /日记|journal|diary|^写/i.test(q.trim()); // i18n-ignore 匹配用的关键词
   const writeJournal = () => {
     close();
-    navigate({ page: 'journal' });
+    navigate({ page: 'journal', date: store.journalToday() });
   };
   // 「从滴答清单导入…」：没输入时排在日记后面；输入像「滴答 / dida / ticktick / 导入 / import」时也出来
   const showDida = !q.trim() || /滴答|dida|tick|导入|import/i.test(q.trim()); // i18n-ignore 匹配用的关键词

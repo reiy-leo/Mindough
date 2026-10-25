@@ -17,7 +17,7 @@ export function ReminderHost() {
       startReminders({
         store,
         open: (id) => uiRef.current.openEditor(id),
-        openJournal: () => navigate({ page: 'journal' }),
+        openJournal: () => navigate({ page: 'journal', date: store.journalToday() }),
         inApp: (_r, title, body, a) =>
           uiRef.current.toast(
             {

@@ -1044,54 +1044,37 @@
 }
 
 
-/* ───────── 日记（Rei 2026-10-17）：心情按钮与月历的平台形状 ───────── */
-/* Apple：圆角方块 + 圆形日格（macOS 日历的小月历） */
-[data-skin='apple'] .mood-btn {
-  border-radius: 12px;
-}
+/* ───────── 日记（改版 B，Rei 2026-10-25）：情绪月历格子、心情大脸、写作区的平台形状 ───────── */
+/* Apple：圆角方块格子（像 macOS 小组件），心情大脸是白底圆 */
 [data-skin='apple'] .jcal-cell {
-  border-radius: 999px;
+  --cell-r: 12px;
 }
-/* WinUI：小圆角方块，选中加底部强调条；CalendarView 式方格 */
-[data-skin='winui'] .mood-btn {
-  border-radius: 4px;
-  position: relative;
-}
-[data-skin='winui'] .mood-btn.is-selected {
-  background: var(--surface-hover);
-  border-color: var(--border);
-}
-[data-skin='winui'] .mood-btn.is-selected::after {
-  content: '';
-  position: absolute;
-  left: 30%;
-  right: 30%;
-  bottom: 2px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-}
+/* WinUI：CalendarView 式小圆角方格，写作区是阅读窗格（左边分隔线） */
 [data-skin='winui'] .jcal-cell {
-  border-radius: 4px;
+  --cell-r: 4px;
 }
-[data-skin='winui'] .jcal {
+[data-skin='winui'] .journal-wheel {
   border-radius: 8px;
 }
-/* Material 3：胶囊形心情按钮（选中 = secondary container），圆形日格 */
-[data-skin='material'] .mood-btn {
-  border-radius: 16px;
+[data-skin='winui'] .journal-cta {
+  border-radius: 6px;
 }
-[data-skin='material'] .mood-btn.is-selected {
-  border-color: transparent;
-  background: var(--accent-soft);
-}
+/* Material 3：大圆角格子、写作区是 surface 容器，CTA 是 extended FAB 形状 */
 [data-skin='material'] .jcal-cell {
-  border-radius: 999px;
+  --cell-r: 16px;
 }
-[data-skin='material'] .jcal {
-  border-radius: 16px;
-  box-shadow: none;
+[data-skin='material'] .journal-pane {
   background: var(--surface-2);
+}
+[data-skin='material'] .journal-wheel {
+  border-radius: 28px;
+  box-shadow: none;
+  background: var(--surface-3);
+}
+[data-skin='material'] .journal-cta {
+  border-radius: 16px;
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 /* ═════════════ 三列布局的右列 / 手机整页详情（Rei 2026-10-23） ═════════════ */

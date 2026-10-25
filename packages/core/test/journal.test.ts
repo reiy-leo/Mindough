@@ -18,6 +18,7 @@ import {
   isMoodId,
   journalEntryId,
   journalOfMonth,
+  monthMoodStats,
   journalPreview,
   journalToday,
   journalWordCount,
@@ -342,5 +343,31 @@ describe('导出导入：日记', () => {
     expect(plan.issues.map((i) => i.level).sort()).toEqual(['error', 'warning']);
     applyImport(dst, plan);
     expect(dst.journalOf('2026-10-01')!.body_md).toBe('国庆');
+  });
+});
+
+describe('这个月的心情分布（日记改版 B）', () => {
+  const e = (date: string, mood: string | null, body = '写了', deleted = false) =>
+    ({ id: journalEntryId(date), date, mood, body_md: body, base_at: null, created_at: '', updated_at: '', deleted }) as never;
+  it('按天数数、按 MOOD_IDS 顺序、没选心情和不认识的心情单独算', () => {
+    const s = monthMoodStats(
+      [
+        e('2026-10-01', 'sad'),
+        e('2026-10-02', 'happy'),
+        e('2026-10-03', 'happy'),
+        e('2026-10-04', null),
+        e('2026-10-05', 'future-mood'),
+        e('2026-10-06', 'calm', '', true), // 删了
+        e('2026-09-30', 'angry'), // 别的月
+        e('2026-10-07', null, ''), // 什么都没写
+      ],
+      '2026-10',
+    );
+    expect(s).toEqual({ written: 5, moods: [{ id: 'happy', days: 2 }, { id: 'sad', days: 1 }], noMood: 1, unknown: 1 });
+  });
+  it('只有附件的日子由调用方算成写过', () => {
+    const only = e('2026-10-08', null, '');
+    expect(monthMoodStats([only], '2026-10').written).toBe(0);
+    expect(monthMoodStats([only], '2026-10', () => true)).toEqual({ written: 1, moods: [], noMood: 1, unknown: 0 });
   });
 });

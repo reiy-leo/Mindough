@@ -38,8 +38,7 @@
 .lunar-text.is-month {
   color: var(--text-2);
 }
-.calendar-cell[data-selected] .lunar-text,
-.jcal-cell.is-selected .lunar-text {
+.calendar-cell[data-selected] .lunar-text {
   color: inherit;
   opacity: 0.85;
 }
@@ -55,8 +54,7 @@
 .lunar-badge.is-work {
   color: var(--danger);
 }
-.calendar-cell[data-selected] .lunar-badge,
-.jcal-cell.is-selected .lunar-badge {
+.calendar-cell[data-selected] .lunar-badge {
   color: inherit;
 }
 
@@ -99,22 +97,6 @@
   color: var(--text-2);
 }
 
-/* 日记月历：数字下面一行农历 */
-.jcal.has-lunar .jcal-cell {
-  position: relative;
-  gap: 0;
-  line-height: 1.15;
-}
-.jcal.has-lunar .jcal-cell .lunar-text {
-  font-size: 10px;
-  max-width: 92%;
-}
-.jcal.has-lunar .jcal-cell.is-future .lunar-text {
-  color: inherit;
-}
-.journal-page.is-mobile .jcal.has-lunar .jcal-cell {
-  height: 50px;
-}
 
 /* 日期标题（我的一天副标题、列表每天的标题）：农历 + 订阅的节日 */
 .date-lunar {

@@ -275,3 +275,36 @@ export function addMonths(month: string, n: number): string {
   const t = y * 12 + (m - 1) + n;
   return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
 }
+
+/** 一个月的心情分布：写了几天、每种心情几天、没选心情几天。 */
+export interface MonthMoodStats {
+  /** 写了日记的天数（有字、有心情或有附件，由调用方的 written 判断）。 */
+  written: number;
+  /** 出现过的心情，按 MOOD_IDS 的顺序（从好到不好），只列天数大于 0 的。 */
+  moods: Array<{ id: MoodId; days: number }>;
+  /** 写了但没选心情的天数。 */
+  noMood: number;
+  /** 心情 id 不认识（新版本加的）的天数，单独算，不并进别的心情。 */
+  unknown: number;
+}
+
+/**
+ * 「这个月的心情」分布条用的数（日记改版 B，Rei 2026-10-25「按B实现」）。
+ * 一天一篇，所以按篇数就是按天数；删掉的不算，将来的日子本来就写不了。
+ */
+export function monthMoodStats(entries: readonly JournalEntry[], month: string, written: (e: JournalEntry) => boolean = hasJournalContent): MonthMoodStats {
+  const counts = new Map<MoodId, number>();
+  let total = 0;
+  let noMood = 0;
+  let unknown = 0;
+  const seen = new Set<string>();
+  for (const e of entries) {
+    if (e.deleted || !e.date.startsWith(`${month}-`) || seen.has(e.date) || !written(e)) continue;
+    seen.add(e.date);
+    total++;
+    if (!e.mood) noMood++;
+    else if (isMoodId(e.mood)) counts.set(e.mood, (counts.get(e.mood) ?? 0) + 1);
+    else unknown++;
+  }
+  return { written: total, moods: MOOD_IDS.filter((id) => counts.has(id)).map((id) => ({ id, days: counts.get(id)! })), noMood, unknown };
+}
