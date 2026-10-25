@@ -93,7 +93,7 @@ export function ArchiveImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; 
       />
       {stage.kind === 'pick' && (
         <div className="import-pick">
-          <p className="muted">{tr('选思想团导出的 zip，或者任何 Markdown 文件夹：每个 .md 是一件任务，文件夹是组。')}</p>
+          <p className="muted">{tr('选念头团导出的 zip，或者任何 Markdown 文件夹：每个 .md 是一件任务，文件夹是组。')}</p>
           <div className="import-pick-actions">
             <Button variant="secondary" onPress={() => zipInput.current?.click()}>
               <FileArchive size={16} />
@@ -140,7 +140,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
     <div className="import-preview">
       <div className="import-source">
         <span className="import-source-name">{name || tr('选中的文件')}</span>
-        <span className="muted small">{plan.format === 'mindough' ? tr('思想团导出') : tr('Markdown 文件夹')}</span>
+        <span className="muted small">{plan.format === 'mindough' ? tr('念头团导出') : tr('Markdown 文件夹')}</span>
       </div>
       <div className="import-counts" role="group" aria-label={tr('导入预览')}>
         <Count n={s.create} label={tr('新建')} />

@@ -493,11 +493,11 @@ Rei：「添加从dida365导入任务的功能，在菜单栏的File/Import/Dida
 - 截图 `work/shots-3col/`：三皮肤 × 宽屏（列表 / 选中 / 任务链 / 拖宽 / ⌘K 打开不在列表里的）、中等宽度（选中 / 未选中）、手机（列表 / 推入详情 / 任务链）。
 - 🟡 待 Rei 确认：断点（1100 / 760）；中等宽度用图标栏；完成后右列不收起；删除后回空状态（没自动选下一件）；没有任务列表的页面不显示空右列。
 
-### App 名字 ✅（2026-10-24）：英文 Mindough，中文「思想团」
-Rei 2026-10-24 定：英文「Mindough」，中文「思想团」。
-- **界面**：core `appName()` = `tr('思想团')`（英文 Mindough）；tr 的中文原文里写「思想团」（「登录思想团」「关于思想团」），英文词典写 Mindough。设置「关于」、启动占位、手机顶栏兜底、置顶小窗标题、桌面菜单栏（关于 / 隐藏 / 退出）、通知相关说明、Worker 的原生登录结果页（只有中文）都随语言或改成思想团。没有文字字标（关于里是图标 + 文字名，文字随语言）。
+### App 名字 ✅（2026-10-25）：英文 Mindough，中文「念头团」
+Rei 2026-10-24 定：英文「Mindough」，中文「思想团」；2026-10-25 中文名改成「念头团」（英文不变），全仓「思想团」→「念头团」（i18n key 一起改，英文译文不变），manifest description 跟着改，sw.js SHELL v3 → v4。
+- **界面**：core `appName()` = `tr('念头团')`（英文 Mindough）；tr 的中文原文里写「念头团」（「登录念头团」「关于念头团」），英文词典写 Mindough。设置「关于」、启动占位、手机顶栏兜底、置顶小窗标题、桌面菜单栏（关于 / 隐藏 / 退出）、通知相关说明、Worker 的原生登录结果页（只有中文）都随语言或改成念头团。没有文字字标（关于里是图标 + 文字名，文字随语言）。
 - **网页标题**：`lib/i18n.ts` `applyAppTitle` 在启动和换语言时改 `document.title` 与 `apple-mobile-web-app-title`；index.html 里静态写 Mindough（JS 跑之前 / 爬虫）。
-- **PWA manifest**：只有一种语言，`name` / `short_name` 保持 Mindough（装到桌面后的名字是 Mindough；iOS 「添加到主屏幕」读的是 apple-mobile-web-app-title，随语言）；description 写「Mindough（思想团）：…」。改了 manifest，sw.js SHELL v2 → v3。
+- **PWA manifest**：只有一种语言，`name` / `short_name` 保持 Mindough（装到桌面后的名字是 Mindough；iOS 「添加到主屏幕」读的是 apple-mobile-web-app-title，随语言）；description 写「Mindough（念头团）：…」。改了 manifest，sw.js SHELL v2 → v3（10-25 改名再 v3 → v4）。
 - **原生**：`src-tauri/locales/`——Apple `zh-Hans.lproj` / `en.lproj` 的 `InfoPlist.strings`（CFBundleDisplayName、CFBundleName），macOS 经 `bundle.macOS.files` 打进 Contents/Resources，`src-tauri/Info.plist` 合进 CFBundleLocalizations + LSHasLocalizedDisplayName；iOS 在 ios.yml 打 ipa 前 `scripts/native-locales.sh ios` 放进 .app；Android `values-zh` / `values-zh-rCN` 的 app_name（+ main_activity_title），build.yml 在 `tauri android init` 后 `scripts/native-locales.sh android` 拷进 gen/。
 - **不改**：Tauri productName（Mindough，安装包名、.app 文件夹名、数据目录、更新都靠它）、bundle id `dev.rei8t.mindough`、Windows 安装包名、导出文件夹名「Mindough 日期」、User-Agent、`/api/health` 的 `name: 'mindough'`（标识，不是显示名）、仓库名、深链接 `mindough://`。Windows 安装后开始菜单里也还是 Mindough（productName 单语言）。
 
@@ -511,7 +511,7 @@ Rei 2026-10-24 定：英文「Mindough」，中文「思想团」。
 多人协作与共享、多层文件夹式分类。
 
 ## 工程默认
-- 名字：英文 Mindough、中文「思想团」（Rei 2026-10-24 定；做法见上面「App 名字」）；仓库 reiy-leo/mindough，分支 main，MIT
+- 名字：英文 Mindough、中文「念头团」（Rei 2026-10-24 定、10-25 中文名由「思想团」改为「念头团」；做法见上面「App 名字」）；仓库 reiy-leo/mindough，分支 main，MIT
 - Web 与同步 API：Cloudflare Worker `mindough`，域名 `mindough.rei8t.dev`
 - AGENTS.md（+ CLAUDE.md 指向）、.agents/、docs/PRODUCT.md
 - GitHub Actions 打 macOS / Windows / Android 包发布到 Releases；iOS 需 Apple 开发者账号签名（待定）

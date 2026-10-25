@@ -11,7 +11,7 @@ const count = (n: unknown, one: string, other: string) => `${n} ${pl(n, one, oth
 
 export const CORE_EN: Record<string, V> = {
   // App 名字（i18n.ts appName，Rei 2026-10-24）
-  思想团: 'Mindough',
+  念头团: 'Mindough',
   // ── 滴答清单导入（dida/，Rei 2026-10-21）──
   滴答清单: 'Dida365',
   已取消: 'Canceled',
@@ -295,7 +295,7 @@ export const CORE_EN: Record<string, V> = {
   王: 'W',
   同事: 'Colleague',
   搬家: 'Moving',
-  '思想团开发': 'Mindough Dev',
+  '念头团开发': 'Mindough Dev',
   周末看片: 'Weekend Movies',
   '整理要带走的东西，列一张清单\n\n- [x] 书\n- [x] 衣服\n- [x] 厨具': 'Sort out what to take and make a list\n\n- [x] Books\n- [x] Clothes\n- [x] Kitchenware',
   '联系搬家公司，比较三家报价': 'Call movers and compare three quotes',

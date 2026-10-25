@@ -12,14 +12,14 @@ function fakeDoc() {
 
 afterEach(() => setLocale('zh'));
 
-describe('app 名字随界面语言（Rei 2026-10-24：中文「思想团」、英文「Mindough」）', () => {
-  it('中文界面：网页标题和主屏幕名都是思想团', () => {
+describe('app 名字随界面语言（Rei 2026-10-24：中文「念头团」、英文「Mindough」）', () => {
+  it('中文界面：网页标题和主屏幕名都是念头团', () => {
     applyLocalePref('zh');
-    expect(appName()).toBe('思想团');
+    expect(appName()).toBe('念头团');
     const doc = fakeDoc();
     applyAppTitle(doc);
-    expect(doc.title).toBe('思想团');
-    expect(doc.meta.content).toBe('思想团');
+    expect(doc.title).toBe('念头团');
+    expect(doc.meta.content).toBe('念头团');
   });
 
   it('英文界面：Mindough', () => {
@@ -37,8 +37,8 @@ describe('app 名字随界面语言（Rei 2026-10-24：中文「思想团」、�
     applyLocalePref('zh');
     const doc = fakeDoc();
     applyAppTitle(doc);
-    expect(doc.title).toBe('思想团');
-    expect(menuLabels().about).toBe('关于思想团');
-    expect(menuLabels().quit).toBe('退出思想团');
+    expect(doc.title).toBe('念头团');
+    expect(menuLabels().about).toBe('关于念头团');
+    expect(menuLabels().quit).toBe('退出念头团');
   });
 });

@@ -24,8 +24,8 @@ import {
 afterEach(() => setLocale('zh'));
 
 describe('i18n（core）', () => {
-  it('app 名字：中文思想团，英文 Mindough（Rei 2026-10-24）', () => {
-    expect(appName()).toBe('思想团');
+  it('app 名字：中文念头团，英文 Mindough（Rei 2026-10-24）', () => {
+    expect(appName()).toBe('念头团');
     setLocale('en');
     expect(appName()).toBe('Mindough');
     expect(APP_NAME_EN).toBe('Mindough');

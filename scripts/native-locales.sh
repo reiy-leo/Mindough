@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 原生端的本地化显示名（Rei 2026-10-24：英文 Mindough，中文「思想团」）。gen/ 不进仓库，CI 里 init 之后跑这个把文件拷进去。
+# 原生端的本地化显示名（Rei 2026-10-24：英文 Mindough，中文「念头团」）。gen/ 不进仓库，CI 里 init 之后跑这个把文件拷进去。
 #   scripts/native-locales.sh android            # tauri android init 之后：values-zh / values-zh-rCN 的 app_name
 #   scripts/native-locales.sh ios <Foo.app>       # 打 ipa 之前：把 zh-Hans.lproj / en.lproj 的 InfoPlist.strings 放进 .app
 # macOS 不用这个：tauri.conf.json 的 bundle.macOS.files 直接打进 Contents/Resources。

@@ -1,4 +1,4 @@
-# AGENTS.md — Mindough（思想团）
+# AGENTS.md — Mindough（念头团）
 
 给 AI 编程代理与协作者的项目说明。产品细节见 [docs/PRODUCT.md](docs/PRODUCT.md)，完整计划与决策见 [docs/PLAN.md](docs/PLAN.md)。
 
@@ -95,7 +95,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 截图检查：`?skin=apple|winui|material&theme=light|dark` 可临时指定皮肤；桌面 1366 宽 + 手机 390 宽各看一遍（动到外壳或详情时再加 960 宽的中等宽度：图标栏 + 两栏）。
 
 ## 代码规范
-- App 名字（Rei 2026-10-24）：英文「Mindough」，中文「思想团」。界面上要写 app 名一律用 core 的 `appName()`（或在 tr 的中文原文里写「思想团」、英文写 Mindough），别写死 'Mindough'；网页标题由 `lib/i18n.ts` 的 `applyAppTitle` 随语言改。原生显示名的本地化在 `src-tauri/locales/`（Apple `*.lproj/InfoPlist.strings`、Android `values-zh*`，`scripts/native-locales.sh` 在 CI 里拷进 gen/；macOS 经 `bundle.macOS.files`）。productName、bundle id、manifest name、导出文件夹名不改。
+- App 名字（Rei 2026-10-24 定，2026-10-25 中文名由「思想团」改为「念头团」）：英文「Mindough」，中文「念头团」。界面上要写 app 名一律用 core 的 `appName()`（或在 tr 的中文原文里写「念头团」、英文写 Mindough），别写死 'Mindough'；网页标题由 `lib/i18n.ts` 的 `applyAppTitle` 随语言改。原生显示名的本地化在 `src-tauri/locales/`（Apple `*.lproj/InfoPlist.strings`、Android `values-zh*`，`scripts/native-locales.sh` 在 CI 里拷进 gen/；macOS 经 `bundle.macOS.files`）。productName、bundle id、manifest name、导出文件夹名不改。
 - 界面文案中文，**一律按 [docs/COPY.md](docs/COPY.md)**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；新词先补进术语表。HTTP 状态码出现时附中文说明（如「408 请求超时」）。
 - 代码与文档里的概念名固定：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上的叫法以 COPY.md 为准（如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
 - 新建与详情分开：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。

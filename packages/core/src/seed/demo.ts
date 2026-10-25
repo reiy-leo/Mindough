@@ -87,7 +87,7 @@ export function seedDemo(store: Store): void {
       default_type_id: null,
     });
     const dev = store.insert('group', {
-      name: tr('思想团开发'),
+      name: tr('念头团开发'),
       icon: '🧩',
       start_at: d(-10),
       end_at: d(45),

@@ -133,7 +133,7 @@ jobs:
         run: |
           if [ ! -d src-tauri/gen/android ]; then pnpm tauri android init --ci; fi
 
-      # 中文系统下显示「思想团」（values-zh / values-zh-rCN），默认仍 Mindough
+      # 中文系统下显示「念头团」（values-zh / values-zh-rCN），默认仍 Mindough
       - name: 本地化显示名
         run: scripts/native-locales.sh android
 

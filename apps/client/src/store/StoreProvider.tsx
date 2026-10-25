@@ -118,7 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return (
       <div className="tab-blocked" role="alert">
         <div className="tab-blocked-card">
-          <div className="tab-blocked-title">{tr('思想团已在另一个标签页打开')}</div>
+          <div className="tab-blocked-title">{tr('念头团已在另一个标签页打开')}</div>
           <p className="tab-blocked-text">
             {blocked === 'taken' ? tr('你在另一个标签页里点了「在这里用」，这一页先停下了。') : tr('同一时间只能在一个标签页里用，免得两边的改动打架。')}
           </p>

@@ -237,7 +237,7 @@ describe('原生端登录（deep link + 一次性登录码）', () => {
     expect(cb.status).toBe(200);
     expect(cb.headers.get('content-type')).toContain('text/html');
     const html = await cb.text();
-    expect(html).toContain('已登录，回到思想团继续');
+    expect(html).toContain('已登录，回到念头团继续');
     const code = html.match(/mindough:\/\/auth\?code=([A-Za-z0-9_-]+)/)![1]!;
     expect(html).not.toContain('md_session');
 

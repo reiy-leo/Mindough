@@ -40,7 +40,7 @@ export function applyLocalePref(pref: LocalePref): Locale {
 }
 
 /**
- * 网页标题与「添加到主屏幕」的名字随界面语言：中文「思想团」、英文「Mindough」（Rei 2026-10-24）。
+ * 网页标题与「添加到主屏幕」的名字随界面语言：中文「念头团」、英文「Mindough」（Rei 2026-10-24）。
  * index.html 里写的是 Mindough（还没跑 JS 时、爬虫看到的）；manifest 只有一种语言，保持 Mindough。
  */
 export function applyAppTitle(doc: Pick<Document, 'querySelector'> & { title: string }): void {

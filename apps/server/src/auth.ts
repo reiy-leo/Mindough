@@ -148,10 +148,10 @@ export async function handleLogin(req: Request, env: AuthEnv): Promise<Response>
  */
 export function nativeResult(link: string, ok: boolean): Response {
   const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  const title = ok ? '已登录，回到思想团继续' : '没有登录成功';
+  const title = ok ? '已登录，回到念头团继续' : '没有登录成功';
   const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{font:16px/1.6 -apple-system,"Segoe UI Variable","Segoe UI",system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#1d1d1f;background:#f5f5f7}main{text-align:center;padding:24px}a{display:inline-block;margin-top:12px;padding:8px 18px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none}p{color:#6e6e73}@media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}p{color:#a1a1a6}}</style></head>
-<body><main><h1 style="font-size:22px;font-weight:600">${title}</h1><p>${ok ? '这个页面可以关掉了。' : '回到思想团看看是怎么回事。'}</p><a href="${esc(link)}">打开思想团</a></main>
+<body><main><h1 style="font-size:22px;font-weight:600">${title}</h1><p>${ok ? '这个页面可以关掉了。' : '回到念头团看看是怎么回事。'}</p><a href="${esc(link)}">打开念头团</a></main>
 <script>location.href=${JSON.stringify(link)}</script></body></html>`;
   return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'set-cookie': setCookie(OAUTH_COOKIE, '', { maxAge: 0, secure: true, path: '/auth' }) } });
 }
