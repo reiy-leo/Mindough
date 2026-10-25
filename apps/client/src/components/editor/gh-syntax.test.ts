@@ -3,11 +3,10 @@
  * 编辑器里的 GitHub 提示块与数学公式（Rei 2026-10-17）：读入成节点、写回 markdown 原样、手打即变、价格不误判。
  */
 import { describe, expect, it } from 'vitest';
-import { editorViewCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { Node as PMNode } from '@milkdown/kit/prose/model';
-import { createMdEditor, roundTrip } from './milkdown';
+import { TextSelection } from '@tiptap/pm/state';
+import type { EditorView } from '@tiptap/pm/view';
+import type { Node as PMNode } from '@tiptap/pm/model';
+import { createMdEditor, roundTrip } from './editor';
 import { escapeMathLike } from './gh-syntax';
 
 const same = async (md: string, expected = md) => expect(await roundTrip(md)).toBe(expected.replace(/\s+$/, '') + '\n');
@@ -17,7 +16,7 @@ const setup = async (md: string) => {
   const root = document.createElement('div');
   document.body.appendChild(root);
   const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: () => {} });
-  const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+  const view = h.view();
   const done = async () => {
     await h.destroy();
     root.remove();

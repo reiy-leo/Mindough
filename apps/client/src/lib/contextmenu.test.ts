@@ -35,7 +35,7 @@ describe('全局右键菜单（Rei 2026-10-17）', () => {
     expect(keepsNativeMenu(el('input'))).toBe(true);
     expect(keepsNativeMenu(el('textarea'))).toBe(true);
     const editor = el('div', { contenteditable: 'true' }, page);
-    expect(keepsNativeMenu(el('p', {}, editor))).toBe(true); // Milkdown 里的段落
+    expect(keepsNativeMenu(el('p', {}, editor))).toBe(true); // 编辑器里的段落
     expect(keepsNativeMenu(el('div', { contenteditable: 'false' }))).toBe(false);
     expect(keepsNativeMenu(el('code', {}, el('pre', { 'data-native-menu': '' })))).toBe(true);
   });

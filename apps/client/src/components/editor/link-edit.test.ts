@@ -4,8 +4,8 @@
  * 保存后写出的 markdown 读回来还是同一条链接（往返稳定）。
  */
 import { describe, expect, it } from 'vitest';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { createMdEditor, normalizeHref, roundTrip, type MdEditorHandle } from './milkdown';
+import { TextSelection } from '@tiptap/pm/state';
+import { createMdEditor, normalizeHref, roundTrip, type MdEditorHandle } from './editor';
 
 const setup = async (md: string) => {
   const root = document.createElement('div');
@@ -72,7 +72,7 @@ describe('链接框保存：文字和网址一起改', () => {
     const r = linkAt(h, '和');
     expect(h.textOf(r)).toBe('粗和细');
     h.applyLink(r, '粗和细', 'b.com');
-    // milkdown 本来就把它写成 **[粗](…)**[和细](…)（同一个意思）；这里只要求和不改文字时一样、且稳定
+    // 以前 Milkdown 就把它写成 **[粗](…)**[和细](…)（同一个意思）；这里只要求和不改文字时一样、且稳定
     const md = h.getMarkdown();
     expect(md).toBe((await roundTrip(md0)).replaceAll('https://a.com', 'https://b.com'));
     expect(md).toContain('**');

@@ -19,21 +19,16 @@
  * 键：标题里回车 → 进正文第一行（收起的先展开）；标题开头退格 → 拆开（标题变回一段文字）；
  *   收起时 ↓ 跳过正文到下一块，下一块开头 ↑ 回到标题；光标不管怎么进了收起的正文都会自动展开。
  */
-import { $nodeSchema, $prose, $remark, $view } from '@milkdown/kit/utils';
-import { Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet, type EditorView, type NodeView } from '@milkdown/kit/prose/view';
-import { Fragment, type Node as PMNode, type NodeType } from '@milkdown/kit/prose/model';
+import { Extension, Node as TiptapNode } from '@tiptap/core';
+import { Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type EditorView, type NodeView } from '@tiptap/pm/view';
+import { Fragment, type Node as PMNode, type NodeType } from '@tiptap/pm/model';
 import { tr } from '../../lib/i18n';
 import { fixInlineMath, liftAlerts } from './gh-syntax';
+import type { MdNode, ParseSpec, SerializeSpec } from './markdown';
 
 // ───────── remark：读入 ─────────
 
-interface MdNode {
-  type: string;
-  value?: string;
-  children?: MdNode[];
-  [k: string]: unknown;
-}
 
 /** 收好的折叠块（mdast）。 */
 export interface DetailsMd extends MdNode {
@@ -52,7 +47,7 @@ const OPEN_RE = /^<details(\s[^>]*)?>/i;
 const SUMMARY_RE = /^\s*<summary(\s[^>]*)?>([\s\S]*?)<\/summary>/i;
 const TAG_RE = /<details(?:\s[^>]*)?>|<\/details\s*>/gi;
 
-/** remarkHtmlTransformer 把块级 HTML 包进了段落；两种都认。 */
+/** 块级 HTML 已经包进了段落（markdown.ts 的 remarkHtmlTransformer）；两种都认。 */
 const htmlOf = (n: MdNode | undefined): string | null => {
   if (!n) return null;
   if (n.type === 'html') return n.value ?? '';
@@ -151,7 +146,7 @@ function tryLift(children: MdNode[], i: number, html: string, parse: ParseMd): {
 }
 
 /** remark 插件：放在 gh-syntax 后面（主文档的公式 / 提示块它已经处理过；这里只处理从 HTML 里拆出来重新读的那几段）。 */
-function remarkDetails(this: { parse(src: string): MdNode }) {
+export function remarkDetails(this: { parse(src: string): MdNode }) {
   const parse: ParseMd = (src) => {
     const tree = this.parse(src);
     fixInlineMath(tree as never, src);
@@ -163,69 +158,69 @@ function remarkDetails(this: { parse(src: string): MdNode }) {
   };
 }
 
-export const detailsRemark = $remark('mindoughDetails', () => remarkDetails as never);
 
 // ───────── 节点 ─────────
 
 const isOpenAttr = (attrs: string) => /(^|\s)open(\s|=|$)/i.test(attrs);
 
-export const detailsSummarySchema = $nodeSchema('details_summary', () => ({
+/** 折叠块标题：一行纯文字，不带格式（由 details 自己读写）。 */
+export const DetailsSummary = TiptapNode.create({
+  name: 'details_summary',
   content: 'text*',
   marks: '',
   defining: true,
   isolating: true,
-  attrs: { attrs: { default: '' } },
-  parseDOM: [{ tag: 'summary' }, { tag: 'div.md-details-summary' }],
-  toDOM: () => ['div', { class: 'md-details-summary' }, 0],
-  // 标题由 details 自己读写
-  parseMarkdown: { match: () => false, runner: () => {} },
-  toMarkdown: { match: () => false, runner: () => {} },
-}));
+  addAttributes: () => ({ attrs: { default: '', rendered: false } }),
+  parseHTML: () => [{ tag: 'summary' }, { tag: 'div.md-details-summary' }],
+  renderHTML: () => ['div', { class: 'md-details-summary' }, 0],
+});
 
-export const detailsSchema = $nodeSchema('details', () => ({
+/** 折叠块：标题 + 正文（block+）。attrs 是 <details …> 里的属性原文；expanded 只是看的状态，不写回 markdown。 */
+export const Details = TiptapNode.create({
+  name: 'details',
   group: 'block',
   content: 'details_summary block+',
   defining: true,
-  attrs: {
-    attrs: { default: '' },
-    inline: { default: false },
-    hasSummary: { default: true },
+  addAttributes: () => ({
+    attrs: { default: '', rendered: false },
+    inline: { default: false, rendered: false },
+    hasSummary: { default: true, rendered: false },
     /** 编辑器里展开着没有（不写回 markdown）。 */
-    expanded: { default: true },
-  },
-  parseDOM: [
-    {
-      tag: 'details',
-      getAttrs: (dom: HTMLElement | string) => (typeof dom === 'string' ? {} : { attrs: dom.hasAttribute('open') ? ' open' : '', expanded: true }),
-    },
-    {
-      tag: 'div[data-type="details"]',
-      contentElement: '.md-details-inner',
-      getAttrs: (dom: HTMLElement | string) => (typeof dom === 'string' ? {} : { attrs: dom.dataset.attrs ?? '', expanded: true }),
-    },
+    expanded: { default: true, rendered: false },
+  }),
+  parseHTML: () => [
+    { tag: 'details', getAttrs: (dom) => ({ attrs: (dom as HTMLElement).hasAttribute('open') ? ' open' : '', expanded: true }) },
+    { tag: 'div[data-type="details"]', contentElement: '.md-details-inner', getAttrs: (dom) => ({ attrs: (dom as HTMLElement).dataset.attrs ?? '', expanded: true }) },
   ],
-  toDOM: (node: PMNode) => [
+  renderHTML: ({ node }) => [
     'div',
     { 'data-type': 'details', 'data-attrs': String(node.attrs.attrs ?? ''), class: `md-details${node.attrs.expanded ? ' is-open' : ''}` },
     ['div', { class: 'md-details-inner' }, 0],
   ],
-  parseMarkdown: {
-    match: (n: { type: string }) => n.type === 'details',
-    runner: (state, node, type) => {
+  addNodeView: () => (p) => detailsView(p.node, p.view, p.getPos as () => number | undefined),
+});
+
+export const detailsParse: ParseSpec[] = [
+  {
+    name: 'details',
+    match: (n) => n.type === 'details',
+    run: (state, node, type) => {
       const d = node as unknown as DetailsMd;
       const summary = type.schema.nodes.details_summary!;
       state.openNode(type, { attrs: d.attrs, inline: d.inline, hasSummary: d.hasSummary, expanded: isOpenAttr(d.attrs) });
       state.openNode(summary, { attrs: d.summaryAttrs });
       if (d.summary) state.addText(d.summary);
       state.closeNode();
-      if (d.children.length) state.next(d.children as never);
+      if (d.children.length) state.next(d.children);
       else state.openNode(type.schema.nodes.paragraph!).closeNode();
       state.closeNode();
     },
   },
-  toMarkdown: {
-    match: (n: PMNode) => n.type.name === 'details',
-    runner: (state, node) => {
+];
+
+export const detailsSerialize: Record<string, SerializeSpec> = {
+  details: {
+    node: (state, node) => {
       const head = node.firstChild!;
       const title = head.textContent.replace(/\n/g, ' ');
       const open = `<details${String(node.attrs.attrs ?? '')}>`;
@@ -233,7 +228,7 @@ export const detailsSchema = $nodeSchema('details', () => ({
       const body: PMNode[] = [];
       node.forEach((c, _o, i) => i > 0 && body.push(c));
       const only = body.length === 1 ? body[0]! : null;
-      const oneLine = node.attrs.inline && only?.type.name === 'paragraph' && !only.textContent.includes('\n') && !hasNode(only, 'hardbreak');
+      const oneLine = node.attrs.inline && only?.type.name === 'paragraph' && !only.textContent.includes('\n') && !hasNode(only, 'hardBreak');
       if (oneLine) {
         state.openNode('paragraph');
         state.addNode('html', undefined, open + sum);
@@ -248,7 +243,7 @@ export const detailsSchema = $nodeSchema('details', () => ({
       state.addNode('html', undefined, '</details>');
     },
   },
-}));
+};
 
 const hasNode = (n: PMNode, name: string) => {
   let hit = false;
@@ -260,7 +255,7 @@ const hasNode = (n: PMNode, name: string) => {
 };
 
 /** 折叠块的节点视图：外面一个不可编辑的三角按钮，里面是标题 + 正文（contentDOM）。 */
-export const detailsView = $view(detailsSchema.node, () => (initial: PMNode, view: EditorView, getPos: () => number | undefined): NodeView => {
+function detailsView(initial: PMNode, view: EditorView, getPos: () => number | undefined): NodeView {
   let node = initial;
   const dom = document.createElement('div');
   dom.dataset.type = 'details';
@@ -305,7 +300,7 @@ export const detailsView = $view(detailsSchema.node, () => (initial: PMNode, vie
     ignoreMutation: (m) => m.target === dom || btn.contains(m.target as Node) || (m.type === 'attributes' && m.target === inner),
     stopEvent: (e) => btn.contains(e.target as Node),
   };
-});
+}
 
 // ───────── 操作 ─────────
 
@@ -359,7 +354,7 @@ export function toggleDetails(state: EditorState, dispatch?: (tr: Transaction) =
   }
   const { $from, $to, empty } = state.selection;
   const para = $from.parent;
-  if ((empty || $from.sameParent($to)) && para.type.name === 'paragraph' && !para.textContent.includes('\n') && !hasNode(para, 'hardbreak') && !hasNode(para, 'image')) {
+  if ((empty || $from.sameParent($to)) && para.type.name === 'paragraph' && !para.textContent.includes('\n') && !hasNode(para, 'hardBreak') && !hasNode(para, 'image')) {
     const d = $from.depth;
     const at = $from.before(d);
     const parent = $from.node(d - 1);
@@ -406,8 +401,7 @@ function detailsOnEnter(view: EditorView): boolean {
 const placeholderKey = new PluginKey('md-details-placeholder');
 
 /** 回车 / 退格 / 上下键；空标题的占位文字；光标进了收起的正文就展开。 */
-export const detailsKeys = $prose(
-  () =>
+const detailsKeys = () =>
     new Plugin({
       key: placeholderKey,
       props: {
@@ -493,8 +487,11 @@ export const detailsKeys = $prose(
         }
         return t ? t.setMeta('addToHistory', false) : null;
       },
-    }),
-);
+    });
 
-/** 编辑器里要 .use() 的全部插件（放在 ghSyntax 后面）。 */
-export const detailsSyntax = [detailsRemark, detailsSummarySchema, detailsSchema, detailsView, detailsKeys].flat();
+/** 编辑器里要用的全部扩展。 */
+export const detailsExtensions = [
+  DetailsSummary,
+  Details,
+  Extension.create({ name: 'mindoughDetails', priority: 1050, addProseMirrorPlugins: () => [detailsKeys()] }),
+];

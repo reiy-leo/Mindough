@@ -13,16 +13,22 @@
  *   网址没协议补 https://，不像网址就在框里提示、不关。回车保存（输入法选字的回车不算）、Esc 取消，Tab 只在框里转。
  *   点框外面 = 取消。
  * - 外面的值变了（同步下来）且不是自己刚写的：替换内容。
+ * - 粘贴 / 拖进正文的图片：上传到 R2，正文里插 `![](地址)`（别的文件、拖到正文外面的仍是附件，见 Attachments.tsx useFileDrop）。
+ * 内核是 Tiptap 3（@tiptap/react 的 useEditor + EditorContent，Rei 2026-10-25 从 Milkdown 换过来），读写 markdown 见 editor.ts / markdown.ts。
  * 这个文件按需加载（LazyMdEditor），加载完之前显示排好版的预览。
  */
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
 import { Bold, Code, Heading, Italic, Link2, List, ListChecks, ListCollapse, ListOrdered, Quote, Strikethrough, Table } from 'lucide-react';
 import { Button as RacButton, Input, Label, TextField } from 'react-aria-components';
 import { Tip } from '../../ui/primitives';
 import { tr } from '../../lib/i18n';
 import { externalHref, openExternal } from '../../lib/external';
-import { createMdEditor, normalizeHref, type LinkRange, type MdCommand, type MdEditorHandle } from './milkdown';
-import '@milkdown/kit/prose/view/style/prosemirror.css';
+import { useUiOptional } from '../../lib/ui';
+import { getAccount } from '../../lib/account';
+import { uploadImage } from '../../lib/upload';
+import { normalizeImage } from '../../lib/image';
+import { MdController, normalizeHref, stopTab, type LinkRange, type MdCommand, type MdEditorHandle, type MdEditorOptions } from './editor';
 
 export interface MdEditorProps {
   value: string;
@@ -35,6 +41,8 @@ export interface MdEditorProps {
   className?: string;
   /** 工具栏：编辑时出现（默认）/ 一直显示 / 不要（新建面板：只靠写法变样子，保持安静）。 */
   toolbar?: 'focus' | 'always' | 'none';
+  /** 只读：能看、能点链接，不能改。 */
+  readOnly?: boolean;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -86,8 +94,8 @@ interface LinkDialog {
 /** 输入法正在选字时的回车（Safari 选完字的那次 keydown 是 229）不算保存。 */
 const composing = (e: React.KeyboardEvent) => e.nativeEvent.isComposing || e.keyCode === 229;
 
-export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, onBlur, onEscape, className, toolbar = 'focus' }: MdEditorProps) {
-  const root = useRef<HTMLDivElement>(null);
+export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, onBlur, onEscape, className, toolbar = 'focus', readOnly = false }: MdEditorProps) {
+  const ui = useUiOptional();
   const handle = useRef<MdEditorHandle | null>(null);
   const cb = useRef({ onChange, onBlur, onEscape });
   cb.current = { onChange, onBlur, onEscape };
@@ -146,53 +154,75 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
   openRef.current = openLinkForm;
   const initial = useRef(value);
 
+  /** 粘贴 / 拖进正文的图片：统一宽高（长边不超过 1600）后上传；没登录或离线不插，提示一下。 */
+  const putImage = async (file: File): Promise<string | null> => {
+    if (getAccount().status !== 'in' || navigator.onLine === false) {
+      ui?.toast({ tone: 'error', message: tr('登录并联网后才能把图片放进正文') }, 5000);
+      return null;
+    }
+    try {
+      const { blob } = await normalizeImage(file, null);
+      const up = await uploadImage(blob);
+      if (up) return up.url;
+    } catch (err) {
+      console.error('图片上传失败', err);
+    }
+    ui?.toast({ tone: 'error', message: tr('图片没传上去，稍后再试') }, 5000);
+    return null;
+  };
+  const optsRef = useRef<MdEditorOptions>(null as unknown as MdEditorOptions);
+  optsRef.current = {
+    value: initial.current,
+    label,
+    placeholder,
+    readOnly,
+    onChange: (md) => cb.current.onChange(md),
+    onFocus: () => setFocused(true),
+    onBlur: () => {
+      // 点工具栏里的链接输入框不算离开
+      setTimeout(() => {
+        if (linkingRef.current || wrap.current?.contains(document.activeElement)) return;
+        setFocused(false);
+        cb.current.onBlur?.();
+      }, 0);
+    },
+    onEscape: () => cb.current.onEscape?.(),
+    ...(toolbar === 'none' ? {} : { onLinkShortcut: () => openRef.current() }),
+    onSelection: () => {
+      const h = handle.current;
+      if (!h) return;
+      setActive(h.active());
+      setSelLink(h.linkAtSelection());
+    },
+    onLinkHover: (r) => {
+      if (touch.current) return; // 触屏的点按会先补一个 mouseover：不当悬停
+      if (r) {
+        cancelHide();
+        setHover(r);
+      } else scheduleHide();
+    },
+    onLinkOpen: (u) => openLink(u),
+    uploadImage: putImage,
+  };
+  const ctl = useMemo(() => new MdController(() => optsRef.current), []);
+  // 编辑器只建一次（官方 useEditor）；value 的变化走下面的 setMarkdown
+  const editor = useEditor({ ...ctl.options(), immediatelyRender: true, shouldRerenderOnTransaction: false }, []);
   useEffect(() => {
-    let dead = false;
-    let h: MdEditorHandle | null = null;
-    void createMdEditor({
-      root: root.current!,
-      value: initial.current,
-      label,
-      placeholder,
-      onChange: (md) => cb.current.onChange(md),
-      onFocus: () => setFocused(true),
-      onBlur: () => {
-        // 点工具栏里的链接输入框不算离开
-        setTimeout(() => {
-          if (linkingRef.current || root.current?.parentElement?.contains(document.activeElement)) return;
-          setFocused(false);
-          cb.current.onBlur?.();
-        }, 0);
-      },
-      onEscape: () => cb.current.onEscape?.(),
-      ...(toolbar === 'none' ? {} : { onLinkShortcut: () => openRef.current() }),
-      onSelection: () => {
-        if (!h) return;
-        setActive(h.active());
-        setSelLink(h.linkAtSelection());
-      },
-      onLinkHover: (r) => {
-        if (touch.current) return; // 触屏的点按会先补一个 mouseover：不当悬停
-        if (r) {
-          cancelHide();
-          setHover(r);
-        } else scheduleHide();
-      },
-      onLinkOpen: (u) => openLink(u),
-    }).then((x) => {
-      if (dead) return void x.destroy();
-      h = x;
-      handle.current = x;
-      if (autoFocus) x.focus();
-    });
+    if (!editor) return;
+    ctl.attach(editor);
+    handle.current = ctl.handle();
+    if (autoFocus && !readOnly) editor.commands.focus('end', { scrollIntoView: false });
     return () => {
-      dead = true;
       handle.current = null;
-      void h?.destroy();
     };
-    // 编辑器只建一次；value 的变化走下面的 setMarkdown
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (editor && editor.isEditable === readOnly) editor.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
+
+  // Tab 不冒泡到弹层的焦点圈（见 editor.ts stopTab）
+  useEffect(() => (wrap.current ? stopTab(wrap.current) : undefined), []);
 
   useEffect(() => {
     handle.current?.setMarkdown(value);
@@ -381,7 +411,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
     </form>
   );
 
-  const showBar = toolbar !== 'none' && (toolbar === 'always' || focused || !!dialog);
+  const showBar = !readOnly && toolbar !== 'none' && (toolbar === 'always' || focused || !!dialog);
   return (
     <div
       ref={wrap}
@@ -389,7 +419,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
       onPointerDownCapture={(e) => (touch.current = e.pointerType === 'touch' || e.pointerType === 'pen')}
       onPointerMoveCapture={(e) => e.pointerType === 'mouse' && (touch.current = false)}
     >
-      <div ref={root} className="md-editor-root" />
+      <EditorContent editor={editor} className="md-editor-root" />
       {(pop || (dialog && !dialog.sheet)) && (
         <div
           ref={popEl}

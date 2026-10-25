@@ -124,6 +124,11 @@ export function UiProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/** 不在 UiProvider 里时是 null（编辑器单独用的时候不报错）。 */
+export function useUiOptional(): UiCtx | null {
+  return useContext(Ctx);
+}
+
 export function useUi(): UiCtx {
   const v = useContext(Ctx);
   if (!v) throw new Error(tr('UiProvider 缺失'));

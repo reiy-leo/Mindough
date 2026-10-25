@@ -3,7 +3,7 @@
  * Markdown 编辑器的往返：存着的 markdown 读进编辑器再写出去，内容不变（只允许格式上的小差异：末尾换行、标题后补空行）。
  */
 import { describe, expect, it } from 'vitest';
-import { finishMarkdown, prepareMarkdown, roundTrip } from './milkdown';
+import { finishMarkdown, prepareMarkdown, roundTrip } from './editor';
 
 const same = async (md: string, expected = md) => expect(await roundTrip(md)).toBe(expected.replace(/\s+$/, '') + '\n');
 // 读两遍：第二遍和第一遍一样（稳定，不会每打开一次就变一点）
@@ -50,15 +50,14 @@ describe('Markdown 编辑器往返', () => {
 });
 
 describe('Tab / Shift+Tab 不让焦点跑出编辑器', () => {
-  const press = async (md: string, shift: boolean, place: (doc: import('@milkdown/kit/prose/model').Node) => number) => {
-    const { createMdEditor } = await import('./milkdown');
-    const { TextSelection } = await import('@milkdown/kit/prose/state');
-    const { editorViewCtx } = await import('@milkdown/kit/core');
+  const press = async (md: string, shift: boolean, place: (doc: import('@tiptap/pm/model').Node) => number) => {
+    const { createMdEditor } = await import('./editor');
+    const { TextSelection } = await import('@tiptap/pm/state');
     const root = document.createElement('div');
     document.body.appendChild(root);
     let out = md;
     const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: (m) => (out = m) });
-    const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+    const view = h.view();
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, place(view.state.doc))));
     const ev = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: shift, bubbles: true, cancelable: true });
     view.dom.dispatchEvent(ev);
@@ -67,7 +66,7 @@ describe('Tab / Shift+Tab 不让焦点跑出编辑器', () => {
     root.remove();
     return { prevented: ev.defaultPrevented, md: md2, out };
   };
-  const posOf = (text: string) => (doc: import('@milkdown/kit/prose/model').Node) => {
+  const posOf = (text: string) => (doc: import('@tiptap/pm/model').Node) => {
     let at = 1;
     doc.descendants((n, pos) => {
       if (n.isText && n.text?.includes(text)) at = pos + 1;
@@ -93,32 +92,31 @@ describe('Tab / Shift+Tab 不让焦点跑出编辑器', () => {
 });
 
 describe('链接（Rei 2026-10-17）', () => {
-  const setup = async (md: string, extra: Partial<import('./milkdown').MdEditorOptions> = {}) => {
-    const { createMdEditor } = await import('./milkdown');
-    const { editorViewCtx } = await import('@milkdown/kit/core');
+  const setup = async (md: string, extra: Partial<import('./editor').MdEditorOptions> = {}) => {
+    const { createMdEditor } = await import('./editor');
     const root = document.createElement('div');
     document.body.appendChild(root);
     const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: () => {}, ...extra });
-    const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+    const view = h.view();
     const done = async () => {
       await h.destroy();
       root.remove();
     };
     return { h, view, root, done };
   };
-  const posOf = (doc: import('@milkdown/kit/prose/model').Node, text: string, offset = 1) => {
+  const posOf = (doc: import('@tiptap/pm/model').Node, text: string, offset = 1) => {
     let at = -1;
     doc.descendants((n, pos) => {
       if (at < 0 && n.isText && n.text?.includes(text)) at = pos + n.text.indexOf(text) + offset;
     });
     return at;
   };
-  const place = async (view: import('@milkdown/kit/prose/view').EditorView, from: number, to = from) => {
-    const { TextSelection } = await import('@milkdown/kit/prose/state');
+  const place = async (view: import('@tiptap/pm/view').EditorView, from: number, to = from) => {
+    const { TextSelection } = await import('@tiptap/pm/state');
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
   };
   /** 模拟一个字一个字打进去（走 inputRules 的 handleTextInput）。 */
-  const type = (view: import('@milkdown/kit/prose/view').EditorView, text: string) => {
+  const type = (view: import('@tiptap/pm/view').EditorView, text: string) => {
     for (const ch of text) {
       const { from, to } = view.state.selection;
       const handled = view.someProp('handleTextInput', (f) => f(view, from, to, ch, () => view.state.tr.insertText(ch, from, to)));
@@ -127,17 +125,17 @@ describe('链接（Rei 2026-10-17）', () => {
   };
 
   it('linkRangeAt：同一个链接连着的几段算一段；空光标只认里面', async () => {
-    const { linkRangeAt } = await import('./milkdown');
+    const { linkRangeAt } = await import('./editor');
     const { view, done } = await setup('看 [**粗**和细](https://a.com) 完');
     const doc = view.state.doc;
     const type = view.state.schema.marks.link!;
     const mid = posOf(doc, '和');
-    const r = linkRangeAt(doc, mid, type);
+    const r = linkRangeAt(doc, mid);
     expect(r?.href).toBe('https://a.com');
     expect(doc.textBetween(r!.from, r!.to)).toBe('粗和细');
-    expect(linkRangeAt(doc, r!.from, type)).toBeNull(); // 起点边上不算
-    expect(linkRangeAt(doc, r!.from, type, false)?.href).toBe('https://a.com');
-    expect(linkRangeAt(doc, posOf(doc, '完'), type)).toBeNull();
+    expect(linkRangeAt(doc, r!.from)).toBeNull(); // 起点边上不算
+    expect(linkRangeAt(doc, r!.from, false)?.href).toBe('https://a.com');
+    expect(linkRangeAt(doc, posOf(doc, '完'))).toBeNull();
     await done();
   });
 
@@ -271,7 +269,7 @@ describe('链接（Rei 2026-10-17）', () => {
   });
 
   it('一行 |a|b| 回车：变成表格（这行是表头），光标进第一格；|---| 分隔行不算', async () => {
-    const { tableCells } = await import('./milkdown');
+    const { tableCells } = await import('./editor');
     expect(tableCells('|a|b|')).toEqual(['a', 'b']);
     expect(tableCells('| 名字 | 价格 |  ')).toEqual(['名字', '价格']);
     expect(tableCells('|---|:-:|')).toBeNull();
@@ -287,7 +285,7 @@ describe('链接（Rei 2026-10-17）', () => {
   });
 
   it('LINK_INPUT_RE', async () => {
-    const { LINK_INPUT_RE, withProtocol } = await import('./milkdown');
+    const { LINK_INPUT_RE, withProtocol } = await import('./editor');
     expect('看 [a](b.com)'.match(LINK_INPUT_RE)?.slice(1)).toEqual(['a', 'b.com']);
     expect('![a](b.png)'.match(LINK_INPUT_RE)).toBeNull();
     expect('[a](b c)'.match(LINK_INPUT_RE)).toBeNull();
@@ -298,14 +296,13 @@ describe('链接（Rei 2026-10-17）', () => {
 
 describe('Tab 不冒泡到弹层的焦点圈（Rei 2026-10-17：ul / ol 里 Tab 焦点跑掉）', () => {
   it('列表里 Tab 缩进、Shift+Tab 反缩进，document 上收不到 Tab', async () => {
-    const { createMdEditor } = await import('./milkdown');
-    const { TextSelection } = await import('@milkdown/kit/prose/state');
-    const { editorViewCtx } = await import('@milkdown/kit/core');
+    const { createMdEditor } = await import('./editor');
+    const { TextSelection } = await import('@tiptap/pm/state');
     for (const md of ['- a\n- b', '1. a\n2. b', '- [ ] a\n- [ ] b']) {
       const root = document.createElement('div');
       document.body.appendChild(root);
       const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: () => {} });
-      const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+      const view = h.view();
       let at = 1;
       view.state.doc.descendants((n, pos) => {
         if (n.isText && n.text === 'b') at = pos + 1;

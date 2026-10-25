@@ -3,7 +3,7 @@
  * 编辑器里的网络图片（Rei 2026-10-17「编辑器不渲染网络图片」）：不出 <img>、显示 alt 或网址；markdown 原文照旧写回。
  */
 import { describe, expect, it } from 'vitest';
-import { createMdEditor, roundTrip } from './milkdown';
+import { createMdEditor, roundTrip } from './editor';
 
 const mount = async (md: string) => {
   const root = document.createElement('div');

@@ -8,30 +8,23 @@
  *   写出：行内照原来的 $ 个数；文字里的 $ 不转义（免得「$5」被存成「\$5」）。手打 $x$ 收尾即变；紧接着打数字（$5$1）变回文字。
  *   块级：一行 $$ 回车（或「$$ 」）开一个公式块；块里最后一行打 $$ 回车结束。
  */
-import { $inputRule, $nodeSchema, $prose, $remark, $view } from '@milkdown/kit/utils';
-import { InputRule } from '@milkdown/kit/prose/inputrules';
-import { Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet, type EditorView, type NodeView } from '@milkdown/kit/prose/view';
-import type { Node as PMNode } from '@milkdown/kit/prose/model';
+import { Extension, Node as TiptapNode } from '@tiptap/core';
+import { InputRule, inputRules } from '@tiptap/pm/inputrules';
+import { Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type EditorView, type NodeView } from '@tiptap/pm/view';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { math } from 'micromark-extension-math';
 import { mathFromMarkdown, mathToMarkdown } from 'mdast-util-math';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { ALERT_KINDS, alertIconSvg, alertTitle, parseAlertMarker, type AlertKind } from '../../lib/gh-alerts';
 import { MATH_INPUT_RE, provideKatex, renderMath, validInlineMath } from '../../lib/math';
+import type { MdNode, ParseSpec, SerializeSpec } from './markdown';
 
 provideKatex(katex);
 
 // ───────── remark：读入 / 写出 ─────────
 
-interface MdNode {
-  type: string;
-  value?: string;
-  children?: MdNode[];
-  data?: Record<string, unknown>;
-  position?: { start: { offset?: number }; end: { offset?: number } };
-  [k: string]: unknown;
-}
 
 /** 引用块第一段以 [!NOTE] 开头：改成 ghAlert（kind、marker），去掉标记那行。 */
 export function liftAlerts(tree: MdNode) {
@@ -89,7 +82,7 @@ export function escapeMathLike(out: string): string {
 }
 
 type TextHandler = (node: MdNode, parent: unknown, state: { safe(v: string, info: unknown): string }, info: unknown) => string;
-/** 包一层 Milkdown 自己的 text 写法（remarkStringifyOptionsCtx 里的 handlers 会盖过插件的，所以在 milkdown.ts 里装）。 */
+/** 包一层 text 写法（handlers 选项会盖过插件的，所以在 markdown.ts 组装时装）。 */
 export const mathSafeText =
   (prev?: TextHandler): TextHandler =>
   (node, parent, state, info) =>
@@ -98,7 +91,7 @@ export const mathSafeText =
 type Unsafe = { character: string; inConstruct?: string | string[]; atBreak?: boolean };
 
 /** remark 插件：公式语法（micromark）+ 提示块 / 公式的读入整理；写出时文字里的 $ 不转义、行内公式照原来的 $ 个数。 */
-function remarkGh(this: { data(): Record<string, unknown[]> }) {
+export function remarkGh(this: { data(): Record<string, unknown[]> }) {
   const data = this.data() as Record<string, unknown[] | undefined>;
   (data.micromarkExtensions ??= []).push(math({ singleDollarTextMath: true }));
   (data.fromMarkdownExtensions ??= []).push(mathFromMarkdown());
@@ -123,7 +116,6 @@ function remarkGh(this: { data(): Record<string, unknown[]> }) {
   };
 }
 
-export const ghRemark = $remark('mindoughGhSyntax', () => remarkGh as never);
 
 // ───────── 提示块 ─────────
 
@@ -147,36 +139,99 @@ function alertDom(kind: AlertKind, marker: string) {
   return { dom, contentDOM: body };
 }
 
-export const alertSchema = $nodeSchema('gh_alert', () => ({
-  content: 'block+',
+/** 提示块：标题 + 图标不可编辑，下面照常写（content block+）。 */
+export const GhAlert = TiptapNode.create({
+  name: 'gh_alert',
   group: 'block',
+  content: 'block+',
   defining: true,
-  attrs: { kind: { default: 'note' }, marker: { default: 'NOTE' } },
-  parseDOM: [
+  addAttributes: () => ({ kind: { default: 'note', rendered: false }, marker: { default: 'NOTE', rendered: false } }),
+  parseHTML: () => [
     {
       tag: 'div[data-alert]',
       contentElement: '.md-alert-body',
-      getAttrs: (dom: HTMLElement | string) => {
-        if (typeof dom === 'string') return false;
-        const kind = dom.dataset.alert;
-        return isKind(kind) ? { kind, marker: dom.dataset.marker || kind.toUpperCase() } : false;
+      getAttrs: (dom) => {
+        const kind = (dom as HTMLElement).dataset.alert;
+        return isKind(kind) ? { kind, marker: (dom as HTMLElement).dataset.marker || kind.toUpperCase() } : false;
       },
     },
   ],
-  toDOM: (node: PMNode) => alertDom(isKind(node.attrs.kind) ? node.attrs.kind : 'note', String(node.attrs.marker)),
-  parseMarkdown: {
-    match: (n: { type: string }) => n.type === 'ghAlert',
-    runner: (state, node, type) => {
-      state.openNode(type, { kind: node.kind, marker: node.marker }).next(node.children as never).closeNode();
+  renderHTML: ({ node }) => alertDom(isKind(node.attrs.kind) ? node.attrs.kind : 'note', String(node.attrs.marker)),
+});
+
+/** 引用块第一段里打 [!NOTE]（打完 ]）：这个引用块变成提示块。 */
+const alertInputRule = () =>
+  new InputRule(/^\[!(note|tip|important|warning|caution)\]$/i, (state, match, start, end) => {
+    const $s = state.doc.resolve(start);
+    const d = $s.depth;
+    if (d < 2 || $s.parent.type.name !== 'paragraph') return null;
+    const quote = $s.node(d - 1);
+    if (quote.type.name !== 'blockquote' || $s.index(d - 1) !== 0) return null;
+    const kind = match[1]!.toLowerCase();
+    const tr = state.tr.delete(start, end);
+    tr.setNodeMarkup($s.before(d - 1), state.schema.nodes.gh_alert, { kind, marker: match[1]!.toUpperCase() });
+    return tr;
+  });
+
+// ───────── 公式 ─────────
+
+/** 行内公式：节点里放源码（code: true，不带格式）；平时显示 KaTeX。 */
+export const MathInline = TiptapNode.create({
+  name: 'math_inline',
+  group: 'inline',
+  inline: true,
+  content: 'text*',
+  marks: '',
+  code: true,
+  addAttributes: () => ({ fence: { default: 1, rendered: false } }),
+  parseHTML: () => [{ tag: 'span[data-type="math_inline"]', preserveWhitespace: 'full' as const, contentElement: '.md-math-src' }],
+  renderHTML: () => ['span', { 'data-type': 'math_inline', class: 'md-math-inline' }, ['span', { class: 'md-math-src' }, 0]],
+  addNodeView: () => (p) => mathView(false)(p.node, p.view, p.getPos as () => number | undefined),
+});
+
+/** 块级公式（`$$` 独占行、```math）。 */
+export const MathBlock = TiptapNode.create({
+  name: 'math_block',
+  group: 'block',
+  content: 'text*',
+  marks: '',
+  code: true,
+  defining: true,
+  parseHTML: () => [{ tag: 'div[data-type="math_block"]', preserveWhitespace: 'full' as const, contentElement: 'pre' }],
+  renderHTML: () => ['div', { 'data-type': 'math_block', class: 'md-math-block-edit' }, ['pre', { class: 'md-math-src' }, 0]],
+  addNodeView: () => (p) => mathView(true)(p.node, p.view, p.getPos as () => number | undefined),
+});
+
+/** markdown 读：ghAlert / inlineMath / math。 */
+export const ghParse: ParseSpec[] = [
+  { name: 'gh_alert', match: (n) => n.type === 'ghAlert', run: (s, n, t) => void s.openNode(t, { kind: n.kind, marker: n.marker }).next(n.children).closeNode() },
+  {
+    name: 'math_inline',
+    match: (n) => n.type === 'inlineMath',
+    run: (s, n, t) => {
+      s.openNode(t, { fence: Number(n.data?.fence ?? 1) || 1 });
+      if (n.value) s.addText(String(n.value));
+      s.closeNode();
     },
   },
-  toMarkdown: {
-    match: (n: PMNode) => n.type.name === 'gh_alert',
-    runner: (state, node) => {
+  {
+    name: 'math_block',
+    match: (n) => n.type === 'math',
+    run: (s, n, t) => {
+      s.openNode(t);
+      if (n.value) s.addText(String(n.value));
+      s.closeNode();
+    },
+  },
+];
+
+/** markdown 写：提示块还原成引用块（标记是单独一个 html 节点，原样输出不被转义成 \[），公式照原来的 $ 个数。 */
+export const ghSerialize: Record<string, SerializeSpec> = {
+  gh_alert: {
+    node: (state, node) => {
       const marker = `[!${String(node.attrs.marker || 'NOTE')}]`;
       state.openNode('blockquote');
-      // 标记单独一个 html 节点（原样输出，不会被转义成 \[），和下面的内容之间不空行（见 remarkGh 的 join）
-      state.addNode('html', undefined, marker, { data: { ghAlertMarker: true } } as never);
+      state.addNode('html', undefined, marker, { data: { ghAlertMarker: true } });
       node.content.forEach((child, _off, i) => {
         if (i === 0 && child.type.name === 'paragraph' && child.content.size === 0) return; // 空的第一段不写
         state.next(child);
@@ -184,75 +239,14 @@ export const alertSchema = $nodeSchema('gh_alert', () => ({
       state.closeNode();
     },
   },
-}));
-
-/** 引用块第一段里打 [!NOTE]（打完 ]）：这个引用块变成提示块。 */
-export const alertInputRule = $inputRule(
-  (ctx) =>
-    new InputRule(/^\[!(note|tip|important|warning|caution)\]$/i, (state, match, start, end) => {
-      const $s = state.doc.resolve(start);
-      const d = $s.depth;
-      if (d < 2 || $s.parent.type.name !== 'paragraph') return null;
-      const quote = $s.node(d - 1);
-      if (quote.type.name !== 'blockquote' || $s.index(d - 1) !== 0) return null;
-      const kind = match[1]!.toLowerCase();
-      const tr = state.tr.delete(start, end);
-      tr.setNodeMarkup($s.before(d - 1), alertSchema.type(ctx), { kind, marker: match[1]!.toUpperCase() });
-      return tr;
-    }),
-);
-
-// ───────── 公式 ─────────
-
-export const mathInlineSchema = $nodeSchema('math_inline', () => ({
-  group: 'inline',
-  inline: true,
-  content: 'text*',
-  marks: '',
-  code: true,
-  attrs: { fence: { default: 1 } },
-  parseDOM: [{ tag: 'span[data-type="math_inline"]', preserveWhitespace: 'full' as const, contentElement: '.md-math-src' }],
-  toDOM: () => ['span', { 'data-type': 'math_inline', class: 'md-math-inline' }, ['span', { class: 'md-math-src' }, 0]],
-  parseMarkdown: {
-    match: (n: { type: string }) => n.type === 'inlineMath',
-    runner: (state, node, type) => {
-      state.openNode(type, { fence: Number((node.data as Record<string, unknown> | undefined)?.fence ?? 1) || 1 });
-      if (node.value) state.addText(String(node.value));
-      state.closeNode();
-    },
-  },
-  toMarkdown: {
-    match: (n: PMNode) => n.type.name === 'math_inline',
-    runner: (state, node) => {
+  math_inline: {
+    node: (state, node) => {
       if (!node.textContent) return; // 空的公式不写
-      state.addNode('inlineMath', undefined, node.textContent, { data: { fence: node.attrs.fence } } as never);
+      state.addNode('inlineMath', undefined, node.textContent, { data: { fence: node.attrs.fence } });
     },
   },
-}));
-
-export const mathBlockSchema = $nodeSchema('math_block', () => ({
-  group: 'block',
-  content: 'text*',
-  marks: '',
-  code: true,
-  defining: true,
-  parseDOM: [{ tag: 'div[data-type="math_block"]', preserveWhitespace: 'full' as const, contentElement: 'pre' }],
-  toDOM: () => ['div', { 'data-type': 'math_block', class: 'md-math-block-edit' }, ['pre', { class: 'md-math-src' }, 0]],
-  parseMarkdown: {
-    match: (n: { type: string }) => n.type === 'math',
-    runner: (state, node, type) => {
-      state.openNode(type);
-      if (node.value) state.addText(String(node.value));
-      state.closeNode();
-    },
-  },
-  toMarkdown: {
-    match: (n: PMNode) => n.type.name === 'math_block',
-    runner: (state, node) => {
-      state.addNode('math', undefined, node.textContent);
-    },
-  },
-}));
+  math_block: { node: (state, node) => void state.addNode('math', undefined, node.textContent) },
+};
 
 /** 公式节点视图：源码（contentDOM）+ KaTeX 结果（不可编辑，点它进源码）。是否在编辑看外面的 is-editing 装饰。 */
 function mathView(display: boolean) {
@@ -306,8 +300,6 @@ function mathView(display: boolean) {
   };
 }
 
-export const mathInlineView = $view(mathInlineSchema.node, () => mathView(false));
-export const mathBlockView = $view(mathBlockSchema.node, () => mathView(true));
 
 const isMath = (n: PMNode | null | undefined) => !!n && (n.type.name === 'math_inline' || n.type.name === 'math_block');
 
@@ -321,8 +313,7 @@ function mathAt(state: EditorState): { pos: number; node: PMNode } | null {
 const mathEditKey = new PluginKey('md-math-edit');
 
 /** 光标在公式里：给它加 is-editing（显示源码）。光标离开后，空的行内公式删掉。 */
-export const mathEditing = $prose(
-  () =>
+const mathEditing = () =>
     new Plugin({
       key: mathEditKey,
       props: {
@@ -345,8 +336,7 @@ export const mathEditing = $prose(
         for (const pos of empties.reverse()) tr.delete(pos, pos + 1 + 1);
         return tr.setMeta('addToHistory', false);
       },
-    }),
-);
+    });
 
 const canMathAt = (state: EditorState, pos: number) => {
   const $s = state.doc.resolve(pos);
@@ -355,20 +345,17 @@ const canMathAt = (state: EditorState, pos: number) => {
 };
 
 /** 手打 $公式$：打完结尾的 $ 变成公式，光标放在公式后面。 */
-export const mathInputRule = $inputRule(
-  (ctx) =>
+const mathInputRule = () =>
     new InputRule(MATH_INPUT_RE, (state, match, start, end) => {
       const inner = match[1];
       if (!inner || !canMathAt(state, start)) return null;
-      const type = mathInlineSchema.type(ctx);
+      const type = state.schema.nodes.math_inline!;
       const tr = state.tr.replaceWith(start, end, type.create({ fence: 1 }, state.schema.text(inner)));
       return tr.setSelection(TextSelection.create(tr.doc, start + inner.length + 2));
-    }),
-);
+    });
 
 /** 公式后面紧跟着打数字（「$5$1」）：GitHub 不当公式，变回文字。 */
-export const mathDigitRule = $inputRule(
-  () =>
+const mathDigitRule = () =>
     new InputRule(/\d$/, (state, match, start) => {
       const $s = state.doc.resolve(start);
       const before = $s.nodeBefore;
@@ -376,8 +363,7 @@ export const mathDigitRule = $inputRule(
       const f = '$'.repeat(Number(before.attrs.fence) || 1);
       const from = start - before.nodeSize;
       return state.tr.replaceWith(from, start, state.schema.text(`${f}${before.textContent}${f}${match[0]}`));
-    }),
-);
+    });
 
 function insertMathBlock(state: EditorState, from: number, to: number, dispatch: (tr: Transaction) => void) {
   const type = state.schema.nodes.math_block;
@@ -389,8 +375,7 @@ function insertMathBlock(state: EditorState, from: number, to: number, dispatch:
 }
 
 /** 方向键、退格挨着公式时进去改；块级公式里最后一行打 $$ 回车结束；一行 $$ 回车开公式块。 */
-export const mathKeys = $prose(
-  () =>
+const mathKeys = () =>
     new Plugin({
       props: {
         handleKeyDown(view, event) {
@@ -471,12 +456,10 @@ export const mathKeys = $prose(
           return false;
         },
       },
-    }),
-);
+    });
 
 /** 「$$ 」开公式块。 */
-export const mathBlockInputRule = $inputRule(
-  () =>
+const mathBlockInputRule = () =>
     new InputRule(/^\$\$\s$/, (state, _m, start, end) => {
       const $s = state.doc.resolve(start);
       if ($s.parent.type.name !== 'paragraph' || $s.parent.textContent.length !== end - $s.start()) return null;
@@ -484,21 +467,16 @@ export const mathBlockInputRule = $inputRule(
       if (!type) return null;
       const tr = state.tr.replaceWith($s.before(), $s.after(), type.create());
       return tr.setSelection(Selection.near(tr.doc.resolve($s.before() + 1)));
-    }),
-);
+    });
 
-/** 编辑器里要 .use() 的全部插件。 */
-export const ghSyntax = [
-  ghRemark,
-  alertSchema,
-  mathInlineSchema,
-  mathBlockSchema,
-  mathInlineView,
-  mathBlockView,
-  mathEditing,
-  mathKeys,
-  alertInputRule,
-  mathInputRule,
-  mathDigitRule,
-  mathBlockInputRule,
-].flat();
+/** 编辑器里要用的全部扩展（节点 + 光标进出公式、手打规则）。 */
+export const ghExtensions = [
+  GhAlert,
+  MathInline,
+  MathBlock,
+  Extension.create({
+    name: 'mindoughGhSyntax',
+    priority: 1100,
+    addProseMirrorPlugins: () => [mathEditing(), mathKeys(), inputRules({ rules: [alertInputRule(), mathInputRule(), mathDigitRule(), mathBlockInputRule()] })],
+  }),
+];

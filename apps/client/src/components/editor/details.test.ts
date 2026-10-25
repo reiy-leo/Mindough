@@ -3,11 +3,10 @@
  * 编辑器里的折叠块 <details><summary>（Rei 2026-10-17）：读成节点、写回原样 HTML、两遍稳定、工具栏 / 手打 <details> 回车、标题里的键、展开收起不算改动。
  */
 import { describe, expect, it } from 'vitest';
-import { editorViewCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { Node as PMNode } from '@milkdown/kit/prose/model';
-import { createMdEditor, roundTrip } from './milkdown';
+import { TextSelection } from '@tiptap/pm/state';
+import type { EditorView } from '@tiptap/pm/view';
+import type { Node as PMNode } from '@tiptap/pm/model';
+import { createMdEditor, roundTrip } from './editor';
 import { markdownHtml } from '../../lib/markdown';
 
 const same = async (md: string, expected = md) => expect(await roundTrip(md)).toBe(expected.replace(/\s+$/, '') + '\n');
@@ -18,7 +17,7 @@ const setup = async (md: string) => {
   document.body.appendChild(root);
   const changes: string[] = [];
   const h = await createMdEditor({ root, value: md, placeholder: '', label: 'x', onChange: (m) => changes.push(m) });
-  const view = h.editor.action((ctx) => ctx.get(editorViewCtx));
+  const view = h.view();
   const done = async () => {
     await h.destroy();
     root.remove();
@@ -73,7 +72,7 @@ describe('折叠块：读入', () => {
     const d = nodes(view.state.doc, 'details');
     expect(d).toHaveLength(2);
     expect(d[0]!.attrs.expanded).toBe(true);
-    expect(d[0]!.child(1).type.name).toBe('bullet_list');
+    expect(d[0]!.child(1).type.name).toBe('bulletList');
     expect(nodes(d[1]!, 'gh_alert')).toHaveLength(1);
     expect(nodes(d[1]!, 'math_inline')).toHaveLength(1);
     expect(root.querySelectorAll('.md-details-toggle')).toHaveLength(2);

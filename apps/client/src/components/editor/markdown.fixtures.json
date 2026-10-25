@@ -1,0 +1,952 @@
+[
+ {
+  "input": "<details><summary>标题</summary>内容</details>",
+  "out": "<details><summary>标题</summary>内容</details>\n",
+  "out2": "<details><summary>标题</summary>内容</details>\n"
+ },
+ {
+  "input": "- 项\n\n  <details>\n  <summary>T</summary>\n\n  内容\n\n  </details>",
+  "out": "- 项\n\n  <details>\n  <summary>T</summary>\n\n  内容\n\n  </details>\n",
+  "out2": "- 项\n\n  <details>\n  <summary>T</summary>\n\n  内容\n\n  </details>\n"
+ },
+ {
+  "input": "<details>\n<summary>没结尾</summary>\n\n文字",
+  "out": "<details>\n<summary>没结尾</summary>\n\n文字\n",
+  "out2": "<details>\n<summary>没结尾</summary>\n\n文字\n"
+ },
+ {
+  "input": "前\n\n<details><summary>标题</summary>内容</details>\n\n后",
+  "out": "前\n\n<details><summary>标题</summary>内容</details>\n\n后\n",
+  "out2": "前\n\n<details><summary>标题</summary>内容</details>\n\n后\n"
+ },
+ {
+  "input": "<details><summary>空</summary></details>",
+  "out": "<details><summary>空</summary></details>\n",
+  "out2": "<details><summary>空</summary></details>\n"
+ },
+ {
+  "input": "<details>\n<summary>T</summary>\n\n- a\n- b\n\n</details>",
+  "out": "<details>\n<summary>T</summary>\n\n- a\n- b\n\n</details>\n",
+  "out2": "<details>\n<summary>T</summary>\n\n- a\n- b\n\n</details>\n"
+ },
+ {
+  "input": "<details open>\n<summary>T</summary>\n\n正文 **粗**\n\n</details>",
+  "out": "<details open>\n<summary>T</summary>\n\n正文 **粗**\n\n</details>\n",
+  "out2": "<details open>\n<summary>T</summary>\n\n正文 **粗**\n\n</details>\n"
+ },
+ {
+  "input": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n> [!NOTE]\n> 注意 $x$\n\n</details>\n\n尾\n\n</details>",
+  "out": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n> [!NOTE]\n> 注意 $x$\n\n</details>\n\n尾\n\n</details>\n",
+  "out2": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n> [!NOTE]\n> 注意 $x$\n\n</details>\n\n尾\n\n</details>\n"
+ },
+ {
+  "input": "<details open>\n<summary>T</summary>\nbody\n</details>",
+  "out": "<details open>\n<summary>T</summary>\n\nbody\n\n</details>\n",
+  "out2": "<details open>\n<summary>T</summary>\n\nbody\n\n</details>\n"
+ },
+ {
+  "input": "要收起来的",
+  "out": "要收起来的\n",
+  "out2": "要收起来的\n"
+ },
+ {
+  "input": "一\n\n二\n\n三",
+  "out": "一\n\n二\n\n三\n",
+  "out2": "一\n\n二\n\n三\n"
+ },
+ {
+  "input": "",
+  "out": "",
+  "out2": ""
+ },
+ {
+  "input": "<details><summary>标题</summary>内容</details>\n\n后面",
+  "out": "<details><summary>标题</summary>内容</details>\n\n后面\n",
+  "out2": "<details><summary>标题</summary>内容</details>\n\n后面\n"
+ },
+ {
+  "input": "> [!NOTE]\n> 拒绝时提示 $O(n)$ 复杂度的环路径，方便定位。",
+  "out": "> [!NOTE]\n> 拒绝时提示 $O(n)$ 复杂度的环路径，方便定位。\n",
+  "out2": "> [!NOTE]\n> 拒绝时提示 $O(n)$ 复杂度的环路径，方便定位。\n"
+ },
+ {
+  "input": "> [!tip]\n> 小写",
+  "out": "> [!tip]\n> 小写\n",
+  "out2": "> [!tip]\n> 小写\n"
+ },
+ {
+  "input": "> [!Warning]",
+  "out": "> [!Warning]\n",
+  "out2": "> [!Warning]\n"
+ },
+ {
+  "input": "> [!WARNING]\n> - a\n> - b",
+  "out": "> [!WARNING]\n> - a\n> - b\n",
+  "out2": "> [!WARNING]\n> - a\n> - b\n"
+ },
+ {
+  "input": "> [!NOTE]\n> 第一段\n>\n> 第二段",
+  "out": "> [!NOTE]\n> 第一段\n>\n> 第二段\n",
+  "out2": "> [!NOTE]\n> 第一段\n>\n> 第二段\n"
+ },
+ {
+  "input": "> \\[!NOTE]\n> 旧的",
+  "out": "> [!NOTE]\n> 旧的\n",
+  "out2": "> [!NOTE]\n> 旧的\n"
+ },
+ {
+  "input": "> [!NOTE] 同一行\n\n> 普通引用\n\n> 第一行\n> [!NOTE]",
+  "out": "> \\[!NOTE] 同一行\n\n> 普通引用\n\n> 第一行\n> \\[!NOTE]\n",
+  "out2": "> \\[!NOTE] 同一行\n\n> 普通引用\n\n> 第一行\n> \\[!NOTE]\n"
+ },
+ {
+  "input": "> 普通引用",
+  "out": "> 普通引用\n",
+  "out2": "> 普通引用\n"
+ },
+ {
+  "input": "> [!IMPORTANT]\n> 内容",
+  "out": "> [!IMPORTANT]\n> 内容\n",
+  "out2": "> [!IMPORTANT]\n> 内容\n"
+ },
+ {
+  "input": "拒绝时提示 $O(n)$ 复杂度",
+  "out": "拒绝时提示 $O(n)$ 复杂度\n",
+  "out2": "拒绝时提示 $O(n)$ 复杂度\n"
+ },
+ {
+  "input": "$$x$$ 和 $a$",
+  "out": "$$x$$ 和 $a$\n",
+  "out2": "$$x$$ 和 $a$\n"
+ },
+ {
+  "input": "$$\nx^2 + y^2\n$$",
+  "out": "$$\nx^2 + y^2\n$$\n",
+  "out2": "$$\nx^2 + y^2\n$$\n"
+ },
+ {
+  "input": "文字 $a_1$ 和 $\\frac{1}{2}$",
+  "out": "文字 $a_1$ 和 $\\frac{1}{2}$\n",
+  "out2": "文字 $a_1$ 和 $\\frac{1}{2}$\n"
+ },
+ {
+  "input": "\\$x\\$ 不是公式",
+  "out": "\\$x$ 不是公式\n",
+  "out2": "\\$x$ 不是公式\n"
+ },
+ {
+  "input": "看 $O(n)$\n\n$$\nx^2\n$$",
+  "out": "看 $O(n)$\n\n$$\nx^2\n$$\n",
+  "out2": "看 $O(n)$\n\n$$\nx^2\n$$\n"
+ },
+ {
+  "input": "看 $O(n)$ 完",
+  "out": "看 $O(n)$ 完\n",
+  "out2": "看 $O(n)$ 完\n"
+ },
+ {
+  "input": "看 $ab$",
+  "out": "看 $ab$\n",
+  "out2": "看 $ab$\n"
+ },
+ {
+  "input": "看 [文档](https://old.com) 吧",
+  "out": "看 [文档](https://old.com) 吧\n",
+  "out2": "看 [文档](https://old.com) 吧\n"
+ },
+ {
+  "input": "[文档](https://old.com)",
+  "out": "[文档](https://old.com)\n",
+  "out2": "[文档](https://old.com)\n"
+ },
+ {
+  "input": "一段话",
+  "out": "一段话\n",
+  "out2": "一段话\n"
+ },
+ {
+  "input": "读 [书名](https://a.com)",
+  "out": "读 [书名](https://a.com)\n",
+  "out2": "读 [书名](https://a.com)\n"
+ },
+ {
+  "input": "第一段\n\n第二段",
+  "out": "第一段\n\n第二段\n",
+  "out2": "第一段\n\n第二段\n"
+ },
+ {
+  "input": "整理要带走的东西，列一张清单\n\n- [x] 书\n- [x] 衣服\n- [ ] 厨具",
+  "out": "整理要带走的东西，列一张清单\n\n- [x] 书\n- [x] 衣服\n- [ ] 厨具\n",
+  "out2": "整理要带走的东西，列一张清单\n\n- [x] 书\n- [x] 衣服\n- [ ] 厨具\n"
+ },
+ {
+  "input": "- 第一项\n- 第二项",
+  "out": "- 第一项\n- 第二项\n",
+  "out2": "- 第一项\n- 第二项\n"
+ },
+ {
+  "input": "* 星号写的列表\n* 第二项",
+  "out": "- 星号写的列表\n- 第二项\n",
+  "out2": "- 星号写的列表\n- 第二项\n"
+ },
+ {
+  "input": "1. 一\n2. 二",
+  "out": "1. 一\n2. 二\n",
+  "out2": "1. 一\n2. 二\n"
+ },
+ {
+  "input": "## 想看理由\n\n大银幕看沙漠和沙虫\n\n## 观后感",
+  "out": "## 想看理由\n\n大银幕看沙漠和沙虫\n\n## 观后感\n",
+  "out2": "## 想看理由\n\n大银幕看沙漠和沙虫\n\n## 观后感\n"
+ },
+ {
+  "input": "## 想看理由\n大银幕看沙漠和沙虫",
+  "out": "## 想看理由\n\n大银幕看沙漠和沙虫\n",
+  "out2": "## 想看理由\n\n大银幕看沙漠和沙虫\n"
+ },
+ {
+  "input": "> 给岁月以文明，而不是给文明以岁月。",
+  "out": "> 给岁月以文明，而不是给文明以岁月。\n",
+  "out2": "> 给岁月以文明，而不是给文明以岁月。\n"
+ },
+ {
+  "input": "```js\nconst a = 1;\n```",
+  "out": "```js\nconst a = 1;\n```\n",
+  "out2": "```js\nconst a = 1;\n```\n"
+ },
+ {
+  "input": "| a | b |\n| - | - |\n| 1 | 2 |",
+  "out": "| a | b |\n| - | - |\n| 1 | 2 |\n",
+  "out2": "| a | b |\n| - | - |\n| 1 | 2 |\n"
+ },
+ {
+  "input": "**粗** *斜* ~~删~~ [链接](https://x.com) `code`",
+  "out": "**粗** *斜* ~~删~~ [链接](https://x.com) `code`\n",
+  "out2": "**粗** *斜* ~~删~~ [链接](https://x.com) `code`\n"
+ },
+ {
+  "input": "第一行\n第二行",
+  "out": "第一行\n第二行\n",
+  "out2": "第一行\n第二行\n"
+ },
+ {
+  "input": "## 目标\n\n\n## 下一步\n- [ ] \n",
+  "out": "## 目标\n\n## 下一步\n\n- [ ] \n",
+  "out2": "## 目标\n\n## 下一步\n\n- [ ] \n"
+ },
+ {
+  "input": "看 [**粗**和细](https://a.com) 完",
+  "out": "看 **[粗](https://a.com)**[和细](https://a.com) 完\n",
+  "out2": "看 **[粗](https://a.com)**[和细](https://a.com) 完\n"
+ },
+ {
+  "input": "[长长的链接](https://old.com)",
+  "out": "[长长的链接](https://old.com)\n",
+  "out2": "[长长的链接](https://old.com)\n"
+ },
+ {
+  "input": "看 [文档](https://a.com/x)",
+  "out": "看 [文档](https://a.com/x)\n",
+  "out2": "看 [文档](https://a.com/x)\n"
+ },
+ {
+  "input": "看 [文档](https://a.com)",
+  "out": "看 [文档](https://a.com)\n",
+  "out2": "看 [文档](https://a.com)\n"
+ },
+ {
+  "input": "```\nx\n```",
+  "out": "```\nx\n```\n",
+  "out2": "```\nx\n```\n"
+ },
+ {
+  "input": "看图 ![沙丘海报](https://x.com/a.png) 和 ![](http://y.cn/b.jpg)\n\n![](//cdn.z/c.gif)",
+  "out": "看图 ![沙丘海报](https://x.com/a.png) 和 ![](http://y.cn/b.jpg)\n\n![](//cdn.z/c.gif)\n",
+  "out2": "看图 ![沙丘海报](https://x.com/a.png) 和 ![](http://y.cn/b.jpg)\n\n![](//cdn.z/c.gif)\n"
+ },
+ {
+  "input": "![a](data:image/png;base64,AAAA) ![b](https://mindough.rei8t.dev/api/assets/u/1.webp)",
+  "out": "![a](data:image/png;base64,AAAA) ![b](https://mindough.rei8t.dev/api/assets/u/1.webp)\n",
+  "out2": "![a](data:image/png;base64,AAAA) ![b](https://mindough.rei8t.dev/api/assets/u/1.webp)\n"
+ },
+ {
+  "input": "NOTE",
+  "out": "NOTE\n",
+  "out2": "NOTE\n"
+ },
+ {
+  "input": "TIP",
+  "out": "TIP\n",
+  "out2": "TIP\n"
+ },
+ {
+  "input": "IMPORTANT",
+  "out": "IMPORTANT\n",
+  "out2": "IMPORTANT\n"
+ },
+ {
+  "input": "WARNING",
+  "out": "WARNING\n",
+  "out2": "WARNING\n"
+ },
+ {
+  "input": "CAUTION",
+  "out": "CAUTION\n",
+  "out2": "CAUTION\n"
+ },
+ {
+  "input": "> [!NOTE]\n> a $x$ b",
+  "out": "> [!NOTE]\n> a $x$ b\n",
+  "out2": "> [!NOTE]\n> a $x$ b\n"
+ },
+ {
+  "input": "> [!WARNING]\n> - a",
+  "out": "> [!WARNING]\n> - a\n",
+  "out2": "> [!WARNING]\n> - a\n"
+ },
+ {
+  "input": "> [!tip]",
+  "out": "> [!tip]\n",
+  "out2": "> [!tip]\n"
+ },
+ {
+  "input": "价格 $5 和 $10",
+  "out": "价格 $5 和 $10\n",
+  "out2": "价格 $5 和 $10\n"
+ },
+ {
+  "input": "$5和$10",
+  "out": "$5和$10\n",
+  "out2": "$5和$10\n"
+ },
+ {
+  "input": "花了 $5，还剩 $",
+  "out": "花了 $5，还剩 $\n",
+  "out2": "花了 $5，还剩 $\n"
+ },
+ {
+  "input": "$ x $ 不算",
+  "out": "$ x $ 不算\n",
+  "out2": "$ x $ 不算\n"
+ },
+ {
+  "input": "US$100 和 US$200",
+  "out": "US$100 和 US$200\n",
+  "out2": "US$100 和 US$200\n"
+ },
+ {
+  "input": "$a$ 和 $$b$$",
+  "out": "$a$ 和 $$b$$\n",
+  "out2": "$a$ 和 $$b$$\n"
+ },
+ {
+  "input": "$$\nx\n$$",
+  "out": "$$\nx\n$$\n",
+  "out2": "$$\nx\n$$\n"
+ },
+ {
+  "input": "\\$x\\$",
+  "out": "\\$x$\n",
+  "out2": "\\$x$\n"
+ },
+ {
+  "input": "$5 和 $10",
+  "out": "$5 和 $10\n",
+  "out2": "$5 和 $10\n"
+ },
+ {
+  "input": "花 $5 买 $",
+  "out": "花 $5 买 $\n",
+  "out2": "花 $5 买 $\n"
+ },
+ {
+  "input": "$ x $",
+  "out": "$ x $\n",
+  "out2": "$ x $\n"
+ },
+ {
+  "input": "   ",
+  "out": "",
+  "out2": ""
+ },
+ {
+  "input": "hello",
+  "out": "hello\n",
+  "out2": "hello\n"
+ },
+ {
+  "input": "https://",
+  "out": "https\\://\n",
+  "out2": "https\\://\n"
+ },
+ {
+  "input": "javascript:alert(1)",
+  "out": "javascript:alert(1)\n",
+  "out2": "javascript:alert(1)\n"
+ },
+ {
+  "input": "data:text/html,x",
+  "out": "data:text/html,x\n",
+  "out2": "data:text/html,x\n"
+ },
+ {
+  "input": "mailto:",
+  "out": "mailto:\n",
+  "out2": "mailto:\n"
+ },
+ {
+  "input": "a..b.com",
+  "out": "a..b.com\n",
+  "out2": "a..b.com\n"
+ },
+ {
+  "input": ".com",
+  "out": ".com\n",
+  "out2": ".com\n"
+ },
+ {
+  "input": "> 引用\n\n- [x] 做完\n- [ ] 没做\n\n| a | b |\n| - | - |\n| 1 | 2 |",
+  "out": "> 引用\n\n- [x] 做完\n- [ ] 没做\n\n| a | b |\n| - | - |\n| 1 | 2 |\n",
+  "out2": "> 引用\n\n- [x] 做完\n- [ ] 没做\n\n| a | b |\n| - | - |\n| 1 | 2 |\n"
+ },
+ {
+  "input": "a",
+  "out": "a\n",
+  "out2": "a\n"
+ },
+ {
+  "input": "b",
+  "out": "b\n",
+  "out2": "b\n"
+ },
+ {
+  "input": "名字",
+  "out": "名字\n",
+  "out2": "名字\n"
+ },
+ {
+  "input": "价格",
+  "out": "价格\n",
+  "out2": "价格\n"
+ },
+ {
+  "input": "b.com",
+  "out": "b.com\n",
+  "out2": "b.com\n"
+ },
+ {
+  "input": "- a\n- b",
+  "out": "- a\n- b\n",
+  "out2": "- a\n- b\n"
+ },
+ {
+  "input": "1. a\n2. b",
+  "out": "1. a\n2. b\n",
+  "out2": "1. a\n2. b\n"
+ },
+ {
+  "input": "- [ ] a\n- [ ] b",
+  "out": "- [ ] a\n- [ ] b\n",
+  "out2": "- [ ] a\n- [ ] b\n"
+ },
+ {
+  "input": "沙丘海报",
+  "out": "沙丘海报\n",
+  "out2": "沙丘海报\n"
+ },
+ {
+  "input": "https://x.com/a.png",
+  "out": "<https://x.com/a.png>\n",
+  "out2": "<https://x.com/a.png>\n"
+ },
+ {
+  "input": "http://y.cn/b.jpg",
+  "out": "<http://y.cn/b.jpg>\n",
+  "out2": "<http://y.cn/b.jpg>\n"
+ },
+ {
+  "input": "//cdn.z/c.gif",
+  "out": "//cdn.z/c.gif\n",
+  "out2": "//cdn.z/c.gif\n"
+ },
+ {
+  "input": "data:image/png;base64,AAAA",
+  "out": "data:image/png;base64,AAAA\n",
+  "out2": "data:image/png;base64,AAAA\n"
+ },
+ {
+  "input": "https://mindough.rei8t.dev/api/assets/u/1.webp",
+  "out": "<https://mindough.rei8t.dev/api/assets/u/1.webp>\n",
+  "out2": "<https://mindough.rei8t.dev/api/assets/u/1.webp>\n"
+ },
+ {
+  "input": "看图 ![沙丘海报](https://x.com/a.png \"标题\") 完",
+  "out": "看图 ![沙丘海报](https://x.com/a.png \"标题\") 完\n",
+  "out2": "看图 ![沙丘海报](https://x.com/a.png \"标题\") 完\n"
+ },
+ {
+  "input": "![](https://x.com/a.png)",
+  "out": "![](https://x.com/a.png)\n",
+  "out2": "![](https://x.com/a.png)\n"
+ },
+ {
+  "input": "# 标题一\n## 标题二\n### 三\n#### 四\n##### 五\n###### 六",
+  "out": "# 标题一\n\n## 标题二\n\n### 三\n\n#### 四\n\n##### 五\n\n###### 六\n",
+  "out2": "# 标题一\n\n## 标题二\n\n### 三\n\n#### 四\n\n##### 五\n\n###### 六\n"
+ },
+ {
+  "input": "段落 **粗** *斜* _斜_ __粗__ ***粗斜*** ~~删~~ ~单删~ `code` ``co`de``",
+  "out": "段落 **粗** *斜* _斜_ __粗__ ***粗斜*** ~~删~~ ~~单删~~ `code` ``co`de``\n",
+  "out2": "段落 **粗** *斜* _斜_ __粗__ ***粗斜*** ~~删~~ ~~单删~~ `code` ``co`de``\n"
+ },
+ {
+  "input": "第一行\n第二行\n第三行",
+  "out": "第一行\n第二行\n第三行\n",
+  "out2": "第一行\n第二行\n第三行\n"
+ },
+ {
+  "input": "硬换行\\\n下一行",
+  "out": "硬换行\\\n下一行\n",
+  "out2": "硬换行\\\n下一行\n"
+ },
+ {
+  "input": "两个空格硬换行  \n下一行",
+  "out": "两个空格硬换行\\\n下一行\n",
+  "out2": "两个空格硬换行\\\n下一行\n"
+ },
+ {
+  "input": "- a\n- b\n  - c\n    - d\n- e",
+  "out": "- a\n- b\n  - c\n    - d\n- e\n",
+  "out2": "- a\n- b\n  - c\n    - d\n- e\n"
+ },
+ {
+  "input": "* 星\n* 号",
+  "out": "- 星\n- 号\n",
+  "out2": "- 星\n- 号\n"
+ },
+ {
+  "input": "+ 加\n+ 号",
+  "out": "- 加\n- 号\n",
+  "out2": "- 加\n- 号\n"
+ },
+ {
+  "input": "1. 一\n2. 二\n3. 三",
+  "out": "1. 一\n2. 二\n3. 三\n",
+  "out2": "1. 一\n2. 二\n3. 三\n"
+ },
+ {
+  "input": "3. 从三\n4. 开始",
+  "out": "3. 从三\n4. 开始\n",
+  "out2": "3. 从三\n4. 开始\n"
+ },
+ {
+  "input": "1) 括号\n2) 编号",
+  "out": "1. 括号\n2. 编号\n",
+  "out2": "1. 括号\n2. 编号\n"
+ },
+ {
+  "input": "- a\n\n- 松散",
+  "out": "- a\n\n- 松散\n",
+  "out2": "- a\n\n- 松散\n"
+ },
+ {
+  "input": "- [ ] 待办\n- [x] 完成\n- [X] 大写\n- 普通项",
+  "out": "- [ ] 待办\n- [x] 完成\n- [x] 大写\n- 普通项\n",
+  "out2": "- [ ] 待办\n- [x] 完成\n- [x] 大写\n- 普通项\n"
+ },
+ {
+  "input": "1. [ ] 有序清单\n2. [x] 完成",
+  "out": "1. [ ] 有序清单\n2. [x] 完成\n",
+  "out2": "1. [ ] 有序清单\n2. [x] 完成\n"
+ },
+ {
+  "input": "- [ ] \n- [ ] ",
+  "out": "- [ ] \n- [ ] \n",
+  "out2": "- [ ] \n- [ ] \n"
+ },
+ {
+  "input": "- [ ] a\n  - [ ] 子清单",
+  "out": "- [ ] a\n  - [ ] 子清单\n",
+  "out2": "- [ ] a\n  - [ ] 子清单\n"
+ },
+ {
+  "input": "> 引用\n> 第二行",
+  "out": "> 引用\n> 第二行\n",
+  "out2": "> 引用\n> 第二行\n"
+ },
+ {
+  "input": "> 引用\n>\n> 第二段\n>> 嵌套",
+  "out": "> 引用\n>\n> 第二段\n>\n> > 嵌套\n",
+  "out2": "> 引用\n>\n> 第二段\n>\n> > 嵌套\n"
+ },
+ {
+  "input": "> - 引用里的列表\n> - b",
+  "out": "> - 引用里的列表\n> - b\n",
+  "out2": "> - 引用里的列表\n> - b\n"
+ },
+ {
+  "input": "```\n无语言\n```",
+  "out": "```\n无语言\n```\n",
+  "out2": "```\n无语言\n```\n"
+ },
+ {
+  "input": "~~~python\nprint(1)\n~~~",
+  "out": "```python\nprint(1)\n```\n",
+  "out2": "```python\nprint(1)\n```\n"
+ },
+ {
+  "input": "    缩进代码",
+  "out": "```\n缩进代码\n```\n",
+  "out2": "```\n缩进代码\n```\n"
+ },
+ {
+  "input": "```js title=\"x\"\nmeta\n```",
+  "out": "```js\nmeta\n```\n",
+  "out2": "```js\nmeta\n```\n"
+ },
+ {
+  "input": "| 左 | 中 | 右 |\n| :- | :-: | -: |\n| 1 | 2 | 3 |",
+  "out": "| 左  |  中  |  右 |\n| :- | :-: | -: |\n| 1  |  2  |  3 |\n",
+  "out2": "| 左  |  中  |  右 |\n| :- | :-: | -: |\n| 1  |  2  |  3 |\n"
+ },
+ {
+  "input": "|a|b|\n|---|---|\n|长一点的内容|x|",
+  "out": "| a      | b |\n| ------ | - |\n| 长一点的内容 | x |\n",
+  "out2": "| a      | b |\n| ------ | - |\n| 长一点的内容 | x |\n"
+ },
+ {
+  "input": "| a |\n| - |",
+  "out": "| a |\n| - |\n",
+  "out2": "| a |\n| - |\n"
+ },
+ {
+  "input": "| 代码 | 链接 |\n| - | - |\n| `a\\|b` | [x](https://x.com) |",
+  "out": "| 代码     | 链接                 |\n| ------ | ------------------ |\n| `a\\|b` | [x](https://x.com) |\n",
+  "out2": "| 代码     | 链接                 |\n| ------ | ------------------ |\n| `a\\|b` | [x](https://x.com) |\n"
+ },
+ {
+  "input": "[链接](https://example.com)",
+  "out": "[链接](https://example.com)\n",
+  "out2": "[链接](https://example.com)\n"
+ },
+ {
+  "input": "[带标题](https://example.com \"标题\")",
+  "out": "[带标题](https://example.com \"标题\")\n",
+  "out2": "[带标题](https://example.com \"标题\")\n"
+ },
+ {
+  "input": "<https://example.com>",
+  "out": "<https://example.com>\n",
+  "out2": "<https://example.com>\n"
+ },
+ {
+  "input": "https://example.com/path?q=1",
+  "out": "<https://example.com/path?q=1>\n",
+  "out2": "<https://example.com/path?q=1>\n"
+ },
+ {
+  "input": "www.example.com",
+  "out": "[www.example.com](http://www.example.com)\n",
+  "out2": "[www.example.com](http://www.example.com)\n"
+ },
+ {
+  "input": "看 https://a.com. 末尾句号",
+  "out": "看 <https://a.com>. 末尾句号\n",
+  "out2": "看 <https://a.com>. 末尾句号\n"
+ },
+ {
+  "input": "邮件 a@b.com",
+  "out": "邮件 <a@b.com>\n",
+  "out2": "邮件 <a@b.com>\n"
+ },
+ {
+  "input": "[引用式][1]\n\n[1]: https://ref.com",
+  "out": "[引用式](https://ref.com)\n",
+  "out2": "[引用式](https://ref.com)\n"
+ },
+ {
+  "input": "![图](https://example.com/a.png)",
+  "out": "![图](https://example.com/a.png)\n",
+  "out2": "![图](https://example.com/a.png)\n"
+ },
+ {
+  "input": "![自己的图](/api/assets/u/1.webp)",
+  "out": "![自己的图](/api/assets/u/1.webp)\n",
+  "out2": "![自己的图](/api/assets/u/1.webp)\n"
+ },
+ {
+  "input": "![data](data:image/png;base64,AAAA)",
+  "out": "![data](data:image/png;base64,AAAA)\n",
+  "out2": "![data](data:image/png;base64,AAAA)\n"
+ },
+ {
+  "input": "![带标题](https://mindough.rei8t.dev/api/assets/a.webp \"t\")",
+  "out": "![带标题](https://mindough.rei8t.dev/api/assets/a.webp \"t\")\n",
+  "out2": "![带标题](https://mindough.rei8t.dev/api/assets/a.webp \"t\")\n"
+ },
+ {
+  "input": "文字 ![行内图](https://x.com/i.png) 后面",
+  "out": "文字 ![行内图](https://x.com/i.png) 后面\n",
+  "out2": "文字 ![行内图](https://x.com/i.png) 后面\n"
+ },
+ {
+  "input": "***",
+  "out": "---\n",
+  "out2": "---\n"
+ },
+ {
+  "input": "___",
+  "out": "---\n",
+  "out2": "---\n"
+ },
+ {
+  "input": "- - -",
+  "out": "---\n",
+  "out2": "---\n"
+ },
+ {
+  "input": "<kbd>Ctrl</kbd> + <kbd>C</kbd>",
+  "out": "<kbd>Ctrl</kbd> + <kbd>C</kbd>\n",
+  "out2": "<kbd>Ctrl</kbd> + <kbd>C</kbd>\n"
+ },
+ {
+  "input": "<div>块 html</div>",
+  "out": "<div>块 html</div>\n",
+  "out2": "<div>块 html</div>\n"
+ },
+ {
+  "input": "<!-- 注释 -->",
+  "out": "<!-- 注释 -->\n",
+  "out2": "<!-- 注释 -->\n"
+ },
+ {
+  "input": "<br />",
+  "out": "",
+  "out2": ""
+ },
+ {
+  "input": "段落\n\n<br />\n\n段落",
+  "out": "段落\n\n<br />\n\n段落\n",
+  "out2": "段落\n\n<br />\n\n段落\n"
+ },
+ {
+  "input": "<details>\n<summary>标题</summary>\n\n正文 **粗**\n\n- 列表\n\n</details>",
+  "out": "<details>\n<summary>标题</summary>\n\n正文 **粗**\n\n- 列表\n\n</details>\n",
+  "out2": "<details>\n<summary>标题</summary>\n\n正文 **粗**\n\n- 列表\n\n</details>\n"
+ },
+ {
+  "input": "<details open>\n<summary>默认展开</summary>\n\n内容\n\n</details>",
+  "out": "<details open>\n<summary>默认展开</summary>\n\n内容\n\n</details>\n",
+  "out2": "<details open>\n<summary>默认展开</summary>\n\n内容\n\n</details>\n"
+ },
+ {
+  "input": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n里面\n\n</details>\n\n</details>",
+  "out": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n里面\n\n</details>\n\n</details>\n",
+  "out2": "<details>\n<summary>外</summary>\n\n<details>\n<summary>内</summary>\n\n里面\n\n</details>\n\n</details>\n"
+ },
+ {
+  "input": "<details>\n没有结尾",
+  "out": "<details>\n没有结尾\n",
+  "out2": "<details>\n没有结尾\n"
+ },
+ {
+  "input": "> [!NOTE]\n> 注意",
+  "out": "> [!NOTE]\n> 注意\n",
+  "out2": "> [!NOTE]\n> 注意\n"
+ },
+ {
+  "input": "> [!TIP]\n> 提示",
+  "out": "> [!TIP]\n> 提示\n",
+  "out2": "> [!TIP]\n> 提示\n"
+ },
+ {
+  "input": "> [!IMPORTANT]\n> 重要",
+  "out": "> [!IMPORTANT]\n> 重要\n",
+  "out2": "> [!IMPORTANT]\n> 重要\n"
+ },
+ {
+  "input": "> [!WARNING]\n> - 列表",
+  "out": "> [!WARNING]\n> - 列表\n",
+  "out2": "> [!WARNING]\n> - 列表\n"
+ },
+ {
+  "input": "> [!CAUTION]\n> 小心 $x$",
+  "out": "> [!CAUTION]\n> 小心 $x$\n",
+  "out2": "> [!CAUTION]\n> 小心 $x$\n"
+ },
+ {
+  "input": "> [!note]\n> 小写",
+  "out": "> [!note]\n> 小写\n",
+  "out2": "> [!note]\n> 小写\n"
+ },
+ {
+  "input": "行内 $E=mc^2$ 公式",
+  "out": "行内 $E=mc^2$ 公式\n",
+  "out2": "行内 $E=mc^2$ 公式\n"
+ },
+ {
+  "input": "$$\n\\int_0^1 x\\,dx\n$$",
+  "out": "$$\n\\int_0^1 x\\,dx\n$$\n",
+  "out2": "$$\n\\int_0^1 x\\,dx\n$$\n"
+ },
+ {
+  "input": "```math\na^2+b^2\n```",
+  "out": "```math\na^2+b^2\n```\n",
+  "out2": "```math\na^2+b^2\n```\n"
+ },
+ {
+  "input": "$$x$$ 行内双",
+  "out": "$$x$$ 行内双\n",
+  "out2": "$$x$$ 行内双\n"
+ },
+ {
+  "input": "脚注[^1]\n\n[^1]: 脚注内容",
+  "out": "脚注[^1]\n\n[^1]: 脚注内容\n",
+  "out2": "脚注[^1]\n\n[^1]: 脚注内容\n"
+ },
+ {
+  "input": "脚注[^note]\n\n[^note]: 多段\n\n    第二段",
+  "out": "脚注[^note]\n\n[^note]: 多段\n\n    第二段\n",
+  "out2": "脚注[^note]\n\n[^note]: 多段\n\n    第二段\n"
+ },
+ {
+  "input": "\\*不是强调\\*",
+  "out": "\\*不是强调\\*\n",
+  "out2": "\\*不是强调\\*\n"
+ },
+ {
+  "input": "1\\. 不是列表",
+  "out": "1\\. 不是列表\n",
+  "out2": "1\\. 不是列表\n"
+ },
+ {
+  "input": "\\# 不是标题",
+  "out": "\\# 不是标题\n",
+  "out2": "\\# 不是标题\n"
+ },
+ {
+  "input": "a_b_c 下划线",
+  "out": "a_b_c 下划线\n",
+  "out2": "a_b_c 下划线\n"
+ },
+ {
+  "input": "**粗**和*斜*紧挨中文",
+  "out": "**粗**和*斜*紧挨中文\n",
+  "out2": "**粗**和*斜*紧挨中文\n"
+ },
+ {
+  "input": "[**粗链接**](https://x.com)",
+  "out": "**[粗链接](https://x.com)**\n",
+  "out2": "**[粗链接](https://x.com)**\n"
+ },
+ {
+  "input": "`code` 和 **`粗代码`**",
+  "out": "`code` 和 **`粗代码`**\n",
+  "out2": "`code` 和 **`粗代码`**\n"
+ },
+ {
+  "input": "中文，标点。English, punctuation.",
+  "out": "中文，标点。English, punctuation.\n",
+  "out2": "中文，标点。English, punctuation.\n"
+ },
+ {
+  "input": "&amp; &lt; &gt; &copy;",
+  "out": "& < > ©\n",
+  "out2": "& < > ©\n"
+ },
+ {
+  "input": "行尾空格   ",
+  "out": "行尾空格\n",
+  "out2": "行尾空格\n"
+ },
+ {
+  "input": "\t制表符开头",
+  "out": "```\n制表符开头\n```\n",
+  "out2": "```\n制表符开头\n```\n"
+ },
+ {
+  "input": "很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话",
+  "out": "很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话\n",
+  "out2": "很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话很长的一段话\n"
+ },
+ {
+  "input": "## 目标\n\n\n## 下一步\n- [ ] ",
+  "out": "## 目标\n\n## 下一步\n\n- [ ] \n",
+  "out2": "## 目标\n\n## 下一步\n\n- [ ] \n"
+ },
+ {
+  "input": "- a\n```\ncode\n```",
+  "out": "- a\n\n```\ncode\n```\n",
+  "out2": "- a\n\n```\ncode\n```\n"
+ },
+ {
+  "input": "1. a\n\n   段落\n\n2. b",
+  "out": "1. a\n\n   段落\n\n2. b\n",
+  "out2": "1. a\n\n   段落\n\n2. b\n"
+ },
+ {
+  "input": "- **粗**：说明\n- `代码`：说明",
+  "out": "- **粗**：说明\n- `代码`：说明\n",
+  "out2": "- **粗**：说明\n- `代码`：说明\n"
+ },
+ {
+  "input": "Setext 标题\n===",
+  "out": "# Setext 标题\n",
+  "out2": "# Setext 标题\n"
+ },
+ {
+  "input": "Setext 二",
+  "out": "Setext 二\n",
+  "out2": "Setext 二\n"
+ },
+ {
+  "input": "---\na\n***\nb",
+  "out": "---\n\na\n\n---\n\nb\n",
+  "out2": "---\n\na\n\n---\n\nb\n"
+ },
+ {
+  "input": "## 想看理由\n\n\n## 观后感\n",
+  "out": "## 想看理由\n\n## 观后感\n",
+  "out2": "## 想看理由\n\n## 观后感\n"
+ },
+ {
+  "input": "## 目标\n\n\n## 心得\n",
+  "out": "## 目标\n\n## 心得\n",
+  "out2": "## 目标\n\n## 心得\n"
+ },
+ {
+  "input": "## 摘录\n\n\n## 笔记\n",
+  "out": "## 摘录\n\n## 笔记\n",
+  "out2": "## 摘录\n\n## 笔记\n"
+ },
+ {
+  "input": "## 笔记\n",
+  "out": "## 笔记\n",
+  "out2": "## 笔记\n"
+ },
+ {
+  "input": "## 行程\n\n\n## 待办\n- [ ] \n",
+  "out": "## 行程\n\n## 待办\n\n- [ ] \n",
+  "out2": "## 行程\n\n## 待办\n\n- [ ] \n"
+ },
+ {
+  "input": "## 备注\n",
+  "out": "## 备注\n",
+  "out2": "## 备注\n"
+ },
+ {
+  "input": "## 想吃什么\n\n\n## 评价\n",
+  "out": "## 想吃什么\n\n## 评价\n",
+  "out2": "## 想吃什么\n\n## 评价\n"
+ },
+ {
+  "input": "## 做法\n\n\n## 感受\n",
+  "out": "## 做法\n\n## 感受\n",
+  "out2": "## 做法\n\n## 感受\n"
+ },
+ {
+  "input": "## 要聊什么\n\n\n## 备注\n",
+  "out": "## 要聊什么\n\n## 备注\n",
+  "out2": "## 要聊什么\n\n## 备注\n"
+ }
+]

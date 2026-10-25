@@ -1,4 +1,4 @@
-/** 按需加载 Markdown 编辑器（Milkdown 有点大）；加载完之前显示排好版的预览，样子一样。 */
+/** 按需加载 Markdown 编辑器（Tiptap + remark 有点大）；加载完之前显示排好版的预览，样子一样。 */
 import { lazy, Suspense } from 'react';
 import { Markdown } from '../Markdown';
 import type { MdEditorProps } from './MdEditor';

@@ -32,7 +32,7 @@
   pointer-events: none;
 }
 
-/* 清单：勾画在 ::before 上（点它切换，见 milkdown.ts taskToggle）。Apple 圆形、WinUI / Material 圆角方形 */
+/* 清单：勾画在 ::before 上（点它切换，见 extensions.ts taskToggle）。Apple 圆形、WinUI / Material 圆角方形 */
 .md-editor-content li[data-item-type='task'] {
   list-style: none;
   position: relative;
@@ -472,8 +472,8 @@
   margin: 0;
   min-width: 0;
 }
-/* 注意：Milkdown 会给 ProseMirror 根节点加 class="editor"。别在任何地方给裸的 .editor 写样式（以前 app.css 里那条 flex + 16px 间距
-   让编辑器每块之间多出 16px，Rei 2026-10-17 去掉了）；编辑器块间距只靠 .md 的外边距，和只读显示一样。 */
+/* 别在任何地方给裸的 .editor 写样式（以前 app.css 里那条 flex + 16px 间距让编辑器每块之间多出 16px，Rei 2026-10-17 去掉了）；
+   编辑器块间距只靠 .md 的外边距，和只读显示一样。 */
 
 /* ───────── 折叠块 <details>（details.ts，Rei 2026-10-17）─────────
  * 三角是不可编辑的按钮（画法和只读的 summary::before 共用，见 app.css .md summary），点它展开 / 收起；标题一行纯文字，下面是正文。 */
