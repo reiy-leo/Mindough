@@ -52,7 +52,7 @@ apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）
   ui/primitives.tsx     React Aria 包装（Button、Sheet、PopoverPanel、OverflowMenu、ConfirmDialog、InlineNumber、AutoTextarea、Tip…）
-  components/task/      新建面板 TaskComposer、任务详情 TaskDetail（外框 DetailFrame：右列 / 手机整页 / 小窗弹窗）、三列布局右列 DetailPane、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
+  components/task/      新建面板 TaskComposer、任务详情 TaskDetail（属性胶囊行 PropChips，外框 DetailFrame：右列 / 手机整页 / 小窗弹窗）、三列布局右列 DetailPane、共用选择件 pickers、日期面板 DatePanel、挑任务 TaskSearch
   components/library/   资料库共用件：占位图 ItemArt、选择框 LibraryPicker、资料编辑 ItemEditor / ItemSheet、资料卡 ItemCard
                         LinkFields（站点编号 / 更多链接 / 链接小标签）、MoneyField（金额 + 可搜索币种）、NoteField（Markdown 备注）
   components/attachments/  附件区 Attachments（拖放 useFileDrop + DropOverlay、图片网格、文件列表、重命名）、灯箱 Lightbox、文件类型图标 FileIcon（手写 SVG，颜色令牌 --file-*）；样式 styles/attachments.css
@@ -99,7 +99,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - App 名字（Rei 2026-10-24 定，2026-10-25 中文名从「思想团」改成「念头团」）：英文「Mindough」，中文「念头团」。界面上要写 app 名，都用 core 的 `appName()`（或者在 tr 的中文原文里写「念头团」、英文写 Mindough），别写死 'Mindough'；网页标题由 `lib/i18n.ts` 的 `applyAppTitle` 跟着语言改。原生显示名的本地化在 `src-tauri/locales/`（Apple `*.lproj/InfoPlist.strings`、Android `values-zh*`，`scripts/native-locales.sh` 在 CI 里拷进 gen/；macOS 经 `bundle.macOS.files`）。productName、bundle id、manifest name、导出文件夹名不改。
 - 界面文案用中文，**都按 [docs/COPY.md](docs/COPY.md) 写**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；有新词先补进术语表。出现 HTTP 状态码时附中文说明（如「408 请求超时」）。
 - 代码和文档里的概念名是固定的：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上怎么叫，以 COPY.md 为准（比如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」）。
-- 新建和详情是两个组件：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性列表、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。
+- 新建和详情是两个组件：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。详情的单值属性是一行胶囊 `components/task/PropChips.tsx`（Rei 2026-10-25 方案 A：只显示设过的；默认值、适用与否、清除回默认都在 `lib/prop-chips.ts`，加新的单值属性就在那里加 PropId 和默认值）；资料行、任务字段还是属性卡片里的 `PropRow`。
 - 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不用弹窗。桌面上在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开都用 `ui.openEditor(id)`（选中的任务写在 hash 的 `?task=` 里，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
 - 进度都由 check_in 事件累加出来，不直接改写进度字段（多端合并靠的就是这个）。
 - 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时都用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。

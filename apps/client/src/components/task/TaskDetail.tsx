@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
-import { AlertTriangle, ArrowLeft, ChevronLeft, Bell, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, Repeat, RotateCcw, Shapes, Square, Sun, SunDim, Tag, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, RotateCcw, Square, Sun, SunDim, Trash2, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   countdownPhrase,
   findEpisode,
   firstLine,
   formatEpisode,
-  describeCompletion,
-  describeRecurrence,
   formatDuration,
   formatTarget,
   friendlyDate,
   isFinished,
-  parseRecurrence,
   predecessorsOf,
   successorsOf,
   taskStreak,
@@ -29,10 +26,8 @@ import {
   type Store,
   type Task,
   type TaskType,
-  canRemind,
 } from '@mindough/core';
 import { shownFields } from '@mindough/core';
-import { formatRemindTime, RemindPanel } from './RemindPanel';
 import { navigate } from '../../lib/router';
 import { ItemCard, ItemSheet, LibraryPicker, artShape, entryArt } from '../library/Library';
 import { createItemFromLookup } from '../../lib/lookup';
@@ -45,14 +40,12 @@ import { imageUrl, titleOf } from '../../lib/view';
 import { typeIcon } from '../../lib/icons';
 import { AutoTextarea, Button, ConfirmDialog, OverflowMenu, PopoverPanel, ProgressRing, Sheet, Tip, type MenuAction } from '../../ui/primitives';
 import { Markdown } from '../Markdown';
-import { AvatarStack } from '../Avatar';
-import { CategoryLabel, CategoryPicker } from '../CheckInCategory';
-import { CompletionChoice, CompletionSentence, FieldInput, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults } from './pickers';
-import { DatePanel } from './DatePanel';
+import { FieldInput, MODE_ICON, TypeFields } from './pickers';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { detailMenu, type DetailMenuId } from '../../lib/task-menu';
 import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
 import { ChainToggle, TaskChainInline } from './TaskChain';
+import { PropChips } from './PropChips';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 /**
@@ -824,22 +817,17 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   const lib = hasLibrary(type) ? type : null;
   const taskFields = lib ? taskFieldsOf(lib) : [];
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
-  const types = store.pickableTypes();
-  const group = store.get('group', task.group_id);
   const linked = [...new Set(store.list('task_person').filter((x) => x.task_id === task.id).map((x) => store.resolvePersonId(x.person_id) ?? x.person_id))];
   const people = linked.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
   const inDay = store.isInMyDay(task.id, today);
   const finished = isFinished(task.status);
   const recurring = !!task.recurrence;
   const derived = store.derived().get(task.id);
-  const cat = task.checkin_category_id ? store.get('checkin_category', task.checkin_category_id) : undefined;
   const mediaKey = type?.fields.find((f) => f.media)?.key;
   const media = typed && mediaKey ? imageUrl(store, task.type_data[mediaKey]) : null;
   const primaryDef = type?.fields.find((f) => f.primary);
   const hasPrimary = !!primaryDef && !!task.type_data[primaryDef.key];
   const TypeIcon = typeIcon(type?.icon ?? 'file-text');
-  const ModeIcon = MODE_ICON[task.completion_mode];
-
   let badge: ReactNode = null;
   if (task.status === '完成')
     badge = (
@@ -873,121 +861,18 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   };
   const menu: MenuAction[] = detailMenu(task, inDay).map((e) => ({ ...e, icon: MENU_ICON[e.id], onAction: MENU_DO[e.id] }));
 
+  // 属性：单值属性收成一行胶囊（Rei 2026-10-25 方案 A），资料行和任务字段仍是卡片里的行
   const props = (
-    <div className="prop-list" role="group" aria-label={tr('属性')}>
-      <PropRow icon={<TypeIcon size={15} />} label={tr('类型')} value={type && type.id !== PLAIN_TYPE_ID ? dataLabel(type.name) : tr('普通')}>
-        {(c) => (
-          <div className="pop-section">
-            <TypeGrid
-              types={types}
-              value={task.type_id ?? PLAIN_TYPE_ID}
-              onChange={(id) => {
-                // 改类型清空原来的资料（Rei 2026-10-16），新类型从「未选」开始；正文为空时套用模板
-                store.changeTaskType(task.id, id);
-                c();
-              }}
-            />
-          </div>
-        )}
-      </PropRow>
-      {lib && <LibraryRow store={store} type={lib} task={task} />}
-      {lib &&
-        taskFields.map((f) => (
-          <TaskFieldRow key={f.key} store={store} def={f} task={task} today={today} onChange={(v) => patch({ type_data: { ...task.type_data, [f.key]: v } })} />
-        ))}
-      <PropRow icon={<ModeIcon size={15} />} label={tr('完成方式')} value={describeCompletion(task, today)} wide>
-        <div className="pop-section">
-          <CompletionChoice compact value={task.completion_mode} onChange={(m) => patch(modeDefaults(m, task))} />
-          <CompletionSentence value={task} today={today} onChange={(p) => patch(p)} />
+    <div className="detail-props">
+      <PropChips store={store} task={task} today={today} people={people} linked={linked} />
+      {lib && (
+        <div className="prop-list" role="group" aria-label={dataLabel(lib.name)}>
+          <LibraryRow store={store} type={lib} task={task} />
+          {taskFields.map((f) => (
+            <TaskFieldRow key={f.key} store={store} def={f} task={task} today={today} onChange={(v) => patch({ type_data: { ...task.type_data, [f.key]: v } })} />
+          ))}
         </div>
-      </PropRow>
-      <PropRow icon={<Repeat size={15} />} label={tr('重复')} value={describeRecurrence(parseRecurrence(task.recurrence))} empty={!recurring} wide>
-        <div className="pop-section">
-          <RepeatEditor value={task.recurrence} today={today} onChange={(r) => patch({ recurrence: r })} />
-        </div>
-      </PropRow>
-      {recurring && (
-        <PropRow icon={<Tag size={15} />} label={tr('打卡分类')} value={cat ? <CategoryLabel c={cat} /> : tr('未分类')} empty={!cat} wide>
-          {(c) => (
-            <div className="pop-section">
-              <CategoryPicker
-                store={store}
-                value={task.checkin_category_id}
-                onChange={(id) => {
-                  patch({ checkin_category_id: id });
-                  c();
-                }}
-              />
-            </div>
-          )}
-        </PropRow>
       )}
-      {/* 定期打卡的任务按重复规则出现，不需要单独的日期 */}
-      {!recurring && (
-        <PropRow icon={<CalendarDays size={15} />} label={tr('日期')} value={task.scheduled_date ? friendlyDate(task.scheduled_date, today) : tr('未安排')} empty={!task.scheduled_date}>
-          {(c) => (
-            <DatePanel
-              value={task.scheduled_date}
-              today={today}
-              onChange={(v) => {
-                patch({ scheduled_date: v });
-                c();
-              }}
-            />
-          )}
-        </PropRow>
-      )}
-      {(canRemind(task) || task.remind_time) && (
-        <PropRow icon={<Bell size={15} />} label={tr('提醒')} value={formatRemindTime(task.remind_time)} empty={!task.remind_time}>
-          {(c) => (
-            <RemindPanel
-              value={task.remind_time}
-              task={task}
-              onChange={(v) => {
-                patch({ remind_time: v });
-                c();
-              }}
-            />
-          )}
-        </PropRow>
-      )}
-      <PropRow icon={<Shapes size={15} />} label={tr('组')} value={group ? `${group.icon} ${group.name}` : tr('不放进组')} empty={!group}>
-        {(c) => (
-          <GroupList
-            store={store}
-            value={task.group_id}
-            onChange={(id) => {
-              patch({ group_id: id });
-              c();
-            }}
-          />
-        )}
-      </PropRow>
-      <PropRow
-        icon={<Users size={15} />}
-        label={tr('和谁有关')}
-        value={
-          people.length ? (
-            <span className="prop-people">
-              <AvatarStack store={store} people={people} size={18} />
-              {people.map((p) => p.name).join(tr('、'))}
-            </span>
-          ) : (
-            tr('没有')
-          )
-        }
-        empty={!people.length}
-      >
-        <PeopleList
-          store={store}
-          value={linked}
-          onChange={(ids) => {
-            const next = new Set(ids);
-            for (const id of linked) if (!next.has(id)) store.unlinkPerson(task.id, id);
-            for (const id of ids) if (!linked.includes(id)) store.linkPerson(task.id, id);
-          }}
-        />
-      </PropRow>
     </div>
   );
 

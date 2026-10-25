@@ -1258,3 +1258,71 @@
   padding: 0;
   border-radius: 50%;
 }
+
+/* ───────── 属性胶囊行（Rei 2026-10-25 方案 A，styles/prop-chips.css）───────── */
+/* Apple：浅灰圆角胶囊（系统填充色） */
+[data-skin='apple'] .pchip:not(.pchip-add) {
+  height: 26px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+[data-skin='apple'] .pchip:not(.pchip-add)[data-hovered] {
+  background: color-mix(in srgb, var(--text) 11%, transparent);
+}
+[data-skin='apple'] .pchip-add {
+  height: 26px;
+  width: 26px;
+  border-style: solid;
+  border-color: var(--border);
+}
+[data-skin='apple'] .pchip-add.has-label {
+  width: auto;
+}
+[data-skin='apple'][data-layout='mobile'] .pchip {
+  height: 32px;
+}
+/* WinUI：细边框圆角按钮（控件填充 + 1px 描边，圆角 4） */
+[data-skin='winui'] .pchip {
+  height: 28px;
+  border-radius: 4px;
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+[data-skin='winui'] .pchip[data-hovered] {
+  background: var(--surface-hover);
+}
+[data-skin='winui'] .pchip-add {
+  border-style: dashed;
+  background: transparent;
+}
+[data-skin='winui'] .pchip-x {
+  border-radius: 4px;
+}
+/* Material 3：assist / input chip（高 32、圆角 8、描边，设过的图标用强调色） */
+[data-skin='material'] .pchip {
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border-radius: 8px;
+  border-color: var(--border-strong);
+  background: transparent;
+  font-weight: 500;
+}
+[data-skin='material'] .pchip[data-hovered] {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+[data-skin='material'] .pchip-icon {
+  color: var(--accent);
+}
+[data-skin='material'] .pchip[aria-expanded='true'] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+[data-skin='material'] .pchip-add {
+  width: 32px;
+  padding: 0;
+  border-style: solid;
+}
+[data-skin='material'] .pchip-add.has-label {
+  width: auto;
+  padding: 0 16px 0 8px;
+}

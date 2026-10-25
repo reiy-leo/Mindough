@@ -365,6 +365,10 @@ export const EN: Record<string, EnValue> = {
   先做完这些: 'Do These First',
   做完后解锁: 'Unlocks Next',
   添加关系: 'Add Relationship',
+  // ── 详情属性胶囊行（components/task/PropChips.tsx，Rei 2026-10-25 方案 A）──
+  添加属性: 'Add Property',
+  '清除{label}': 'Clear {label}',
+  '已清除「{label}」': 'Cleared “{label}”',
   '这些做完了，才能开始这件。': 'This can start once these are done.',
   '这件做完了，它们就能开始。': 'Once this is done, these can start.',
   '只是有关系，不分先后：不用等它，也不会解锁它。': 'Related, in no particular order — it doesn’t wait on this or unlock it.',
