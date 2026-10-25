@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { parseDate, type CalendarDate } from '@internationalized/date';
 import { Button as RacButton, Calendar, CalendarCell, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, Heading } from 'react-aria-components';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarArrowUp, ChevronLeft, ChevronRight, Sofa, Sun, Sunrise, type LucideIcon } from 'lucide-react';
 import {
   LUNAR_FIRST_YEAR,
   LUNAR_LAST_YEAR,
@@ -15,8 +15,9 @@ import {
   solarToLunar,
   type DateKey,
   type LunarDate,
+  type QuickDateKind,
 } from '@mindough/core';
-import { Button, Segmented, Select } from '../../ui/primitives';
+import { Button, Segmented, Select, TipButton } from '../../ui/primitives';
 import { LUNAR_PICK_KEY, useLunar, type DayLunar } from '../../lib/lunar';
 import { useStore } from '../../store/StoreProvider';
 
@@ -26,6 +27,9 @@ function toKey(d: CalendarDate): DateKey {
 }
 
 type PickMode = 'solar' | 'lunar';
+
+/** 快捷按钮的图标（Rei 2026-10-25：图标按钮 + hover 提示文字）。 */
+const QUICK_ICON: Record<QuickDateKind, LucideIcon> = { today: Sun, tomorrow: Sunrise, weekend: Sofa, monday: CalendarArrowUp };
 
 /** 格子下的农历小字 + 放假 / 补班角标（Rei 2026-10-17）。 */
 export function LunarMark({ info }: { info: DayLunar }) {
@@ -46,8 +50,8 @@ export function lunarTitle(info: DayLunar): string | undefined {
 }
 
 /**
- * 日期面板：上面一排快捷（今天 / 明天 / 本周末 / 下周一），下面一个月历；可清除。
- * 开着「显示农历」时：格子下显示农历小字（订阅的节日 > 传统节日 > 节气 > 初一月名 > 日子），
+ * 日期面板：上面一排快捷图标按钮（今天 / 明天 / 本周末 / 下周一，悬停 / 长按显示文字），下面一个月历；可清除。
+ * 农历界面显示时（本机「中国农历」开着 且 中文界面，useLunar().show）：格子下显示农历小字（订阅的节日 > 传统节日 > 节气 > 初一月名 > 日子），
  * 并可切到「农历」选择模式：按 农历年 - 月（含闰月）- 日 选，换算成公历存。
  */
 export function DatePanel({
@@ -75,11 +79,14 @@ export function DatePanel({
     <div className={`date-panel${lunar.show ? ' has-lunar' : ''}`}>
       {quick && (
         <div className="date-quick">
-          {quickDates(today).map((q) => (
-            <RacButton key={q.label} className={`date-quick-item${value === q.date ? ' is-selected' : ''}`} onPress={() => onChange(q.date)}>
-              {q.label}
-            </RacButton>
-          ))}
+          {quickDates(today).map((q) => {
+            const Icon = QUICK_ICON[q.kind];
+            return (
+              <TipButton key={q.kind} tip={q.label} isPressed={value === q.date} className={`date-quick-item${value === q.date ? ' is-selected' : ''}`} onPress={() => onChange(q.date)}>
+                <Icon size={16} aria-hidden />
+              </TipButton>
+            );
+          })}
         </div>
       )}
       {lunar.show && (

@@ -65,7 +65,10 @@ export function describeCompletion(task: Pick<Task, 'completion_mode' | 'target_
   }
 }
 
+export type QuickDateKind = 'today' | 'tomorrow' | 'weekend' | 'monday';
 export interface QuickDate {
+  /** 哪一种快捷（界面按它挑图标，Rei 2026-10-25 改成图标按钮）。 */
+  kind: QuickDateKind;
   label: string;
   date: DateKey;
 }
@@ -77,10 +80,10 @@ export function quickDates(today: DateKey): QuickDate[] {
   const toSat = wd === 6 ? 7 : 6 - wd;
   const toMon = (8 - wd) % 7 || 7;
   return [
-    { label: tr('今天'), date: today },
-    { label: tr('明天'), date: addDays(today, 1) },
-    { label: weekend ? tr('下周末') : tr('本周末'), date: addDays(today, toSat) },
-    { label: tr('下周一'), date: addDays(today, toMon) },
+    { kind: 'today', label: tr('今天'), date: today },
+    { kind: 'tomorrow', label: tr('明天'), date: addDays(today, 1) },
+    { kind: 'weekend', label: weekend ? tr('下周末') : tr('本周末'), date: addDays(today, toSat) },
+    { kind: 'monday', label: tr('下周一'), date: addDays(today, toMon) },
   ];
 }
 

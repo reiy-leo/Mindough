@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeStreak,
+  nextLunarYearly,
   describeRecurrence,
   formatRecurrence,
   isDueOn,
@@ -116,5 +117,19 @@ describe('每年农历（RSCALE=CHINESE）', () => {
     const r: Recurrence = { kind: 'lunarYearly', month: 6, day: 15, leap: true };
     expect(occurrences(r, '2025-01-01', '2026-12-31')).toEqual(['2025-08-08', '2026-07-28']);
     expect(isDueOn(r, '2025-07-09')).toBe(false); // 2025 的（非闰）六月十五不算
+  });
+});
+
+describe('农历界面隐藏时的说法（Rei 2026-10-25）', () => {
+  const r: Recurrence = { kind: 'lunarYearly', month: 8, day: 15, leap: false };
+  it('不写农历，写下一次的公历', () => {
+    expect(describeRecurrence(r, { lunar: false, today: '2026-10-25' })).toBe('每年 · 下次 2027年9月15日');
+    expect(describeRecurrence(r, { lunar: false, today: '2026-09-25' })).toBe('每年 · 下次 2026年9月25日');
+    expect(describeRecurrence(r, { lunar: false })).toBe('每年');
+    expect(describeRecurrence(r, { lunar: true, today: '2026-10-25' })).toBe('每年农历八月十五');
+  });
+  it('下一次', () => {
+    expect(nextLunarYearly(r, '2026-09-26')).toBe('2027-09-15');
+    expect(nextLunarYearly(r, '2026-09-25')).toBe('2026-09-25');
   });
 });

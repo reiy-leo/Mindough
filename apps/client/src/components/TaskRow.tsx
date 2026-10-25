@@ -7,6 +7,7 @@ import { toggleDone, toggleMyDay } from '../lib/actions';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { rowMenu } from '../lib/task-menu';
 import { typeIcon } from '../lib/icons';
+import { useLunarUi } from '../lib/lunar';
 import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
 import { ItemArt, layoutShape } from './library/Library';
@@ -42,6 +43,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const ui = useUi();
   const v = viewOf(store, task);
   const today = toDateKey(store.now());
+  const lunarUi = useLunarUi();
   const checkIn = isCheckInTask(task);
   const closed = task.status === '关闭';
   const done = !closed && (doneOverride ?? task.status === '完成');
@@ -160,7 +162,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           {rec && (
             <span className="meta-rec">
               <Repeat size={11} />
-              {describeRecurrence(rec)}
+              {describeRecurrence(rec, { lunar: lunarUi, today })}
             </span>
           )}
           {relatedCount > 0 && (

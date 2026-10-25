@@ -1,7 +1,8 @@
 /**
  * 农历（Rei 2026-10-17）：日期格子下的农历小字 + 订阅日历（节气 / 节日 / 法定假日调休）。
  * - 换算本地查表（core lunar/），不联网；订阅经 Worker /api/calendar/ics 代拉（避开 CORS），拉到的存这台设备的 localStorage，离线可用。
- * - 显示农历、订阅地址、同步频率是同步偏好（LUNAR_PREFS）；上次同步时间、状态、数据只在这台设备。
+ * - 农历界面显不显示由本机设置「中国农历」决定（settings.chineseLunar，默认关、不同步），且只在中文界面（简 / 繁）出现：一律用 useLunarUi()（Rei 2026-10-25）。
+ * - 订阅地址、同步频率是同步偏好（LUNAR_PREFS）；上次同步时间、状态、数据只在这台设备。
  * - 订阅到的事件只读，不成任务；和本地农历冲突时以订阅的节日名为准（core lunarCellLabel）。
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
@@ -9,7 +10,7 @@ import {
   LUNAR_PREFS,
   groupSubEvents,
   lunarCellLabel,
-  lunarShown,
+  lunarUiVisible,
   normalizeSubFreq,
   parseIcs,
   pickCellEvent,
@@ -25,6 +26,7 @@ import {
   type SubStatus,
 } from '@mindough/core';
 import { API_BASE } from './account';
+import { useSettings } from './settings';
 
 const STATE_KEY = 'mindough:lunar-sub';
 const DATA_KEY = 'mindough:lunar-sub-data';
@@ -124,7 +126,6 @@ export async function syncLunarSub(url: string, opts: { fresh?: boolean; fetcher
 }
 
 export interface LunarPrefs {
-  show: boolean;
   url: string;
   freq: SubFreq;
   /** 用户自己填过地址（不是默认源）。 */
@@ -133,12 +134,21 @@ export interface LunarPrefs {
 
 export function lunarPrefs(store: Store): LunarPrefs {
   const raw = store.pref(LUNAR_PREFS.subUrl);
-  return { show: lunarShown(store.pref(LUNAR_PREFS.show)), url: subUrlOf(raw), freq: normalizeSubFreq(store.pref(LUNAR_PREFS.subFreq)), custom: typeof raw === 'string' && !!raw.trim() };
+  return { url: subUrlOf(raw), freq: normalizeSubFreq(store.pref(LUNAR_PREFS.subFreq)), custom: typeof raw === 'string' && !!raw.trim() };
 }
 
-/** 到点自动同步：启动、回到前台、每小时看一眼（只在显示农历时）。挂在 App 里一次。 */
+/**
+ * 农历界面现在显不显示（Rei 2026-10-25）：本机「中国农历」开着 且 界面是中文（简 / 繁）。
+ * 关着时日期弹层没有「公历 | 农历」、格子没有农历小字、标题没有农历一行、重复不写农历——数据照旧，每年农历重复照常按农历算。
+ */
+export function useLunarUi(): boolean {
+  return lunarUiVisible(useSettings().settings.chineseLunar);
+}
+
+/** 到点自动同步：启动、回到前台、每小时看一眼（只在农历界面显示时）。挂在 App 里一次。 */
 export function useLunarSubScheduler(store: Store) {
-  const { show, url, freq } = lunarPrefs(store);
+  const { url, freq } = lunarPrefs(store);
+  const show = useLunarUi();
   useEffect(() => {
     if (!show) return;
     const check = () => {
@@ -165,9 +175,10 @@ export interface DayLunar {
   sub: CellSub | null;
 }
 
-/** 拿某天的农历和订阅事件；没开「显示农历」时 show = false（调用方不显示）。 */
+/** 拿某天的农历和订阅事件；农历界面不显示时 show = false（调用方不显示）。 */
 export function useLunar(store: Store): { show: boolean; day: (d: DateKey) => DayLunar } {
-  const { show, url } = lunarPrefs(store);
+  const { url } = lunarPrefs(store);
+  const show = useLunarUi();
   const { byDate, state } = useLunarSub();
   return useMemo(() => {
     const ours = state?.url === url ? byDate : new Map<DateKey, SubEvent[]>();

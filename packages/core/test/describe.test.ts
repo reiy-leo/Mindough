@@ -57,20 +57,20 @@ describe('倒数日与日期', () => {
   it('快捷日期：周四', () => {
     // 2026-10-15 是周四
     expect(quickDates('2026-10-15')).toEqual([
-      { label: '今天', date: '2026-10-15' },
-      { label: '明天', date: '2026-10-16' },
-      { label: '本周末', date: '2026-10-17' },
-      { label: '下周一', date: '2026-10-19' },
+      { kind: 'today', label: '今天', date: '2026-10-15' },
+      { kind: 'tomorrow', label: '明天', date: '2026-10-16' },
+      { kind: 'weekend', label: '本周末', date: '2026-10-17' },
+      { kind: 'monday', label: '下周一', date: '2026-10-19' },
     ]);
   });
   it('快捷日期：周六、周日', () => {
     expect(quickDates('2026-10-17').slice(2)).toEqual([
-      { label: '下周末', date: '2026-10-24' },
-      { label: '下周一', date: '2026-10-19' },
+      { kind: 'weekend', label: '下周末', date: '2026-10-24' },
+      { kind: 'monday', label: '下周一', date: '2026-10-19' },
     ]);
     expect(quickDates('2026-10-18').slice(2)).toEqual([
-      { label: '下周末', date: '2026-10-24' },
-      { label: '下周一', date: '2026-10-19' },
+      { kind: 'weekend', label: '下周末', date: '2026-10-24' },
+      { kind: 'monday', label: '下周一', date: '2026-10-19' },
     ]);
   });
 });

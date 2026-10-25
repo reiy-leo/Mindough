@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { groupSubEvents, looksLikeIcs, parseIcs, pickCellEvent, plainSubTitle } from '../src/lunar/ics';
-import { DEFAULT_LUNAR_SUB_URL, httpStatusZh, lunarShown, normalizeSubFreq, normalizeSubUrl, subDue, subStatusText, subUrlOf, type SubState } from '../src/lunar/subscription';
+import { DEFAULT_LUNAR_SUB_URL, httpStatusZh, lunarUiVisible, normalizeSubFreq, normalizeSubUrl, subDue, subStatusText, subUrlOf, type SubState } from '../src/lunar/subscription';
 
 // 节选自 Apple「中国大陆节假日」（calendars.icloud.com/holidays/cn_zh.ics）的写法：全天、多天放假、补班、每年重复、折行
 const ICS = [
@@ -68,10 +68,13 @@ describe('ICS 解析', () => {
 
 describe('订阅设置', () => {
   it('显示农历默认跟语言', () => {
-    expect(lunarShown(undefined, 'zh')).toBe(true);
-    expect(lunarShown(undefined, 'en')).toBe(false);
-    expect(lunarShown(false, 'zh')).toBe(false);
-    expect(lunarShown(true, 'en')).toBe(true);
+    // Rei 2026-10-25：本机开关打开 且 中文界面（简 / 繁）才显示
+    expect(lunarUiVisible(true, 'zh')).toBe(true);
+    expect(lunarUiVisible(false, 'zh')).toBe(false);
+    expect(lunarUiVisible(true, 'en')).toBe(false);
+    expect(lunarUiVisible(false, 'en')).toBe(false);
+    expect(lunarUiVisible(true, 'zh-Hant')).toBe(true);
+    expect(lunarUiVisible(true, 'zh-TW')).toBe(true);
   });
   it('地址', () => {
     expect(subUrlOf(undefined)).toBe(DEFAULT_LUNAR_SUB_URL);

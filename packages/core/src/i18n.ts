@@ -104,6 +104,15 @@ export function intlLocale(l: Locale = current): string {
   return l === 'en' ? 'en-US' : 'zh-CN';
 }
 
+/**
+ * 界面是不是中文（简体或繁体）：农历相关的设置和界面只在中文界面出现（Rei 2026-10-25）。
+ * 现在只有 zh / en 两种语言；以后加 zh-Hant（或 zh-TW / zh-HK 这类标签）时，凡是 zh 开头的都算中文，不用再改调用方。
+ */
+export function isChineseLocale(locale: string = current): boolean {
+  const l = locale.toLowerCase();
+  return l === 'zh' || l.startsWith('zh-') || l.startsWith('zh_');
+}
+
 /** 系统语言 → 我们支持的语言（中文系的都算中文，其余英文）。 */
 export function localeFromSystem(langs: readonly string[]): Locale {
   for (const l of langs) {

@@ -38,7 +38,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType, weekdayLabel, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, lunarYearlyDate, formatDate } from '@mindough/core';
+  type TaskType, weekdayLabel, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -50,6 +50,7 @@ import { saveImageAsset } from '../../lib/upload';
 
 import { dataLabel, tr } from '../../lib/i18n';
 import { trx } from '../../lib/trx';
+import { useLunarUi } from '../../lib/lunar';
 export const MODE_ICON: Record<CompletionMode, typeof Timer> = { once: CircleCheck, timer: Timer, count: Hash, countdown: CalendarClock };
 
 /** 完成方式的选择：四张卡片（单选，方向键可切换）。 */
@@ -198,18 +199,17 @@ const LUNAR_MONTH_OPTIONS = () => [
 
 /** 下一次（含今天）在哪天：「2027年9月15日」。 */
 function nextLunarText(r: Extract<Recurrence, { kind: 'lunarYearly' }>, today: DateKey): string {
-  const y = solarToLunar(today)?.year;
-  if (!y) return '—';
-  for (const yy of [y, y + 1]) {
-    const d = lunarYearlyDate(yy, r.month, r.day, r.leap);
-    if (d && d >= today) return formatDate(d, { year: true });
-  }
-  return '—';
+  const d = nextLunarYearly(r, today);
+  return d ? formatDate(d, { year: true }) : '—';
 }
 
 /** 重复：只做一次 / 定期打卡 → 每天、每周几、每月几号、每隔几天。 */
 export function RepeatEditor({ value, onChange, today, children }: { value: string | null; onChange: (rule: string | null) => void; today: DateKey; children?: ReactNode }) {
   const r = parseRecurrence(value);
+  // 农历界面隐藏（没开「中国农历」或不是中文界面，Rei 2026-10-25）：不给「每年农历」这个选项；
+  // 已经是每年农历的任务照常按农历重复，这里只显示「每年」+ 下一次的公历日期，不显示农历月日
+  const lunarUi = useLunarUi();
+  const freqs = FREQ.filter((f) => f.id !== 'lunarYearly' || lunarUi || r?.kind === 'lunarYearly');
   return (
     <div className="repeat">
       <RadioGroup
@@ -237,9 +237,9 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
               if (k !== undefined && k !== r.kind) onChange(defaultRule(k as Freq, today));
             }}
           >
-            {FREQ.map((f) => (
+            {freqs.map((f) => (
               <ToggleButton key={f.id} id={f.id} className="freq-chip">
-                {f.label}
+                {f.id === 'lunarYearly' && !lunarUi ? tr('每年') : f.label}
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
@@ -270,7 +270,12 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
               {r.day > 28 && <span className="sentence-note">{tr('小月取月末')}</span>}
             </div>
           )}
-          {r.kind === 'lunarYearly' && (
+          {r.kind === 'lunarYearly' && !lunarUi && (
+            <div className="sentence">
+              <span className="sentence-note">{tr('下次：{date}', { date: nextLunarText(r, today) })}</span>
+            </div>
+          )}
+          {r.kind === 'lunarYearly' && lunarUi && (
             <div className="sentence lunar-repeat">
               <span>{tr('在每年农历的')}</span>
               <InlineSelect<string>

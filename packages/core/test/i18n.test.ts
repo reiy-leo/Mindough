@@ -78,3 +78,24 @@ describe('i18n（core）', () => {
     expect(localeFromSystem(['fr-FR'])).toBe('en');
   });
 });
+
+describe('isChineseLocale（Rei 2026-10-25：农历只在简体 / 繁体中文界面出现）', () => {
+  it('zh 开头的都算中文', async () => {
+    const { isChineseLocale } = await import('../src/i18n');
+    expect(isChineseLocale('zh')).toBe(true);
+    expect(isChineseLocale('zh-Hant')).toBe(true);
+    expect(isChineseLocale('zh-Hans')).toBe(true);
+    expect(isChineseLocale('zh-TW')).toBe(true);
+    expect(isChineseLocale('zh_HK')).toBe(true);
+    expect(isChineseLocale('en')).toBe(false);
+    expect(isChineseLocale('en-US')).toBe(false);
+    expect(isChineseLocale('zu')).toBe(false);
+  });
+  it('不传参数跟当前界面语言', async () => {
+    const { isChineseLocale } = await import('../src/i18n');
+    setLocale('en');
+    expect(isChineseLocale()).toBe(false);
+    setLocale('zh');
+    expect(isChineseLocale()).toBe(true);
+  });
+});

@@ -106,6 +106,9 @@ export const CORE_EN: Record<string, V> = {
   '任务链|{date}完成': 'Done {date}',
   '任务链|{n} 天后': (p) => `In ${count(p.n, 'Day', 'Days')}`,
   '任务链|已过 {n} 天': (p) => `${count(p.n, 'Day', 'Days')} Overdue`,
+  // 农历界面隐藏时的每年农历重复（Rei 2026-10-25）
+  '每年 · 下次 {date}': (p) => `Yearly · next ${p.date}`,
+  每年: 'Yearly',
   下周末: 'Next Weekend',
   本周末: 'This Weekend',
   下周一: 'Next Monday',

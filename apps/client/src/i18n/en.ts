@@ -1016,8 +1016,9 @@ export const EN: Record<string, EnValue> = {
   '手动：只在点「立即同步」时更新。': 'Manual: updates only when you tap “Sync Now.”',
   '{freq}自动更新一次；拉到的存在这台设备上，离线也能看。': (p) => `Updates automatically ${String(p.freq).toLowerCase()}. What’s fetched is kept on this device, so it works offline.`,
   农历: 'Lunar',
-  显示农历: 'Show Chinese Lunar Calendar',
-  '日期格子下显示农历、节气和节日，选日期时可以按农历选。默认：界面是中文时打开。': 'Shows lunar dates, solar terms, and festivals under each date, and lets you pick dates by the lunar calendar. On by default when the app is in Chinese.',
+  // 2026-10-25：「中国农历」本机开关（只在中文界面出现，英文写上以备以后别的语言用）
+  中国农历: 'Chinese Lunar Calendar',
+  '打开后日期格子下显示农历、节气和节日，选日期时可以按农历选，重复可以选每年农历。只在这台设备上生效。': 'Shows lunar dates, solar terms, and festivals under each date, and lets you pick dates and yearly repeats by the lunar calendar. Applies to this device only.',
   农历订阅: 'Lunar Calendar Subscription',
   '用的是你填的日历地址。': 'Using the calendar URL you entered.',
   '默认订阅 Apple 的「中国大陆节假日」日历：节气、传统节日、法定假日的放假和调休上班。': 'Subscribes to Apple’s “Holidays in Mainland China” calendar by default: solar terms, traditional festivals, public holidays, and make-up workdays.',

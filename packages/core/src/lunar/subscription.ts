@@ -2,7 +2,7 @@
  * 农历订阅（Rei 2026-10-17）：从外部订阅一份节气 / 传统节日 / 法定假日调休日历（ICS），设置里显示源地址和多久同步一次。
  * 源地址、同步频率、显示农历开关是跟着账户同步的偏好（store.pref）；拉到的数据、上次同步时间和状态只存这台设备（离线可用）。
  */
-import { getLocale, tr } from '../i18n';
+import { getLocale, isChineseLocale, tr } from '../i18n';
 
 /**
  * 默认源：Apple 的「中国大陆节假日」公开日历（macOS / iOS 日历里订阅的同一份）。
@@ -11,7 +11,10 @@ import { getLocale, tr } from '../i18n';
 export const DEFAULT_LUNAR_SUB_URL = 'https://calendars.icloud.com/holidays/cn_zh.ics';
 
 export const LUNAR_PREFS = {
-  /** 日期格子下显示农历小字（默认：界面中文时开）。 */
+  /**
+   * 旧的同步偏好「显示农历」（2026-10-17 – 10-25）。已不再读：农历界面改由本机设置「中国农历」开关决定（Rei 2026-10-25，默认关），
+   * 留着这个 key 只为说明旧数据里可能还有它。
+   */
   show: 'lunar.show',
   /** 订阅源地址（空 = 默认源）。 */
   subUrl: 'lunar.sub_url',
@@ -45,9 +48,13 @@ const FREQ_MS: Record<Exclude<SubFreq, 'manual'>, number> = { daily: 24 * HOUR, 
 /** 失败后至少隔多久再自动试（不影响「立即同步」）。 */
 export const SUB_RETRY_MS = HOUR;
 
-/** 显示农历：用户设过就用设的，没设过跟界面语言（中文开、英文关）。 */
-export function lunarShown(pref: unknown, locale = getLocale()): boolean {
-  return typeof pref === 'boolean' ? pref : locale === 'zh';
+/**
+ * 农历界面显不显示（Rei 2026-10-25「只有在设置中打开中国农历 switch 才显示；只有在简体中文、繁体中文中显示」）：
+ * 本机设置「中国农历」打开 且 界面语言是中文（简 / 繁）。英文等其他语言下一律不显示，即使开关之前打开过。
+ * 只管显示：农历日期、每年农历重复照常存、照常按农历算。
+ */
+export function lunarUiVisible(enabled: boolean, locale: string = getLocale()): boolean {
+  return enabled === true && isChineseLocale(locale);
 }
 
 /** 订阅源地址：没设或设成空 → 默认源。 */

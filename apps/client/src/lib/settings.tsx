@@ -12,9 +12,14 @@ export interface Settings {
   monthMarker: 'auto' | MonthMarker;
   /** 详情「关系」显示任务链（Rei 2026-10-23）：只记在本机，不同步；换一件任务也沿用。 */
   taskChain: boolean;
+  /**
+   * 中国农历（Rei 2026-10-25「日期部分，只有在设置中打开中国农历 switch 才显示」）：只记在本机，不同步，默认关。
+   * 只在中文界面（简 / 繁）起作用，判断一律经 lib/lunar 的 useLunarUi()（core lunarUiVisible）。
+   */
+  chineseLunar: boolean;
 }
 
-const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false };
+const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false };
 const KEY = 'mindough:settings';
 
 function load(): Settings {

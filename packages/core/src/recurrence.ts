@@ -8,7 +8,7 @@
  *               闰月：那年有同一个闰月就在闰月，没有就按非闰的同一个月；三十碰上小月取廿九（lunarYearlyDate）
  * 周期：每次“应打卡日”开启一个周期，持续到下一次应打卡日前一天；周期键 = 该应打卡日的日期键。
  */
-import { addDays, daysInMonth, diffDays, parseDateKey, weekday, weekdayShort } from './dates';
+import { addDays, daysInMonth, diffDays, formatDate, parseDateKey, weekday, weekdayShort } from './dates';
 import type { DateKey } from './types';
 import { lunarDateLabel } from './lunar/names';
 import { lunarYearlyDate, solarToLunar } from './lunar/lunar';
@@ -87,7 +87,22 @@ function lunarOccurrence(r: Extract<Recurrence, { kind: 'lunarYearly' }>, year: 
   return lunarYearlyDate(year, r.month, r.day, r.leap);
 }
 
-export function describeRecurrence(r: Recurrence | null): string {
+/** 每年农历规则从 today（含）起的下一次落在哪天（公历）；范围外 null。 */
+export function nextLunarYearly(r: Extract<Recurrence, { kind: 'lunarYearly' }>, today: DateKey): DateKey | null {
+  const y = solarToLunar(today)?.year;
+  if (!y) return null;
+  for (const yy of [y, y + 1]) {
+    const d = lunarOccurrence(r, yy);
+    if (d && d >= today) return d;
+  }
+  return null;
+}
+
+/**
+ * 重复规则的说法。opts.lunar = false（农历界面隐藏：没开「中国农历」或不是中文界面，Rei 2026-10-25）时，
+ * 每年农历的规则不写农历，改写下一次的公历日期「每年 · 下次 2027年9月15日」（规则本身照旧按农历算）；没给 today 就只写「每年」。
+ */
+export function describeRecurrence(r: Recurrence | null, opts: { lunar?: boolean; today?: DateKey } = {}): string {
   if (!r) return tr('只做一次');
   switch (r.kind) {
     case 'daily':
@@ -102,8 +117,11 @@ export function describeRecurrence(r: Recurrence | null): string {
     }
     case 'monthly':
       return tr('每月 {day} 号', { day: r.day });
-    case 'lunarYearly':
-      return tr('每年{date}', { date: lunarDateLabel(r.month, r.day, r.leap) });
+    case 'lunarYearly': {
+      if (opts.lunar !== false) return tr('每年{date}', { date: lunarDateLabel(r.month, r.day, r.leap) });
+      const next = opts.today ? nextLunarYearly(r, opts.today) : null;
+      return next ? tr('每年 · 下次 {date}', { date: formatDate(next, { weekday: false, year: true }) }) : tr('每年');
+    }
   }
 }
 

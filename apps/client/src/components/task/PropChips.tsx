@@ -22,6 +22,7 @@ import {
   type Task,
 } from '@mindough/core';
 import { useUi } from '../../lib/ui';
+import { useLunarUi } from '../../lib/lunar';
 import { dataLabel, tr } from '../../lib/i18n';
 import { typeIcon } from '../../lib/icons';
 import { clearPatch, setProps, unsetProps, type PropId } from '../../lib/prop-chips';
@@ -67,6 +68,7 @@ interface ChipView {
 
 export function PropChips({ store, task, today, people, linked }: { store: Store; task: Task; today: string; people: Person[]; linked: string[] }) {
   const ui = useUi();
+  const lunarUi = useLunarUi();
   const [open, setOpen] = useState<{ id: PropId; via: 'chip' | 'add' } | null>(null);
   const anchor = useRef<HTMLElement | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -97,7 +99,7 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
         return { icon: <CalendarDays size={14} />, text: s, aria: s, danger: !!task.scheduled_date && task.scheduled_date < today && !isFinished(task.status) };
       }
       case 'repeat': {
-        const s = describeRecurrence(parseRecurrence(task.recurrence));
+        const s = describeRecurrence(parseRecurrence(task.recurrence), { lunar: lunarUi, today });
         return { icon: <Repeat size={14} />, text: s, aria: s };
       }
       case 'category': {

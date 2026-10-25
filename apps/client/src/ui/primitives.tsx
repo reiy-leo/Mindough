@@ -1,7 +1,7 @@
 /**
  * Headless React Aria 组件 + 语义类名。外观全部来自皮肤层（tokens.css / app.css / skins.css）。
  */
-import { useEffect, useLayoutEffect, useRef, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import {
   Switch as RacSwitch,
   Button as RacButton,
@@ -137,6 +137,75 @@ export function Tip({ content, children, delay = 400 }: { content: ReactNode; ch
       {children}
       <Tooltip className="tooltip" offset={6}>
         {content}
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
+
+/**
+ * 只有图标的按钮 + 提示文字（Rei 2026-10-25：日期弹层顶部的快捷按钮改成图标，hover 显示文本）。
+ * 鼠标 / 键盘：悬停或聚焦时显示 tooltip（React Aria TooltipTrigger）；触屏：按住约半秒显示文字，松手不触发、1.5 秒后收起；
+ * 文字同时是 aria-label。外观沿用 .tooltip（三皮肤同一套）。
+ */
+export function TipButton({
+  tip,
+  onPress,
+  className,
+  children,
+  delay = 400,
+  isPressed,
+}: {
+  tip: string;
+  onPress: () => void;
+  className?: string;
+  children: ReactNode;
+  delay?: number;
+  /** 当前选中（aria-pressed）。 */
+  isPressed?: boolean;
+}) {
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const [touchOpen, setTouchOpen] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const hide = useRef<number | undefined>(undefined);
+  const longPressed = useRef(false);
+  useEffect(
+    () => () => {
+      window.clearTimeout(timer.current);
+      window.clearTimeout(hide.current);
+    },
+    [],
+  );
+  return (
+    <TooltipTrigger delay={delay} isOpen={hoverOpen || touchOpen} onOpenChange={setHoverOpen}>
+      <RacButton
+        aria-label={tip}
+        {...(isPressed !== undefined ? { 'aria-pressed': isPressed } : {})}
+        className={`tip-btn${className ? ` ${className}` : ''}`}
+        onPressStart={(e) => {
+          if (e.pointerType !== 'touch') return;
+          longPressed.current = false;
+          window.clearTimeout(hide.current);
+          timer.current = window.setTimeout(() => {
+            longPressed.current = true;
+            setTouchOpen(true);
+          }, 500);
+        }}
+        onPressEnd={() => {
+          window.clearTimeout(timer.current);
+          if (longPressed.current) hide.current = window.setTimeout(() => setTouchOpen(false), 1500);
+        }}
+        onPress={() => {
+          if (longPressed.current) {
+            longPressed.current = false;
+            return;
+          }
+          onPress();
+        }}
+      >
+        {children}
+      </RacButton>
+      <Tooltip className="tooltip" offset={6}>
+        {tip}
       </Tooltip>
     </TooltipTrigger>
   );

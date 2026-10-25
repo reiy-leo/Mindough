@@ -1,17 +1,28 @@
 /**
- * 设置 →「农历」（Rei 2026-10-17）：显示农历开关；农历订阅——源地址（可复制、可改、可恢复默认）、同步频率、上次同步时间、立即同步、状态（失败附 HTTP 状态码中文）。
+ * 设置 →「农历」（Rei 2026-10-17；2026-10-25 改）：「中国农历」开关（本机设置，默认关、不同步）；开着才显示下面的订阅设置。
+ * 整节只在中文界面（简 / 繁，core isChineseLocale）出现，英文等其他语言下连开关都不显示。
+ * 订阅：农历订阅——源地址（可复制、可改、可恢复默认）、同步频率、上次同步时间、立即同步、状态（失败附 HTTP 状态码中文）。
  * 地址和频率跟着账户同步；同步状态和数据只在这台设备。
  */
 import { useEffect, useState } from 'react';
 import { Copy, RefreshCw, RotateCcw } from 'lucide-react';
-import { DEFAULT_LUNAR_SUB_URL, LUNAR_PREFS, SUB_FREQS, normalizeSubUrl, subFreqLabel, subStatusText, syncedAgo, type SubFreq } from '@mindough/core';
+import { DEFAULT_LUNAR_SUB_URL, isChineseLocale, LUNAR_PREFS, SUB_FREQS, normalizeSubUrl, subFreqLabel, subStatusText, syncedAgo, type SubFreq } from '@mindough/core';
 import { Button, Section, Segmented, Switch } from '../ui/primitives';
 import { lunarPrefs, syncLunarSub, useLunarSub } from '../lib/lunar';
 import { useUi } from '../lib/ui';
+import { useSettings } from '../lib/settings';
 import { useNow, useStore } from '../store/StoreProvider';
 import { tr } from '../lib/i18n';
 
 export function LunarSection() {
+  // 不是中文界面：整节不显示（开关之前打开过也不显示，农历界面一律隐藏）
+  if (!isChineseLocale()) return null;
+  return <LunarSectionInner />;
+}
+
+function LunarSectionInner() {
+  const { settings, set } = useSettings();
+  const on = settings.chineseLunar;
   const store = useStore();
   const { toast } = useUi();
   const prefs = lunarPrefs(store);
@@ -51,11 +62,13 @@ export function LunarSection() {
       <div className="card settings-card">
         <div className="setting">
           <div className="setting-text">
-            <div className="setting-name">{tr('显示农历')}</div>
-            <div className="setting-hint">{tr('日期格子下显示农历、节气和节日，选日期时可以按农历选。默认：界面是中文时打开。')}</div>
+            <div className="setting-name">{tr('中国农历')}</div>
+            <div className="setting-hint">{tr('打开后日期格子下显示农历、节气和节日，选日期时可以按农历选，重复可以选每年农历。只在这台设备上生效。')}</div>
           </div>
-          <Switch label={tr('显示农历')} isSelected={prefs.show} onChange={(v) => store.setPref(LUNAR_PREFS.show, v)} />
+          <Switch label={tr('中国农历')} isSelected={on} onChange={(v) => set('chineseLunar', v)} />
         </div>
+        {on && (
+          <>
         <div className="setting is-stacked">
           <div className="setting-text">
             <div className="setting-name">{tr('农历订阅')}</div>
@@ -112,6 +125,8 @@ export function LunarSection() {
             {tr('立即同步')}
           </Button>
         </div>
+          </>
+        )}
       </div>
     </Section>
   );

@@ -28,12 +28,14 @@ import { typeIcon } from '../lib/icons';
 
 import { tr, trc } from '../lib/i18n';
 import { trx } from '../lib/trx';
+import { useLunarUi } from '../lib/lunar';
 export function CheckInsPage() {
   const store = useStore();
   const ui = useUi();
   const { layout } = useSettings();
   const now = useNow();
   const today = toDateKey(now);
+  const lunarUi = useLunarUi();
   const tasks = store.tasks();
   const checkIns = store.list('check_in');
   const idx = useMemo(() => buildRatioIndex(tasks, checkIns, now), [store.version, today]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -67,7 +69,7 @@ export function CheckInsPage() {
           <span className="habit-title">{title(t)}</span>
           <span className="habit-meta">
             {arrange !== 'category' && catOf(t) && <CategoryLabel c={catOf(t)!} size={12} />}
-            {describeRecurrence(parseRecurrence(t.recurrence))}
+            {describeRecurrence(parseRecurrence(t.recurrence), { lunar: lunarUi, today })}
             {s && (
               <span className="habit-streak">
                 <Flame size={12} className={s.current > 0 ? 'flame-on' : ''} />

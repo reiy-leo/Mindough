@@ -74,14 +74,24 @@
 }
 .lunar-picker-fields {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
+  /* 年一整行，月 / 日各占一半：292 宽里三个挤一行会把「闰十一月」「Month 9」截成「Mo…」（Rei 2026-10-25 截图） */
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
+}
+.lunar-picker-fields .lunar-year {
+  grid-column: 1 / -1;
 }
 .lunar-picker-fields .field {
   min-width: 0;
 }
 .lunar-picker-fields .select-btn {
   min-width: 0;
+}
+.lunar-picker-fields .select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .lunar-picker-solar {
   margin: 0;
