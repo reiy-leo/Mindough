@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
-import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Search, Sun, X } from 'lucide-react';
+import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Search, Sun } from 'lucide-react';
 import { formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { Button, Empty, Section, Tip } from '../ui/primitives';
 import { openMiniWindow } from '../lib/windows';
 import { isTauri } from '../store/sqlite-tauri';
+import { useReorderGuard } from '../lib/drag-guard';
 
 /** 小窗只在桌面 app 里有（手机、网页没有置顶窗口）。 */
 const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -41,7 +42,10 @@ export function MyDayPage() {
   const counted = items.length - closedCount;
   const doneCount = items.filter((i) => i.done && i.task.status !== '关闭').length;
 
+  // 拖完不留高亮、不选中被拖的行（lib/drag-guard）
+  const reorderGuard = useReorderGuard();
   const { dragAndDropHooks } = useDragAndDrop({
+    ...reorderGuard.handlers,
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
     onReorder: (e) => {
       const order = items.map((i) => i.task.id);
@@ -105,7 +109,7 @@ export function MyDayPage() {
       </Form>
 
       {items.length ? (
-        <GridList aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={items.map((i) => ({ ...i, id: i.task.id }))}>
+        <GridList ref={reorderGuard.ref} aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={items.map((i) => ({ ...i, id: i.task.id }))}>
           {(item) => (
             <GridListItem id={item.id} textValue={item.task.body_md.slice(0, 40) || tr('任务')} className={`list-item${ui.editingId === item.id ? ' is-selected' : ''}`}>
               <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
@@ -116,11 +120,7 @@ export function MyDayPage() {
                 task={item.task}
                 showMyDay={false}
                 doneOverride={item.done}
-                trailing={
-                  <RacButton className="icon-btn" aria-label={tr('移出我的一天')} onPress={() => store.removeFromMyDay(item.task.id, today)}>
-                    <X size={16} />
-                  </RacButton>
-                }
+                // 行尾不放 ×（Rei 2026-10-25「删除my day中的条目右侧的x按钮」）：移出我的一天用行的右键 / 长按菜单或详情里的太阳
               />
             </GridListItem>
           )}

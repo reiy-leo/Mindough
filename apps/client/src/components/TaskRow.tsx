@@ -6,6 +6,7 @@ import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
 import { STATE_CLASS, viewOf } from '../lib/view';
 import { rowMenu } from '../lib/task-menu';
+import { isDragPress } from '../lib/drag-guard';
 import { typeIcon } from '../lib/icons';
 import { TaskDateText } from './TaskDateText';
 import { useLunarUi } from '../lib/lunar';
@@ -136,6 +137,8 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
             longPressed.current = false;
             return;
           }
+          // 拖动排序的尾巴不算点开：不选中、不打开详情（lib/drag-guard）
+          if (isDragPress()) return;
           ui.openEditor(task.id);
         }}
       >

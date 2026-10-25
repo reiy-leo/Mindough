@@ -64,6 +64,7 @@ import { AutoTextarea, Button, ConfirmDialog, IconButton, PopoverPanel, Section,
 import { useStore } from '../store/StoreProvider';
 import { useSettings } from '../lib/settings';
 import { useUi } from '../lib/ui';
+import { isDragPress, useReorderGuard } from '../lib/drag-guard';
 import { layoutShape } from './library/Library';
 
 import { dataLabel, tr, trc } from '../lib/i18n';
@@ -171,7 +172,9 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
   const archived = store.archivedTypes();
   const [showArchived, setShowArchived] = useState(false);
   const archive = useArchive();
+  const reorderGuard = useReorderGuard();
   const { dragAndDropHooks } = useDragAndDrop({
+    ...reorderGuard.handlers,
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
     onReorder: (e) => {
       const order = types.map((t) => t.id);
@@ -184,7 +187,7 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
   });
   return (
     <>
-      <GridList aria-label={trc('类型编辑器', '类型')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => onOpen(String(k))}>
+      <GridList ref={reorderGuard.ref} aria-label={trc('类型编辑器', '类型')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => !isDragPress() && onOpen(String(k))}>
         {(t) => {
           const Icon = typeIcon(t.icon);
           const name = dataLabel(t.name);
@@ -438,7 +441,9 @@ function FieldList({ type }: { type: TaskType }) {
   const fields = liveFields(type);
   const [label, setLabel] = useState('');
   const [kind, setKind] = useState<FieldKind>('text');
+  const reorderGuard = useReorderGuard();
   const { dragAndDropHooks } = useDragAndDrop({
+    ...reorderGuard.handlers,
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
     onReorder: (e) => {
       const order = fields.map((f) => f.key);
@@ -457,7 +462,7 @@ function FieldList({ type }: { type: TaskType }) {
   };
   return (
     <div className="field-manage">
-      <GridList aria-label={tr('字段')} className="field-manage-list" items={fields.map((f) => ({ ...f, id: f.key }))} dragAndDropHooks={dragAndDropHooks}>
+      <GridList ref={reorderGuard.ref} aria-label={tr('字段')} className="field-manage-list" items={fields.map((f) => ({ ...f, id: f.key }))} dragAndDropHooks={dragAndDropHooks}>
         {(f) => (
           <GridListItem id={f.key} textValue={dataLabel(f.label)} className={`field-row${f.hidden ? ' is-hidden' : ''}`}>
             <FieldRow type={type} f={f} index={fields.findIndex((x) => x.key === f.key)} count={fields.length} />

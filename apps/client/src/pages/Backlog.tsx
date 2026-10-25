@@ -12,6 +12,7 @@ import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { DatePanel } from '../components/task/DatePanel';
 import { titleOf } from '../lib/view';
+import { useReorderGuard } from '../lib/drag-guard';
 
 import { tr } from '../lib/i18n';
 export function BacklogPage() {
@@ -20,7 +21,10 @@ export function BacklogPage() {
   const today = toDateKey(store.now());
   const list = store.backlog(today);
 
+  // 拖完不留高亮、不选中被拖的行（lib/drag-guard）
+  const reorderGuard = useReorderGuard();
   const { dragAndDropHooks } = useDragAndDrop({
+    ...reorderGuard.handlers,
     getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
     onReorder: (e) => {
       const order = list.map((t) => t.id);
@@ -45,7 +49,7 @@ export function BacklogPage() {
         }
       />
       {list.length ? (
-        <GridList aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={list}>
+        <GridList ref={reorderGuard.ref} aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={list}>
           {(t) => (
             <GridListItem id={t.id} textValue={titleOf(store, t) || tr('任务')} className={`list-item${ui.editingId === t.id ? ' is-selected' : ''}`}>
               <RacButton slot="drag" className="drag-handle" aria-label={tr('拖动排序')}>
