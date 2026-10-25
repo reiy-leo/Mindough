@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
-import { Button as RacButton, Checkbox } from 'react-aria-components';
-import { Check, Link2, Lock, Repeat, Sun, SunDim, X } from 'lucide-react';
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { Button as RacButton, Checkbox, Menu, MenuItem, Popover, Separator } from 'react-aria-components';
+import { Check, Link2, Lock, PanelRight, Repeat, Sun, SunDim, X } from 'lucide-react';
 import { describeRecurrence, isCheckInTask, parseRecurrence, relativeDayZh, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
 import { STATE_CLASS, viewOf } from '../lib/view';
+import { rowMenu } from '../lib/task-menu';
 import { typeIcon } from '../lib/icons';
 import { AvatarStack } from './Avatar';
 import { CheckInControl } from './CheckInControl';
@@ -53,8 +54,61 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   // 三列布局：右列正在显示这件
   const selected = ui.editingId === task.id;
 
+  // 行的右键 / 长按菜单：查看详情 ｜ 加入 / 移出我的一天（Rei 2026-10-25 去掉建议行尾的「+ 加入」后的入口）
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const longPressed = useRef(false);
+  const openMenuAt = (x: number, y: number) => {
+    // 键盘（菜单键 / Shift+F10）触发时没有坐标：挂在行的右上
+    if (!x && !y && rowRef.current) {
+      const r = rowRef.current.getBoundingClientRect();
+      x = r.right - 16;
+      y = r.top + r.height / 2;
+    }
+    setMenuAt({ x, y });
+  };
+  const onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    openMenuAt(e.clientX, e.clientY);
+  };
+  const cancelPress = () => {
+    if (press.current) window.clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  const onPointerDown = (e: PointerEvent) => {
+    longPressed.current = false;
+    if (e.pointerType !== 'touch') return;
+    const { clientX: x, clientY: y } = e;
+    cancelPress();
+    press.current = {
+      x,
+      y,
+      timer: window.setTimeout(() => {
+        press.current = null;
+        longPressed.current = true;
+        openMenuAt(x, y);
+      }, 500),
+    };
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    const p = press.current;
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+  };
+
   return (
-    <div className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}${selected ? ' is-selected' : ''}`} data-task-id={task.id}>
+    <div
+      ref={rowRef}
+      className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}${selected ? ' is-selected' : ''}`}
+      data-task-id={task.id}
+      onContextMenu={onContextMenu}
+      // 捕获阶段：行里的按钮（React Aria usePress）会拦住冒泡的 pointerdown
+      onPointerDownCapture={onPointerDown}
+      onPointerMoveCapture={onPointerMove}
+      onPointerUpCapture={cancelPress}
+      onPointerCancelCapture={cancelPress}
+    >
       {isCheckInRow ? (
         <span className="row-lead" aria-hidden>
           {rec ? <Repeat size={17} /> : <TypeIcon size={18} style={{ color: v.type?.color }} />}
@@ -72,7 +126,15 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
         </Checkbox>
       )}
       <TaskThumb media={v.media} layout={v.type?.layout ?? 'text'} isAvatar={v.mediaIsAvatar} color={v.type?.color} icon={v.type?.icon} name={v.artName} />
-      <RacButton className="row-main" aria-current={selected ? 'true' : undefined} onPress={() => ui.openEditor(task.id)}>
+      <RacButton className="row-main" aria-current={selected ? 'true' : undefined} onPress={() => {
+          // 长按出菜单后松手不算点开
+          if (longPressed.current) {
+            longPressed.current = false;
+            return;
+          }
+          ui.openEditor(task.id);
+        }}
+      >
         <span className="row-title">{v.title}</span>
         <span className="row-meta">
           {v.type && v.type.layout !== 'text' && (
@@ -121,6 +183,38 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
         >
           {inDay ? <Sun size={17} /> : <SunDim size={17} />}
         </RacButton>
+      )}
+      {menuAt && (
+        <>
+          <span ref={anchorRef} className="row-menu-anchor" style={{ left: menuAt.x, top: menuAt.y }} aria-hidden />
+          <Popover
+            triggerRef={anchorRef}
+            isOpen
+            onOpenChange={(open) => !open && setMenuAt(null)}
+            className="popover menu-popover"
+            placement="bottom start"
+            offset={2}
+          >
+            <Menu
+              className="menu"
+              aria-label={tr('任务操作')}
+              autoFocus="first"
+              onAction={(k) => {
+                setMenuAt(null);
+                if (k === 'open') ui.openEditor(task.id);
+                else if (k === 'myday') toggleMyDay(store, ui, task.id);
+              }}
+            >
+              {rowMenu(inDay).flatMap((i, n) => [
+                ...(i.separator && n > 0 ? [<Separator key={`sep-${i.id}`} className="menu-sep" />] : []),
+                <MenuItem key={i.id} id={i.id} className="menu-item" textValue={i.label}>
+                  {i.id === 'open' ? <PanelRight size={16} /> : inDay ? <Sun size={16} /> : <SunDim size={16} />}
+                  <span>{i.label}</span>
+                </MenuItem>,
+              ])}
+            </Menu>
+          </Popover>
+        </>
       )}
     </div>
   );

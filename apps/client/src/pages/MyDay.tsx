@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
 import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Search, Sun, X } from 'lucide-react';
-import { SUGGESTION_REASON_LABEL, formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
+import { formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
-import { Button, Chip, Empty, Section, Tip } from '../ui/primitives';
+import { Button, Empty, Section, Tip } from '../ui/primitives';
 import { openMiniWindow } from '../lib/windows';
 import { isTauri } from '../store/sqlite-tauri';
 
@@ -17,12 +17,6 @@ import { useSettings } from '../lib/settings';
 import { JournalCard } from '../components/journal/JournalCard';
 
 import { tr } from '../lib/i18n';
-const REASON_COLOR: Record<string, string> = {
-  今天到期: 'var(--warning)',
-  今天要打卡: 'var(--accent)',
-  刚解锁: 'var(--state-done)',
-  倒数日到了: 'var(--danger)',
-};
 
 export function MyDayPage() {
   const store = useStore();
@@ -182,17 +176,8 @@ export function MyDayPage() {
                 showMyDay={false}
                 showDate
                 showCheckIn={inlineCheckIn}
-                trailing={
-                  <>
-                    <Chip color={REASON_COLOR[s.reason]} className="hide-mobile">
-                      {SUGGESTION_REASON_LABEL[s.reason]}
-                    </Chip>
-                    <Button variant="tonal" className="small" onPress={() => store.addToMyDay(s.task.id, today)} aria-label={tr('加入我的一天')}>
-                      <Plus size={14} />
-                      <span className="hide-mobile">{tr('加入')}</span>
-                    </Button>
-                  </>
-                }
+                // 行尾不放「今天到期」徽章和「+ 加入」（Rei 2026-10-25「任何情况下都不显示这两个按钮」）：
+                // 到期看元信息里的日期，加入我的一天用行的右键 / 长按菜单（TaskRow）
               />
             ))}
           </div>

@@ -519,6 +519,11 @@ Rei 2026-10-24 定：英文「Mindough」，中文「思想团」；2026-10-25 �
 - **原生**：`src-tauri/locales/`——Apple `zh-Hans.lproj` / `en.lproj` 的 `InfoPlist.strings`（CFBundleDisplayName、CFBundleName），macOS 经 `bundle.macOS.files` 打进 Contents/Resources，`src-tauri/Info.plist` 合进 CFBundleLocalizations + LSHasLocalizedDisplayName；iOS 在 ios.yml 打 ipa 前 `scripts/native-locales.sh ios` 放进 .app；Android `values-zh` / `values-zh-rCN` 的 app_name（+ main_activity_title），build.yml 在 `tauri android init` 后 `scripts/native-locales.sh android` 拷进 gen/。
 - **不改**：Tauri productName（Mindough，安装包名、.app 文件夹名、数据目录、更新都靠它）、bundle id `dev.rei8t.mindough`、Windows 安装包名、导出文件夹名「Mindough 日期」、User-Agent、`/api/health` 的 `name: 'mindough'`（标识，不是显示名）、仓库名、深链接 `mindough://`。Windows 安装后开始菜单里也还是 Mindough（productName 单语言）。
 
+### 列表行去掉建议徽章和加入按钮 ✅（2026-10-25）
+Rei 2026-10-25 先说「任务列表，如果很窄不显示右边的两个按钮」，又说「再宽一点显示图标按钮，很宽则显示图标 + 文本」，最后定「任何情况下都不显示这两个按钮」——不按宽度分档。
+- 我的一天「建议」行尾的原因徽章（今天到期 / 今天要打卡 / 刚解锁 / 倒数日到了）和「+ 加入」按钮在任何宽度都不显示；到期靠元信息行里的日期（过期红色）。core 的 `SUGGESTION_REASON_LABEL` 和排序原因还在，界面不再用。
+- 加入我的一天的入口：`TaskRow` 加了右键 / 长按（触屏 500 ms，移动 > 10 px 取消，长按后松手不点开）/ 键盘菜单键菜单，项目由 `lib/task-menu.ts` 的 `rowMenu` 给出：查看详情 ｜ 加入 / 移出我的一天。所有用 TaskRow 的列表（我的一天、待安排、列表、组、可做、资料 / 人物详情…）都有。任务详情「…」菜单里的「加入我的一天」照旧。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。

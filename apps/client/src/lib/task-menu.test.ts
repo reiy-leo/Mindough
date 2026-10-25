@@ -26,3 +26,13 @@ describe('任务详情「…」菜单（关闭挪进菜单，Rei 2026-10-17）',
     expect(detailMenu({ status: '关闭', recurrence: 'FREQ=DAILY', completion_mode: 'once' }, false)[1]!.label).toBe('恢复打卡');
   });
 });
+
+describe('任务列表行的右键 / 长按菜单（Rei 2026-10-25）', () => {
+  it('查看详情 | 加入 / 移出我的一天', async () => {
+    const { rowMenu } = await import('./task-menu');
+    expect(rowMenu(false).map((e) => (e.separator ? `|${e.id}` : e.id)).join(' ')).toBe('open |myday');
+    expect(rowMenu(false)[1]!.label).toBe('加入我的一天');
+    expect(rowMenu(true)[1]!.label).toBe('移出我的一天');
+    expect(rowMenu(true)[0]!.label).toBe('查看详情');
+  });
+});

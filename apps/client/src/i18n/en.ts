@@ -592,7 +592,8 @@ export const EN: Record<string, EnValue> = {
   全部带回今天: 'Bring All to Today',
   带回今天: 'Bring to Today',
   建议: 'Suggestions',
-  加入: 'Add',
+  查看详情: 'View Details',
+  任务操作: 'Task actions',
 
   // ── 人物 ──
   编辑人物: 'Edit Person',

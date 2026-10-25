@@ -32,3 +32,17 @@ export function detailMenu(task: Pick<Task, 'status' | 'recurrence' | 'completio
   out.push(...status, { id: 'delete', label: tr('删除…'), danger: true, separator: true });
   return out;
 }
+
+export type RowMenuId = 'open' | 'myday';
+
+/**
+ * 任务列表行的右键 / 长按菜单（Rei 2026-10-25「任何情况下都不显示这两个按钮」：
+ * 我的一天「建议」行尾的「今天到期」徽章和「+ 加入」按钮去掉了，加入我的一天挪到这里）。
+ * 所有用 TaskRow 的列表都有：查看详情 ｜ 加入 / 移出我的一天。
+ */
+export function rowMenu(inDay: boolean): { id: RowMenuId; label: string; separator?: boolean }[] {
+  return [
+    { id: 'open', label: tr('查看详情') },
+    { id: 'myday', label: inDay ? tr('移出我的一天') : tr('加入我的一天'), separator: true },
+  ];
+}
