@@ -17,6 +17,7 @@ export * from './search';
 export * from './journal';
 export * from './lunar/index';
 export * from './attachments';
+export * from './attachment-cache';
 export * from './library';
 export * from './typedef';
 export * from './merge';

@@ -4,14 +4,48 @@
  * - 图片在本机生成一张小缩略图（长边 480，WebP / JPEG），网格里用它；原文件不压缩、不改尺寸。
  * - 失败可以重试；离线 / 没登录时排着，联网、登录后自动接着传。
  * - 显示：本机队列里有就用本机的文件；传好了 Web 端直接用 /api/files/<key>（同源带 cookie），原生端带 Bearer 取回再显示。
- * - 下载：Web 端走浏览器下载（保留原文件名）；Tauri 存进系统的「下载」文件夹（save_download 命令）并可以在文件夹里显示。
+ * - 下载：Web 端走浏览器下载（保留原文件名）；Tauri 桌面弹系统保存框（2026-10-25 起，dialog 插件），手机存进「下载」文件夹（save_download）。
+ * - 本机缓存（attachment-cache.ts，Rei 2026-10-25）：缓存着的附件打开大图、下载都先用本机的；离线又没缓存的下载不了。
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { attachmentCache } from './attachment-cache';
 import { MAX_ATTACHMENT_BYTES, canThumbnail, formatFileSize, tooLarge, type Attachment, type AttachmentOwnerType, type Store } from '@mindough/core';
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
 import { pendingQueue } from './attachments-queue';
 import { isTauri } from '../store/sqlite-tauri';
 import { tr } from './i18n';
+
+// ───────────── 联网状态 ─────────────
+
+/** 现在连得上吗：浏览器说离线，或账户检查连不上服务器，都算离线。 */
+export function isOnline(): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  return getAccount().status !== 'offline';
+}
+
+let onlineVersion = 0;
+const onlineListeners = new Set<() => void>();
+let onlineWired = false;
+function wireOnline() {
+  if (onlineWired || typeof window === 'undefined') return;
+  onlineWired = true;
+  const bump = () => {
+    onlineVersion++;
+    for (const f of onlineListeners) f();
+  };
+  window.addEventListener('online', bump);
+  window.addEventListener('offline', bump);
+  subscribeAccount(bump);
+}
+
+export function useOnline(): boolean {
+  wireOnline();
+  useSyncExternalStore(
+    (f) => (onlineListeners.add(f), () => onlineListeners.delete(f)),
+    () => onlineVersion,
+  );
+  return isOnline();
+}
 
 // ───────────── 上传状态 ─────────────
 
@@ -352,6 +386,15 @@ export function useAttachmentUrl(a: Attachment, which: 'thumb' | 'full'): string
         setUrl(local);
         return;
       }
+      if (which === 'full') {
+        const cached = await attachmentCache().get(a);
+        if (!alive) return;
+        if (cached) {
+          local = URL.createObjectURL(cached);
+          setUrl(local);
+          return;
+        }
+      }
       if (!key) return setUrl(null);
       const u = await remoteUrl(key);
       if (alive) setUrl(u);
@@ -360,14 +403,27 @@ export function useAttachmentUrl(a: Attachment, which: 'thumb' | 'full'): string
       alive = false;
       if (local) URL.revokeObjectURL(local);
     };
-  }, [a.id, key, which]);
+  }, [a.id, key, which, which === 'full' && attachmentCache().record(a)?.cached_at]);
   return url;
 }
 
-/** 文件内容（导出、原生端下载用）：本机队列里的，或从 R2 取回；取不到 null。 */
+/** 从 R2 取回原文件（不看本机）；取不到 null。 */
+export async function remoteBytes(a: Attachment): Promise<Blob | null> {
+  if (!a.r2_key) return null;
+  try {
+    const r = await fetch(fileUrl(a.r2_key), authInit());
+    return r.ok ? await r.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 文件内容（导出、原生端下载用）：本机队列里的、本机缓存的，或从 R2 取回；取不到 null。 */
 export async function attachmentBytes(a: Attachment): Promise<Blob | null> {
   const p = await pendingQueue().get(a.id);
   if (p) return p.file;
+  const cached = await attachmentCache().get(a);
+  if (cached) return cached;
   if (!a.r2_key) return null;
   try {
     const r = await fetch(fileUrl(a.r2_key), authInit());
@@ -387,31 +443,64 @@ function anchorDownload(href: string, name: string) {
   el.remove();
 }
 
-export type DownloadResult = { ok: true; path?: string } | { ok: false; reason: 'missing' | 'failed'; error?: string };
+export type DownloadResult = { ok: true; path?: string; folder?: 'downloads' | 'chosen' } | { ok: false; reason: 'missing' | 'failed' | 'offline' | 'cancelled'; error?: string };
+
+/** 缓存：取回原文件存进本机（24 小时后自动清掉）。 */
+export function cacheAttachment(a: Attachment): Promise<boolean> {
+  return attachmentCache().cache(a, () => remoteBytes(a));
+}
+
+/** 删除缓存：只删本机副本。 */
+export function uncacheAttachment(a: Attachment): Promise<void> {
+  return attachmentCache().remove(a.id);
+}
+
+const isMobileOs = () => typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
 /**
- * 下载（保留原文件名）。Web：传好了直接让浏览器下（带 cookie，服务端给 Content-Disposition）；本机的用 blob: 地址。
- * Tauri：取回内容，交给 save_download 存进「下载」文件夹，返回存下的路径。
+ * 下载（保留原文件名）。先用本机的：上传队列里的、缓存着的；都没有再从网上取，离线就不行（reason: offline）。
+ * Web：本机的用 blob: 地址，网上的直接让浏览器下（带 cookie，服务端给 Content-Disposition）。
+ * Tauri 桌面：弹系统保存框（默认原文件名），缓存着的从缓存目录拷过去（att_cache_copy），否则取回内容写过去（save_to_path）；取消返回 cancelled。
+ * Tauri 手机：存进「下载」文件夹（save_download），返回路径。
  */
 export async function downloadAttachment(a: Attachment): Promise<DownloadResult> {
+  const pending = await pendingQueue().get(a.id);
+  const cache = attachmentCache();
+  const cached = !pending && cache.record(a) ? await cache.get(a) : null;
+  const local = pending?.file ?? cached;
+  if (!local) {
+    if (!a.r2_key) return { ok: false, reason: 'missing' };
+    if (!isOnline()) return { ok: false, reason: 'offline' };
+  }
   if (!isTauri()) {
-    const p = await pendingQueue().get(a.id);
-    if (p) {
-      const u = URL.createObjectURL(p.file);
+    if (local) {
+      const u = URL.createObjectURL(local);
       anchorDownload(u, a.file_name);
       setTimeout(() => URL.revokeObjectURL(u), 60_000);
       return { ok: true };
     }
-    if (!a.r2_key) return { ok: false, reason: 'missing' };
-    anchorDownload(fileUrl(a.r2_key, { download: true, name: a.file_name }), a.file_name);
+    anchorDownload(fileUrl(a.r2_key!, { download: true, name: a.file_name }), a.file_name);
     return { ok: true };
   }
-  const blob = await attachmentBytes(a);
-  if (!blob) return { ok: false, reason: a.r2_key ? 'failed' : 'missing' };
   try {
     const { invoke } = await import('@tauri-apps/api/core');
+    if (!isMobileOs()) {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const dest = await save({ defaultPath: a.file_name, title: tr('保存附件') });
+      if (!dest) return { ok: false, reason: 'cancelled' };
+      if (cached) {
+        await invoke('att_cache_copy', { id: a.id, dest });
+        return { ok: true, path: dest, folder: 'chosen' };
+      }
+      const blob = local ?? (await remoteBytes(a));
+      if (!blob) return { ok: false, reason: 'failed' };
+      await invoke('save_to_path', new Uint8Array(await blob.arrayBuffer()), { headers: { 'x-path': encodeURIComponent(dest) } });
+      return { ok: true, path: dest, folder: 'chosen' };
+    }
+    const blob = local ?? (await remoteBytes(a));
+    if (!blob) return { ok: false, reason: 'failed' };
     const path = await invoke<string>('save_download', new Uint8Array(await blob.arrayBuffer()), { headers: { 'x-file-name': encodeURIComponent(a.file_name) } });
-    return { ok: true, path };
+    return { ok: true, path, folder: 'downloads' };
   } catch (e) {
     return { ok: false, reason: 'failed', error: String(e) };
   }

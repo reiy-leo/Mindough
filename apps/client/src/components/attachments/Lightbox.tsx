@@ -2,15 +2,30 @@
  * 图片灯箱（Rei 2026-10-17：「附件是图片则小图显示点击可放大(有关闭、下载按钮)」）。
  * 全屏深色底，图片按原比例尽量大；顶栏：文件名、第几张、下载、关闭。多张时左右箭头、← → 键切换，手机上左右滑。
  * Esc、点图片外面的地方关闭。四周留出安全区（刘海、Home 条）。
+ * 只翻图片附件（PDF、视频等不预览，Rei 2026-10-25）。缓存着的原图从本机取（离线也能看大图）；离线又没缓存时下载按钮灰掉。
  */
 import { useEffect, useRef, useState } from 'react';
 import { Button as RacButton, Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 import type { Attachment } from '@mindough/core';
 import { useAttachmentUrl } from '../../lib/attachments';
+import { useCacheRecord } from '../../lib/attachment-cache';
 import { tr } from '../../lib/i18n';
 
-export function Lightbox({ images, openId, onClose, onDownload }: { images: readonly Attachment[]; openId: string | null; onClose: () => void; onDownload: (a: Attachment) => void }) {
+export function Lightbox({
+  images,
+  openId,
+  onClose,
+  onDownload,
+  canDownload = () => true,
+}: {
+  images: readonly Attachment[];
+  openId: string | null;
+  onClose: () => void;
+  onDownload: (a: Attachment) => void;
+  /** 离线又没缓存时 false：下载按钮灰掉 */
+  canDownload?: (a: Attachment) => boolean;
+}) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (!openId) return;
@@ -50,7 +65,7 @@ export function Lightbox({ images, openId, onClose, onDownload }: { images: read
                   <span className="lightbox-name">{cur.file_name}</span>
                   {many && <span className="lightbox-count">{tr('{i} / {n}', { i: i + 1, n: images.length })}</span>}
                 </div>
-                <RacButton className="lightbox-btn" aria-label={tr('下载')} onPress={() => onDownload(cur)}>
+                <RacButton className="lightbox-btn" aria-label={canDownload(cur) ? tr('下载') : tr('离线中，没缓存的附件下载不了')} isDisabled={!canDownload(cur)} onPress={() => onDownload(cur)}>
                   <Download size={20} />
                 </RacButton>
                 <RacButton className="lightbox-btn" aria-label={tr('关闭')} onPress={onClose} autoFocus>
@@ -89,6 +104,7 @@ function insideContent(img: HTMLImageElement, x: number, y: number): boolean {
 
 /** 一张图：先显示缩略图，原图到了换上。点图片外面关闭；左右滑切换。 */
 function Stage({ a, onBackdrop, onSwipe }: { a: Attachment; onBackdrop: () => void; onSwipe?: (d: number) => void }) {
+  useCacheRecord(a); // 缓存好了 / 清掉了重新取原图
   const thumb = useAttachmentUrl(a, 'thumb');
   const full = useAttachmentUrl(a, 'full');
   const [loaded, setLoaded] = useState(false);

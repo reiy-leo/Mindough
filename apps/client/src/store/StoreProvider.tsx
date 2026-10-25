@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useSyncExternalStore, t
 import { DEMO_STAMP_META, SqlAdapter, Store, TABLES, WebStorageAdapter, migrateStorage, seedDemo, type BaseRow, type StorageAdapter } from '@mindough/core';
 import { bindSync } from '../lib/sync';
 import { installUploader } from '../lib/attachments';
+import { installAttachmentCache } from '../lib/attachment-cache';
 import { installWindowSync, isMiniWindow } from '../lib/windows';
 import { installWidgetSnapshot } from '../lib/widget-snapshot';
 import { migrateFromTurso, openWebSqlite, terminateWebSqlite, webSqliteSupported } from './sqlite-web';
@@ -113,6 +114,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => (store ? installWidgetSnapshot(store) : undefined), [store]);
   // 附件上传队列：只在主窗口跑（和同步一样）
   useEffect(() => (store && !isMiniWindow() ? installUploader(store) : undefined), [store]);
+  // 附件本机缓存：启动、回到前台、每小时清掉到期（24 小时）的本机副本
+  useEffect(() => (store && !isMiniWindow() ? installAttachmentCache(store) : undefined), [store]);
   if (error) return <div className="boot-error">{tr('打不开本地数据：{error}', { error })}</div>;
   if (blocked)
     return (

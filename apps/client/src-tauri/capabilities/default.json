@@ -12,6 +12,7 @@
     "opener:default",
     "deep-link:default",
     "notification:default",
+    "dialog:allow-save",
     "core:webview:allow-create-webview-window",
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-focus",

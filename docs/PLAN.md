@@ -440,10 +440,28 @@ Rei 2026-10-17：「添加附件功能，用户可以拖拽或选择文件作为
   3. 附件不占正文：不在 markdown 里插链接（导出时才附一段清单）；要不要支持把附件拖进正文某处当插图。
   4. 删掉的附件只打墓碑，R2 里的文件不删（同一份内容可能被别的附件 / 导入用着；以后可以做「清理没人用的文件」）。
   5. 只有附件、没写字的日记那天算「写了」（月历上有点）。
-  6. Tauri 下载直接存进「下载」文件夹，不弹保存对话框（不装 dialog 插件）；iOS / Android 上「下载」目录的行为要真机看（iOS 没有下载文件夹时退到「文稿」，Android 可能要存储权限），沙箱里没有 Rust 工具链，`files.rs` 没有 cargo check 过，交给 CI build.yml。
+  6. （2026-10-25 改为桌面弹系统保存框，见下面「只预览图片 + 本机缓存」，仍待确认）Tauri 下载直接存进「下载」文件夹，不弹保存对话框（不装 dialog 插件）；iOS / Android 上「下载」目录的行为要真机看（iOS 没有下载文件夹时退到「文稿」，Android 可能要存储权限），沙箱里没有 Rust 工具链，`files.rs` 没有 cargo check 过，交给 CI build.yml。
   7. 两台设备同时改同一个附件（一边改名、一边刚传完填 key）是整行 LWW，极少数情况下改名会被盖掉。
-  8. 已经传到 R2 的文件，本机不留缓存：离线时打不开、下不了（显示缩略图要联网）。
+  8. 已经传到 R2 的文件，本机默认不留缓存：离线时打不开、下不了（显示缩略图要联网）。2026-10-25 起可以手动「缓存」，见下面「只预览图片 + 本机缓存」。
   9. 还没升级的旧客户端会跳过 attachment 表的行（同 journal_entry 当时的情况），升级后要等那些行再被改一次才会拉到。
+
+#### 附件：只预览图片 + 本机缓存 ✅（2026-10-25）
+Rei 2026-10-25：「任务详情页中，attachments如果是图片，添加后是缩略图，点击可放大查看。其他类似的附件都不可预览。附件可以下载、删除、缓存、删除缓存。缓存的附件24小时后清除本地缓存。」
+- **预览**：图片照旧小图网格 + 灯箱（灯箱只翻图片）；其他文件（PDF、视频、音频、文档…）一律不预览，图标 + 文件名 + 大小，点一下下载（原来就没有内嵌预览，这次只是写明）。core `attachmentPressAction`（lightbox / download）。
+- **操作**：··· 菜单 下载 / 缓存（或「删除缓存」）/ 重命名… / 删除（删除前加分隔线，仍是提示里撤销）。桌面悬停出现 ···、右键也打开同一个菜单；触屏点 ··· 或长按 500 ms（iOS 不发 contextmenu，自己计时；长按后那次点击吞掉，不会顺手打开灯箱 / 下载）。哪些能点由 core `attachmentActionState` 算（缓存着 / 在本机上传队列 / 联网）。
+- **缓存**：「缓存」把原文件存到这台设备。Web 用 **Cache Storage**（缓存名 `mindough-attachments-v1`，假地址 `/__attachment-cache/<id>`；选它不选 OPFS：iOS Safari 等的 OPFS 写入接口支持不齐，Cache Storage 各家都稳；sw.js 不碰这个缓存，外壳清理只删 `mindough-shell-*`，所以 SHELL 版本没动）；Tauri 用 app 缓存目录 `attachments/<id>`（`files.rs` 的 `att_cache_put / get / delete / list / copy`，先写 .part 再改名）。缓存记录（附件 id、r2_key、大小、缓存时间）存 localStorage `mindough:att_cache`，只在本机、不同步；附件换了文件（r2_key 变了）就不算缓存着。缓存着的附件有个小硬盘标记（悬停看还剩几小时）。「删除缓存」只删本机副本。缩略图不算缓存的附件，照旧。client `lib/attachment-cache.ts`（`AttachmentCache`、`useCacheRecord`、`installAttachmentCache`），纯逻辑 core `attachment-cache.ts`。
+- **24 小时清理**：从缓存那一刻起算（打开、下载都不续期；对已缓存的再点一次缓存不会出现，因为菜单那时是「删除缓存」）。启动时、回到前台（visibilitychange / focus）、运行中每小时各查一次；读的时候发现到期也当没缓存并删掉。附件被删了（墓碑）、没有记录的孤儿文件也一并清。
+- **本地优先**：缓存着的附件，灯箱原图、下载、导出都先用本机副本；离线又没缓存的：下载按钮灰掉（悬停说明），点文件行提示「离线中，没缓存的附件下载不了，联网后再试」；灯箱里下载灰掉。
+- **Tauri 下载**：桌面改为弹系统保存框（新加 `tauri-plugin-dialog`，权限 `dialog:allow-save`，默认原文件名），缓存着的从缓存目录拷过去（`att_cache_copy`），否则取回后写过去（`save_to_path`）；取消保存框不提示。手机（iOS / Android）仍存进「下载」文件夹（`save_download`）。
+- **日记附件**用同一个组件，同样生效（Rei 只提了任务详情）。
+- 测试：core `test/attachment-cache.test.ts`（到期、假时钟清理、图片 / 非图片、操作状态），client `lib/attachment-cache.test.ts`（缓存记录、假时钟 24 小时清理、install 定时 / 前台、离线下载、菜单与英文 Title Case）。截图 `work/shots-attach/`。
+- **待 Rei 确认**（我先这样定的）：
+  1. Tauri 桌面下载弹系统保存框（之前是直接存进「下载」不弹框，PLAN 附件待问 6）；手机不弹。
+  2. 非图片附件点一下仍是下载（不预览）；要不要改成点一下什么都不做、只能从菜单下载。
+  3. 缓存着的附件不能「续期」：24 小时到了就清，要再缓存得等清掉后再点（或先删除缓存再缓存）。
+  4. 删掉附件时不立刻删缓存（为了撤销），下一次清理（≤ 1 小时 / 回到前台）时删。
+  5. 「已缓存」标记用 Lucide `hard-drive`，「缓存」菜单图标 `hard-drive-download`。
+  6. 正在上传的附件（文件本来就在本机）不显示「缓存」。
 
 ### 农历 ✅（2026-10-17，Rei：「选择日期支持选择中国农历，订阅农历可在设置中看到地址和同步频率」；澄清后确认：从外部订阅一份农历 / 节气日历（ICS），设置里显示源地址和多久同步一次）
 - **换算本地查表，不联网**：core `lunar/`——`data.ts`（农历 1900–2100 月大小 / 闰月 201 个数 + 公历 1900–2100 节气表，约 6 KB）由 `packages/core/scripts/gen-lunar-data.mjs` 从 lunar-javascript 1.7.7（MIT，6tail，寿星天文历算法）生成；它不是依赖，只在生成时用，生成时 1900-01-31 … 2100-12-31 逐日核对过农历和节气（全对）。没用 `Intl` 的 chinese 历：Node / 浏览器的 ICU 在 2027、2030、2012、2018 等年份的初一和官方差一天（如 ICU 说 2027 春节是 2-07，官方 2-06）。`lunar.ts`：`solarToLunar` / `lunarToSolar`（不存在的日子 null）、`lunarYearMonths`、`leapMonthOf`、`solarTermOf`、`lunarFestivalOf`（春节、元宵、龙抬头、端午、七夕、中元、中秋、重阳、腊八、小年、除夕；闰月不算）、`lunarYearlyDate`（每年农历 X 月 X 日落在哪天）、`lunarCellLabel`（格子小字优先级：订阅的节日名 > 传统节日 > 节气 > 初一显示月名「九月」「闰六月」> 日子「初八」）。名字在 `names.ts`（中英文界面格子里都照中文显示，同 Apple 日历；选择器、重复规则的英文说法 Month 9 / Day 8 / Leap Month 6）。

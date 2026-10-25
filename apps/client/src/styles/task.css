@@ -138,6 +138,10 @@
 .menu-item[data-focused] {
   background: var(--surface-hover);
 }
+.menu-item[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
 .menu-item.is-danger,
 .menu-item.is-danger svg {
   color: var(--danger);

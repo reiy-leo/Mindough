@@ -149,18 +149,35 @@ export interface MenuAction {
   danger?: boolean;
   /** 这一项前面画分隔线（另起一组，如状态项、删除） */
   separator?: boolean;
+  /** 灰掉不能点 */
+  disabled?: boolean;
   onAction: () => void;
 }
 
 /** ··· 更多菜单。 */
-export function OverflowMenu({ label = tr('更多'), items, icon, className }: { label?: string; items: MenuAction[]; icon?: ReactNode; className?: string }) {
+export function OverflowMenu({
+  label = tr('更多'),
+  items,
+  icon,
+  className,
+  isOpen,
+  onOpenChange,
+}: {
+  label?: string;
+  items: MenuAction[];
+  icon?: ReactNode;
+  className?: string;
+  /** 受控打开（右键、长按也打开同一个菜单时用） */
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   return (
-    <MenuTrigger>
+    <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <RacButton aria-label={label} className={`icon-btn${className ? ` ${className}` : ''}`}>
         {icon ?? <MoreHorizontal size={18} />}
       </RacButton>
       <Popover className="popover menu-popover" placement="bottom end" offset={4}>
-        <Menu className="menu" onAction={(k) => items.find((i) => i.id === k)?.onAction()}>
+        <Menu className="menu" disabledKeys={items.filter((i) => i.disabled).map((i) => i.id)} onAction={(k) => items.find((i) => i.id === k)?.onAction()}>
           {items.flatMap((i, n) => [
             ...(i.separator && n > 0 ? [<Separator key={`sep-${i.id}`} className="menu-sep" />] : []),
             <MenuItem key={i.id} id={i.id} className={`menu-item${i.danger ? ' is-danger' : ''}`} textValue={i.label}>

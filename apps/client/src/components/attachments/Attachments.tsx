@@ -1,19 +1,46 @@
 /**
  * 附件区（Rei 2026-10-17）：任务详情、日记的正文下面。
- * - 图片：方形小图网格，点开灯箱（Lightbox：关闭、下载、← → 切换）
- * - 其他文件：按类型的图标（FileIcon）+ 文件名 + 大小，点一下下载（保留原文件名）
+ * - 图片：方形小图网格，点开灯箱（Lightbox：关闭、下载、← → 切换，只翻图片）
+ * - 其他文件（PDF、视频、音频、文档…）一律不预览：按类型的图标（FileIcon）+ 文件名 + 大小，点一下下载（保留原文件名）
  * - 「添加附件」选文件（可多选；手机上能选相册），或把文件拖到整块区域上（useFileDrop + DropOverlay）
  * - 上传中显示进度、可取消；失败可重试；离线 / 没登录排队，说明为什么在等
- * - 每个附件：下载、重命名、删除（提示里可撤销）
+ * - 每个附件：下载、缓存 / 删除缓存（Rei 2026-10-25，本机副本 24 小时后自动清除）、重命名、删除（提示里可撤销）
+ *   桌面：悬停出现 ··· / 右键；触屏：··· / 长按，都是同一个菜单。缓存着的附件有个小硬盘标记。
+ * - 离线时没缓存的附件下载不了（按钮灰掉，点了提示）
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Button as RacButton, Dialog, Heading, Input, Modal, ModalOverlay, TextField } from 'react-aria-components';
-import { Download, Paperclip, Pencil, RotateCw, Trash2, Upload, X } from 'lucide-react';
-import { fileKind, fileKindLabel, fileStem, formatFileSize, isViewableImage, type Attachment, type AttachmentOwnerType } from '@mindough/core';
+import { Download, HardDrive, HardDriveDownload, Paperclip, Pencil, RotateCw, Trash2, Upload, X } from 'lucide-react';
+import {
+  attachmentActionState,
+  attachmentPressAction,
+  cacheHoursLeft,
+  fileKind,
+  fileKindLabel,
+  fileStem,
+  formatFileSize,
+  type Attachment,
+  type AttachmentActionState,
+  type AttachmentOwnerType,
+} from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
-import { addAttachments, downloadAttachment, getUploader, revealDownloaded, tooBigMessage, useAttachmentUrl, useUploadState, type UploadState } from '../../lib/attachments';
+import {
+  addAttachments,
+  cacheAttachment,
+  downloadAttachment,
+  getUploader,
+  revealDownloaded,
+  tooBigMessage,
+  uncacheAttachment,
+  useAttachmentUrl,
+  useOnline,
+  useUploadState,
+  type DownloadResult,
+  type UploadState,
+} from '../../lib/attachments';
+import { attachmentCache, useCacheRecord } from '../../lib/attachment-cache';
 import { Button, OverflowMenu, Tip, type MenuAction } from '../../ui/primitives';
 import { FileIcon } from './FileIcon';
 import { Lightbox } from './Lightbox';
@@ -123,8 +150,9 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
   const ui = useUi();
   const { layout } = useSettings();
   const list = store.attachmentsOf(owner.type, owner.id);
-  const images = list.filter((a) => isViewableImage(a));
-  const files = list.filter((a) => !isViewableImage(a));
+  const images = list.filter((a) => attachmentPressAction(a) === 'lightbox');
+  const files = list.filter((a) => attachmentPressAction(a) === 'download');
+  const online = useOnline();
   const input = useRef<HTMLInputElement>(null);
   const add = useAddFiles(owner);
   const [viewing, setViewing] = useState<string | null>(null);
@@ -135,13 +163,18 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
     ui.toast({ message: tr('已删除「{name}」', { name: a.file_name }), actions: [{ label: tr('撤销'), onPress: () => store.restoreAttachment(a.id) }] }, 6000);
   };
   const download = async (a: Attachment) => {
-    const r = await downloadAttachment(a);
-    if (r.ok && r.path) {
-      const path = r.path;
-      ui.toast({ tone: 'success', message: tr('已存到「下载」：{name}', { name: path.split(/[\\/]/).pop() ?? a.file_name }), actions: [{ label: tr('在文件夹中显示'), onPress: () => void revealDownloaded(path) }] }, 6000);
-    } else if (!r.ok) ui.toast({ tone: 'error', message: r.reason === 'missing' ? tr('文件还没传上来，在添加它的设备上联网后就能下载') : tr('没下载成功，稍后再试') }, 5000);
+    downloadToast(ui, a, await downloadAttachment(a));
   };
-  const actions = { remove, download, rename: setRenaming };
+  const cache = async (a: Attachment) => {
+    if (await cacheAttachment(a)) ui.toast({ tone: 'success', message: tr('已缓存「{name}」，24 小时后自动清除', { name: a.file_name }) }, 4000);
+    else ui.toast({ tone: 'error', message: tr('没缓存成功，稍后再试') }, 4000);
+  };
+  const uncache = async (a: Attachment) => {
+    await uncacheAttachment(a);
+    ui.toast({ message: tr('已删除「{name}」的本机缓存', { name: a.file_name }) }, 3000);
+  };
+  const offlineHint = () => ui.toast({ message: tr('离线中，没缓存的附件下载不了，联网后再试') }, 4000);
+  const actions: Actions = { remove, download, rename: setRenaming, cache, uncache, offlineHint, online };
 
   return (
     <section className={`attachments${list.length ? '' : ' is-empty'}`} aria-label={tr('附件')}>
@@ -184,7 +217,13 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
           ))}
         </ul>
       )}
-      <Lightbox images={images} openId={viewing} onClose={() => setViewing(null)} onDownload={(a) => void download(a)} />
+      <Lightbox
+        images={images}
+        openId={viewing}
+        onClose={() => setViewing(null)}
+        onDownload={(a) => void download(a)}
+        canDownload={(a) => actionStateOf(a, online).download}
+      />
       <RenameDialog
         attachment={renaming}
         onClose={() => setRenaming(null)}
@@ -196,18 +235,134 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
   );
 }
 
+type Toaster = ReturnType<typeof useUi>;
+
+/** 下载结果的提示（附件区、灯箱共用）。取消保存框不提示。 */
+function downloadToast(ui: Toaster, a: Attachment, r: DownloadResult) {
+  if (r.ok && r.path) {
+    const path = r.path;
+    const name = path.split(/[\\/]/).pop() ?? a.file_name;
+    ui.toast(
+      { tone: 'success', message: r.folder === 'chosen' ? tr('已保存：{name}', { name }) : tr('已存到「下载」：{name}', { name }), actions: [{ label: tr('在文件夹中显示'), onPress: () => void revealDownloaded(path) }] },
+      6000,
+    );
+  } else if (!r.ok && r.reason !== 'cancelled')
+    ui.toast(
+      {
+        tone: 'error',
+        message:
+          r.reason === 'missing'
+            ? tr('文件还没传上来，在添加它的设备上联网后就能下载')
+            : r.reason === 'offline'
+              ? tr('离线中，没缓存的附件下载不了，联网后再试')
+              : tr('没下载成功，稍后再试'),
+      },
+      5000,
+    );
+}
+
 interface Actions {
   remove: (a: Attachment) => void;
   download: (a: Attachment) => Promise<void>;
   rename: (a: Attachment) => void;
+  cache: (a: Attachment) => Promise<void>;
+  uncache: (a: Attachment) => Promise<void>;
+  offlineHint: () => void;
+  online: boolean;
 }
 
-function menuOf(a: Attachment, act: Actions): MenuAction[] {
-  return [
-    { id: 'download', label: tr('下载'), icon: <Download size={16} />, onAction: () => void act.download(a) },
+/** 这个附件的操作能不能用（缓存记录 + 是否在本机队列 + 联网）。 */
+function actionStateOf(a: Attachment, online: boolean, pending = false): AttachmentActionState {
+  return attachmentActionState(a, { cached: !!attachmentCache().record(a), online, pending });
+}
+
+export function menuOf(a: Attachment, act: Pick<Actions, 'remove' | 'download' | 'rename' | 'cache' | 'uncache'>, st: AttachmentActionState): MenuAction[] {
+  const items: MenuAction[] = [{ id: 'download', label: tr('下载'), icon: <Download size={16} />, disabled: !st.download, onAction: () => void act.download(a) }];
+  if (st.cacheItem === 'cache') items.push({ id: 'cache', label: tr('缓存'), icon: <HardDriveDownload size={16} />, disabled: !st.cacheEnabled, onAction: () => void act.cache(a) });
+  if (st.cacheItem === 'remove-cache') items.push({ id: 'uncache', label: tr('删除缓存'), icon: <HardDrive size={16} />, onAction: () => void act.uncache(a) });
+  items.push(
     { id: 'rename', label: tr('重命名…'), icon: <Pencil size={16} />, onAction: () => act.rename(a) },
-    { id: 'delete', label: tr('删除'), icon: <Trash2 size={16} />, danger: true, onAction: () => act.remove(a) },
-  ];
+    { id: 'delete', label: tr('删除'), icon: <Trash2 size={16} />, danger: true, separator: true, onAction: () => act.remove(a) },
+  );
+  return items;
+}
+
+const LONG_PRESS_MS = 500;
+
+/**
+ * 同一个 ··· 菜单的三种打开方式：点 ···、右键（桌面）、长按（触屏，iOS 不发 contextmenu，所以自己计时）。
+ * 长按触发后，紧跟着的那次点击（打开灯箱 / 下载）吞掉。enabled = false（正在上传）时不拦右键。
+ */
+function useItemMenu(enabled: boolean) {
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const fired = useRef(false);
+  const armed = useRef(false);
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    start.current = null;
+  };
+  useEffect(() => clear, []);
+  // 手指抬起后再打开菜单：按着时打开，抬手那一下会被弹层当成「点了外面」立刻关掉
+  const release = () => {
+    clear();
+    if (!armed.current) return;
+    armed.current = false;
+    setTimeout(() => setOpen(true), 30);
+  };
+  const bind = enabled
+    ? {
+        onContextMenu: (e: ReactMouseEvent) => {
+          e.preventDefault();
+          if (armed.current) return; // 长按已经在处理（Android 也会发 contextmenu）
+          clear();
+          setOpen(true);
+        },
+        // 捕获阶段：React Aria 的按钮在冒泡阶段会把 pointer 事件停掉
+        onPointerDownCapture: (e: ReactPointerEvent) => {
+          fired.current = false;
+          armed.current = false;
+          if (e.pointerType !== 'touch') return;
+          start.current = { x: e.clientX, y: e.clientY };
+          timer.current = setTimeout(() => {
+            fired.current = true;
+            armed.current = true;
+            timer.current = null;
+            navigator.vibrate?.(10);
+          }, LONG_PRESS_MS);
+        },
+        onPointerMoveCapture: (e: ReactPointerEvent) => {
+          const s = start.current;
+          if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 10) clear();
+        },
+        onPointerUpCapture: release,
+        onTouchEndCapture: release,
+        onPointerCancelCapture: release,
+      }
+    : {};
+  /** 点击时先问一下：刚长按打开过菜单就别再做点击的事。 */
+  const consume = () => {
+    const f = fired.current;
+    fired.current = false;
+    return f;
+  };
+  return { open, setOpen, bind, consume };
+}
+
+/** 缓存着的小标记（悬停看还剩几小时）。 */
+function CachedBadge({ a, className }: { a: Attachment; className: string }) {
+  const { record, busy } = useCacheRecord(a);
+  if (!record && !busy) return null;
+  const label = record ? tr('已缓存到本机，{h} 小时后清除', { h: cacheHoursLeft(record, attachmentCache().now()) }) : tr('正在缓存…');
+  return (
+    <Tip content={label}>
+      <span className={`${className}${busy ? ' is-busy' : ''}`} role="img" aria-label={label} tabIndex={-1}>
+        <HardDrive size={12} aria-hidden />
+      </span>
+    </Tip>
+  );
 }
 
 /** 上传状态那一行字。 */
@@ -256,18 +411,24 @@ function ImageTile({ a, onOpen, actions }: { a: Attachment; onOpen: () => void; 
   const url = useAttachmentUrl(a, 'thumb');
   const s = useUploadState(a.id);
   const status = uploadText(s, a);
+  useCacheRecord(a);
+  const st = actionStateOf(a, actions.online, !!s);
+  const menu = useItemMenu(!s);
   return (
-    <li className={`att-tile${s ? ` is-${s.phase}` : ''}`}>
-      <RacButton className="att-tile-btn" aria-label={tr('查看图片「{name}」', { name: a.file_name })} onPress={onOpen}>
+    <li className={`att-tile${s ? ` is-${s.phase}` : ''}`} {...menu.bind}>
+      <RacButton className="att-tile-btn" aria-label={tr('查看图片「{name}」', { name: a.file_name })} onPress={() => !menu.consume() && onOpen()}>
         {url ? <img src={url} alt="" loading="lazy" draggable={false} /> : <FileIcon name={a.file_name} mime={a.mime} size={36} />}
       </RacButton>
+      <CachedBadge a={a} className="att-cached att-tile-cached" />
       {status && (
         <span className={`att-tile-status${s?.phase === 'failed' ? ' is-error' : ''}`} aria-live="polite">
           {status}
         </span>
       )}
       <Progress s={s} />
-      <span className="att-tile-actions">{s ? <UploadControls a={a} s={s} /> : <OverflowMenu label={tr('附件操作')} items={menuOf(a, actions)} className="att-more" />}</span>
+      <span className={`att-tile-actions${menu.open ? ' is-open' : ''}`}>
+        {s ? <UploadControls a={a} s={s} /> : <OverflowMenu label={tr('附件操作')} items={menuOf(a, actions, st)} className="att-more" isOpen={menu.open} onOpenChange={menu.setOpen} />}
+      </span>
     </li>
   );
 }
@@ -276,14 +437,26 @@ function FileRow({ a, actions }: { a: Attachment; actions: Actions }) {
   const s = useUploadState(a.id);
   const status = uploadText(s, a);
   const kind = fileKind(a.file_name, a.mime);
+  useCacheRecord(a);
+  const st = actionStateOf(a, actions.online, !!s);
+  const menu = useItemMenu(!s);
   const meta: ReactNode = status ? <span className={s?.phase === 'failed' ? 'is-error' : undefined}>{status}</span> : `${fileKindLabel(kind)} · ${formatFileSize(a.size)}`;
+  // 不预览：点一下就是下载；离线又没缓存时只提示
+  const press = () => {
+    if (menu.consume()) return;
+    if (st.downloadBlocked === 'offline') actions.offlineHint();
+    else void actions.download(a);
+  };
   return (
-    <li className={`att-file${s ? ` is-${s.phase}` : ''}`}>
-      <RacButton className="att-file-btn" aria-label={tr('下载「{name}」', { name: a.file_name })} onPress={() => void actions.download(a)}>
+    <li className={`att-file${s ? ` is-${s.phase}` : ''}${st.download ? '' : ' is-unavailable'}${menu.open ? ' is-menu-open' : ''}`} {...menu.bind}>
+      <RacButton className="att-file-btn" aria-label={tr('下载「{name}」', { name: a.file_name })} onPress={press}>
         <FileIcon name={a.file_name} mime={a.mime} kind={kind} size={36} />
         <span className="att-file-text">
           <span className="att-file-name">{a.file_name}</span>
-          <span className="att-file-meta">{meta}</span>
+          <span className="att-file-meta">
+            <CachedBadge a={a} className="att-cached att-file-cached" />
+            {meta}
+          </span>
           <Progress s={s} />
         </span>
       </RacButton>
@@ -292,12 +465,12 @@ function FileRow({ a, actions }: { a: Attachment; actions: Actions }) {
           <UploadControls a={a} s={s} />
         ) : (
           <>
-            <Tip content={tr('下载')}>
-              <RacButton className="icon-btn att-dl" aria-label={tr('下载')} onPress={() => void actions.download(a)}>
+            <Tip content={st.download ? tr('下载') : tr('离线中，没缓存的附件下载不了')}>
+              <RacButton className="icon-btn att-dl" aria-label={st.download ? tr('下载') : tr('离线中，没缓存的附件下载不了')} isDisabled={!st.download} onPress={() => void actions.download(a)}>
                 <Download size={16} />
               </RacButton>
             </Tip>
-            <OverflowMenu label={tr('附件操作')} items={menuOf(a, actions)} className="att-more" />
+            <OverflowMenu label={tr('附件操作')} items={menuOf(a, actions, st)} className="att-more" isOpen={menu.open} onOpenChange={menu.setOpen} />
           </>
         )}
       </span>

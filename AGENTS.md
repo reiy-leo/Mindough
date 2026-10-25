@@ -35,6 +35,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
   typedef.ts            类型编辑器的纯逻辑：字段增改排序隐藏、删字段留墓碑（key 不变、值保留）、类型顺序（同步偏好 type_order）；类型不能删、只能归档（存 hidden 列，Store.archiveType）
+  attachment-cache.ts   附件本机缓存的纯逻辑（Rei 2026-10-25）：缓存记录、24 小时到期与清理、点一下做什么（图片灯箱 / 其他下载）、每个附件哪些操作能用
   attachments.ts        附件（Rei 2026-10-17）：文件类型（10 种）、大小显示、文件名安全化 / 改名保留扩展名 / 导出去重、50 MB 上限；写入在 Store（attachmentsOf / addAttachment / setAttachmentFile / renameAttachment / removeAttachment / restoreAttachment / ensureJournal）
   lunar/                农历（Rei 2026-10-17）：data.ts（1900–2100 表，scripts/gen-lunar-data.mjs 生成，别手改）、lunar.ts（公历 ⇄ 农历、节气、节日、格子小字）、names.ts（月名日名节气节日，i18n 白名单）、ics.ts（订阅日历解析）、subscription.ts（默认源、偏好 lunar.*、什么时候同步、状态文案）
   journal.ts            日记（Rei 2026-10-17）：日期 → 固定 id、「一天从几点开始」、将来不能写、12 个心情 id、字数、同步保护（两边都改时输家收进折叠块，base_at 判断有没有看到对方）
@@ -62,8 +63,8 @@ apps/client/src/
   components/ pages/    业务组件与页面（不写死平台样式）
   styles/task.css       新建面板与详情的结构样式
   styles/library.css    资料库（占位图、选择框、资料卡、资料库页）的结构样式
-  lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、附件上传队列（attachments.ts：IndexedDB 队列 attachments-queue.ts、XHR 进度、取消重试、显示地址、下载）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
-apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；src/files.rs：save_download 把附件存进「下载」文件夹；src/menu.rs：菜单栏 文件 → 导入 → 滴答清单（文字由 lib/app-menu.ts 按界面语言传入）；opener + deep-link（mindough://）+ 桌面 single-instance）
+  lib/ store/           设置、路由、提示、账户（account.ts：全局账户状态，Web cookie / 原生 Bearer）、同步（sync.ts：凭据、HTTP 传输、开停与触发）、原生登录（native-login.ts）、图片上传（upload.ts）、附件上传队列（attachments.ts：IndexedDB 队列 attachments-queue.ts、XHR 进度、取消重试、显示地址、下载）、附件本机缓存（attachment-cache.ts：Web Cache Storage / Tauri 缓存目录，24 小时清理）、Store 上下文与存储选择（sqlite-web.ts / sqlite-tauri.ts）
+apps/client/src-tauri/  Tauri 2 外壳（src/db.rs：rusqlite 命令层；src/files.rs：save_download 把附件存进「下载」文件夹、save_to_path（保存框选的路径）、att_cache_*（附件本机缓存目录）；src/menu.rs：菜单栏 文件 → 导入 → 滴答清单（文字由 lib/app-menu.ts 按界面语言传入）；opener + deep-link（mindough://）+ 桌面 single-instance）
 apps/server/            Cloudflare Worker：auth.ts（Google 登录、会话）、native.ts（原生端一次性登录码）、sync.ts（同步 API + 云端 schema）、
                         存储层 sql.ts（SqlDb 接口）/ storage.ts（按 STORAGE_BACKEND 选）/ turso.ts（Hrana HTTP）/ d1.ts（D1 绑定 + REST）/ copy.ts（库间全量复制与核对，scripts/copy-storage.ts）、assets.ts（R2 图片）、files.ts（附件 /api/files：要登录、只能读自己的、≤ 50 MB）、dida.ts（滴答清单 Open API 代理 /api/dida/*，令牌走 x-dida-token、不存、只放只读白名单）、lookup/（在线找资料：tmdb / douban / openlibrary / steam 适配器，Cache API，封面拉进 R2）、static-r2.ts
   test/                 单测（fake-turso.ts：node:sqlite 实现的假 Turso；storage.test.ts 用 Miniflare 本地 D1）；e2e/real-turso.test.ts 对真实 Turso（默认跳过）
@@ -109,7 +110,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 本地优先：UI 永不等待网络；写操作落本地并进 outbox。
 - 所有记录 UUIDv7 id + HLC updated_at + deleted 墓碑，不物理删除。
 - 同步：所有写入走 Store（进 outbox 才会被推）；拉下来的行只能经 `store.applyRemote`（不进 outbox，否则会回推）。合并是行级 LWW（`updated_at` 字符串比较）——别在别处另写合并规则；云端（`apps/server/src/sync.ts`，Turso / D1 同一份 SQL，经 `openDb(env)` 拿库，别直接调 turso.ts）与 `MemoryRemote` 规则一致，改一处要两处一起改。云端只存整行 JSON：客户端加列 / 加表不动云端 schema；云端自己的表加在 `SERVER_MIGRATIONS`（只追加）。读前后关系一律用 `store.edges()`（已去重、去掉合并后成环的边），成环的在 `store.conflictEdges()`。
-- 附件（PLAN「附件」）：加附件一律经 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回），下载用 `downloadAttachment`（Web 浏览器下载 / Tauri `save_download`）。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，附件读要登录。
+- 附件（PLAN「附件」）：加附件一律经 `lib/attachments.ts` 的 `addAttachments`（建行 + 进本机队列 + 开始传），别直接 `store.addAttachment` 后自己传；传好填 key 用 `setAttachmentFile`；显示用 `useAttachmentUrl`（本机队列优先，原生端带 Bearer 取回），下载用 `downloadAttachment`（先用本机队列 / 缓存；Web 浏览器下载，Tauri 桌面系统保存框 + `save_to_path` / `att_cache_copy`，手机 `save_download`）。本机缓存一律经 `lib/attachment-cache.ts`（`cacheAttachment` / `uncacheAttachment`、`useCacheRecord`），记录只存本机 localStorage、不进同步表；24 小时从缓存那刻起算。附件挂日记时 owner_id 是 `journalEntryId(date)`，加之前 `ensureJournal(date)`。R2 的附件 key 是 `<用户哈希>/f/<sha256>`，和公开的资料图 `<用户哈希>/<sha256>` 分开，附件读要登录。
 - 农历（PLAN「农历」）：日期一律存公历，农历只在显示和选择时换算（core `lunar/`，本地查表，别用 `Intl` 的 chinese 历——ICU 有几年初一差一天）；格子小字一律经 `useLunar(store).day(d)`（订阅的节日名优先、休 / 班角标），不要自己拼；每年农历重复是 `lunarYearly`（RRULE `RSCALE=CHINESE`）。
 - 滴答清单导入（docs/IMPORT-DIDA.md）：解析、拉取、映射都在 core `dida/`，客户端只做界面；两种来源都先变成 `DidaRow` 再走 `planDida` / `applyDida`，别另写一套写入。任务 id 由滴答清单 taskId 算（`didaTaskId`），这是幂等的依据，别改算法。令牌只存本机（`lib/dida.ts`），不进同步表、不发给云端库；Worker 代理只转发白名单路径。菜单栏文字改动要同时改 `menu.rs` 的 `MenuLabels` 和 `lib/app-menu.ts`。
 - 外链：在 Tauri 里一律经 `lib/external.ts`（全局拦截 + `openExternal`）交给系统浏览器；不要自己 `window.open` 或另装 opener 调用。

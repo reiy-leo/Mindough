@@ -456,3 +456,66 @@
   bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
   transform: none;
 }
+
+/* 本机缓存（Rei 2026-10-25）：缓存着的小硬盘标记；离线下载不了的文件变淡 */
+.att-cached {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--accent);
+}
+.att-cached.is-busy {
+  animation: att-cache-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes att-cache-pulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.att-tile-cached {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.att-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.att-file.is-unavailable .att-file-name,
+.att-file.is-unavailable .file-icon {
+  opacity: 0.55;
+}
+.att-file.is-unavailable .att-file-btn {
+  cursor: default;
+}
+.att-tile-actions.is-open,
+.att-file.is-menu-open .att-dl {
+  opacity: 1;
+}
+.att-file.is-menu-open {
+  background: var(--surface-hover);
+}
+.att-dl[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+.att-tile,
+.att-file {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.lightbox-btn[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
