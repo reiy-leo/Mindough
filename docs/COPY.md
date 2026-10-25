@@ -189,3 +189,50 @@
 | 附件 · 添加附件 · 松手添加附件 | Attachments · Add Attachment · Drop to attach | 类型：Image、PDF、Document、Spreadsheet、Presentation、Archive、Audio、Video、Code / Text、File；大小 1.5 KB / 380 KB / 12 bytes；状态 Uploading 45% · Waiting to upload · Will upload when online · Sign in to upload · Upload failed · Still on another device；菜单 Download / Cache / Remove Cache / Rename… / Delete；缓存 “Cached on this device. Clears in 23 hours.” · Caching… · toast “Cached “x”. It’ll be cleared in 24 hours.” · “Removed the cached copy of “x”” · “Couldn’t cache this file. Try again later.”；离线 “Offline: not cached, can’t download” / “You’re offline. Files that aren’t cached can’t be downloaded until you’re back online.”；Tauri 保存框 “Save Attachment”、“Saved: x”；灯箱 “2 of 5”、Previous / Next；Tauri “Saved to Downloads: x” + Show in Folder |
 | HTTP 状态码 | 401 Unauthorized、403 Forbidden、408 Request Timeout … | 中文界面带中文释义（401 未登录），英文界面用标准英文短语 |
 | 从滴答清单导入 · 连接滴答清单 · 从备份文件导入 | Import from Dida365 · Connect Dida365 · From Backup File | 菜单栏 File → Import → Dida365；API 令牌 = API Token，「忘记令牌」= Forget Token，「连接并读取」= Connect and Read；已完成范围 All / Last Year / Last 30 Days / Don’t Import Completed；预览 What to Import / Lists to Projects，New Project “X” / No Project (Inbox) / Into “X”；结果 Imported / Skipped / New Projects，Undo Import；正文标签 `#high-priority` 等 |
+
+## 其他语言
+
+Rei 2026-10-25：「支持西、葡、俄、日、德、法、印尼」。设置 → 语言是一个下拉：跟随系统，加九种语言（每种用它自己的写法：中文、English、Español、Português (Brasil)、Русский、日本語、Deutsch、Français、Bahasa Indonesia）。跟随系统时按系统语言的顺序找第一个支持的，都不支持就用英文。
+
+怎么译：
+
+- **照英文的意思译，不照中文逐字译**。英文是第一份译文，说法已经按 Things 3 / Apple 定过；其他语言参照各自系统（iOS / macOS、Android）里同类功能的本地叫法，导航尤其如此。
+- **app 名字**：除中文叫「念头团」，其他语言都叫 Mindough。
+- **「打卡」**：其他语言都译成「习惯」那个词（Hábitos、Привычки、習慣、Gewohnheiten、Habitudes、Kebiasaan），按钮上的「打卡」用「记下 / 勾掉」一类的动词。
+- **葡萄牙语用巴西葡萄牙语**（pt-BR）。系统是葡萄牙的 pt-PT 也显示 pt-BR。
+- **日期、数字、币种**都交给 Intl，跟着语言走：一周从哪天开始也按 Intl（中文、德、法、俄、西周一；英文、日文、巴西葡语、印尼语周日）。农历只在中文界面出现。
+- **复数**用 ICU 写法 `{n, plural, one {…} other {…}}`；俄语要写 one / few / many 三种。
+- **法语标点**：`: ; ? !` 前面和 `«` 后面、`»` 前面要空，用不换行空格（`:` 前 U+00A0，其余 U+202F），不然标点会单独折到下一行。测试会查。
+- **数字和单位**：中文、日文不空（「3/8杯」），其他语言空一格（「3/8 Gläser」）。
+- **键名**：「按回车」在德语写 Zeilenschalter（Apple 德语的叫法），其他语言写 Return / Intro。
+
+核心术语对照（界面上实际显示的字，改译文时这张表一起改）：
+
+| 中文 | English | Español | Português (BR) | Русский | 日本語 | Deutsch | Français | Indonesia |
+|---|---|---|---|---|---|---|---|---|
+| 念头团 | Mindough | Mindough | Mindough | Mindough | Mindough | Mindough | Mindough | Mindough |
+| 我的一天 | My Day | Mi día | Meu dia | Мой день | 今日の予定 | Mein Tag | Ma journée | Hari Saya |
+| 待安排 | Inbox | Entrada | Entrada | Входящие | インボックス | Eingang | Réception | Kotak Masuk |
+| 打卡（导航） | Check-ins | Hábitos | Hábitos | Привычки | 習慣 | Gewohnheiten | Habitudes | Kebiasaan |
+| 打卡（按钮） | Check In | Registrar | Registrar | Отметить | 記録 | Abhaken | Cocher | Catat |
+| 可做 | Available | Disponibles | Disponíveis | Доступные | 着手可能 | Verfügbar | Disponibles | Tersedia |
+| 日记 | Journal | Diario | Diário | Дневник | 日記 | Tagebuch | Journal | Jurnal |
+| 列表（导航） | Timeline | Cronología | Linha do tempo | Хроника | タイムライン | Zeitleiste | Chronologie | Linimasa |
+| 项目（导航 / 属性） | Projects / Project | Proyectos / Proyecto | Projetos / Projeto | Проекты / Проект | プロジェクト | Projekte / Projekt | Projets / Projet | Proyek |
+| 资料库 | Library | Biblioteca | Biblioteca | Библиотека | ライブラリ | Bibliothek | Bibliothèque | Pustaka |
+| 人物 | People | Personas | Pessoas | Люди | 人物 | Personen | Personnes | Orang |
+| 设置 | Settings | Ajustes | Ajustes | Настройки | 設定 | Einstellungen | Réglages | Pengaturan |
+| 新建任务 | New Task | Nueva tarea | Nova tarefa | Новая задача | 新規タスク | Neue Aufgabe | Nouvelle tâche | Tugas baru |
+| 可开始 | Ready | Lista para empezar | Pronta para começar | Можно начать | 着手可能 | Startklar | Prête | Siap dimulai |
+| 先做完这些 / 做完后解锁 | Do These First / Unlocks Next | Antes, haz esto / Desbloquea después | Faça antes / Libera em seguida | Сначала это / Откроет доступ | 先にやること / 完了すると着手可能 | Zuerst erledigen / Danach möglich | À faire avant / Débloque ensuite | Kerjakan Dulu / Membuka Berikutnya |
+| 任务链 | Task Chain | Cadena de tareas | Cadeia de tarefas | Цепочка задач | タスクチェーン | Aufgabenkette | Chaîne de tâches | Rantai Tugas |
+| 倒数日 | Countdown | Cuenta atrás | Contagem regressiva | Обратный отсчёт | カウントダウン | Countdown | Compte à rebours | Hitung mundur |
+| 提醒 | Reminder | Recordatorio | Lembrete | Напоминание | リマインダー | Erinnerung | Rappel | Pengingat |
+| 附件 | Attachments | Adjuntos | Anexos | Вложения | 添付ファイル | Anhänge | Pièces jointes | Lampiran |
+| 昨天没做完 / 带回今天 | Left from Yesterday / Bring to Today | Pendientes de ayer / Traer a hoy | Ficou de ontem / Trazer para hoje | Осталось со вчера / Перенести на сегодня | 昨日の残り / 今日に移す | Von gestern übrig / Auf heute holen | Restées d’hier / Reporter à aujourd’hui | Sisa kemarin / Pindahkan ke hari ini |
+| 时区 | Time Zone | Zona horaria | Fuso horário | Часовой пояс | タイムゾーン | Zeitzone | Fuseau horaire | Zona waktu |
+| 跟随系统 | System | Sistema | Sistema | Как в системе | システムに合わせる | System | Système | Sistem |
+| 完成（按钮） | Done | Listo | OK | Готово | 完了 | Fertig | OK | Selesai |
+
+还没定的：资料库里有个内置类型也叫「项目」（项目库），和侧边栏的「项目」同名，每种语言里都撞名，等 Rei 定。
+
