@@ -141,7 +141,7 @@ export function MyDayPage() {
               {tr('全部带回今天')}</Button>
           }
         >
-          <div className="task-list plain">
+          <div className="task-list plain carry-list">
             {yesterday.map((t) => (
               <TaskRow
                 key={t.id}
@@ -150,8 +150,12 @@ export function MyDayPage() {
                 showMyDay={false}
                 showCheckIn={inlineCheckIn}
                 trailing={
-                  <Button variant="tonal" className="small" onPress={() => store.addToMyDay(t.id, today)}>
-                    {tr('带回今天')}</Button>
+                  <Tip content={tr('带回今天')}>
+                    <Button variant="tonal" className="small carry-btn" aria-label={tr('带回今天')} onPress={() => store.addToMyDay(t.id, today)}>
+                      <Sun size={14} className="carry-icon" aria-hidden />
+                      <span className="carry-label">{tr('带回今天')}</span>
+                    </Button>
+                  </Tip>
                 }
               />
             ))}

@@ -75,6 +75,15 @@
   font-size: var(--fs-small);
   color: var(--text-3);
 }
+/* 中文以外的提示都比中文长两三倍（英文在中等宽度、日文在宽屏也装不下），挤在标题和按钮中间只剩「Oder Dateien …」：挪到标题下面单独一行 */
+html:not(:lang(zh)) .att-head {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+html:not(:lang(zh)) .att-hint {
+  order: 9;
+  flex-basis: 100%;
+}
 .att-head .grow {
   flex: 1;
 }

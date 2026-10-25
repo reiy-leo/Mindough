@@ -12,7 +12,7 @@ import { registerServiceWorker } from './lib/reminders';
 import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
 import { installContextMenuBlock } from './lib/contextmenu';
-import { applyLocalePref, initialLocalePref } from './lib/i18n';
+import { applyLocalePref, initialLocalePref, loadLocale, resolveLocale } from './lib/i18n';
 import { LocaleRoot } from './lib/locale';
 import { preloadMdEditor } from './components/editor/LazyMdEditor';
 import './skin/tokens.css';
@@ -28,15 +28,12 @@ import './styles/lunar.css';
 import './styles/prop-chips.css';
 import './skin/skins.css';
 
-// 界面语言：先按本机记的（或 ?lang=）切好，演示数据、第一屏都用这个语言；登录同步后以同步的设置为准
-applyLocalePref(initialLocalePref());
 // 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
 initLoginError();
 // 账户状态（同步跟着它开 / 停）；原生端监听登录回调的 deep link
 // 小窗不跑同步、不接登录回调（都交给主窗口）
 const mini = isMiniWindow();
 if (!mini) {
-  startAccountWatch();
   registerServiceWorker();
   void initNativeLogin();
 }
@@ -49,6 +46,18 @@ installContextMenuBlock();
 const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500));
 idle(preloadMdEditor);
 
+// 界面语言：先按本机记的（或 ?lang=）加载好词典、切好，演示数据、第一屏都用这个语言；登录同步后以同步的设置为准
+const pref = initialLocalePref();
+void loadLocale(resolveLocale(pref))
+  .catch(() => {})
+  .then(() => {
+    applyLocalePref(pref);
+    // 账户状态里有给人看的说明（「同步服务尚未上线」），要等词典好了再查，不然德语界面里冒出中文
+    if (!mini) startAccountWatch();
+    render();
+  });
+
+function render() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SettingsProvider>
@@ -70,3 +79,4 @@ createRoot(document.getElementById('root')!).render(
     </SettingsProvider>
   </StrictMode>,
 );
+}

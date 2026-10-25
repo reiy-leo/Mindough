@@ -618,12 +618,16 @@ button {
 }
 .section-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  column-gap: var(--space-2);
   margin-bottom: var(--space-2);
   min-height: 32px;
 }
+/* 标题不折行（俄语「Осталось со вчера」在手机上会被右边按钮挤成两行，数字掉到一边）；实在放不下，按钮换到下一行 */
 .section-title {
+  white-space: nowrap;
   margin: 0;
   font-size: 13px;
   font-weight: 600;
@@ -1786,6 +1790,22 @@ button {
   display: flex;
   justify-content: flex-end;
   min-width: 170px;
+}
+/* 「昨天没做完」每行的「带回今天」：平时是文字按钮；西文、俄文界面在桌面中间一列很窄时（右列打开、中等宽度）只留太阳图标，
+ * 免得俄语「Перенести на сегодня」这类长按钮把标题挤成一个字（悬停有提示，读屏名不变）。中文、日文按钮短，照旧显示文字 */
+.carry-icon {
+  display: none;
+}
+[data-layout='desktop'] .carry-list {
+  container: carry / inline-size;
+}
+@container carry (max-width: 520px) {
+  html:not(:lang(zh)):not(:lang(ja)) .carry-icon {
+    display: inline-block;
+  }
+  html:not(:lang(zh)):not(:lang(ja)) .carry-label {
+    display: none;
+  }
 }
 /* 桌面上中间一列很窄时（右列打开、中等宽度），打卡按钮挪到第二行，别压住标题 */
 [data-layout='desktop'] .habit-list {
@@ -3105,24 +3125,25 @@ button {
   margin-top: 10px;
 }
 
-/* ───────── 英文界面 ─────────
+/* ───────── 英文和其他西文界面 ─────────
  * 英文的弯引号、撇号、省略号用拉丁字体的字形（中文字体里它们是全角，「What’s」会空出一大块）；
- * 只覆盖这几个码位，其余字照旧走各皮肤的字体。中文界面不受影响（中文引号本来就该是全角）。 */
+ * 2026-10-25 加了西、葡、俄、德、法、印尼，同样处理，另加法语 / 俄语的书名号式引号 « » ‹ › 和法语标点前的不换行空格。
+ * 只覆盖这几个码位，其余字照旧走各皮肤的字体。中文、日文界面不受影响（引号本来就该是全角）。 */
 @font-face {
   font-family: 'Mindough Latin Punct';
   src: local('SF Pro Text'), local('.SF NS'), local('Helvetica Neue'), local('Segoe UI'), local('Roboto'), local('Arial'), local('Liberation Sans'), local('DejaVu Sans');
-  unicode-range: U+2018-201F, U+2026;
+  unicode-range: U+00A0, U+00AB, U+00BB, U+2018-201F, U+2026, U+2039-203A, U+202F;
 }
-html[lang='en'] body,
-html[lang='en'] .kbd {
+html:not(:lang(zh)):not(:lang(ja)) body,
+html:not(:lang(zh)):not(:lang(ja)) .kbd {
   font-family: 'Mindough Latin Punct', var(--font);
 }
-html[lang='en'] .page-title {
+html:not(:lang(zh)):not(:lang(ja)) .page-title {
   font-family: 'Mindough Latin Punct', var(--font-title);
 }
-/* 英文单位和数字之间要空一格（「3/8 glasses」）；中文「3/8杯」不空 */
-html[lang='en'] .ci-unit:not(:empty),
-html[lang='en'] .progress-unit {
+/* 西文单位和数字之间要空一格（「3/8 glasses」「3/8 Gläser」）；中文「3/8杯」、日文不空 */
+html:not(:lang(zh)):not(:lang(ja)) .ci-unit:not(:empty),
+html:not(:lang(zh)):not(:lang(ja)) .progress-unit {
   margin-left: 0.25em;
 }
 /* 排列方式不被分类胶囊挤成两行（英文「Category」比「按分类」长） */
@@ -3133,8 +3154,8 @@ html[lang='en'] .progress-unit {
 .segmented-item {
   white-space: nowrap;
 }
-/* 英文星期（Mon / Wed / Fri）比「一 三 五」宽 */
-html[lang='en'] .heatmap {
+/* 西文星期（Mon / Wed / Fri、Пн / Ср / Пт）比「一 三 五」宽 */
+html:not(:lang(zh)):not(:lang(ja)) .heatmap {
   --wd: 26px;
 }
 
