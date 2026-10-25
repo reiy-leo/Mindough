@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type CSSProperties } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarCheck2, Flame, Hourglass, Plus, Timer } from 'lucide-react';
 import {
@@ -19,7 +19,8 @@ import { CategoryLabel, NO_CATEGORY } from '../components/CheckInCategory';
 import { CategoryManager } from '../components/CategoryManager';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
-import { Button, ChipPicker, Empty, Section, Segmented } from '../ui/primitives';
+import { Button, ChipPicker, Empty, Section, Segmented, TipButton } from '../ui/primitives';
+import { isHeatmapOpen, toggleHeatmapOpen } from '../lib/habit-heatmap';
 import { Heatmap } from '../components/Heatmap';
 import { CheckInControl } from '../components/CheckInControl';
 import { PageHeader } from '../components/PageHeader';
@@ -32,7 +33,7 @@ import { useLunarUi } from '../lib/lunar';
 export function CheckInsPage() {
   const store = useStore();
   const ui = useUi();
-  const { layout } = useSettings();
+  const { layout, settings, set } = useSettings();
   const now = useNow();
   const today = toDateKey(now);
   const lunarUi = useLunarUi();
@@ -63,8 +64,20 @@ export function CheckInsPage() {
     const s = taskStreak(t, store.checkInsOf(t.id), now);
     const type = store.get('task_type', t.type_id);
     const color = type?.color && type.layout !== 'text' ? type.color : undefined;
+    const open = isHeatmapOpen(settings.habitHeatmapOpen, t.id);
+    const heatId = `habit-heat-${t.id}`;
     return (
-      <div key={t.id} className={`habit-row${ui.editingId === t.id ? ' is-selected' : ''}`} data-task-id={t.id}>
+      <div key={t.id} className={`habit-row${ui.editingId === t.id ? ' is-selected' : ''}${open ? ' is-heat-open' : ''}`} data-task-id={t.id}>
+        {/* 左上角圆点：展开 / 收起这张卡片的活动图（只存本机）；和打开详情的按钮分开，点它不会打开详情 */}
+        <TipButton
+          tip={open ? tr('隐藏活动图') : tr('显示活动图')}
+          isExpanded={open}
+          controls={open ? heatId : undefined}
+          className={`habit-heat-dot${open ? ' is-on' : ''}`}
+          onPress={() => set('habitHeatmapOpen', toggleHeatmapOpen(settings.habitHeatmapOpen, t.id))}
+        >
+          <span className="habit-heat-dot-mark" style={color ? ({ '--heat-color-local': color } as CSSProperties) : undefined} aria-hidden />
+        </TipButton>
         <RacButton className="habit-main" aria-current={ui.editingId === t.id ? 'true' : undefined} onPress={() => ui.openEditor(t.id)}>
           <span className="habit-title">{title(t)}</span>
           <span className="habit-meta">
@@ -78,17 +91,22 @@ export function CheckInsPage() {
             )}
           </span>
         </RacButton>
-        <Heatmap
-          mini
-          end={today}
-          weeks={layout === 'mobile' ? 12 : 20}
-          ratioFor={(d) => idx.taskRatio(t.id, d)}
-          color={color}
-          label={tr('{title} 的打卡记录', { title: title(t) })}
-        />
         <div className="habit-action">
           <CheckInControl store={store} task={t} compact={layout === 'mobile'} />
         </div>
+        {open && (
+          <div className="habit-heat">
+            <Heatmap
+              mini
+              fit
+              id={heatId}
+              end={today}
+              ratioFor={(d) => idx.taskRatio(t.id, d)}
+              color={color}
+              label={tr('{title} 的打卡记录', { title: title(t) })}
+            />
+          </div>
+        )}
       </div>
     );
   };

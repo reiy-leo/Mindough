@@ -154,6 +154,8 @@ export function TipButton({
   children,
   delay = 400,
   isPressed,
+  isExpanded,
+  controls,
 }: {
   tip: string;
   onPress: () => void;
@@ -162,6 +164,9 @@ export function TipButton({
   delay?: number;
   /** 当前选中（aria-pressed）。 */
   isPressed?: boolean;
+  /** 展开 / 收起类开关（aria-expanded），配 controls 指向被展开的区域 id。 */
+  isExpanded?: boolean;
+  controls?: string;
 }) {
   const [hoverOpen, setHoverOpen] = useState(false);
   const [touchOpen, setTouchOpen] = useState(false);
@@ -180,6 +185,8 @@ export function TipButton({
       <RacButton
         aria-label={tip}
         {...(isPressed !== undefined ? { 'aria-pressed': isPressed } : {})}
+        {...(isExpanded !== undefined ? { 'aria-expanded': isExpanded } : {})}
+        {...(controls ? { 'aria-controls': controls } : {})}
         className={`tip-btn${className ? ` ${className}` : ''}`}
         onPressStart={(e) => {
           if (e.pointerType !== 'touch') return;

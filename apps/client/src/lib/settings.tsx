@@ -17,9 +17,14 @@ export interface Settings {
    * 只在中文界面（简 / 繁）起作用，判断一律经 lib/lunar 的 useLunarUi()（core lunarUiVisible）。
    */
   chineseLunar: boolean;
+  /**
+   * 打卡页哪几张卡片展开了活动图（Rei 2026-10-25「check-ins 中的任务活动图，不要显示在列表中，而是左上角一个圆点，toggle 全宽显示活动图」）：
+   * 存打卡任务的 id，只记在本机，不同步，默认都收起。读写经 lib/habit-heatmap。
+   */
+  habitHeatmapOpen: string[];
 }
 
-const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false };
+const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false, habitHeatmapOpen: [] };
 const KEY = 'mindough:settings';
 
 function load(): Settings {

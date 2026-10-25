@@ -509,6 +509,8 @@ export const EN: Record<string, EnValue> = {
   // ── 打卡页 ──
   '连续 {current} · 最长 {best}': 'Streak {current} · Best {best}',
   '{title} 的打卡记录': 'Check-in history for {title}',
+  显示活动图: 'Show Activity',
+  隐藏活动图: 'Hide Activity',
   '今天 {metToday}/{length} 已完成 · 最长连续 {best} 天': (p) => `${p.metToday}/${p.length} done today · Best streak ${n(p.best, 'day', 'days')}`,
   过去一年: 'Past Year',
   '每格是一天，颜色越深，那天完成得越多': 'Each square is a day — darker means more got done',
