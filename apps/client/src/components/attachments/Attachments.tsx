@@ -1,5 +1,6 @@
 /**
- * 附件区（Rei 2026-10-17）：任务详情、日记的正文下面。
+ * 附件区（Rei 2026-10-17）：日记的正文下面；任务详情里在属性胶囊正下方（bare，Rei 2026-10-25）。
+ * - 任务详情（bare）：没有标题、没有「添加附件」按钮，没附件时整块不渲染；加附件走胶囊行「+」菜单的「附件」或拖文件到详情整列
  * - 图片：方形小图网格，点开灯箱（Lightbox：关闭、下载、← → 切换，只翻图片）
  * - 其他文件（PDF、视频、音频、文档…）一律不预览：按类型的图标（FileIcon）+ 文件名 + 大小，点一下下载（保留原文件名）
  * - 「添加附件」选文件（可多选；手机上能选相册），或把文件拖到整块区域上（useFileDrop + DropOverlay）
@@ -71,6 +72,20 @@ export function useAddFiles(owner: AttachmentOwner): (files: readonly File[]) =>
 const hasFiles = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 
 /**
+ * 拖动是不是从这个页面里开始的（编辑器里拖一张图挪位置、拖一段字）：Chrome 拖 <img> 时 types 里也有 Files，
+ * 这种不算「拖文件进来」，交给编辑器自己处理。只有从页面外面（访达、桌面、别的 app）拖进来的才加附件。
+ */
+let internalDrag = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('dragstart', () => (internalDrag = true), true);
+  const end = () => (internalDrag = false);
+  window.addEventListener('dragend', end, true);
+  // drop 之后才清（捕获阶段先于各区域的处理，直接清掉它们就分不出来了）；拖到页面外面时只有 dragend
+  window.addEventListener('drop', () => setTimeout(end, 0), true);
+}
+const isFileDrag = (e: DragEvent) => !internalDrag && hasFiles(e);
+
+/**
  * 拖放：把文件拖到 ref 这块区域上时 active = true（显示高亮层），松手把文件交给 onFiles。
  * 用捕获阶段，免得编辑器先接住（Milkdown 不处理文件，浏览器会直接打开文件）。只认文件，拖文字不管。
  */
@@ -83,24 +98,24 @@ export function useFileDrop(ref: RefObject<HTMLElement | null>, onFiles: (files:
     const el = ref.current;
     if (!el || !enabled) return;
     const enter = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!isFileDrag(e)) return;
       e.preventDefault();
       depth.current++;
       setActive(true);
     };
     const over = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!isFileDrag(e)) return;
       e.preventDefault();
       e.stopPropagation();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     };
     const leave = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!isFileDrag(e)) return;
       depth.current = Math.max(0, depth.current - 1);
       if (depth.current === 0) setActive(false);
     };
     const drop = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!isFileDrag(e)) return;
       e.preventDefault();
       e.stopPropagation();
       depth.current = 0;
@@ -144,8 +159,11 @@ export function DropOverlay({ active }: { active: boolean }) {
   );
 }
 
-/** 附件区。 */
-export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disabled?: boolean }) {
+/**
+ * 附件区。bare（任务详情，Rei 2026-10-25「附件section不要label，显示在属性块下方，不显示add attachment按钮」）：
+ * 不要标题行和按钮，没附件时整块不渲染。
+ */
+export function Attachments({ owner, disabled, bare }: { owner: AttachmentOwner; disabled?: boolean; bare?: boolean }) {
   const store = useStore();
   const ui = useUi();
   const { layout } = useSettings();
@@ -176,8 +194,11 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
   const offlineHint = () => ui.toast({ message: tr('离线中，没缓存的附件下载不了，联网后再试') }, 4000);
   const actions: Actions = { remove, download, rename: setRenaming, cache, uncache, offlineHint, online };
 
+  if (bare && !list.length) return null;
+
   return (
-    <section className={`attachments${list.length ? '' : ' is-empty'}`} aria-label={tr('附件')}>
+    <section className={`attachments${list.length ? '' : ' is-empty'}${bare ? ' is-bare' : ''}`} aria-label={tr('附件')}>
+      {!bare && (
       <div className="att-head">
         <span className="att-title">
           <Paperclip size={14} aria-hidden />
@@ -203,6 +224,7 @@ export function Attachments({ owner, disabled }: { owner: AttachmentOwner; disab
           }}
         />
       </div>
+      )}
       {images.length > 0 && (
         <ul className="att-grid" aria-label={tr('图片')}>
           {images.map((a) => (

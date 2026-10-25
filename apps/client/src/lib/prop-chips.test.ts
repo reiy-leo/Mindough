@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAIN_TYPE_ID } from '@mindough/core';
-import { PROP_ORDER, applicableProps, clearPatch, isPropSet, setProps, unsetProps, type PropTask } from './prop-chips';
+import { PROP_ORDER, addMenuItems, applicableProps, clearPatch, isPropSet, setProps, unsetProps, type PropTask } from './prop-chips';
 
 const base: PropTask = {
   type_id: null,
@@ -79,5 +79,17 @@ describe('清除回默认', () => {
   it('类型和人物交给调用方（changeTaskType / 解除关联）', () => {
     expect(clearPatch('type')).toBeNull();
     expect(clearPatch('people')).toBeNull();
+  });
+});
+
+describe('「+」菜单里的附件（Rei 2026-10-25）', () => {
+  it('能加附件时「附件」排在最后', () => {
+    expect(addMenuItems(t(), 0, true)).toEqual([...unsetProps(t()), 'attachment']);
+    expect(addMenuItems(t(), 0, false)).toEqual(unsetProps(t()));
+  });
+  it('属性都设了，菜单里还剩「附件」，「+」不藏', () => {
+    const full = t({ type_id: 'x', completion_mode: 'count', recurrence: 'FREQ=DAILY', checkin_category_id: 'c', remind_time: '09:00', group_id: 'g' });
+    expect(unsetProps(full, 1)).toEqual([]);
+    expect(addMenuItems(full, 1, true)).toEqual(['attachment']);
   });
 });

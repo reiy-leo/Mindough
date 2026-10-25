@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode, type RefObject } from 'react';
 import { Autocomplete, Button as RacButton, Disclosure, DisclosurePanel, Heading, Input, ListBox, ListBoxItem, SearchField, useFilter } from 'react-aria-components';
 import { AlertTriangle, ArrowLeft, ChevronLeft, Gauge, Hash, ListChecks, Tv, Type, CalendarDays, CornerLeftUp, CornerRightDown, Network, Check, ChevronDown, ChevronRight, CircleHelp, CircleSlash, Link2, ListPlus, Pause, Play, Plus, RotateCcw, Square, Sun, SunDim, Trash2, X } from 'lucide-react';
 import {
@@ -84,6 +84,8 @@ function DetailFrame({
   headerEnd,
   footer,
   children,
+  frameRef,
+  overlay,
 }: {
   mode: DetailMode;
   title: string;
@@ -93,9 +95,14 @@ function DetailFrame({
   headerEnd: ReactNode;
   footer: ReactNode;
   children: ReactNode;
+  /** 右列 / 整页的外框（拖文件进来的范围是整列，Rei 2026-10-25）。弹窗不用它。 */
+  frameRef?: RefObject<HTMLElement | null>;
+  /** 盖在整列上的东西（拖放高亮层）。 */
+  overlay?: ReactNode;
 }) {
   const { skin } = useSettings();
-  const pageRef = useRef<HTMLElement>(null);
+  const ownRef = useRef<HTMLElement>(null);
+  const pageRef = frameRef ?? ownRef;
   const swipe = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
   if (mode === 'modal')
     return (
@@ -143,7 +150,8 @@ function DetailFrame({
     : {};
   const BackIcon = skin === 'apple' ? ChevronLeft : ArrowLeft;
   return (
-    <section ref={pageRef} className={`pane-detail${page ? ' page-detail' : ''}${finished ? ' is-finished' : ''}`} aria-label={title} {...swipeProps}>
+    <section ref={pageRef as RefObject<HTMLElement>} className={`pane-detail${page ? ' page-detail' : ''}${finished ? ' is-finished' : ''}`} aria-label={title} {...swipeProps}>
+      {overlay}
       <div className="dialog-head pane-head" {...(page ? {} : { 'data-tauri-drag-region': true })}>
         {page && (
           <RacButton className="pane-back" aria-label={tr('返回')} onPress={onClose}>
@@ -806,11 +814,13 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   // 右列和手机整页都是一栏：属性跟在正文后面（弹窗在宽屏上属性在右边一栏）
   const stacked = mode !== 'modal' || layout === 'mobile';
   const { primary, secondary, today, complete } = useActions(store, task, afterFinish);
-  // 附件：拖文件到详情上就加（Rei 2026-10-17）
+  // 附件：拖文件到详情整列（顶栏、正文、底栏都算）就加（Rei 2026-10-17；2026-10-25「拖拽文件到详情页面可以直接添加附件」）。
+  // 弹窗（置顶小窗）没有自己的外框 ref，照旧用内容区。
   const owner = useMemo(() => ({ type: 'task' as const, id: task.id }), [task.id]);
   const dropRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLElement>(null);
   const addFiles = useAddFiles(owner);
-  const dropping = useFileDrop(dropRef, addFiles);
+  const dropping = useFileDrop(mode === 'modal' ? dropRef : frameRef, addFiles);
   const type = store.get('task_type', task.type_id);
   const typed = !!type && type.id !== PLAIN_TYPE_ID && shownFields(type).length > 0;
   const title = titleOf(store, task);
@@ -861,10 +871,12 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   };
   const menu: MenuAction[] = detailMenu(task, inDay).map((e) => ({ ...e, icon: MENU_ICON[e.id], onAction: MENU_DO[e.id] }));
 
-  // 属性：单值属性收成一行胶囊（Rei 2026-10-25 方案 A），资料行和任务字段仍是卡片里的行
+  // 属性：单值属性收成一行胶囊（Rei 2026-10-25 方案 A），资料行和任务字段仍是卡片里的行。
+  // 附件紧跟在胶囊下面、资料卡片上面（Rei 2026-10-25「显示在属性块下方」）：从「+」加的附件就出现在「+」旁边。
   const props = (
     <div className="detail-props">
-      <PropChips store={store} task={task} today={today} people={people} linked={linked} />
+      <PropChips store={store} task={task} today={today} people={people} linked={linked} onAttach={addFiles} />
+      <Attachments owner={owner} bare />
       {lib && (
         <div className="prop-list" role="group" aria-label={dataLabel(lib.name)}>
           <LibraryRow store={store} type={lib} task={task} />
@@ -900,6 +912,8 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
             <OverflowMenu items={menu} />
           </>
         }
+        frameRef={frameRef}
+        overlay={mode === 'modal' ? null : <DropOverlay active={dropping} />}
         footer={
           finished ? (
             <>
@@ -936,7 +950,7 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
         }
       >
         <div ref={dropRef} className={`detail${stacked ? ' is-stacked' : ''}${layout === 'mobile' ? ' is-mobile' : ''}${dropping ? ' is-dropping' : ''}`}>
-          <DropOverlay active={dropping} />
+          {mode === 'modal' && <DropOverlay active={dropping} />}
           <div className="detail-main">
             {!lib && typed && type && (
               <div className="detail-hero" style={{ '--chip-color': type.color } as CSSProperties}>
@@ -956,7 +970,6 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
               </div>
             )}
             <Body store={store} task={task} placeholder={typed ? tr('添加笔记…') : tr('写点什么…')} />
-            <Attachments owner={owner} />
             {!lib && typed && type && (
               <Disclosure className="type-disclosure" defaultExpanded={!hasPrimary}>
                 <Heading level={3} className="disclosure-head">

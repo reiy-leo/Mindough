@@ -93,6 +93,13 @@ html:not(:lang(zh)) .att-hint {
   color: var(--accent-soft-text);
 }
 
+/* 任务详情里的附件（Rei 2026-10-25）：没标题、没按钮，紧跟在属性胶囊下面，不要分隔线 */
+.attachments.is-bare {
+  padding-top: 0;
+  border-top: 0;
+  gap: var(--space-2);
+}
+
 /* 图片网格：方形小图 */
 .att-grid {
   list-style: none;
@@ -344,6 +351,22 @@ html:not(:lang(zh)) .att-hint {
 .drop-overlay-hint {
   font-size: var(--fs-small);
   color: var(--text-3);
+}
+
+/* 任务详情：拖文件到整列（顶栏、正文、底栏）都能加附件，高亮层盖住整列，四周留一点边 */
+.pane-detail:not(.page-detail) {
+  position: relative; /* 手机整页本来就是 fixed */
+}
+.pane-detail > .drop-overlay {
+  inset: var(--space-2);
+  z-index: 40;
+}
+.pane-detail > .drop-overlay .drop-overlay-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
 }
 
 /* ── 灯箱 ── */

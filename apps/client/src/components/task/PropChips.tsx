@@ -5,11 +5,12 @@
  * - 桌面悬停出现小 ×，点了清除回默认（胶囊消失，提示里可撤销）；触屏没有 ×，在选择器里选「无」那一项；
  * - 键盘：Tab 到胶囊，Enter / 空格打开，Backspace / Delete 清除；
  * - 行尾「+」：菜单列出没设的属性，选一项直接打开它的选择器；全都设了「+」隐藏；一个都没设时是「+ 添加属性」。
+ * - 菜单最后一项「附件」（Rei 2026-10-25）：打开系统文件选择（可多选），加过附件也一直在，所以能加附件时「+」不藏。
  * 资料行和任务字段（进度、看到哪…）不在这里，仍在原来的属性卡片里。
  */
 import { useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { Button as RacButton, Dialog, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
-import { Bell, CalendarDays, Plus, Repeat, Shapes, Tag, Users, X } from 'lucide-react';
+import { Bell, CalendarDays, Paperclip, Plus, Repeat, Shapes, Tag, Users, X } from 'lucide-react';
 import {
   PLAIN_TYPE_ID,
   describeCompletion,
@@ -28,7 +29,7 @@ import { useUi } from '../../lib/ui';
 import { useLunarUi } from '../../lib/lunar';
 import { dataLabel, tr, trc } from '../../lib/i18n';
 import { typeIcon } from '../../lib/icons';
-import { clearPatch, setProps, unsetProps, type PropId } from '../../lib/prop-chips';
+import { addMenuItems, clearPatch, setProps, unsetProps, type AddMenuId, type PropId } from '../../lib/prop-chips';
 import { AvatarStack } from '../Avatar';
 import { CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeGrid, modeDefaults } from './pickers';
@@ -70,7 +71,22 @@ interface ChipView {
   color?: string;
 }
 
-export function PropChips({ store, task, today, people, linked }: { store: Store; task: Task; today: string; people: Person[]; linked: string[] }) {
+export function PropChips({
+  store,
+  task,
+  today,
+  people,
+  linked,
+  onAttach,
+}: {
+  store: Store;
+  task: Task;
+  today: string;
+  people: Person[];
+  linked: string[];
+  /** 给了就在「+」菜单最后放「附件」，选好的文件交给它（走 addAttachments）。 */
+  onAttach?: (files: File[]) => void;
+}) {
   const ui = useUi();
   const lunarUi = useLunarUi();
   const [open, setOpen] = useState<{ id: PropId; via: 'chip' | 'add' } | null>(null);
@@ -78,9 +94,11 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
   const addRef = useRef<HTMLButtonElement>(null);
   const chipRefs = useRef(new Map<PropId, HTMLElement>());
   const rowRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const shown = setProps(task, people.length);
   const missing = unsetProps(task, people.length);
+  const addItems = addMenuItems(task, people.length, !!onAttach);
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
   const type = store.get('task_type', task.type_id);
   const group = store.get('group', task.group_id);
@@ -277,7 +295,7 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
 
   const empty = shown.length === 0;
   // 从「+」打开最后一项时先别藏「+」（弹层还挂在它上面）
-  const showAdd = missing.length > 0 || open?.via === 'add';
+  const showAdd = addItems.length > 0 || open?.via === 'add';
 
   return (
     <div ref={rowRef} className={`pchips${empty ? ' is-empty' : ''}`} role="group" aria-label={tr('属性')}>
@@ -325,20 +343,43 @@ export function PropChips({ store, task, today, people, linked }: { store: Store
               className="menu"
               aria-label={tr('添加属性')}
               onAction={(k) => {
-                const id = k as PropId;
+                const id = k as AddMenuId;
+                // 附件：直接在这次点击里打开系统文件选择（放进 setTimeout，Safari 会当成不是用户点的）
+                if (id === 'attachment') {
+                  fileRef.current?.click();
+                  return;
+                }
                 // 等菜单收起、焦点回到「+」后再打开那项的选择器
                 window.setTimeout(() => openFor(id, 'add', addRef.current), 0);
               }}
             >
-              {missing.map((id) => (
-                <MenuItem key={id} id={id} className="menu-item" textValue={propLabel(id)}>
-                  {addIcon(id, task)}
-                  <span>{propLabel(id)}</span>
-                </MenuItem>
-              ))}
+              {addItems.map((id) => {
+                const label = id === 'attachment' ? trc('属性', '附件') : propLabel(id);
+                return (
+                  <MenuItem key={id} id={id} className="menu-item" textValue={label}>
+                    {id === 'attachment' ? <Paperclip size={16} /> : addIcon(id, task)}
+                    <span>{label}</span>
+                  </MenuItem>
+                );
+              })}
             </Menu>
           </Popover>
         </MenuTrigger>
+      )}
+      {onAttach && (
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          aria-hidden
+          tabIndex={-1}
+          onChange={(e) => {
+            const files = [...(e.currentTarget.files ?? [])];
+            e.currentTarget.value = '';
+            if (files.length) onAttach(files);
+          }}
+        />
       )}
       {open && (
         <Popover

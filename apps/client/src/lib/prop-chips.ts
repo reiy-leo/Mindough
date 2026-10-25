@@ -87,3 +87,17 @@ export function clearPatch(id: PropId): Partial<Task> | null {
       return null;
   }
 }
+
+/** 「+」菜单的一项：没设的属性，或者「附件」。 */
+export type AddMenuId = PropId | 'attachment';
+
+/**
+ * 「+」菜单要列的项（Rei 2026-10-25「附件也收到这个下拉列表，但附件可以添加多个，添加后下拉列表中还要显示」）：
+ * 没设的属性按固定顺序，能加附件时「附件」放在最后，而且一直在（加过附件也还在）。
+ * 菜单是空的时「+」隐藏。
+ */
+export function addMenuItems(t: PropTask, peopleCount = 0, canAttach = false): AddMenuId[] {
+  const items: AddMenuId[] = unsetProps(t, peopleCount);
+  if (canAttach) items.push('attachment');
+  return items;
+}

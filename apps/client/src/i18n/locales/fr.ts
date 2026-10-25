@@ -213,6 +213,7 @@ export const MESSAGES: Record<string, MessageValue> = {
   "{label} 编号相同": "Même identifiant {label}",
   "空白任务": "Sans titre",
   "属性|项目": "Projet",
+  "属性|附件": "Pièce jointe",
   "只做一次": "Une fois",
   "每天": "Tous les jours",
   "每 {days} 天": "Tous les {days} jours",
