@@ -338,7 +338,6 @@ function Composer() {
         <LazyMdEditor
           label={tr('内容')}
           className="composer-body"
-          toolbar="none"
           onEscape={() => ui.closeQuickCreate()}
           autoFocus={!(lib && !entry)}
           value={d.body}

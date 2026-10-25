@@ -930,16 +930,13 @@
   color: var(--text-2);
   font-size: 13px;
 }
+/* 正文：悬停、聚焦都不变底色（Rei 2026-10-25「hover编辑器不用change bg」），只有光标 */
 .detail-body {
   margin: 0 calc(-1 * var(--space-2));
   padding: 6px var(--space-2);
   border-radius: var(--radius-md);
   cursor: text;
   outline: none;
-  transition: background 0.12s var(--ease);
-}
-.detail-body:not(.is-editing):hover {
-  background: var(--surface-hover);
 }
 .detail-body:focus-visible {
   box-shadow: var(--focus);

@@ -2,12 +2,13 @@
  * Markdown 所见即所得编辑器（任务内容、资料 / 人物备注）。写的时候就是排好版的样子，存的还是 markdown。
  *
  * - 写法：直接打 markdown 也会变（「# 」标题、「- 」列表、「[ ] 」清单、「> 」引用、「```」代码、**粗体**…）。
- * - 工具栏：编辑时在下方出现一排小按钮（放下面，点进来时文字不跳）（标题 / 粗体 / 斜体 / 删除线 / 清单 / 列表 / 编号 / 引用 / 代码 / 折叠块 / 链接 / 表格），
- *   按钮不抢焦点；悬停提示带快捷键。⌘K / Ctrl+K 加链接，Esc 收起。
+ * - 没有工具栏（Rei 2026-10-25「换成tiptap后，不用显示toolbar」）：格式靠快捷键（⌘B / ⌘I / ⌘⌥X / ⌘⌥1–6 / ⌘⌥8 / ⌘⌥7 / ⌘⇧B / ⌘⌥C）
+ *   和手打语法（清单 `[] `、表格 `|3x2| `、折叠块 `<details>` 回车、提示块 `> [!NOTE]`、公式 `$…$`）。⌘K / Ctrl+K 加链接，Esc 收起。
+ * - 悬停不变底色（Rei 2026-10-25「hover编辑器不用change bg」），聚焦也不变；只有光标。备注框（.note-editor）聚焦时边框照旧变强调色。
  * - 链接（Rei 2026-10-17「放上去就展示吧，点一下是访问链接」）：点一下打开（Web 新标签页，App 交给系统浏览器）；
  *   鼠标移到链接上出现小浮层：原地址 +「编辑」「去掉链接」，鼠标能移进浮层，移开收起。
  *   触屏没有悬停：长按选中链接里的字（光标 / 选区落在链接里）出同一个浮层。
- * - 链接框（Rei 2026-10-17「编辑器中链接要支持编辑名称和链接」）：浮层「编辑」、工具栏链接按钮、⌘K 都开同一个框，
+ * - 链接框（Rei 2026-10-17「编辑器中链接要支持编辑名称和链接」）：浮层「编辑」、⌘K 都开同一个框，
  *   桌面：就是那个悬停浮层原地展开（新加时锚在光标 / 选区处），不是居中弹窗；触屏：底部弹出面板，键盘弹起时跟着抬高、留出安全区。
  *   两栏「文字」「链接」：在已有链接里 = 预填两栏、保存时整段换掉；选了字 = 预填文字；文字空着就用网址当名字；
  *   网址没协议补 https://，不像网址就在框里提示、不关。回车保存（输入法选字的回车不算）、Esc 取消，Tab 只在框里转。
@@ -17,18 +18,16 @@
  * 内核是 Tiptap 3（@tiptap/react 的 useEditor + EditorContent，Rei 2026-10-25 从 Milkdown 换过来），读写 markdown 见 editor.ts / markdown.ts。
  * 这个文件按需加载（LazyMdEditor），加载完之前显示排好版的预览。
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { Bold, Code, Heading, Italic, Link2, List, ListChecks, ListCollapse, ListOrdered, Quote, Strikethrough, Table } from 'lucide-react';
 import { Button as RacButton, Input, Label, TextField } from 'react-aria-components';
-import { Tip } from '../../ui/primitives';
 import { tr } from '../../lib/i18n';
 import { externalHref, openExternal } from '../../lib/external';
 import { useUiOptional } from '../../lib/ui';
 import { getAccount } from '../../lib/account';
 import { uploadImage } from '../../lib/upload';
 import { normalizeImage } from '../../lib/image';
-import { MdController, normalizeHref, stopTab, type LinkRange, type MdCommand, type MdEditorHandle, type MdEditorOptions } from './editor';
+import { MdController, normalizeHref, stopTab, type LinkRange, type MdEditorHandle, type MdEditorOptions } from './editor';
 
 export interface MdEditorProps {
   value: string;
@@ -39,44 +38,9 @@ export interface MdEditorProps {
   onBlur?: () => void;
   onEscape?: () => void;
   className?: string;
-  /** 工具栏：编辑时出现（默认）/ 一直显示 / 不要（新建面板：只靠写法变样子，保持安静）。 */
-  toolbar?: 'focus' | 'always' | 'none';
   /** 只读：能看、能点链接，不能改。 */
   readOnly?: boolean;
 }
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-const mod = isMac ? '⌘' : 'Ctrl+';
-const alt = isMac ? '⌥' : 'Alt+';
-const shift = isMac ? '⇧' : 'Shift+';
-
-interface Tool {
-  cmd: MdCommand;
-  icon: ReactNode;
-  label: () => string;
-  keys?: string;
-}
-
-const TOOLS: Tool[][] = [
-  [{ cmd: 'h2', icon: <Heading size={16} />, label: () => tr('标题'), keys: `${mod}${alt}2` }],
-  [
-    { cmd: 'bold', icon: <Bold size={16} />, label: () => tr('粗体'), keys: `${mod}B` },
-    { cmd: 'italic', icon: <Italic size={16} />, label: () => tr('斜体'), keys: `${mod}I` },
-    { cmd: 'strike', icon: <Strikethrough size={16} />, label: () => tr('删除线'), keys: `${mod}${alt}X` },
-  ],
-  [
-    { cmd: 'task', icon: <ListChecks size={16} />, label: () => tr('清单') },
-    { cmd: 'bullet', icon: <List size={16} />, label: () => tr('列表'), keys: `${mod}${alt}8` },
-    { cmd: 'ordered', icon: <ListOrdered size={16} />, label: () => tr('编号列表'), keys: `${mod}${alt}7` },
-    { cmd: 'quote', icon: <Quote size={16} />, label: () => tr('引用'), keys: `${mod}${shift}B` },
-    { cmd: 'codeblock', icon: <Code size={16} />, label: () => tr('代码'), keys: `${mod}${alt}C` },
-    { cmd: 'details', icon: <ListCollapse size={16} />, label: () => tr('折叠块') },
-  ],
-  [
-    { cmd: 'link', icon: <Link2 size={16} />, label: () => tr('链接'), keys: `${mod}K` },
-    { cmd: 'table', icon: <Table size={16} />, label: () => tr('表格') },
-  ],
-];
 
 /** 链接框：改哪一段（新加时是选区 / 光标）、是不是已有的链接、两栏的值。 */
 interface LinkDialog {
@@ -94,13 +58,12 @@ interface LinkDialog {
 /** 输入法正在选字时的回车（Safari 选完字的那次 keydown 是 229）不算保存。 */
 const composing = (e: React.KeyboardEvent) => e.nativeEvent.isComposing || e.keyCode === 229;
 
-export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, onBlur, onEscape, className, toolbar = 'focus', readOnly = false }: MdEditorProps) {
+export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, onBlur, onEscape, className, readOnly = false }: MdEditorProps) {
   const ui = useUiOptional();
   const handle = useRef<MdEditorHandle | null>(null);
   const cb = useRef({ onChange, onBlur, onEscape });
   cb.current = { onChange, onBlur, onEscape };
   const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState<Set<MdCommand>>(new Set());
   const [dialog, setDialog] = useState<LinkDialog | null>(null);
   /** 鼠标指着的链接；光标 / 选区所在的链接（触屏、键盘）。 */
   const [hover, setHover] = useState<LinkRange | null>(null);
@@ -179,7 +142,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
     onChange: (md) => cb.current.onChange(md),
     onFocus: () => setFocused(true),
     onBlur: () => {
-      // 点工具栏里的链接输入框不算离开
+      // 点链接框里的输入框不算离开
       setTimeout(() => {
         if (linkingRef.current || wrap.current?.contains(document.activeElement)) return;
         setFocused(false);
@@ -187,11 +150,10 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
       }, 0);
     },
     onEscape: () => cb.current.onEscape?.(),
-    ...(toolbar === 'none' ? {} : { onLinkShortcut: () => openRef.current() }),
+    onLinkShortcut: () => openRef.current(),
     onSelection: () => {
       const h = handle.current;
       if (!h) return;
-      setActive(h.active());
       setSelLink(h.linkAtSelection());
     },
     onLinkHover: (r) => {
@@ -227,19 +189,6 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
   useEffect(() => {
     handle.current?.setMarkdown(value);
   }, [value]);
-
-  const run = (cmd: MdCommand) => {
-    const h = handle.current;
-    if (!h) return;
-    if (cmd === 'link') {
-      openLinkForm();
-      return;
-    }
-    // 标题按钮：已经是标题就变回正文
-    h.run(cmd === 'h2' && active.has('h2') ? 'text' : cmd);
-    h.focus();
-    setActive(h.active());
-  };
 
   /** 关链接框。refocus：回到编辑器；点了编辑器外面就补上刚才压住的 onBlur。 */
   const closeDialog = (refocus = true) => {
@@ -411,11 +360,10 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
     </form>
   );
 
-  const showBar = !readOnly && toolbar !== 'none' && (toolbar === 'always' || focused || !!dialog);
   return (
     <div
       ref={wrap}
-      className={`md-editor${showBar ? ' is-active' : ''}${className ? ` ${className}` : ''}`}
+      className={`md-editor${!readOnly && (focused || dialog) ? ' is-focused' : ''}${className ? ` ${className}` : ''}`}
       onPointerDownCapture={(e) => (touch.current = e.pointerType === 'touch' || e.pointerType === 'pen')}
       onPointerMoveCapture={(e) => e.pointerType === 'mouse' && (touch.current = false)}
     >
@@ -472,28 +420,6 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
             {linkForm}
           </div>
         </>
-      )}
-      {showBar && (
-        <div className="md-toolbar" role="toolbar" aria-label={tr('格式')} onMouseDown={(e) => !(e.target as HTMLElement).closest('input') && e.preventDefault()}>
-          {            TOOLS.map((group, gi) => (
-              <div key={gi} className="md-tool-group">
-                {group.map((t) => (
-                  <Tip key={t.cmd} content={t.keys ? `${t.label()}  ${t.keys}` : t.label()}>
-                    <RacButton
-                      className={`icon-btn md-tool${active.has(t.cmd) ? ' is-on' : ''}`}
-                      aria-label={t.label()}
-                      aria-pressed={active.has(t.cmd)}
-                      excludeFromTabOrder
-                      onPress={() => run(t.cmd)}
-                    >
-                      {t.icon}
-                    </RacButton>
-                  </Tip>
-                ))}
-              </div>
-            ))
-          }
-        </div>
       )}
     </div>
   );

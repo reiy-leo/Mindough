@@ -1,5 +1,5 @@
 /* ───────── Markdown 所见即所得编辑器（components/editor）─────────
- * 排版沿用 .md（和以前的预览一样）；这里只管：可编辑区、占位、清单的勾、工具栏。各皮肤的差别只用令牌。 */
+ * 排版沿用 .md（和以前的预览一样）；这里只管：可编辑区、占位、清单的勾、链接浮层。没有工具栏，悬停、聚焦都不变底色（Rei 2026-10-25）。各皮肤的差别只用令牌。 */
 .md-editor {
   position: relative;
   min-width: 0;
@@ -98,49 +98,6 @@
   pointer-events: none;
 }
 
-/* 工具栏：编辑时出现在下方 */
-.md-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-.md-tool-group {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-.md-tool-group + .md-tool-group {
-  padding-left: 8px;
-  border-left: 1px solid var(--border);
-}
-.icon-btn.md-tool {
-  width: 30px;
-  height: 28px;
-  color: var(--text-2);
-}
-.icon-btn.md-tool.is-on {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-.md-link-form {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-.md-link-field {
-  flex: 1;
-  min-width: 0;
-}
-.md-link-input {
-  height: 28px;
-  width: 100%;
-}
-
 /* 任务详情里的正文 */
 .detail-body .md-editor {
   cursor: text;
@@ -180,13 +137,6 @@
   font-size: 20px;
   margin-top: 0;
 }
-.detail-body:has(.md-editor.is-active) {
-  background: none;
-}
-.detail-body:has(.md-editor.is-active):hover {
-  background: none;
-}
-
 /* 资料 / 人物备注：输入框的样子 */
 .input.note-editor {
   display: block;
@@ -198,19 +148,10 @@
   border: 1px solid var(--border-strong);
   background: var(--surface);
 }
-.input.note-editor.is-active {
+.input.note-editor.is-focused {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
-.input.note-editor .md-toolbar {
-  margin: 8px -10px -8px;
-  padding: 4px 6px;
-}
-[data-layout='mobile'] .icon-btn.md-tool {
-  width: 36px;
-  height: 34px;
-}
-
 /* 图片：最宽 90% 编辑器宽度，居中（Rei 2026-10-16） */
 .md-editor-root img {
   display: block;
@@ -236,7 +177,7 @@
   box-shadow: var(--shadow-pop);
   font-size: 13px;
 }
-/* 链接框：两栏「文字」「链接」+ 按钮（浮层「编辑」、工具栏链接、⌘K 共用） */
+/* 链接框：两栏「文字」「链接」+ 按钮（浮层「编辑」、⌘K 共用） */
 .md-link-pop.is-editing {
   display: block;
   width: min(360px, 100%);
@@ -257,6 +198,7 @@
   white-space: nowrap;
 }
 .md-link-dialog .md-link-input {
+  width: 100%;
   height: 30px;
   min-height: 30px;
   min-width: 0;

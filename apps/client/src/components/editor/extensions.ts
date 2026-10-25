@@ -11,7 +11,7 @@
  * - 粗体 / 强调记下原来的符号（`*` / `_`），表格格子里只有一段；
  * - 快捷键和以前一样（删除线 ⌘⌥X、列表 ⌘⌥8 / ⌘⌥7、代码块 ⌘⌥C、引用 ⌘⇧B、标题 ⌘⌥1–6），不多占别的键。
  */
-import { Extension, Mark, Node, markInputRule, mergeAttributes, type AnyExtension } from '@tiptap/core';
+import { Extension, InputRule as TiptapInputRule, Mark, Node, markInputRule, mergeAttributes, type AnyExtension } from '@tiptap/core';
 import { Document } from '@tiptap/extension-document';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import { Text } from '@tiptap/extension-text';
@@ -30,6 +30,7 @@ import { Image } from '@tiptap/extension-image';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { InputRule, inputRules } from '@tiptap/pm/inputrules';
 import { liftListItem, sinkListItem } from '@tiptap/pm/schema-list';
+import { findWrapping } from '@tiptap/pm/transform';
 import { goToNextCell } from '@tiptap/pm/tables';
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type NodeType, type Schema } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection, type EditorState } from '@tiptap/pm/state';
@@ -176,6 +177,34 @@ const MdListItem = ListItem.extend({
     const a = node.attrs;
     const base = { 'data-label': a.label, 'data-list-type': a.listType, 'data-spread': String(a.spread) };
     return ['li', a.checked == null ? base : { 'data-item-type': 'task', ...base, 'data-checked': String(a.checked) }, 0];
+  },
+  /**
+   * Notion 式清单快捷（Rei 2026-10-25「checklist的markdown trigger `- [ ] `好复杂」）：普通段落开头打 `[] ` / `[ ] ` 变成没勾的清单项，
+   * `[x] ` 变成勾上的。我们没用官方 TaskItem（一种 listItem 靠 checked 区分，列表里能混写），所以规则挂在这里：
+   * 包进无序列表，再把这一项标成清单。已经在列表项里的交给 behaviorExtension 的 `[ ] ` 规则。存的还是 `- [ ]`。
+   */
+  addInputRules() {
+    return [
+      new TiptapInputRule({
+        find: /^\s*\[([ xX]?)\]\s$/,
+        handler: ({ state, range, match }) => {
+          const list = state.schema.nodes.bulletList;
+          const $s = state.doc.resolve(range.from);
+          if (!list || $s.parent.type.name !== 'paragraph') return null;
+          for (let d = $s.depth; d > 0; d--) if ($s.node(d).type.name === this.name) return null;
+          const tr = state.tr.delete(range.from, range.to);
+          const $b = tr.doc.resolve(tr.mapping.map(range.from));
+          const blockRange = $b.blockRange();
+          const wrapping = blockRange && findWrapping(blockRange, list);
+          if (!blockRange || !wrapping) return null;
+          tr.wrap(blockRange, wrapping);
+          // 包好以后：bulletList(start) > listItem(start + 1)
+          const li = tr.doc.nodeAt(blockRange.start + 1);
+          if (li?.type !== this.type) return null;
+          tr.setNodeMarkup(blockRange.start + 1, undefined, { ...li.attrs, checked: (match[1] ?? '').toLowerCase() === 'x' });
+        },
+      }),
+    ];
   },
   addKeyboardShortcuts() {
     return {
@@ -742,14 +771,14 @@ export function behaviorExtension(opts: BehaviorOptions) {
         // 清单：列表项开头打 [ ] / [x] 再空格
         inputRules({
           rules: [
-            new InputRule(/^\[([\sxX])\]\s$/, (state, match, start, end) => {
+            new InputRule(/^\[([\sxX]?)\]\s$/, (state, match, start, end) => {
               const $s = state.doc.resolve(start);
               const d = $s.depth;
               if (d < 2 || $s.parent.type.name !== 'paragraph' || $s.index(d - 1) !== 0) return null;
               const li = $s.node(d - 1);
               if (li.type.name !== 'listItem' || li.attrs.checked != null) return null;
               const tr = state.tr.delete(start, end);
-              return tr.setNodeMarkup($s.before(d - 1), undefined, { ...li.attrs, checked: match[1]!.toLowerCase() === 'x' });
+              return tr.setNodeMarkup($s.before(d - 1), undefined, { ...li.attrs, checked: (match[1] ?? '').toLowerCase() === 'x' });
             }),
           ],
         }),

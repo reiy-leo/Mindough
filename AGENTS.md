@@ -16,7 +16,7 @@
 - ✅ React Aria Components 1.x（headless）+ lucide-react；✅ @xyflow/react 12 + elkjs 0.11（依赖图，按需加载）；Markdown 预览 marked + DOMPurify（+ marked-footnote）；GitHub 提示块 / 公式（KaTeX，本地打包按需加载）见 `components/editor/gh-syntax.ts`、`lib/gh-alerts.ts`、`lib/math.ts`；✅ 编辑 Tiptap 3（`components/editor/`，所见即所得，存 markdown；读写自己用 remark 做，见下一条）
 - Tauri 2（桌面 + iOS/Android；本机 cargo check 能过，GitHub Actions 的 build.yml 打包）
 - UI：React Aria Components（headless），每端配一套原生皮肤：Apple（macOS/iOS）、WinUI 3 / Windows 11 风格（Windows）、Material 3（Android）；移动端可以用 Konsta UI；图标用 lucide 线条图标；明暗主题跟着系统走。不用 Kumo
-- ✅ Markdown 编辑：Tiptap 3（Rei 2026-10-25 从 Milkdown 7 换过来），正文存成 .md 文本；详情和备注带工具栏，新建面板 `toolbar="none"`
+- ✅ Markdown 编辑：Tiptap 3（Rei 2026-10-25 从 Milkdown 7 换过来），正文存成 .md 文本；没有工具栏（Rei 2026-10-25），格式靠快捷键和手打写法（清单 `[] `、折叠块 `>> `）
   - 只用开源扩展，逐个单独引，不用 StarterKit、不用官方 Link（链接是自己写的 mark）；公式、提示块、折叠块、脚注、HTML 片段也是自己写的节点（`extensions.ts`、`gh-syntax.ts`、`details.ts`）。
   - markdown 读写不用 `@tiptap/markdown`，用 remark（`markdown.ts`，规则照搬 Milkdown 7 的 commonmark + gfm 预设）。改读写时 `markdown.test.ts` 必须全过：190 段样例要和以前 Milkdown 的输出一字不差。
   - 只看不改不写回：没真改字就不调 onChange（`editor.ts` 的 controller）。

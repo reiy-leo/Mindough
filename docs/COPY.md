@@ -109,13 +109,13 @@
 | 小窗 | 悬浮窗 / 迷你模式 / 小组件（桌面） | 桌面 app 我的一天标题旁的按钮「打开小窗」（悬停「小窗：置顶显示今天的事」）；小窗里标题「我的一天」、图钉「置顶 / 不再置顶」、「打开主窗口」、小标题「今天要打卡」、空的时候「今天还没有安排。」、输入条占位「加到今天…」；英文 Mini Window / Keep on Top / Open Main Window / Add to Today… |
 | 日期快捷按钮 | 快捷日期文字按钮 | 日期面板顶上一行四个等宽图标按钮（Rei 2026-10-25「用图标，hover tooltip 显示文本」）：今天（Lucide sun）、明天（sunrise）、本周末 / 下周末（sofa）、下周一（calendar-arrow-up）；悬停 / 聚焦显示提示文字（就是这四个词），触屏按住半秒显示、松手不选；读屏名同提示文字，选中的那个 aria-pressed |
 | 时区 | 时区设置 / Timezone / 时间区域 | 日期面板底部一行（Lucide globe）：「时区　上海 (UTC+8)（跟着设备）」，没选过时带「（跟着设备）」；展开先列常用（这台设备那行右边小字「这台设备」，选中的打勾），底部「显示更多」→ 搜索框占位「搜索城市或时区」，没结果「没有找到这个时区」；名字写「城市 (UTC+8)」，减号用 −，UTC 本身写「协调世界时 (UTC)」；列表 / 详情日期旁的小字「UTC−4」，悬停「时区：纽约 (UTC−4)」 |
-| 格式工具栏 | 富文本工具栏 / Markdown 工具栏 | 详情内容和备注编辑时出现在下方，读屏名「格式」；按钮（悬停提示带快捷键）：标题、粗体、斜体、删除线、清单、列表、编号列表、引用、代码、折叠块、链接、表格；链接按钮 / ⌘K 打开链接框（见下一行）。新建面板的内容框不带工具栏 |
+| （不用）格式工具栏 | 富文本工具栏 / Markdown 工具栏 | 编辑器没有工具栏了（Rei 2026-10-25「换成tiptap后，不用显示toolbar」），格式靠快捷键和手打写法；⌘K 打开链接框（见下一行）。原来按钮的文字（标题、粗体、斜体…格式）已经从九种语言里删掉 |
 | 链接小浮层 | 链接气泡 / 链接卡片 | 编辑器里鼠标移到链接上（触屏长按选中链接里的字）出现：原地址（太长省略号）+「编辑」「去掉链接」；点「编辑」原地展开成链接框。点链接就是打开，不用说明。英文 Edit / Remove Link |
 | 链接框 | 链接弹窗 / 链接对话框 / 名称 | 两栏「文字」（占位「不填就用网址」）「链接」（占位 https://）；读屏名「编辑链接」/「添加链接」，手机底部面板标题同；按钮：已有链接「去掉链接」「取消」「保存」，新加「取消」「添加」；网址空着「填一个网址」，不像网址「这不像网址，检查一下」。叫「文字」不叫「名称 / 标题」（markdown 里就是链接文字）。英文 Text / Link，Leave empty to use the URL，Edit Link / Add Link，Enter a URL，That doesn’t look like a URL，Cancel / Save / Add / Remove Link |
 | 注意 / 提示 / 重要 / 警告 / 小心 | 备注 / 技巧 / 危险 / NOTE | GitHub 提示块（`> [!NOTE]` 等，Rei 2026-10-17）的标题，带图标；参考 GitHub 中文界面，CAUTION 叫「小心」（和 NOTE 的「注意」分开）。英文 Note / Tip / Important / Warning / Caution |
 | 公式 | LaTeX / 数学表达式 | `$…$` / `$$…$$`（KaTeX）；界面上没有专门的文字，写错的公式显示红色源码 |
 | 脚注 | 注释 / 尾注 | `[^1]`；只读显示底部的脚注区读屏标题「脚注」，返回链接读屏「回到引用 1」。英文 Footnotes / Back to reference 1 |
-| 折叠块 | 折叠 / 详情 / details / 可折叠区域 | `<details><summary>`（Rei 2026-10-17）。工具栏按钮「折叠块」（悬停提示同名）；空标题占位「折叠块标题」；三角读屏「展开折叠块」/「收起折叠块」。英文 Collapsible / Summary / Expand / Collapse |
+| 折叠块 | 折叠 / 详情 / details / 可折叠区域 | `<details><summary>`（Rei 2026-10-17）。行首打 `>> ` 或一行 `<details>` 回车加一个（没有按钮）；空标题占位「折叠块标题」；三角读屏「展开折叠块」/「收起折叠块」。英文 Collapsible / Summary / Expand / Collapse |
 | 日记 | 日志 / 随笔 / 日志本 | 导航、页面名（Rei 2026-10-17，英文 Journal）。一天一篇：页面上日期大标题「2026年10月17日 周六」+「今天 / 昨天」小标签、「‹ › 」前一天 / 后一天、右上「今天」（手机多一个「月历」）；月历下是「这个月的日记」列表（日期 · 心情 · 第一行 · 「16 字」），空的时候「这个月还没写日记」。编辑器占位：今天「写几句今天的事」，过去的日子「这天还没写」；底部字数「16 字」/「还没写」、删除按钮「删除这天的日记」→ 确认「删除这天的日记？」「「2026年10月17日 周六」的日记会被删除，不能恢复。」。将来的日子：「这天还没到」「将来的日子还不能写。」（月历上灰掉、点不了）。我的一天底部小卡「今天的日记」+ 第一行（没写「写几句今天的事」，只填了心情「心情：开心」）。⌘K 命令「写今天的日记」，搜索结果副标题「日记 · 片段」 |
 | 心情 | 情绪 / 状态 / 评分 | 日记唯一的可选字段，小标题「心情」，没选时旁边「不填也行」；12 个（按顺序）：开心、兴奋、感恩、满足、平静、一般、无聊、疲惫、焦虑、难过、烦躁、生气；英文 Happy、Excited、Grateful、Content、Calm、Okay、Bored、Tired、Anxious、Sad、Irritated、Angry。读屏「心情：开心」，选中的「心情：开心（再点一次取消）」。存英文 id（happy…），不存序号 |
 | 一天从几点开始 | 日界线 / 换日时间 | 设置 → 日记（默认 5:00）：说明「还没到这个点，「今天的日记」还是前一天那篇（比如凌晨 3 点写的算昨天）。只用于日记。」 |
@@ -181,7 +181,7 @@
 | 没有待安排的事 | Inbox Zero | |
 | 影视库 / 书库 / 游戏库 … / 好物清单 / 菜谱 | Movies & TV / Books / Games … / Wish List / Recipes | 条数 7 titles / 5 books / 3 items |
 | 皮肤 / 明暗 / 语言 | Style / Theme / Language | |
-| 格式（工具栏） | Formatting | 按钮 Heading、Bold、Italic、Strikethrough、Checklist、List、Numbered List、Quote、Code Block、Link、Table；链接框 Text / Link，Add / Save / Cancel；? 提示 “Type these and they format as you go:” |
+| 链接框 | Link dialog | 链接框 Text / Link，Add / Save / Cancel；? 提示 “Type these and they format as you go:”（编辑器没有工具栏了，原来的按钮文字已删） |
 | 归档这个类型 / 取消归档 / 已归档 N 个 / 已归档 | Archive This Type / Unarchive / N archived / Archived | 类型编辑器；提示 Archived “X” + Undo；设置里 “9 types, plus 2 archived. …” |
 | 日记 · 今天的日记 · 写今天的日记 | Journal · Today’s Entry · Write Today’s Entry | 「16 字」= 16 words；「这天还没到」= This day hasn’t come yet；设置 Day Starts At、Daily Journal Reminder；通知 “How was today? Jot a few lines.” |
 | 心情 | Mood | 12 个见上面中文表；没选 Optional |

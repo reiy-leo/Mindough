@@ -6,7 +6,7 @@
  * - 老数据打开不写回：打开时先记下「这篇文档写出去是什么样」（canon）。没真的改字（展开折叠块、光标进公式、自动补的东西）
  *   写出去还是 canon，就不调 onChange；真的改了才调。所以原文里 `* 列表`、`__粗__` 这种非标准写法，只看不改也不会被改写。
  * - 外面的值变了（同步下来）且不是自己刚写的：整篇替换（不进撤销历史）。
- * - 命令（工具栏）、链接的读写（链接框）、选区坐标（浮层定位）都在 handle 上。
+ * - 链接的读写（链接框）、选区坐标（浮层定位）都在 handle 上。没有工具栏（Rei 2026-10-25），格式靠快捷键和手打语法。
  */
 import { Editor, getSchema, type AnyExtension, type EditorOptions } from '@tiptap/core';
 import { Node as PMNode, type Schema } from '@tiptap/pm/model';
@@ -15,12 +15,10 @@ import type { EditorView } from '@tiptap/pm/view';
 import { createMarkdownIO, sameMarkdown, type MarkdownIO } from './markdown';
 import { behaviorExtension, linkRangeAt, schemaExtensions, withProtocol, type LinkRange } from './extensions';
 import { ghParse, ghSerialize, mathSafeText, remarkGh } from './gh-syntax';
-import { detailsAt, detailsParse, detailsSerialize, remarkDetails, toggleDetails } from './details';
+import { detailsParse, detailsSerialize, remarkDetails } from './details';
 
 export { LINK_INPUT_RE, tableCells, withProtocol, linkRangeAt, type LinkRange } from './extensions';
 export { finishMarkdown, prepareMarkdown, sameMarkdown } from './markdown';
-
-export type MdCommand = 'bold' | 'italic' | 'strike' | 'code' | 'h1' | 'h2' | 'h3' | 'text' | 'bullet' | 'ordered' | 'task' | 'quote' | 'codeblock' | 'table' | 'link' | 'details';
 
 // ───────── markdown 读写（每个 schema 一份）─────────
 
@@ -153,13 +151,10 @@ function initialContent(md: string) {
 
 export interface MdEditorHandle {
   editor: Editor;
-  run(cmd: MdCommand, arg?: string): void;
   setMarkdown(md: string): void;
   getMarkdown(): string;
   focus(): void;
   destroy(): void;
-  /** 当前选区是否在某种格式里（工具栏高亮）。 */
-  active(): Set<MdCommand>;
   /** 选区所在的链接（见 linkAtSelection）。 */
   linkAtSelection(): LinkRange | null;
   /** 改 / 去掉（href 空）一段链接的地址。 */
@@ -284,89 +279,8 @@ export class MdController {
 
 function makeHandle(editor: Editor, ctl: MdController): MdEditorHandle {
   const view = () => editor.view;
-  const chain = () => editor.chain().focus();
-  const inList = () => {
-    const { $from } = editor.state.selection;
-    for (let d = $from.depth; d >= 0; d--) if ($from.node(d).type.name === 'listItem') return true;
-    return false;
-  };
-
-  const setTask = () => {
-    // 先变成无序列表，再把当前所在的列表项都标成清单（已经是清单的取消）
-    if (!inList()) editor.commands.toggleBulletList();
-    const st = editor.state;
-    const tr = st.tr;
-    let toggledOff: boolean | null = null;
-    st.doc.nodesBetween(st.selection.from, st.selection.to, (node, pos) => {
-      if (node.type.name !== 'listItem') return true;
-      if (toggledOff === null) toggledOff = node.attrs.checked != null;
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, checked: toggledOff ? null : false });
-      return false;
-    });
-    if (toggledOff === null) {
-      const $f = st.selection.$from;
-      for (let d = $f.depth; d >= 0; d--) {
-        const n = $f.node(d);
-        if (n.type.name === 'listItem') {
-          tr.setNodeMarkup($f.before(d), undefined, { ...n.attrs, checked: n.attrs.checked != null ? null : false });
-          break;
-        }
-      }
-    }
-    view().dispatch(tr);
-  };
-
   return {
     editor,
-    run(cmd, arg) {
-      switch (cmd) {
-        case 'bold':
-          return void chain().toggleBold().run();
-        case 'italic':
-          return void chain().toggleItalic().run();
-        case 'strike':
-          return void chain().toggleStrike().run();
-        case 'code':
-          return void chain().toggleCode().run();
-        case 'h1':
-        case 'h2':
-        case 'h3':
-          return void chain().setHeading({ level: Number(cmd[1]) as 1 | 2 | 3 }).run();
-        case 'text':
-          return void chain().setParagraph().run();
-        case 'bullet':
-          return void (inList() ? chain().toggleBulletList().run() : chain().wrapInList('bulletList').run() || chain().toggleBulletList().run());
-        case 'ordered':
-          return void (inList() ? chain().toggleOrderedList().run() : chain().wrapInList('orderedList').run() || chain().toggleOrderedList().run());
-        case 'task':
-          return setTask();
-        case 'quote':
-          return void chain().toggleBlockquote().run();
-        case 'codeblock':
-          return void chain().setCodeBlock().run();
-        case 'table':
-          return void chain().insertTable({ rows: 3, cols: 2, withHeaderRow: true }).run();
-        case 'details': {
-          const v = view();
-          toggleDetails(v.state, v.dispatch.bind(v));
-          return;
-        }
-        case 'link': {
-          const v = view();
-          const href = (arg ?? '').trim();
-          if (!href) return;
-          // 光标 / 选区在已有链接里：改这一段的地址
-          const cur = linkAtSelection(v.state);
-          if (cur) return void v.dispatch(setLinkTr(v.state, cur, href));
-          if (v.state.selection.empty) {
-            // 没选字：把网址本身插进去并加上链接
-            const schema = v.state.schema;
-            v.dispatch(v.state.tr.insert(v.state.selection.from, schema.text(href, [schema.marks.link!.create({ href })])));
-          } else v.dispatch(setLinkTr(v.state, v.state.selection, href));
-          return;
-        }
-      }
-    },
     setMarkdown: (md) => ctl.setMarkdown(md),
     getMarkdown: () => markdownIO(editor.schema).serialize(editor.state.doc),
     focus: () => view().focus(),
@@ -410,35 +324,6 @@ function makeHandle(editor: Editor, ctl: MdController): MdEditorHandle {
       }
     },
     view,
-    active() {
-      const out = new Set<MdCommand>();
-      const st = editor.state;
-      const { $from, empty, from, to } = st.selection;
-      const marks = empty ? (st.storedMarks ?? $from.marks()) : [];
-      const has = (name: string) => {
-        const type = st.schema.marks[name];
-        if (!type) return false;
-        return empty ? marks.some((m) => m.type === type) : st.doc.rangeHasMark(from, to, type);
-      };
-      if (has('bold')) out.add('bold');
-      if (has('italic')) out.add('italic');
-      if (has('strike')) out.add('strike');
-      if (has('code')) out.add('code');
-      if (has('link')) out.add('link');
-      if (detailsAt(st)) out.add('details');
-      for (let d = $from.depth; d >= 0; d--) {
-        const n = $from.node(d);
-        const name = n.type.name;
-        if (name === 'heading') out.add(`h${Math.min(3, n.attrs.level as number)}` as MdCommand);
-        if (name === 'blockquote') out.add('quote');
-        if (name === 'codeBlock') out.add('codeblock');
-        if (name === 'table') out.add('table');
-        if (name === 'listItem' && n.attrs.checked != null) out.add('task');
-        if (name === 'bulletList' && !out.has('task')) out.add('bullet');
-        if (name === 'orderedList') out.add('ordered');
-      }
-      return out;
-    },
   };
 }
 

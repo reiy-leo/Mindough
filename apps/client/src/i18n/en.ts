@@ -273,16 +273,6 @@ export const EN: Record<string, EnValue> = {
   '{label}，按回车编辑': '{label}, press Return to edit',
 
   // ── Markdown 编辑器 ──
-  标题: 'Heading',
-  粗体: 'Bold',
-  斜体: 'Italic',
-  删除线: 'Strikethrough',
-  清单: 'Checklist',
-  编号列表: 'Numbered List',
-  引用: 'Quote',
-  代码: 'Code Block',
-  表格: 'Table',
-  格式: 'Formatting',
   链接地址: 'Link URL',
   去掉链接: 'Remove Link',
   // 链接框（文字 + 链接两栏）
@@ -302,7 +292,6 @@ export const EN: Record<string, EnValue> = {
   脚注: 'Footnotes',
   '回到引用 {0}': 'Back to reference {0}',
   // 折叠块（<details><summary>，Rei 2026-10-17）
-  折叠块: 'Collapsible',
   折叠块标题: 'Summary',
   展开折叠块: 'Expand',
   收起折叠块: 'Collapse',

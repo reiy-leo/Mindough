@@ -14,15 +14,15 @@
  *
  *     </details>
  *   原文是一行写完、正文只有一段文字的（`<details><summary>标题</summary>内容</details>`），正文还是一段文字时照一行写回去。
- * 输入：工具栏「折叠块」（光标所在段变成标题；选了几段就把它们收进正文；在折叠块里再点 = 拆开）；
+ * 输入（没有工具栏了，Rei 2026-10-25）：行首打 `>> `（这行后面的字当标题；空引用里再打 `> ` 也算）；
  *   或者手打一行 `<details>`（可带 open / <summary>标题</summary>）回车。
  * 键：标题里回车 → 进正文第一行（收起的先展开）；标题开头退格 → 拆开（标题变回一段文字）；
  *   收起时 ↓ 跳过正文到下一块，下一块开头 ↑ 回到标题；光标不管怎么进了收起的正文都会自动展开。
  */
-import { Extension, Node as TiptapNode } from '@tiptap/core';
+import { Extension, InputRule as TiptapInputRule, Node as TiptapNode } from '@tiptap/core';
 import { Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView, type NodeView } from '@tiptap/pm/view';
-import { Fragment, type Node as PMNode, type NodeType } from '@tiptap/pm/model';
+import { Fragment, type Node as PMNode } from '@tiptap/pm/model';
 import { tr } from '../../lib/i18n';
 import { fixInlineMath, liftAlerts } from './gh-syntax';
 import type { MdNode, ParseSpec, SerializeSpec } from './markdown';
@@ -198,6 +198,50 @@ export const Details = TiptapNode.create({
     ['div', { class: 'md-details-inner' }, 0],
   ],
   addNodeView: () => (p) => detailsView(p.node, p.view, p.getPos as () => number | undefined),
+  // 比引用（Blockquote，100）先试，「> > 」才轮得到这里
+  priority: 101,
+  /**
+   * 短写法（Rei 2026-10-25 问「collapsible要怎么触发」）：行首打 `>> ` 变成折叠块，这一行后面的字当标题；
+   * 先打了 `> ` 变成空引用、再打 `> `，也变成折叠块（不嵌套引用）。引用里已经写了东西，再在某行开头打 `> ` 还是嵌套引用。
+   */
+  addInputRules() {
+    const toDetails = (state: EditorState, from: number, to: number, outer: boolean) => {
+      const $s = state.doc.resolve(from);
+      const d = outer ? $s.depth - 1 : $s.depth;
+      const para = $s.parent;
+      const title = para.textBetween(to - $s.start(), para.content.size, '');
+      if (outer && (para.textBetween(0, from - $s.start(), '') !== '' || title.includes('\n'))) return null;
+      const parent = $s.node(d - 1);
+      const idx = $s.index(d - 1);
+      if (!parent.canReplaceWith(idx, idx + 1, this.type)) return null;
+      const at = $s.before(d);
+      const t = state.tr.replaceWith(at, $s.after(d), makeDetails(state, title));
+      // 光标在标题末尾（空标题就在标题里，显示「折叠块标题」占位）；回车进正文
+      t.setSelection(TextSelection.create(t.doc, at + 2 + title.length));
+      return t;
+    };
+    return [
+      new TiptapInputRule({
+        find: /^\s*>>\s$/,
+        handler: ({ state, range }) => {
+          const $s = state.doc.resolve(range.from);
+          if ($s.parent.type.name !== 'paragraph' || hasNode($s.parent, 'hardBreak') || hasNode($s.parent, 'image')) return null;
+          if (!toDetails(state, range.from, range.to, false)) return null;
+        },
+      }),
+      new TiptapInputRule({
+        find: /^\s*>\s$/,
+        handler: ({ state, range }) => {
+          const $s = state.doc.resolve(range.from);
+          const d = $s.depth;
+          if (d < 2 || $s.parent.type.name !== 'paragraph' || hasNode($s.parent, 'hardBreak') || hasNode($s.parent, 'image')) return null;
+          const quote = $s.node(d - 1);
+          if (quote.type.name !== 'blockquote' || quote.childCount !== 1) return null;
+          if (!toDetails(state, range.from, range.to, true)) return null;
+        },
+      }),
+    ];
+  },
 });
 
 export const detailsParse: ParseSpec[] = [
@@ -338,41 +382,6 @@ export function makeDetails(state: EditorState, title: string, body: PMNode[] = 
     n.details_summary!.create(null, title ? schema.text(title) : null),
     ...(body.length ? body : [n.paragraph!.create()]),
   ]);
-}
-
-/**
- * 工具栏「折叠块」：在折叠块标题里 → 拆开；空光标在一段文字里 → 这段变成标题；选了几块 → 收进一个新折叠块的正文。
- * 光标放进标题。
- */
-export function toggleDetails(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
-  const type = state.schema.nodes.details as NodeType | undefined;
-  if (!type) return false;
-  const cur = detailsAt(state);
-  if (cur && inSummary(state)) {
-    dispatch?.(unwrapDetails(state, cur).scrollIntoView());
-    return true;
-  }
-  const { $from, $to, empty } = state.selection;
-  const para = $from.parent;
-  if ((empty || $from.sameParent($to)) && para.type.name === 'paragraph' && !para.textContent.includes('\n') && !hasNode(para, 'hardBreak') && !hasNode(para, 'image')) {
-    const d = $from.depth;
-    const at = $from.before(d);
-    const parent = $from.node(d - 1);
-    const idx = $from.index(d - 1);
-    const node = makeDetails(state, para.textContent);
-    if (parent.canReplaceWith(idx, idx + 1, type)) {
-      const t = state.tr.replaceWith(at, at + para.nodeSize, node);
-      dispatch?.(t.setSelection(TextSelection.create(t.doc, at + 1 + 1 + para.textContent.length)).scrollIntoView());
-      return true;
-    }
-  }
-  const range = $from.blockRange($to);
-  if (!range || !range.parent.canReplaceWith(range.startIndex, range.endIndex, type)) return false;
-  const blocks: PMNode[] = [];
-  for (let i = range.startIndex; i < range.endIndex; i++) blocks.push(range.parent.child(i));
-  const t = state.tr.replaceWith(range.start, range.end, makeDetails(state, '', blocks));
-  dispatch?.(t.setSelection(TextSelection.create(t.doc, range.start + 2)).scrollIntoView());
-  return true;
 }
 
 /** 一行 `<details>`（可带 open、<summary>标题</summary>）回车：变成折叠块。 */

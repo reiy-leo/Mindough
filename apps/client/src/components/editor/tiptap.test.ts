@@ -196,6 +196,41 @@ describe('清单、撤销、快捷键', () => {
     done();
   });
 
+  it('行首打 [] / [ ] / [x] 加空格（Notion 式，Rei 2026-10-25）：直接变清单项，存的还是 - [ ]', () => {
+    for (const [typed, md] of [
+      ['[] 买菜', '- [ ] 买菜\n'],
+      ['[ ] 买菜', '- [ ] 买菜\n'],
+      ['[x] 买菜', '- [x] 买菜\n'],
+      ['[X] 买菜', '- [x] 买菜\n'],
+      ['- [] 买菜', '- [ ] 买菜\n'],
+    ] as const) {
+      const { view, h, done } = setup('');
+      type(view, typed);
+      expect(h.getMarkdown()).toBe(md);
+      done();
+    }
+    // 回车接着是没勾的清单项
+    const { view, h, done } = setup('');
+    type(view, '[] 一');
+    key(view, 'Enter');
+    type(view, '二');
+    expect(h.getMarkdown()).toBe('- [ ] 一\n- [ ] 二\n');
+    done();
+  });
+
+  it('不在行首的 [ ] 、代码块里的 [ ] 不变', () => {
+    const a = setup('');
+    type(a.view, '看 [ ] 这里');
+    expect(a.view.state.doc.textContent).toBe('看 [ ] 这里');
+    expect(a.h.getMarkdown()).not.toContain('- [');
+    a.done();
+    const b = setup('```\n\n```');
+    b.view.dispatch(b.view.state.tr.setSelection(TextSelection.create(b.view.state.doc, 1)));
+    type(b.view, '[ ] x');
+    expect(b.h.getMarkdown()).toBe('```\n[ ] x\n```\n');
+    b.done();
+  });
+
   it('撤销 / 重做', () => {
     const { view, h, done } = setup('a');
     view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)));

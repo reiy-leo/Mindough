@@ -139,24 +139,6 @@ describe('链接（Rei 2026-10-17）', () => {
     await done();
   });
 
-  it('光标在已有链接里加链接：改地址，不会把链接去掉（以前 toggle）', async () => {
-    const { view, h, done } = await setup('看 [文档](https://old.com) 吧');
-    await place(view, posOf(view.state.doc, '档', 0));
-    expect(h.linkAtSelection()?.href).toBe('https://old.com');
-    h.run('link', 'https://new.com');
-    expect(h.getMarkdown()).toBe('看 [文档](https://new.com) 吧\n');
-    await done();
-  });
-
-  it('选中链接里的一部分再加链接：整段一起改', async () => {
-    const { view, h, done } = await setup('[长长的链接](https://old.com)');
-    const at = posOf(view.state.doc, '长的', 0);
-    await place(view, at, at + 2);
-    h.run('link', 'https://x.com');
-    expect(h.getMarkdown()).toBe('[长长的链接](https://x.com)\n');
-    await done();
-  });
-
   it('setLink：改地址（缺协议补 https://）、空地址去掉链接', async () => {
     const { view, h, done } = await setup('[文档](https://old.com)');
     await place(view, posOf(view.state.doc, '档', 0));
@@ -165,17 +147,6 @@ describe('链接（Rei 2026-10-17）', () => {
     expect(h.getMarkdown()).toBe('[文档](https://example.org/a)\n');
     h.setLink(r, '');
     expect(h.getMarkdown()).toBe('文档\n');
-    await done();
-  });
-
-  it('选中普通文字加链接；空光标插入网址本身', async () => {
-    const { view, h, done } = await setup('一段话');
-    await place(view, 1, 3);
-    h.run('link', 'https://a.com');
-    expect(h.getMarkdown()).toBe('[一段](https://a.com)话\n');
-    await place(view, view.state.doc.content.size - 1);
-    h.run('link', 'https://b.com');
-    expect(h.getMarkdown()).toBe('[一段](https://a.com)话<https://b.com>\n');
     await done();
   });
 
@@ -219,7 +190,7 @@ describe('链接（Rei 2026-10-17）', () => {
     type(view, '[](https://a.com)');
     expect(view.state.doc.textContent).toBe('https://a.com');
     expect(h.getMarkdown()).toMatch(/https:\/\/a\.com/);
-    expect(h.active().has('link') || view.state.doc.rangeHasMark(1, 3, view.state.schema.marks.link!)).toBe(true);
+    expect(view.state.doc.rangeHasMark(1, 3, view.state.schema.marks.link!)).toBe(true);
     await done();
     const b = await setup('');
     type(b.view, '[文档]（a.com）');

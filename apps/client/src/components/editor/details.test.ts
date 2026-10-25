@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 编辑器里的折叠块 <details><summary>（Rei 2026-10-17）：读成节点、写回原样 HTML、两遍稳定、工具栏 / 手打 <details> 回车、标题里的键、展开收起不算改动。
+ * 编辑器里的折叠块 <details><summary>（Rei 2026-10-17）：读成节点、写回原样 HTML、两遍稳定、手打 `>> ` / <details> 回车、标题里的键、展开收起不算改动。
  */
 import { describe, expect, it } from 'vitest';
 import { TextSelection } from '@tiptap/pm/state';
@@ -127,31 +127,51 @@ describe('折叠块：写出', () => {
 });
 
 describe('折叠块：输入与键', () => {
-  it('工具栏「折叠块」：这段文字变成标题，再点一次拆开', async () => {
-    const { h, view, done } = await setup('要收起来的');
-    placeAfter(view, '要收起来的');
-    h.run('details');
-    const d = nodes(view.state.doc, 'details');
-    expect(d).toHaveLength(1);
-    expect(d[0]!.firstChild!.textContent).toBe('要收起来的');
+  it('行首打 >> 空格（Rei 2026-10-25）：空行变成空标题的折叠块，光标在标题，回车进正文', async () => {
+    const { h, view, done } = await setup('');
+    type(view, '>> ');
+    expect(nodes(view.state.doc, 'details')).toHaveLength(1);
+    expect(nodes(view.state.doc, 'blockquote')).toHaveLength(0);
     expect(view.state.selection.$from.parent.type.name).toBe('details_summary');
-    expect(h.active().has('details')).toBe(true);
-    expect(h.getMarkdown()).toBe('<details>\n<summary>要收起来的</summary>\n\n</details>\n');
-    h.run('details');
-    expect(nodes(view.state.doc, 'details')).toHaveLength(0);
-    expect(h.getMarkdown()).toBe('要收起来的\n');
+    expect(view.dom.querySelector('.md-details-summary.is-empty')?.getAttribute('data-placeholder')).toBeTruthy();
+    type(view, '标');
+    key(view, 'Enter');
+    type(view, '内容');
+    expect(h.getMarkdown()).toBe('<details>\n<summary>标</summary>\n\n内容\n\n</details>\n');
     await done();
   });
 
-  it('选中几段：收进正文，光标在空标题', async () => {
-    const { h, view, done } = await setup('一\n\n二\n\n三');
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 2, view.state.doc.content.size - 4)));
-    h.run('details');
-    const d = nodes(view.state.doc, 'details')[0]!;
-    expect(d.childCount).toBe(3);
-    expect(d.firstChild!.textContent).toBe('');
-    type(view, '标');
-    expect(h.getMarkdown()).toBe('<details>\n<summary>标</summary>\n\n一\n\n二\n\n</details>\n\n三\n');
+  it('已有文字的行首打 >> 空格：这行当标题', async () => {
+    const { h, view, done } = await setup('要收起来的');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
+    type(view, '>> ');
+    const d = nodes(view.state.doc, 'details');
+    expect(d).toHaveLength(1);
+    expect(d[0]!.firstChild!.textContent).toBe('要收起来的');
+    expect(h.getMarkdown()).toBe('<details>\n<summary>要收起来的</summary>\n\n</details>\n');
+    await done();
+  });
+
+  it('先打 > 变成空引用，再打 > ：变成折叠块，不嵌套引用；引用里已有内容时照旧嵌套', async () => {
+    const a = await setup('');
+    type(a.view, '> ');
+    expect(nodes(a.view.state.doc, 'blockquote')).toHaveLength(1);
+    type(a.view, '> ');
+    expect(nodes(a.view.state.doc, 'blockquote')).toHaveLength(0);
+    expect(nodes(a.view.state.doc, 'details')).toHaveLength(1);
+    await a.done();
+    const b = await setup('> 第一段\n>\n> ');
+    placeAfter(b.view, '第一段');
+    key(b.view, 'Enter');
+    type(b.view, '> ');
+    expect(nodes(b.view.state.doc, 'details')).toHaveLength(0);
+    await b.done();
+  });
+
+  it('> 引用、> [!NOTE] 提示块不受影响', async () => {
+    const { h, view, done } = await setup('');
+    type(view, '> 一句');
+    expect(h.getMarkdown()).toBe('> 一句\n');
     await done();
   });
 
