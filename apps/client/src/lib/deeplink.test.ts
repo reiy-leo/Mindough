@@ -69,3 +69,21 @@ describe('日记的深链接与路由（Rei 2026-10-17）', () => {
     expect(href({ page: 'journal' })).toBe('#/journal');
   });
 });
+
+describe('倒数日单独一页（Rei 2026-10-26）', () => {
+  it('view/countdown、#/countdown；打卡页照旧', () => {
+    expect(parseDeepLink('mindough://view/countdown', now)).toEqual({ kind: 'view', route: { page: 'countdown' } });
+    expect(parseDeepLink('mindough://view/countdowns', now)).toEqual({ kind: 'view', route: { page: 'countdown' } });
+    expect(parseDeepLink('mindough://view/checkin', now)).toEqual({ kind: 'view', route: { page: 'checkin' } });
+    expect(parseHash('#/countdown')).toEqual({ page: 'countdown' });
+    expect(parseHash('#/countdown?task=t1')).toEqual({ page: 'countdown' });
+    expect(href({ page: 'countdown' })).toBe('#/countdown');
+    expect(parseHash('#/checkin')).toEqual({ page: 'checkin' });
+    expect(parseHashLink('#/countdown', now)).toBeNull();
+  });
+  it('旧的打卡页倒数日锚点打开倒数日页', () => {
+    expect(parseHash('#/checkin#countdown')).toEqual({ page: 'countdown' });
+    expect(parseHash('#/checkin/countdown')).toEqual({ page: 'countdown' });
+    expect(parseHash('#/checkin#other')).toEqual({ page: 'checkin' });
+  });
+});

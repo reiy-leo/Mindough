@@ -30,6 +30,9 @@ const VIEWS: Record<string, Route> = {
   graph: { page: 'myday' },
   available: { page: 'doable' },
   checkin: { page: 'checkin' },
+  // 倒数日单独一页（Rei 2026-10-26）；countdowns 是别名
+  countdown: { page: 'countdown' },
+  countdowns: { page: 'countdown' },
   journal: { page: 'journal' },
   library: { page: 'library' },
   people: { page: 'people' },

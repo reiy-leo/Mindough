@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState, type CSSProperties } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, Flame, Hourglass, Plus, Timer } from 'lucide-react';
+import { CalendarCheck2, Flame, Plus, Timer } from 'lucide-react';
 import {
   buildRatioIndex,
   describeRecurrence,
   dueToday,
-  formatDateZh,
   formatRecurrence,
   isFinished,
   parseRecurrence,
@@ -25,10 +24,8 @@ import { Heatmap } from '../components/Heatmap';
 import { CheckInControl } from '../components/CheckInControl';
 import { PageHeader } from '../components/PageHeader';
 import { titleOf } from '../lib/view';
-import { typeIcon } from '../lib/icons';
 
 import { tr, trc } from '../lib/i18n';
-import { trx } from '../lib/trx';
 import { useLunarUi } from '../lib/lunar';
 export function CheckInsPage() {
   const store = useStore();
@@ -55,7 +52,6 @@ export function CheckInsPage() {
   const others = recurring.filter((t) => !dueToday(t, today));
   const metToday = dueNow.filter((t) => store.progress(t.id, today)?.met).length;
   const running = tasks.filter((t) => t.completion_mode === 'timer' && store.progress(t.id, today)?.running);
-  const countdowns = tasks.filter((t) => t.completion_mode === 'countdown' && t.target_date && t.status !== '关闭');
   const streaks = recurring.map((t) => taskStreak(t, store.checkInsOf(t.id), now)?.current ?? 0);
   const best = Math.max(0, ...streaks);
   const title = (t: Task) => titleOf(store, t);
@@ -198,30 +194,6 @@ export function CheckInsPage() {
         </>
       )}
 
-      {countdowns.length > 0 && (
-        <Section title={<><Hourglass size={15} /> {tr('倒数日')}</>}>
-          <div className="countdown-grid">
-            {countdowns.map((t) => {
-              const p = store.progress(t.id, today);
-              const n = p?.value ?? 0;
-              const type = store.get('task_type', t.type_id);
-              const Icon = typeIcon(type?.icon);
-              return (
-                <RacButton key={t.id} className={`card countdown-card${ui.editingId === t.id ? ' is-selected' : ''}`} data-task-id={t.id} aria-current={ui.editingId === t.id ? 'true' : undefined} onPress={() => ui.openEditor(t.id)}>
-                  <span className="countdown-title">
-                    {type && type.layout !== 'text' && <Icon size={14} style={{ color: type.color }} />}
-                    {title(t)}
-                  </span>
-                  <span className="countdown-num">
-                    {n === 0 ? <b>{tr('今天')}</b> : n > 0 ? trx('还有 {n} 天', { n: <b>{n}</b> }, { count: n }, { wrap: 'countdown-affix' }) : trx('已过 {n} 天', { n: <b>{-n}</b> }, { count: -n }, { wrap: 'countdown-affix' })}
-                  </span>
-                  <span className="countdown-date">{formatDateZh(t.target_date!)}</span>
-                </RacButton>
-              );
-            })}
-          </div>
-        </Section>
-      )}
       <CategoryManager isOpen={managing} onOpenChange={setManaging} />
     </div>
   );

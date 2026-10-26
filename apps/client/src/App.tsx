@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route } from './lib/router';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
@@ -14,6 +14,7 @@ import { LibraryItemPage, LibraryPage } from './pages/Library';
 import { BUILTIN_TYPE_IDS } from '@mindough/core';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
+import { COUNTDOWN_DEFAULTS, CountdownsPage } from './pages/Countdowns';
 import { SettingsPage } from './pages/Settings';
 import { JournalPage } from './pages/Journal';
 import { TaskDetail } from './components/task/TaskDetail';
@@ -41,10 +42,11 @@ interface NavItem {
 
 /**
  * 导航分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：
- * 今天（要动手的）· 计划（怎么安排）· 资料（记下的东西）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ * 今天（要动手的）· 计划（怎么安排）· 持续（天天记、慢慢攒的）· 资料（记下的东西）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ * 「持续」（Rei 2026-10-26「把倒数日从“打卡”中拆出来单独一个侧边栏入口，把打卡、倒数日、日记放在另一个section：持续」）：打卡、倒数日、日记。
  */
 interface NavSection {
-  id: 'today' | 'plan' | 'library';
+  id: 'today' | 'plan' | 'ongoing' | 'library';
   title: string;
   items: NavItem[];
 }
@@ -56,10 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { page: 'myday', get label() { return tr('我的一天'); }, icon: Sun, match: ['myday'] },
       { page: 'backlog', get label() { return tr('待安排'); }, icon: Inbox, match: ['backlog'] },
-      { page: 'checkin', get label() { return trc('导航', '打卡'); }, icon: CalendarCheck2, match: ['checkin'] },
       { page: 'doable', get label() { return tr('可做'); }, icon: ListChecks, match: ['doable'] },
-      // 日记（Rei 2026-10-17）：「今天」小节最后；手机不进标签栏，在「更多」里
-      { page: 'journal', get label() { return tr('日记'); }, icon: NotebookPen, match: ['journal'] },
     ],
   },
   {
@@ -68,6 +67,16 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { page: 'agenda', get label() { return trc('导航', '列表'); }, icon: CalendarDays, match: ['agenda'] },
       { page: 'groups', get label() { return trc('导航', '项目'); }, icon: Shapes, match: ['groups', 'group'] },
+    ],
+  },
+  {
+    id: 'ongoing',
+    get title() { return trc('导航', '持续'); },
+    items: [
+      { page: 'checkin', get label() { return trc('导航', '打卡'); }, icon: CalendarCheck2, match: ['checkin'] },
+      { page: 'countdown', get label() { return tr('倒数日'); }, icon: Hourglass, match: ['countdown'] },
+      // 日记（Rei 2026-10-17）：手机不进标签栏，在「更多」里
+      { page: 'journal', get label() { return tr('日记'); }, icon: NotebookPen, match: ['journal'] },
     ],
   },
   {
@@ -83,7 +92,7 @@ const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 const SETTINGS: NavItem = { page: 'settings', get label() { return tr('设置'); }, icon: Settings, match: ['settings'] };
 const MOBILE_TABS: Route['page'][] = ['myday', 'backlog', 'checkin', 'agenda'];
 /** 有任务列表的页面：宽屏上右列常驻（没选中时是空状态）；别的页面（日记、资料库、设置…）只在打开任务时才出现右列。 */
-const LIST_PAGES: Route['page'][] = ['myday', 'backlog', 'agenda', 'groups', 'group', 'doable', 'checkin'];
+const LIST_PAGES: Route['page'][] = ['myday', 'backlog', 'agenda', 'groups', 'group', 'doable', 'checkin', 'countdown'];
 const COLLAPSED_KEY = 'mindough:nav_collapsed';
 
 function useCollapsed() {
@@ -154,6 +163,8 @@ function Page({ route }: { route: Route }) {
       return <DoablePage />;
     case 'checkin':
       return <CheckInsPage />;
+    case 'countdown':
+      return <CountdownsPage />;
     case 'journal':
       return <JournalPage {...(route.date ? { date: route.date } : {})} />;
     case 'settings':
@@ -233,6 +244,13 @@ export function Toasts() {
   );
 }
 
+/** 新建按钮和 N 的默认值：项目页带上项目，倒数日页默认建倒数日。 */
+function newTaskDefaults(route: Route) {
+  if (route.page === 'group') return { group_id: route.id };
+  if (route.page === 'countdown') return COUNTDOWN_DEFAULTS;
+  return {};
+}
+
 function isTyping(el: EventTarget | null) {
   const t = el as HTMLElement | null;
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
@@ -258,14 +276,14 @@ export function App() {
         ui.setPaletteOpen(true);
       } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !isTyping(e.target) && !ui.paletteOpen && !ui.quickCreate) {
         e.preventDefault();
-        ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
+        ui.openQuickCreate(newTaskDefaults(route), { myDay: route.page === 'myday' });
       }
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
   }, [ui, route]);
 
-  const newTask = () => ui.openQuickCreate(route.page === 'group' ? { group_id: route.id } : {}, { myDay: route.page === 'myday' });
+  const newTask = () => ui.openQuickCreate(newTaskDefaults(route), { myDay: route.page === 'myday' });
   const backlogCount = store.backlog(toDateKey(store.now())).length;
   const current = [...NAV, SETTINGS].find(isActive);
   // 中等宽度：侧边栏是图标栏，小节标题不显示，收起的小节也照样列出来（不然点不开）

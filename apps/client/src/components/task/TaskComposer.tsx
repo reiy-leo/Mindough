@@ -97,7 +97,8 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     target_value: d.target_value ?? (mode === 'timer' ? 10 * 60_000 : mode === 'count' ? 1 : null),
     unit: d.unit ?? null,
     target_date: d.target_date ?? null,
-    modeTouched: false,
+    // 打开时指定了完成方式（比如在倒数日页新建）：换类型时不跟着类型的默认完成方式变
+    modeTouched: d.completion_mode != null,
     recurrence: d.recurrence ?? null,
     categoryId: d.checkin_category_id ?? null,
     date: d.scheduled_date ?? null,

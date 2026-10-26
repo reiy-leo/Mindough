@@ -13,6 +13,8 @@ export type Route =
   | { page: 'libitem'; typeId: string; id: string }
   | { page: 'doable' }
   | { page: 'checkin' }
+  /** 倒数日（Rei 2026-10-26 从打卡页拆出来，单独一页）。 */
+  | { page: 'countdown' }
   /** 日记：date 省略 = 今天（按「一天从几点开始」算）。 */
   | { page: 'journal'; date?: string }
   | { page: 'settings' }
@@ -26,7 +28,10 @@ function hashPath(hash: string): string {
 }
 
 export function parseHash(hash: string): Route {
-  const [, a, b, c] = hashPath(hash).split('/');
+  const [, rawA, b, c] = hashPath(hash).split('/');
+  // 页面内锚点 #/checkin#countdown（倒数日以前是打卡页里的一节）：打开倒数日页
+  const [a, anchor] = (rawA ?? '').split('#');
+  if (a === 'checkin' && (anchor === 'countdown' || anchor === 'countdowns')) return { page: 'countdown' };
   switch (a) {
     case 'agenda':
       return { page: 'agenda' };
@@ -42,7 +47,11 @@ export function parseHash(hash: string): Route {
     case 'doable':
       return { page: 'doable' };
     case 'checkin':
-      return { page: 'checkin' };
+      // 旧写法 #/checkin/countdown（倒数日以前在打卡页里）：打开倒数日页
+      return b === 'countdown' || b === 'countdowns' ? { page: 'countdown' } : { page: 'checkin' };
+    case 'countdown':
+    case 'countdowns':
+      return { page: 'countdown' };
     case 'journal':
       return b && b !== 'today' ? { page: 'journal', date: decodeURIComponent(b) } : { page: 'journal' };
     case 'settings':

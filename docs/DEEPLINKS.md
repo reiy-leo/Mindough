@@ -7,7 +7,7 @@
 | host | 写法 | 示例 | 用途 |
 |---|---|---|---|
 | task | mindough://task/{任务id} | mindough://task/0199f2a4-7c1e-7000-8000-1a2b3c4d5e6f | 打开某件任务的详情（通知、小组件、别的 app 里的链接）；2026-10-23 起，桌面上在当前页面的右列打开，手机上整页推入 |
-| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 项目、available 可做、checkin 打卡、journal 日记、library 资料库、people 人物、settings 设置 |
+| view | mindough://view/{页面} | mindough://view/myday、mindough://view/inbox | 打开某个页面。页面名：myday 我的一天、inbox 待安排、timeline 列表、groups 项目、available 可做、checkin 打卡、countdown 倒数日（2026-10-26 起单独一页）、journal 日记、library 资料库、people 人物、settings 设置 |
 | group | mindough://group/{项目id} | mindough://group/0199f2a4-… | 打开某个组 |
 | library | mindough://library/{类型}/{资料id} | mindough://library/movie/0199f2a4-…；mindough://library/book | 打开某条资料；不带 id 就是这个类型的库。类型用英文短名：movie、book、game、project、course、travel、shopping、restaurant、meal |
 | person | mindough://person/{人物id} | mindough://person/0199f2a4-… | 打开某个人 |
@@ -48,4 +48,4 @@
 
 日记（2026-10-17 做完）：手机端注册了 journal host；Web 对应 #/journal、#/journal/today、#/journal/2026-10-17（普通页面路由）。`journal/today?append=…`（把一段文字接在今天日记末尾）留到 J2。
 
-实现备注：checkin 只给「打一下 / 计数」的任务直接打卡；计时、倒数日的任务改成打开详情。Web 对应写法：#/task/{id}、#/new?text=…、#/checkin-now/{id}（打卡页 #/checkin 已占用）。打开 #/task/{id} 后，地址会换成 #/myday?task={id}。三列布局里选中的任务一直写在当前页面 hash 的 ?task= 上（如 #/agenda?task=…），刷新后还选着，这个地址也能直接分享、收藏。
+实现备注：checkin 只给「打一下 / 计数」的任务直接打卡；计时、倒数日的任务改成打开详情。Web 对应写法：#/task/{id}、#/new?text=…、#/checkin-now/{id}（打卡页 #/checkin 已占用）；倒数日页是 #/countdown，旧写法 #/checkin#countdown、#/checkin/countdown 也打开倒数日页。打开 #/task/{id} 后，地址会换成 #/myday?task={id}。三列布局里选中的任务一直写在当前页面 hash 的 ?task= 上（如 #/agenda?task=…），刷新后还选着，这个地址也能直接分享、收藏。
