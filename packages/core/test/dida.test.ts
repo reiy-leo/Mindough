@@ -23,6 +23,8 @@ import {
   DidaAbort,
   DidaApiError,
   fetchDidaAccount,
+  filterDidaRows,
+  didaRowInRange,
   type DidaApiTask,
   type DidaCall,
   type DidaOptions,
@@ -293,7 +295,7 @@ describe('直接连账户（Open API）', () => {
   it('拉整个账户：清单、文件夹、收集箱、未完成、已完成、已放弃', async () => {
     const { call, calls } = fake();
     const progress: string[] = [];
-    const { rows, issues } = await fetchDidaAccount(call, { completedDays: null, now: NOW, onProgress: (p) => progress.push(p.step) });
+    const { rows, issues } = await fetchDidaAccount(call, { days: null, now: NOW, onProgress: (p) => progress.push(p.step) });
     expect(issues).toEqual([]);
     expect(rows.map((r) => [r.taskId, r.list, r.status])).toEqual([
       ['a-inbox-1', 'Inbox', 'open'],
@@ -311,7 +313,7 @@ describe('直接连账户（Open API）', () => {
 
   it('和备份文件走同一套导入：组、日期、提醒、子任务、再导跳过', async () => {
     const s = await open();
-    const { rows } = await fetchDidaAccount(fake().call, { completedDays: null, now: NOW });
+    const { rows } = await fetchDidaAccount(fake().call, { days: null, now: NOW });
     const r = applyDida(s, planDida(s, rows), ALL);
     expect(r.created).toBe(7);
     const t = (id: string) => s.get('task', didaTaskId({ taskId: id, list: '', title: '', created: null, line: 0 }))!;
@@ -335,29 +337,90 @@ describe('直接连账户（Open API）', () => {
       },
       'open/v1/task/filter': () => [],
     });
-    const { rows, issues } = await fetchDidaAccount(call, { completedDays: 365, now: NOW });
+    const { rows, issues } = await fetchDidaAccount(call, { days: 365, now: NOW });
     expect(issues).toEqual([]);
     expect(rows.filter((r) => r.status === 'done')).toHaveLength(450);
     expect(requests).toBeGreaterThan(3);
   });
 
-  it('只拉最近 N 天 / 不拉已完成', async () => {
-    const a = await fetchDidaAccount(fake().call, { completedDays: 30, now: NOW });
+  it('只拉最近 N 天：已完成按完成时间', async () => {
+    const bodies: Array<{ startDate: string; endDate: string }> = [];
+    const spy = fake();
+    const a = await fetchDidaAccount(async (m, path, body) => {
+      if (path === 'open/v1/task/completed') bodies.push(body as { startDate: string; endDate: string });
+      return spy.call(m, path, body);
+    }, { days: 30, now: NOW });
     expect(a.rows.filter((r) => r.status === 'done').map((r) => r.taskId)).toEqual(['a-a-3']);
+    // 时间写法和文档一样：yyyy-MM-ddTHH:mm:ss.SSS+0000，范围正好是最近 30 天
+    expect(bodies).toEqual([{ startDate: new Date(NOW.getTime() - 30 * 86_400_000).toISOString().replace('Z', '+0000'), endDate: NOW.toISOString().replace('Z', '+0000') }]);
+    expect(bodies[0]!.startDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+0000$/);
     const { call, calls } = fake();
-    const b = await fetchDidaAccount(call, { completedDays: 0, abandoned: false, now: NOW });
+    const b = await fetchDidaAccount(call, { days: null, completed: false, abandoned: false, now: NOW });
     expect(b.rows.every((r) => r.status === 'open')).toBe(true);
     expect(calls.some((c) => c.includes('completed') || c.includes('filter'))).toBe(false);
   });
 
+  it('未完成的也按范围筛：看修改时间，没有就看创建时间（Rei 2026-10-26「选择了30天，还是会导入全部」）', async () => {
+    const open = async (days: number | null) => (await fetchDidaAccount(fake().call, { days, now: NOW })).rows.filter((r) => r.status === 'open').map((r) => r.taskId);
+    expect(await open(30)).toEqual(['a-inbox-1', 'a-a-1']);
+    expect(await open(180)).toEqual(['a-inbox-1', 'a-a-1', 'a-l-1']);
+    expect(await open(null)).toEqual(['a-inbox-1', 'a-a-1', 'a-a-2', 'a-l-1']);
+  });
+
+  it('已放弃的也按范围筛：看修改时间，没有就看完成时间；filter 接口不传日期', async () => {
+    const abandoned = [
+      { id: 'x-recent', projectId: 'p-life', title: '最近放弃', status: -1, completedTime: '2026-10-10T00:00:00.000+0000' },
+      { id: 'x-old', projectId: 'p-life', title: '早就放弃', status: -1, completedTime: '2025-01-01T00:00:00.000+0000' },
+      { id: 'x-mod', projectId: 'p-life', title: '最近改过', status: -1, modifiedTime: '2026-10-15T00:00:00.000+0000' },
+      { id: 'x-mod-old', projectId: 'p-life', title: '修改时间早', status: -1, modifiedTime: '2024-05-01T00:00:00.000+0000', completedTime: '2026-10-18T00:00:00.000+0000' },
+      { id: 'x-none', projectId: 'p-life', title: '什么时间都没有', status: -1 },
+    ];
+    const bodies: unknown[] = [];
+    const { call } = fake({
+      'open/v1/task/filter': (body) => {
+        bodies.push(body);
+        return abandoned;
+      },
+    });
+    const run = (days: number | null) => fetchDidaAccount(call, { days, now: NOW });
+    const closed = async (days: number | null) => (await run(days)).rows.filter((r) => r.status === 'closed').map((r) => r.taskId);
+    expect(await closed(30)).toEqual(['x-recent', 'x-mod', 'x-none']);
+    expect(await closed(700)).toEqual(['x-recent', 'x-old', 'x-mod', 'x-none']);
+    // 「全部」不筛
+    expect(await closed(null)).toEqual(['x-recent', 'x-old', 'x-mod', 'x-mod-old', 'x-none']);
+    // 没有时间的照样导入，提示一句
+    expect((await run(30)).issues.map((i) => i.message)).toEqual(['1 件没有修改或完成时间，没法按范围筛，照样导入']);
+    expect((await run(null)).issues).toEqual([]);
+    // filter 的日期筛的是开始日期，不能传
+    expect(bodies.every((b) => JSON.stringify(b) === '{"status":[-1]}')).toBe(true);
+  });
+
+  it('已完成接口没按时间筛：不再对半切，在本地按完成时间筛', async () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({ id: `c${i}`, projectId: 'p-life', title: `t${i}`, status: 2, completedTime: new Date(Date.UTC(2024, 0, 20) + i * 86_400_000 * 5).toISOString().replace('Z', '+0000') }));
+    let requests = 0;
+    const { call } = fake({
+      'open/v1/task/completed': () => {
+        requests++;
+        return many.slice(0, 200); // 不管日期，总给同样的
+      },
+    });
+    const { rows, issues } = await fetchDidaAccount(call, { days: 30, now: NOW });
+    expect(requests).toBe(1);
+    const since = NOW.getTime() - 30 * 86_400_000;
+    const want = many.slice(0, 200).filter((t) => Date.parse(t.completedTime.replace('+0000', 'Z')) >= since).map((t) => t.id);
+    expect(want.length).toBeGreaterThan(0);
+    expect(rows.filter((r) => r.status === 'done').map((r) => r.taskId)).toEqual(want);
+    expect(issues.map((i) => i.message)).toContain('滴答清单没按时间给已完成的任务，只拿到 200 件，已按所选范围在本地筛过');
+  });
+
   it('令牌不对（401）直接停；别的清单出错只提示；已放弃拿不到也只提示', async () => {
     const bad = fake({ 'open/v1/project': () => { throw new DidaApiError('401 未授权', 401); } });
-    await expect(fetchDidaAccount(bad.call, { completedDays: 0 })).rejects.toMatchObject({ status: 401 });
+    await expect(fetchDidaAccount(bad.call, { days: 0 })).rejects.toMatchObject({ status: 401 });
     const partial = fake({
       'open/v1/project/p-life/data': () => { throw new DidaApiError('500 服务器出错', 500); },
       'open/v1/task/filter': () => { throw new DidaApiError('400 请求有误', 400); },
     });
-    const r = await fetchDidaAccount(partial.call, { completedDays: 0, now: NOW });
+    const r = await fetchDidaAccount(partial.call, { days: null, now: NOW });
     expect(r.issues.map((i) => i.message)).toEqual(['清单「生活」没拉下来：500 服务器出错', '已放弃的任务没拉下来：400 请求有误']);
     expect(r.rows.some((x) => x.list === '生活')).toBe(false);
   });
@@ -368,7 +431,48 @@ describe('直接连账户（Open API）', () => {
     const p = fetchDidaAccount(async (m, path, body) => {
       if (path.endsWith('/data')) ctl.abort();
       return call(m, path, body);
-    }, { completedDays: null, signal: ctl.signal });
+    }, { days: null, signal: ctl.signal });
     await expect(p).rejects.toBeInstanceOf(DidaAbort);
+  });
+});
+
+describe('按范围筛（备份文件）', () => {
+  const NOW = new Date(Date.UTC(2026, 9, 26));
+  const csv = [
+    '"List Name","Title","Status","Created Time","Completed Time","taskId"',
+    '"L","很早建的未完成","0","2020-01-01T00:00:00+0000","","o1"',
+    '"L","最近建的未完成","0","2026-10-20T00:00:00+0000","","o2"',
+    '"L","最近做完","1","2026-01-01T00:00:00+0000","2026-10-20T00:00:00+0000","d1"',
+    '"L","半年内做完","2","2025-01-01T00:00:00+0000","2026-06-01T00:00:00+0000","d2"',
+    '"L","最近放弃","-1","2026-09-01T00:00:00+0000","2026-10-02T00:00:00+0000","c1"',
+    '"L","早就放弃","-1","2023-01-01T00:00:00+0000","2023-03-01T00:00:00+0000","c2"',
+    '"L","放弃，没完成时间，最近建的","-1","2026-10-20T00:00:00+0000","","c3"',
+    '"L","放弃，没完成时间，很早建的","-1","2020-10-20T00:00:00+0000","","c4"',
+    '"L","一个时间都没有","0","","","u1"',
+  ].join('\n');
+  const run = (days: number | null) => filterDidaRows(parseDidaCsv(csv).rows, days, NOW);
+  const ids = (days: number | null) => run(days).rows.map((r) => r.taskId);
+
+  it('最近 30 天：未完成看修改 / 创建时间，已完成、已放弃看完成时间', () => {
+    expect(ids(30)).toEqual(['o2', 'd1', 'c1', 'c3', 'u1']);
+    expect(run(30)).toMatchObject({ dropped: 4, undated: 1 });
+  });
+  it('最近半年', () => {
+    expect(ids(180)).toEqual(['o2', 'd1', 'd2', 'c1', 'c3', 'u1']);
+  });
+  it('「全部」不筛', () => {
+    expect(ids(null)).toEqual(['o1', 'o2', 'd1', 'd2', 'c1', 'c2', 'c3', 'c4', 'u1']);
+    expect(run(null)).toMatchObject({ dropped: 0, undated: 0 });
+  });
+  it('有修改时间这列时：未完成、已放弃先看它', () => {
+    const t = [
+      '"List Name","Title","Status","Created Time","Completed Time","Modified Time","taskId"',
+      '"L","老任务最近改过","0","2020-01-01T00:00:00+0000","","2026-10-25T00:00:00+0000","m1"',
+      '"L","放弃，修改时间早","-1","2020-01-01T00:00:00+0000","2026-10-25T00:00:00+0000","2020-10-25T00:00:00+0000","m2"',
+      '"L","做完的看完成时间","1","2020-01-01T00:00:00+0000","2026-10-25T00:00:00+0000","2020-10-25T00:00:00+0000","m3"',
+    ].join('\n');
+    const rows = parseDidaCsv(t).rows;
+    expect(rows[0]!.modified).toBe('2026-10-25T00:00:00+0000');
+    expect(rows.map((r) => didaRowInRange(r, 30, NOW))).toEqual([true, false, true]);
   });
 });

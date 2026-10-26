@@ -8,10 +8,14 @@
  *   2. 每个清单 GET /open/v1/project/{id}/data（未完成的任务），收集箱用 "inbox"
  *   3. 已完成：POST /open/v1/task/completed {startDate, endDate}（不传 projectIds = 所有清单，含收集箱），
  *      每次最多 200 条：按时间窗口往回翻，一个窗口拿满 200 条就对半切开再拉
- *   4. 已放弃：POST /open/v1/task/filter {status: [-1]}（同样最多 200 条；拿不到就跳过并提示）
+ *   4. 已放弃：POST /open/v1/task/filter {status: [-1]}（同样最多 200 条；拿不到就跳过并提示）。
+ *      filter 的 startDate / endDate 筛的是任务的开始日期，不是放弃的时间，所以不传
+ *   5. 最后所有任务（未完成 / 已完成 / 已放弃）在本地按所选范围再筛一遍（range.ts；Rei 2026-10-26
+ *      「选择30天实际是全部」「选择了30天，还是会导入全部」）
  */
 import { tr } from '../i18n';
 import type { DidaIssue, DidaKind, DidaRow, DidaStatus } from './parse';
+import { applyDidaRange, didaMs } from './range';
 
 export interface DidaApiItem {
   id?: string;
@@ -95,6 +99,7 @@ export function apiTaskToRow(t: DidaApiTask, ctx: { list: string; folder: string
     status: statusOf(t.status),
     created: t.createdTime || null,
     completed: t.completedTime || null,
+    modified: t.modifiedTime || null,
     order: typeof t.sortOrder === 'number' ? t.sortOrder : null,
     timezone: t.timeZone || null,
     allDay: !!t.isAllDay,
@@ -115,9 +120,14 @@ export class DidaApiError extends Error {
 }
 
 export interface DidaFetchOptions {
-  /** 已完成的导入最近多少天；null = 全部；0 = 不拉已完成。 */
-  completedDays: number | null;
-  /** 拉已放弃的（-1）。 */
+  /**
+   * 导入最近多少天的任务；null = 全部（不筛）。对所有任务都生效，按最后修改或完成的时间算（range.ts）。
+   * 已完成的还会让接口只给这段时间的；不管接口筛没筛，拿回来都在本地再筛一遍。
+   */
+  days: number | null;
+  /** 拉已完成的（默认拉）。 */
+  completed?: boolean;
+  /** 拉已放弃的（-1，默认拉）。 */
   abandoned?: boolean;
   now?: Date;
   /** 「全部」从哪天开始往回翻（滴答清单 2013 年上线）。 */
@@ -143,9 +153,11 @@ export const apiStamp = (d: Date) => d.toISOString().replace('Z', '+0000');
 
 const PAGE = 200;
 const MIN_WINDOW_MS = 60_000;
+/** 判断「接口没按时间筛」时留的余量。 */
+const SLACK_MS = 86_400_000;
 
-/** 拉整个账户 → DidaRow（未完成 + 已完成 + 已放弃，按 id 去重）。 */
-export async function fetchDidaAccount(call: DidaCall, opts: DidaFetchOptions): Promise<{ rows: DidaRow[]; issues: DidaIssue[] }> {
+/** 拉整个账户 → DidaRow（未完成 + 已完成 + 已放弃，按 id 去重，按范围筛过；dropped = 不在范围里筛掉的件数）。 */
+export async function fetchDidaAccount(call: DidaCall, opts: DidaFetchOptions): Promise<{ rows: DidaRow[]; issues: DidaIssue[]; dropped: number }> {
   const now = opts.now ?? new Date();
   const check = () => {
     if (opts.signal?.aborted) throw new DidaAbort(tr('已取消'));
@@ -195,15 +207,25 @@ export async function fetchDidaAccount(call: DidaCall, opts: DidaFetchOptions): 
   }
 
   // 已完成：按时间窗口往回翻
-  if (opts.completedDays !== 0) {
+  if (opts.completed !== false) {
     const end = now.getTime();
-    const start = opts.completedDays === null ? (opts.earliest ?? new Date(Date.UTC(2013, 0, 1))).getTime() : end - opts.completedDays * 86_400_000;
+    const start = opts.days === null ? (opts.earliest ?? new Date(Date.UTC(2013, 0, 1))).getTime() : end - opts.days * 86_400_000;
     progress({ step: 'completed' });
     const windows: Array<[number, number]> = [[start, end]];
     while (windows.length) {
       check();
       const [a, b] = windows.pop()!;
       const got = ((await call('POST', 'open/v1/task/completed', { startDate: apiStamp(new Date(a)), endDate: apiStamp(new Date(b)) })) as DidaApiTask[] | null) ?? [];
+      // 接口没按时间筛（给回来的完成时间明显在窗口外）：别再对半切（切多少次都一样），拿到的交给最后的本地筛
+      const outside = got.some((t) => {
+        const ms = didaMs(t.completedTime);
+        return ms !== null && (ms < a - SLACK_MS || ms > b + SLACK_MS);
+      });
+      if (outside) {
+        for (const t of got) add(t);
+        issues.push({ line: 0, message: tr('滴答清单没按时间给已完成的任务，只拿到 {n} 件，已按所选范围在本地筛过', { n: got.length }), level: 'warning' });
+        break;
+      }
       if (got.length >= PAGE && b - a > MIN_WINDOW_MS) {
         const mid = Math.floor((a + b) / 2);
         windows.push([a, mid], [mid + 1, b]);
@@ -215,7 +237,7 @@ export async function fetchDidaAccount(call: DidaCall, opts: DidaFetchOptions): 
     }
   }
 
-  // 已放弃
+  // 已放弃：接口不按放弃时间筛，拿回来在本地按范围筛
   if (opts.abandoned !== false) {
     check();
     progress({ step: 'abandoned' });
@@ -229,5 +251,6 @@ export async function fetchDidaAccount(call: DidaCall, opts: DidaFetchOptions): 
     }
   }
 
-  return { rows: [...byId.values()], issues };
+  // 范围对所有任务生效：未完成、已完成（接口筛过也再筛一遍）、已放弃，统一在本地按时间筛；「全部」不筛
+  return applyDidaRange({ rows: [...byId.values()], issues }, opts.days, now);
 }

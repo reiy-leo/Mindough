@@ -7,3 +7,4 @@ export * from './parse';
 export * from './map';
 export * from './plan';
 export * from './api';
+export * from './range';

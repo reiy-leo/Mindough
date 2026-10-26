@@ -23,6 +23,7 @@ const HEADERS = {
   status: ['status', '状态'], // i18n-ignore 表头别名
   created: ['createdtime', 'created', 'createdate', '创建时间', '创建日期'], // i18n-ignore 表头别名
   completed: ['completedtime', 'completed', 'completeddate', '完成时间', '完成日期'], // i18n-ignore 表头别名
+  modified: ['modifiedtime', 'modified', 'updatedtime', 'updated', '修改时间', '更新时间'], // i18n-ignore 表头别名
   order: ['order', 'sortorder', '排序', '顺序'], // i18n-ignore 表头别名
   timezone: ['timezone', 'tz', '时区'], // i18n-ignore 表头别名
   allDay: ['isallday', 'allday', '是否全天', '全天'], // i18n-ignore 表头别名
@@ -76,6 +77,8 @@ export interface DidaRow {
   status: DidaStatus;
   created: string | null;
   completed: string | null;
+  /** 修改时间（API 的 modifiedTime；备份 CSV 一般没有这列）。按范围筛已放弃的任务时，没有完成时间就看它。 */
+  modified?: string | null;
   order: number | null;
   timezone: string | null;
   allDay: boolean;
@@ -176,6 +179,7 @@ export function parseDidaCsv(text: string): { rows: DidaRow[]; issues: DidaIssue
       status,
       created: get('created').trim() || null,
       completed: get('completed').trim() || null,
+      modified: get('modified').trim() || null,
       order: order && Number.isFinite(Number(order)) ? Number(order) : null,
       timezone: tz || null,
       allDay: truthy(get('allDay')),

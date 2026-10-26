@@ -227,3 +227,10 @@
   align-items: center;
   gap: var(--space-2);
 }
+.dida-range {
+  display: flex;
+  flex-direction: column;
+}
+.dida-range .dida-note {
+  margin-top: var(--space-1);
+}

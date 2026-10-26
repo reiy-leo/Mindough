@@ -11,6 +11,7 @@ import {
   applyDida,
   DidaAbort,
   DidaApiError,
+  applyDidaRange,
   fetchDidaAccount,
   parseDidaCsv,
   planDida,
@@ -36,7 +37,7 @@ type Source = 'account' | 'file';
 type Stage =
   | { kind: 'pick' }
   | { kind: 'busy'; label: string; cancel?: () => void }
-  | { kind: 'preview'; plan: DidaPlan; name: string; source: Source }
+  | { kind: 'preview'; plan: DidaPlan; name: string; source: Source; dropped: number }
   | { kind: 'done'; receipt: DidaReceipt; parseErrors: number; source: Source }
   | { kind: 'failed'; message: string };
 
@@ -44,8 +45,11 @@ const ALL_ON: Record<DidaStatus, boolean> = { open: true, done: true, closed: tr
 const encode = (t: DidaTarget) => (t.kind === 'group' ? `group:${t.id}` : t.kind);
 const decode = (v: string): DidaTarget => (v.startsWith('group:') ? { kind: 'group', id: v.slice(6) } : v === 'new' ? { kind: 'new' } : { kind: 'none' });
 
-/** 「已完成的导入最近多久」：all 全部（默认）、365 / 30 天、0 不导入。 */
-type Range = 'all' | '365' | '30' | '0';
+/**
+ * 「导入哪段时间的任务」：all 全部（默认，不筛）、最近半年（180 天）、最近 30 天。对所有任务都生效，按最后修改或完成的时间算；
+ * 连账户和备份文件都一样（Rei 2026-10-26「选择30天实际是全部的问题」「选择了30天，还是会导入全部」）。
+ */
+type Range = 'all' | '180' | '30';
 const rangeDays = (r: Range): number | null => (r === 'all' ? null : Number(r));
 
 function progressLabel(p: DidaProgress): string {
@@ -86,21 +90,22 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
     onOpenChange(open);
     if (!open) reset();
   };
-  const showPlan = (rows: Parameters<typeof planDida>[1], issues: DidaIssue[], name: string, src: Source) => {
+  const showPlan = (rows: Parameters<typeof planDida>[1], issues: DidaIssue[], name: string, src: Source, dropped: number) => {
     if (!rows.length) {
-      setStage({ kind: 'failed', message: src === 'file' ? tr('文件里没有任务') : tr('滴答清单里没有任务') });
+      const empty = src === 'file' ? tr('文件里没有任务') : tr('滴答清单里没有任务');
+      setStage({ kind: 'failed', message: dropped ? tr('所选时间范围里没有任务（{n} 件更早的没读进来）', { n: dropped }) : empty });
       return;
     }
     setTargets({});
-    setStage({ kind: 'preview', plan: planDida(store, rows, issues), name, source: src });
+    setStage({ kind: 'preview', plan: planDida(store, rows, issues), name, source: src, dropped });
   };
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setStage({ kind: 'busy', label: tr('正在读文件…') });
     try {
-      const { rows, issues } = parseDidaCsv(await file.text());
-      showPlan(rows, issues, file.name, 'file');
+      const { rows, issues, dropped } = applyDidaRange(parseDidaCsv(await file.text()), rangeDays(range));
+      showPlan(rows, issues, file.name, 'file', dropped);
     } catch (e) {
       setStage({ kind: 'failed', message: e instanceof Error ? e.message : String(e) });
     }
@@ -112,14 +117,14 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
     const ctl = new AbortController();
     setStage({ kind: 'busy', label: tr('正在连接滴答清单…'), cancel: () => ctl.abort() });
     try {
-      const { rows, issues } = await fetchDidaAccount(didaCall(t, ctl.signal), {
-        completedDays: rangeDays(range),
+      const { rows, issues, dropped } = await fetchDidaAccount(didaCall(t, ctl.signal), {
+        days: rangeDays(range),
         signal: ctl.signal,
         onProgress: (p) => setStage({ kind: 'busy', label: progressLabel(p), cancel: () => ctl.abort() }),
       });
       saveDidaToken(t);
       setHasSaved(true);
-      showPlan(rows, issues, tr('滴答清单账户'), 'account');
+      showPlan(rows, issues, tr('滴答清单账户'), 'account', dropped);
     } catch (e) {
       if (e instanceof DidaAbort || ctl.signal.aborted) {
         setStage({ kind: 'pick' });
@@ -200,6 +205,19 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
               { id: 'file', label: tr('从备份文件导入') },
             ]}
           />
+          <div className="dida-range">
+            <Select
+              label={tr('导入哪段时间的任务')}
+              value={range}
+              onChange={(v) => setRange(v as Range)}
+              options={[
+                { id: 'all', label: tr('全部') },
+                { id: '180', label: tr('最近半年') },
+                { id: '30', label: tr('最近 30 天') },
+              ]}
+            />
+            <p className="muted small dida-note">{tr('按任务最后修改或完成的时间算。')}</p>
+          </div>
           {source === 'account' ? (
             <div className="dida-connect">
               <p className="muted">
@@ -210,17 +228,6 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
               </p>
               {!signedIn && <p className="dida-warn small">{tr('先在「设置 → 账户」登录念头团：连接要经过念头团的服务器转一下（令牌不会存在服务器上）。')}</p>}
               <Field label={tr('API 令牌')} type="password" value={token} onChange={setToken} placeholder={tr('粘贴令牌')} />
-              <Select
-                label={tr('已完成的导入最近多久')}
-                value={range}
-                onChange={(v) => setRange(v as Range)}
-                options={[
-                  { id: 'all', label: tr('全部') },
-                  { id: '365', label: tr('最近一年') },
-                  { id: '30', label: tr('最近 30 天') },
-                  { id: '0', label: tr('不导入已完成的') },
-                ]}
-              />
               {hasSaved && (
                 <div className="dida-saved small">
                   <Link2 size={14} aria-hidden />
@@ -264,7 +271,7 @@ export function DidaImportSheet({ isOpen, onOpenChange }: { isOpen: boolean; onO
           {stage.message}
         </p>
       )}
-      {stage.kind === 'preview' && <Preview plan={stage.plan} name={stage.name} source={stage.source} include={include} setInclude={setInclude} targets={targets} setTargets={setTargets} />}
+      {stage.kind === 'preview' && <Preview plan={stage.plan} name={stage.name} source={stage.source} dropped={stage.dropped} include={include} setInclude={setInclude} targets={targets} setTargets={setTargets} />}
       {stage.kind === 'done' && <Result receipt={stage.receipt} parseErrors={stage.parseErrors} source={stage.source} />}
     </Sheet>
   );
@@ -285,6 +292,7 @@ function Preview({
   plan,
   name,
   source,
+  dropped,
   include,
   setInclude,
   targets,
@@ -293,6 +301,7 @@ function Preview({
   plan: DidaPlan;
   name: string;
   source: Source;
+  dropped: number;
   include: Record<DidaStatus, boolean>;
   setInclude: (v: Record<DidaStatus, boolean>) => void;
   targets: Record<string, DidaTarget>;
@@ -323,6 +332,7 @@ function Preview({
         <Count n={c.closed} label={tr('已放弃')} />
       </div>
       {extra && <p className="muted small import-breakdown">{tr('其中 {list}', { list: extra })}</p>}
+      {dropped > 0 && <p className="muted small import-breakdown">{tr('另有 {n} 件不在所选时间范围里，没读进来', { n: dropped })}</p>}
 
       <div className="dida-section">
         <div className="dida-section-title">{tr('导入哪些')}</div>

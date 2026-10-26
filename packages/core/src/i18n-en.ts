@@ -19,6 +19,8 @@ export const CORE_EN: Record<string, V> = {
   '同一分钟里完成的任务超过 {n} 件，可能有几件没拉到': (p) => `More than ${p.n} tasks were completed within one minute; a few may be missing`,
   '已放弃的任务一次最多拉 {n} 件，更早的没拉到': (p) => `Won’t-do tasks are limited to ${p.n} per fetch; older ones were skipped`,
   '已放弃的任务没拉下来：{msg}': (p) => `Couldn’t fetch won’t-do tasks: ${p.msg}`,
+  '{n} 件没有修改或完成时间，没法按范围筛，照样导入': (p) => `${count(p.n, 'task has', 'tasks have')} no modified or completed time, so they were imported without filtering by period`,
+  '滴答清单没按时间给已完成的任务，只拿到 {n} 件，已按所选范围在本地筛过': (p) => `Dida365 didn’t filter completed tasks by date; got only ${p.n}, filtered here by the selected period`,
   高优先级: 'high-priority',
   中优先级: 'medium-priority',
   低优先级: 'low-priority',
