@@ -583,7 +583,6 @@ export const EN: Record<string, EnValue> = {
   还没有安排: 'Nothing planned',
   添加任务到今天: 'Add a task to today',
   '今天要做什么？按回车添加': 'What’s on today? Press Return to add',
-  从全部任务添加: 'Add from All Tasks',
   今天的任务: 'Today’s tasks',
   今天还是空的: 'Nothing Here Yet',
   '在上面直接写，或按 ⌘K / Ctrl+K 从全部任务里挑几件加进来': 'Type above, or press ⌘K / Ctrl+K to pick from all your tasks',

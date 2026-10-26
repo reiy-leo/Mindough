@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
-import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Search, Sun } from 'lucide-react';
+import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Sun } from 'lucide-react';
 import { formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
@@ -8,6 +8,7 @@ import { Button, Empty, Section, Tip } from '../ui/primitives';
 import { openMiniWindow } from '../lib/windows';
 import { isTauri } from '../store/sqlite-tauri';
 import { useReorderGuard } from '../lib/drag-guard';
+import { afterQuickAdd, quickAddToday } from '../lib/quick-add';
 
 /** 小窗只在桌面 app 里有（手机、网页没有置顶窗口）。 */
 const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -58,12 +59,13 @@ export function MyDayPage() {
     },
   });
 
+  const addInput = useRef<HTMLInputElement>(null);
+  // 回车加进今天，马上打开它（Rei 2026-10-26「从这里添加任务后立即打开任务」）；焦点和滚动见 lib/quick-add
   const add = () => {
-    const text = draft.trim();
-    if (!text) return;
-    const t = store.createTask({ body_md: text });
-    store.addToMyDay(t.id, today);
+    const id = quickAddToday({ createTask: (i) => store.createTask(i), addToMyDay: (t, d) => store.addToMyDay(t, d), openEditor: ui.openEditor }, draft, today);
+    if (!id) return;
     setDraft('');
+    afterQuickAdd(id, addInput.current, layout);
   };
 
   return (
@@ -99,13 +101,9 @@ export function MyDayPage() {
       >
         <Plus size={18} className="add-bar-icon" aria-hidden />
         <TextField aria-label={tr('添加任务到今天')} value={draft} onChange={setDraft} className="add-bar-field">
-          <Input className="add-bar-input" placeholder={tr('今天要做什么？按回车添加')} />
+          <Input ref={addInput} className="add-bar-input" placeholder={tr('今天要做什么？按回车添加')} />
         </TextField>
-        <RacButton className="btn btn-secondary add-bar-search" onPress={() => ui.setPaletteOpen(true)}>
-          <Search size={15} />
-          <span className="hide-mobile">{tr('从全部任务添加')}</span>
-          <kbd className="kbd hide-mobile">⌘K</kbd>
-        </RacButton>
+        {/* 右边不再放「从全部任务添加 ⌘K」（Rei 2026-10-26「删除从全部任务添加的按钮」）：输入框占满一行；全局 ⌘K 照旧 */}
       </Form>
 
       {items.length ? (

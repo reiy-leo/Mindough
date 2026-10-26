@@ -880,7 +880,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "还没有安排": "Nada planeado",
   "添加任务到今天": "Añade una tarea a hoy",
   "今天要做什么？按回车添加": "¿Qué toca hoy? Pulsa Intro para añadir",
-  "从全部任务添加": "Añadir de todas las tareas",
   "今天的任务": "Tareas de hoy",
   "今天还是空的": "Aún no hay nada",
   "在上面直接写，或按 ⌘K / Ctrl+K 从全部任务里挑几件加进来": "Escribe arriba o pulsa ⌘K / Ctrl+K para elegir entre todas tus tareas",

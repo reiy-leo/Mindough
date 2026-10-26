@@ -337,6 +337,7 @@
   border-radius: 28px;
   background: var(--surface-3);
   padding-left: 18px;
+  padding-right: 18px;
 }
 [data-skin='material'] .input {
   border-radius: 4px;
