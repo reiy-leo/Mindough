@@ -1,6 +1,7 @@
 /** 依赖图（前导图 PDM）：DAG、环检测、派生状态、解锁后续。 */
 import { isFinished, type DateKey, type Dependency, type Task } from './types';
 import { diffDays, formatDate, toDateKey } from './dates';
+import { formatTaskDate, type DateDisplay } from './date-display';
 
 import { tr, trc } from './i18n';
 export interface Edge {
@@ -453,9 +454,18 @@ export type ChainWhenTone = 'done' | 'overdue' | 'today' | 'upcoming' | 'none';
  * 完成：今天完成 / 昨天完成 / 3 天前完成 / 9月1日完成（超过 30 天；不是今年带年份）/ 已完成（没记完成时间）；
  * 计划：今天 / 明天 / 5 天后 / 11月30日；过期：已过 2 天 / 9月1日（tone overdue）；没日期：未定时间。
  */
-export function chainWhenLabel(w: ChainWhen, today: DateKey): { text: string; tone: ChainWhenTone } {
+export function chainWhenLabel(w: ChainWhen, today: DateKey, mode: DateDisplay = 'auto'): { text: string; tone: ChainWhenTone } {
   const date = (d: DateKey) => formatDate(d, { weekday: false, year: d.slice(0, 4) !== today.slice(0, 4) });
   if (w.kind === 'none') return { text: trc('任务链', '未定时间'), tone: 'none' };
+  // 设置里选了别的日期显示（Rei 2026-10-26）：相对时间一律相对、不再 30 天后改写日期；年月日（+时区）一律写日期
+  if (mode !== 'auto') {
+    if (w.kind === 'done') {
+      if (w.date === null) return { text: tr('已完成'), tone: 'done' };
+      return { text: trc('任务链', '{date}完成', { date: formatTaskDate(w.date, { mode, today }) }), tone: 'done' };
+    }
+    const tone: ChainWhenTone = w.days === 0 ? 'today' : w.days > 0 ? 'upcoming' : 'overdue';
+    return { text: formatTaskDate(w.date, { mode, today }), tone };
+  }
   if (w.kind === 'done') {
     if (w.date === null || w.days === null) return { text: tr('已完成'), tone: 'done' };
     const n = w.days;

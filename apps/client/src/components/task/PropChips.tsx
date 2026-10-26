@@ -15,7 +15,8 @@ import {
   PLAIN_TYPE_ID,
   describeCompletion,
   describeRecurrence,
-  friendlyDate,
+  formatTaskDate,
+  formatTaskTime,
   isFinished,
   isTaskOverdue,
   parseRecurrence,
@@ -35,6 +36,7 @@ import { CategoryPicker } from '../CheckInCategory';
 import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { TaskDateText } from '../TaskDateText';
+import { useDateDisplay } from '../../lib/date-display';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
 
 /** 属性名（胶囊的 aria-label、「+」菜单、弹层标题共用；叫法同原来的属性列表）。 */
@@ -89,6 +91,7 @@ export function PropChips({
 }) {
   const ui = useUi();
   const lunarUi = useLunarUi();
+  const dateMode = useDateDisplay();
   const [open, setOpen] = useState<{ id: PropId; via: 'chip' | 'add' } | null>(null);
   const anchor = useRef<HTMLElement | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -113,14 +116,14 @@ export function PropChips({
       }
       case 'mode': {
         const Icon = MODE_ICON[task.completion_mode];
-        const s = describeCompletion(task, today);
+        const s = describeCompletion(task, today, dateMode);
         return { icon: <Icon size={14} />, text: s, aria: s };
       }
       case 'date': {
         // 按任务时区的今天说「明天」、判断过期；时区和设备不同时旁边小字「UTC−4」（Rei 2026-10-25 任务时区）
         const zoneToday = taskToday(task, store.now(), today);
-        const s = task.scheduled_date ? friendlyDate(task.scheduled_date, zoneToday) : '';
-        const badge = timeZoneBadge(task, task.scheduled_date);
+        const s = task.scheduled_date ? formatTaskDate(task.scheduled_date, { mode: dateMode, today: zoneToday, timeZone: task.time_zone }) : '';
+        const badge = dateMode === 'ymd-tz' ? null : timeZoneBadge(task, task.scheduled_date);
         return {
           icon: <CalendarDays size={14} />,
           text: task.scheduled_date ? <TaskDateText task={task} today={today} /> : '',
@@ -138,7 +141,7 @@ export function PropChips({
         return { icon: <Icon size={14} />, text: s, aria: s, ...(cat?.color ? { color: cat.color } : {}) };
       }
       case 'remind': {
-        const s = formatRemindTime(task.remind_time);
+        const s = task.remind_time ? formatTaskTime(task.remind_time, { mode: dateMode, date: task.scheduled_date, timeZone: task.time_zone }) : formatRemindTime(task.remind_time);
         return { icon: <Bell size={14} />, text: s, aria: s };
       }
       case 'group': {

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, formatTaskDate, formatTaskTime, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
 import { newCountConfig, shownFields } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
+import { useDateDisplay } from '../../lib/date-display';
 import { Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
@@ -140,6 +141,7 @@ function Composer() {
     [store],
   );
   const today = toDateKey(store.now());
+  const dateMode = useDateDisplay();
   const types = useMemo(() => store.pickableTypes(), [store]);
   const type = store.get('task_type', d.typeId);
   const lib = hasLibrary(type) ? type : null;
@@ -365,7 +367,7 @@ function Composer() {
               </div>
             )}
           </PopoverPanel>
-          <PopoverPanel label={tr('日期')} trigger={<PropChip icon={<CalendarDays size={14} />} label={tr('日期')} {...(d.date ? { value: friendlyDate(d.date, today) } : {})} />}>
+          <PopoverPanel label={tr('日期')} trigger={<PropChip icon={<CalendarDays size={14} />} label={tr('日期')} {...(d.date ? { value: formatTaskDate(d.date, { mode: dateMode, today, timeZone: d.timeZone }) } : {})} />}>
             {(close) => (
               <DatePanel
                 value={d.date}
@@ -380,7 +382,7 @@ function Composer() {
             )}
           </PopoverPanel>
           {remindable && (
-            <PopoverPanel label={tr('提醒')} trigger={<PropChip icon={<Bell size={14} />} label={tr('提醒')} {...(d.remindTime ? { value: formatRemindTime(d.remindTime) } : {})} />}>
+            <PopoverPanel label={tr('提醒')} trigger={<PropChip icon={<Bell size={14} />} label={tr('提醒')} {...(d.remindTime ? { value: formatTaskTime(d.remindTime, { mode: dateMode, date: d.date, timeZone: d.timeZone }) } : {})} />}>
               {(close) => (
                 <RemindPanel
                   value={d.remindTime}

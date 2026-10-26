@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { MonthMarker } from '@mindough/core';
+import type { DateDisplay, MonthMarker } from '@mindough/core';
 import { detectPlatform, layoutForWidth, MAC_OVERLAY_CLASS, resolveSkin, usesMacOverlayTitlebar, type LayoutKind, type Platform, type Skin, type SkinPref, type ThemePref } from '../skin/platform';
 
 import { tr } from './i18n';
@@ -28,9 +28,14 @@ export interface Settings {
    * 只记在本机，不同步，不改项目的数据结构。读写经 lib/project-view 的 normalizePrefs（认不出的值、以前的关系图都回落成列表）。
    */
   projectViews: Record<string, unknown>;
+  /**
+   * 任务日期怎么显示（Rei 2026-10-26）：自动 / 相对时间 / 年月日 / 年月日+时区。只记在本机，不同步，默认自动（和以前一样）。
+   * 读经 lib/date-display 的 useDateDisplay()，写在设置 → 任务。
+   */
+  dateDisplay: DateDisplay;
 }
 
-const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false, habitHeatmapOpen: [], projectViews: {} };
+const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false, habitHeatmapOpen: [], projectViews: {}, dateDisplay: 'auto' };
 const KEY = 'mindough:settings';
 
 function load(): Settings {
@@ -41,7 +46,7 @@ function load(): Settings {
   }
 }
 
-/** URL 参数可临时覆盖（截图 / 调试用）：?skin=winui&theme=dark */
+/** URL 参数可临时覆盖（截图 / 调试用）：?skin=winui&theme=dark&dates=ymd */
 function urlOverrides(): Partial<Settings> {
   const p = new URLSearchParams(location.search);
   const out: Partial<Settings> = {};
@@ -49,6 +54,8 @@ function urlOverrides(): Partial<Settings> {
   if (skin === 'apple' || skin === 'winui' || skin === 'material') out.skin = skin;
   const theme = p.get('theme');
   if (theme === 'light' || theme === 'dark') out.theme = theme;
+  const dates = p.get('dates');
+  if (dates === 'auto' || dates === 'relative' || dates === 'ymd' || dates === 'ymd-tz') out.dateDisplay = dates;
   return out;
 }
 

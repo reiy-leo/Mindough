@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from 'react';
+import { Radio, RadioGroup } from 'react-aria-components';
 import { AlertCircle, ArrowLeftRight, Bell, ChevronLeft, ChevronRight, CircleUser, CloudCheck, CloudOff, Database, Info, Laptop, NotebookPen, ListTodo, LogIn, LogOut, MonitorSmartphone, Palette, RefreshCw, Settings as SettingsIcon, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { href, isSettingsSection, navigate, useRoute, type SettingsSection } from '../lib/router';
 import { focusMainWindow, isSettingsWindow, SETTINGS_NAV_EVENT } from '../lib/windows';
@@ -10,7 +11,7 @@ import { cloudStorageName, useCloudStorage, type CloudStorage } from '../lib/clo
 import { startNativeLogin } from '../lib/native-login';
 import { isTauri } from '../store/sqlite-tauri';
 import { useUi } from '../lib/ui';
-import { isChineseLocale, resetSyncState, syncedAgo } from '@mindough/core';
+import { addDays, DATE_DISPLAYS, formatTaskDate, isChineseLocale, resetSyncState, syncedAgo, toDateKey, type DateDisplay } from '@mindough/core';
 import { Button, Section, Segmented, Select, Switch } from '../ui/primitives';
 import { JOURNAL_PREFS, JOURNAL_REMIND_TIME_DEFAULT, normalizeRemindTime } from '@mindough/core';
 import { formatRemindTime } from '../components/task/RemindPanel';
@@ -38,7 +39,7 @@ import type { LocalePref } from '../lib/i18n';
  * - 外观：皮肤、语言、明暗、布局、热力图每月 1 号标记
  * - 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据
  * - 提醒：提醒通知开关（这台设备）、什么时候提醒
- * - 任务：类型、农历
+ * - 任务：类型、日期显示、农历
  * - 日记：一天从几点开始、每天提醒写日记
  * - 关于：图标、名字、版本号、一句说明、第三方数据署名（TMDB）
  * 桌面 app（Tauri）里设置是单独的窗口（SettingsWindow，?window=settings）；Web 和手机是页面：
@@ -51,7 +52,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { id: 'appearance', icon: Palette, label: () => tr('外观'), hint: () => tr('皮肤、语言、明暗、布局') },
   { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储') },
   { id: 'reminders', icon: Bell, label: () => trc('设置分区', '提醒'), hint: () => tr('任务提醒的通知') },
-  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、农历') : tr('类型和字段')) },
+  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、日期显示、农历') : tr('类型、日期显示')) },
   { id: 'journal', icon: NotebookPen, label: () => tr('日记'), hint: () => tr('一天从几点开始、每天提醒写日记') },
   { id: 'about', icon: Info, label: () => tr('关于'), hint: () => tr('版本、数据来源') },
 ];
@@ -88,6 +89,7 @@ function SectionBody({ id }: { id: SettingsSection }) {
       return (
         <>
           <TypesSection />
+          <DateDisplaySection />
           <LunarSection />
         </>
       );
@@ -394,6 +396,51 @@ function DataSection() {
       </div>
     </div>
     </>
+  );
+}
+
+/**
+ * 日期显示（Rei 2026-10-26「设置-任务：支持自定义日期显示格式，相对时间、年月日、年月日+时区、自动等」）：
+ * 四选一，只存在这台设备上。每项右边用今天（带现在的时刻）和三天后做实时预览。
+ */
+const DATE_DISPLAY_LABEL: Record<DateDisplay, () => string> = {
+  auto: () => tr('自动'),
+  relative: () => tr('相对时间'),
+  ymd: () => tr('年月日'),
+  'ymd-tz': () => tr('年月日+时区'),
+};
+function DateDisplaySection() {
+  const { settings, set } = useSettings();
+  const now = useNow(30_000);
+  const today = toDateKey(now);
+  const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const later = addDays(today, 3);
+  const preview = (mode: DateDisplay) => (
+    <>
+      <span className="date-display-sample">{formatTaskDate(today, { mode, today, time: hm })}</span>
+      <span aria-hidden> · </span>
+      <span className="date-display-sample">{formatTaskDate(later, { mode, today })}</span>
+    </>
+  );
+  return (
+    <Section title={tr('日期显示')}>
+      <div className="card settings-card">
+        <div className="setting date-display-row">
+          <div className="setting-text">
+            <div className="setting-hint">{tr('任务列表、详情、提醒、倒数日、任务链、项目时间轴里的日期怎么写。只存在这台设备上。')}</div>
+            <RadioGroup aria-label={tr('日期显示')} className="date-display-choice" value={settings.dateDisplay ?? 'auto'} onChange={(v) => set('dateDisplay', v as DateDisplay)}>
+              {DATE_DISPLAYS.map((m) => (
+                <Radio key={m} value={m} className="date-display-option">
+                  <span className="date-display-dot" aria-hidden />
+                  <span className="date-display-name">{DATE_DISPLAY_LABEL[m]()}</span>
+                  <span className="date-display-preview">{preview(m)}</span>
+                </Radio>
+              ))}
+            </RadioGroup>
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }
 

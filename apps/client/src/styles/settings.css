@@ -204,3 +204,70 @@ html:has(.settings-window) #root {
 .settings-window .setting-text {
   min-width: 180px;
 }
+
+/* 设置 → 任务 → 日期显示：四个单选，右边是实时预览（Rei 2026-10-26） */
+.date-display-row .setting-text {
+  width: 100%;
+}
+.date-display-choice {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-2);
+}
+.date-display-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  min-width: 0;
+}
+.date-display-option[data-hovered] {
+  background: var(--surface-2);
+}
+.date-display-option[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.date-display-dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-3);
+  box-sizing: border-box;
+}
+.date-display-option[data-selected] .date-display-dot {
+  border: 5px solid var(--accent);
+}
+.date-display-name {
+  flex: none;
+  font-weight: 500;
+  font-size: 14px;
+}
+.date-display-preview {
+  margin-left: auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.date-display-sample {
+  white-space: nowrap;
+}
+/* 窄（手机、窄窗口）：预览换到名字下面一行，左对齐，日期不从中间断开 */
+@container (max-width: 520px) {
+  .date-display-option {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .date-display-preview {
+    flex-basis: 100%;
+    margin-left: 26px;
+    text-align: left;
+  }
+}

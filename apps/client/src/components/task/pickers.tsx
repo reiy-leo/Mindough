@@ -34,7 +34,7 @@ import {
   durationMs,
   durationParts,
   formatRecurrence,
-  friendlyDate,
+  formatTaskDate,
   multiValuesOf,
   normalizeEpisodeInput,
   fieldText,
@@ -49,6 +49,7 @@ import {
   type Store,
   type Task,
   type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
+import { useDateDisplay } from '../../lib/date-display';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
@@ -175,6 +176,7 @@ function CountSentence({ value, onChange }: { value: CompletionValue; onChange: 
 
 /** 选中某种完成方式后，只显示它自己的设置，写成一句话。 */
 export function CompletionSentence({ value, onChange, today }: { value: CompletionValue; onChange: (p: Partial<CompletionValue>) => void; today: DateKey }) {
+  const dateMode = useDateDisplay();
   switch (value.completion_mode) {
     case 'once':
       return null;
@@ -204,7 +206,7 @@ export function CompletionSentence({ value, onChange, today }: { value: Completi
             label={tr('目标日期')}
             trigger={
               <RacButton className={`input inline-input inline-date${value.target_date ? '' : ' is-empty'}`}>
-                {value.target_date ? friendlyDate(value.target_date, today) : tr('选一天')}
+                {value.target_date ? formatTaskDate(value.target_date, { mode: dateMode, today }) : tr('选一天')}
                 <ChevronDown size={14} aria-hidden />
               </RacButton>
             }

@@ -1,6 +1,7 @@
 import { Button as RacButton } from 'react-aria-components';
 import { Hourglass, Plus } from 'lucide-react';
-import { formatDateZh, toDateKey, type Task } from '@mindough/core';
+import { formatDateZh, formatTaskDate, toDateKey, type Task } from '@mindough/core';
+import { useDateDisplay } from '../lib/date-display';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { Button, Empty } from '../ui/primitives';
@@ -23,6 +24,7 @@ export function CountdownsPage() {
   const ui = useUi();
   const now = useNow();
   const today = toDateKey(now);
+  const dateMode = useDateDisplay();
   const daysOf = (t: Task) => store.progress(t.id, today)?.value ?? 0;
   const countdowns = store
     .tasks()
@@ -57,7 +59,7 @@ export function CountdownsPage() {
                 <span className="countdown-num">
                   {n === 0 ? <b>{tr('今天')}</b> : n > 0 ? trx('还有 {n} 天', { n: <b>{n}</b> }, { count: n }, { wrap: 'countdown-affix' }) : trx('已过 {n} 天', { n: <b>{-n}</b> }, { count: -n }, { wrap: 'countdown-affix' })}
                 </span>
-                <span className="countdown-date">{formatDateZh(t.target_date!)}</span>
+                <span className="countdown-date">{dateMode === 'auto' ? formatDateZh(t.target_date!) : formatTaskDate(t.target_date!, { mode: dateMode, today })}</span>
               </RacButton>
             );
           })}

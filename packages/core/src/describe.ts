@@ -2,6 +2,7 @@
  * 界面上把任务属性说成人话的小工具（文案规则见 docs/COPY.md）。纯函数，无 DOM。
  */
 import { addDays, diffDays, toDateKey, formatDate, formatDateZh, parseDateKey, relativeDayZh, weekday } from './dates';
+import { formatTaskDate, type DateDisplay } from './date-display';
 import { COMPLETION_MODE_LABEL, type DateKey, type Task } from './types';
 
 import { tr } from './i18n';
@@ -48,7 +49,7 @@ export function friendlyDate(key: DateKey, today: DateKey): string {
 }
 
 /** 完成方式的一行摘要，用在属性列表里：“勾选完成”“计时 · 每次 10 分钟”“计数 · 目标 8 杯”“倒数日 · 12月20日”。 */
-export function describeCompletion(task: Pick<Task, 'completion_mode' | 'target_value' | 'unit' | 'target_date'>, today?: DateKey): string {
+export function describeCompletion(task: Pick<Task, 'completion_mode' | 'target_value' | 'unit' | 'target_date'>, today?: DateKey, mode: DateDisplay = 'auto'): string {
   const label = COMPLETION_MODE_LABEL[task.completion_mode];
   switch (task.completion_mode) {
     case 'once':
@@ -61,6 +62,7 @@ export function describeCompletion(task: Pick<Task, 'completion_mode' | 'target_
       return task.unit ? tr('{label} · 目标 {n} {unit}', { label, n: task.target_value ?? 1, unit: task.unit }) : tr('{label} · 目标 {n} 次', { label, n: task.target_value ?? 1 });
     case 'countdown':
       if (!task.target_date) return label;
+      if (today && mode !== 'auto') return `${label} · ${formatTaskDate(task.target_date, { mode, today })}`;
       return `${label} · ${today ? friendlyDate(task.target_date, today) : formatDateZh(task.target_date, false)}`;
   }
 }

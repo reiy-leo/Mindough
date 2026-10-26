@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import { Button as RacButton, ToggleButton } from 'react-aria-components';
 import { ArrowDown, Check, Lock, Play, Route as RouteIcon, X } from 'lucide-react';
 import { chainStepWhen, chainWhenLabel, taskChain, todayKey, type DateKey, type Store, type Task } from '@mindough/core';
+import { useDateDisplay } from '../../lib/date-display';
 import { useUi } from '../../lib/ui';
 import { titleOf } from '../../lib/view';
 
@@ -95,6 +96,7 @@ export function ChainSteps({
   const ui = useUi();
   const myDay = useMyDayDates(store);
   const today = todayKey(store.now());
+  const dateMode = useDateDisplay();
   const tasks = layers.flat().map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const done = tasks.filter((t) => t.status === '完成').length;
   const predsIn = (id: string) => edges.filter((e) => e.succ_id === id).map((e) => e.pred_id);
@@ -112,7 +114,7 @@ export function ChainSteps({
         {layers.map((layer, li) => {
           const prev = new Set(layers[li - 1] ?? []);
           const layerTasks = layer.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
-          const when = chainWhenLabel(chainStepWhen(layerTasks, today, { myDay }), today);
+          const when = chainWhenLabel(chainStepWhen(layerTasks, today, { myDay }), today, dateMode);
           return (
             <li key={li} className={`chain-layer${li === currentLayer ? ' is-current-layer' : ''}`}>
               <div className="chain-rail" aria-hidden>

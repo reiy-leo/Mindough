@@ -6,7 +6,8 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { formatDate, monthShort, parseDateKey, todayKey, weekStartsOn, type Store, type Task } from '@mindough/core';
+import { formatDate, formatTaskDate, monthShort, parseDateKey, todayKey, weekStartsOn, type Store, type Task } from '@mindough/core';
+import { useDateDisplay } from '../../lib/date-display';
 import { useUi } from '../../lib/ui';
 import { timelineLayout, type TimelineScale } from '../../lib/project-view';
 import { STATE_CLASS, titleOf } from '../../lib/view';
@@ -20,6 +21,9 @@ const ROW_H = 36;
 export function ProjectTimeline({ store, tasks, scale, onScale }: { store: Store; tasks: Task[]; scale: TimelineScale; onScale: (s: TimelineScale) => void }) {
   const ui = useUi();
   const today = todayKey(store.now());
+  const dateMode = useDateDisplay();
+  // 横条上的日期按设置 → 任务 →「日期显示」写；刻度（像日历表头）不跟着变
+  const barDate = (d: string) => (dateMode === 'auto' ? formatDate(d) : formatTaskDate(d, { mode: dateMode, today }));
   const layout = useMemo(() => timelineLayout(tasks, today, scale, { weekStartsOn: weekStartsOn() }), [tasks, today, scale]);
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const barOf = new Map(layout.bars.map((b) => [b.id, b]));
@@ -96,7 +100,7 @@ export function ProjectTimeline({ store, tasks, scale, onScale }: { store: Store
                 const t = byId.get(b.id)!;
                 const title = titleOf(store, t) || tr('任务');
                 const state = store.derived().get(t.id)?.state;
-                const range = b.start === b.end ? formatDate(b.start) : tr('{from} – {to}', { from: formatDate(b.start), to: formatDate(b.end) });
+                const range = b.start === b.end ? barDate(b.start) : tr('{from} – {to}', { from: barDate(b.start), to: barDate(b.end) });
                 return (
                   <div key={b.id} className={`tl-row${ui.editingId === b.id ? ' is-selected' : ''}`} style={{ top: b.row * ROW_H, height: ROW_H }} data-task-id={b.id}>
                     <RacButton className="tl-name" onPress={() => ui.openEditor(b.id)}>

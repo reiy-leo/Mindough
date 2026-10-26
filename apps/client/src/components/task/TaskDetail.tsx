@@ -10,7 +10,8 @@ import {
   formatAmount,
   formatDuration,
   formatTarget,
-  friendlyDate,
+  formatTaskDate,
+  type DateDisplay,
   isFinished,
   predecessorsOf,
   successorsOf,
@@ -35,6 +36,7 @@ import { createItemFromLookup } from '../../lib/lookup';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
+import { useDateDisplay } from '../../lib/date-display';
 import { announceComplete, closeTask, toggleMyDay, tryAddDependency, tryLinkTasks } from '../../lib/actions';
 import { TaskSearch, taskStateText } from './TaskSearch';
 import { imageUrl, titleOf } from '../../lib/view';
@@ -318,6 +320,7 @@ function useActions(store: Store, task: Task, done: () => void) {
 }
 
 function Progress({ store, task, today, onCountInput }: { store: Store; task: Task; today: string; onCountInput?: (delta: number, how: 'add' | 'set') => void }) {
+  const dateMode = useDateDisplay();
   const p = store.progress(task.id, today);
   const recurring = !!task.recurrence;
   if (!p || (task.completion_mode === 'once' && !recurring)) return null;
@@ -348,7 +351,7 @@ function Progress({ store, task, today, onCountInput }: { store: Store; task: Ta
     }
     case 'countdown':
       main = countdownPhrase(task.target_date, today);
-      sub = task.target_date ? friendlyDate(task.target_date, today) : null;
+      sub = task.target_date ? formatTaskDate(task.target_date, { mode: dateMode, today }) : null;
       break;
   }
   return (
@@ -444,13 +447,13 @@ function CompletionPill({ store, task, today, primary, secondary, addCount, coun
 }
 
 /** 任务字段（看到哪、进度、出发日期…）在属性列表里显示成什么。 */
-function fieldText(def: FieldDef, v: FieldValue | undefined, today: string): string | null {
+function fieldText(def: FieldDef, v: FieldValue | undefined, today: string, mode: DateDisplay = 'auto'): string | null {
   if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return null;
   switch (def.kind) {
     case 'episode':
       return formatEpisode(v as never);
     case 'date':
-      return friendlyDate(String(v), today);
+      return formatTaskDate(String(v), { mode, today });
     case 'select':
       return dataLabel(String(v));
     case 'multiselect':
@@ -466,7 +469,8 @@ function fieldText(def: FieldDef, v: FieldValue | undefined, today: string): str
 /** 任务字段的一行：值（进度 % 带一条细进度条），点开改。 */
 function TaskFieldRow({ store, def, task, today, onChange }: { store: Store; def: FieldDef; task: Task; today: string; onChange: (v: FieldValue) => void }) {
   const v = task.type_data[def.key];
-  const text = fieldText(def, v, today);
+  const dateMode = useDateDisplay();
+  const text = fieldText(def, v, today, dateMode);
   const FieldIcon = def.kind === 'progress' ? Gauge : def.kind === 'episode' ? Tv : def.kind === 'date' ? CalendarDays : def.kind === 'number' ? Hash : def.kind === 'select' || def.kind === 'multiselect' ? ListChecks : Type;
   const pct = def.kind === 'progress' && def.unit === '%' && typeof v === 'number' ? Math.max(0, Math.min(100, v)) : null;
   return (
