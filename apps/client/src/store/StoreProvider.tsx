@@ -31,7 +31,15 @@ export let storageInfo: StorageInfo = { engine: 'localStorage', detail: 'localSt
  * 浏览器第一次用上新引擎时，把以前 Turso wasm 库里的数据搬过来；再往前用 localStorage 的，把 localStorage 搬过来
  * （都只搬一次，旧数据保留作备份）。
  */
+let tauriAdapter: Promise<StorageAdapter> | null = null;
+
 async function openAdapter(): Promise<StorageAdapter> {
+  // Tauri 下同一个窗口只开一次（StrictMode 会让 effect 跑两遍，两份迁移会在同一条原生连接上嵌套 BEGIN）
+  if (isTauri()) return (tauriAdapter ??= openAdapterOnce().catch((e) => ((tauriAdapter = null), Promise.reject(e))));
+  return openAdapterOnce();
+}
+
+async function openAdapterOnce(): Promise<StorageAdapter> {
   const legacy = () => new WebStorageAdapter(window.localStorage);
   let reason: string | undefined;
   try {
