@@ -27,6 +27,8 @@ export type Route =
   | { page: 'journal'; date?: string }
   /** 设置：section 省略时宽屏显示上次看的那项，窄屏先列出五项。 */
   | { page: 'settings'; section?: SettingsSection }
+  /** 类型（统一的分类，Rei 2026-10-26）：#/types，#/types/<id> 看挂了它的任务和项目。 */
+  | { page: 'types'; id?: string }
   | { page: 'more' };
 
 /** hash 里 ? 之前的路径部分（?task= 等参数不算路由）。 */
@@ -65,6 +67,9 @@ export function parseHash(hash: string): Route {
       return b && b !== 'today' ? { page: 'journal', date: decodeURIComponent(b) } : { page: 'journal' };
     case 'settings':
       return isSettingsSection(b) ? { page: 'settings', section: b } : { page: 'settings' };
+    case 'types':
+    case 'categories':
+      return b ? { page: 'types', id: decodeURIComponent(b) } : { page: 'types' };
     case 'more':
       return { page: 'more' };
     default:
@@ -86,6 +91,8 @@ export function href(route: Route): string {
       return route.date ? `#/journal/${route.date}` : '#/journal';
     case 'settings':
       return route.section ? `#/settings/${route.section}` : '#/settings';
+    case 'types':
+      return route.id ? `#/types/${route.id}` : '#/types';
     default:
       return `#/${route.page}`;
   }

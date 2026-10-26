@@ -10,7 +10,7 @@ import { useDateDisplay } from '../../lib/date-display';
 import { Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
 import { formatRemindTime, RemindPanel } from './RemindPanel';
-import { CategoryPicker } from '../CheckInCategory';
+import { CategoryPicker } from '../CategoryPicker';
 import { AvatarStack } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
 import { titleOf } from '../../lib/view';
@@ -105,7 +105,7 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     // 打开时指定了完成方式（比如在倒数日页新建）：换类型时不跟着类型的默认完成方式变
     modeTouched: d.completion_mode != null,
     recurrence: d.recurrence ?? null,
-    categoryId: d.checkin_category_id ?? null,
+    categoryId: d.category_id ?? d.checkin_category_id ?? null,
     date: d.scheduled_date ?? null,
     endDate: d.scheduled_date && d.end_date && d.end_date > d.scheduled_date ? d.end_date : null,
     remindTime: d.remind_time ?? null,
@@ -213,7 +213,8 @@ function Composer() {
       count_config: d.completion_mode === 'count' ? d.count_config : {},
       target_date: d.completion_mode === 'countdown' ? d.target_date : null,
       recurrence: d.recurrence,
-      checkin_category_id: recurring ? d.categoryId : null,
+      // 类型（Rei 2026-10-26）：任何任务都能挂，不再只给重复任务
+      category_id: d.categoryId,
       remind_time: remindable ? d.remindTime : null,
       time_zone: d.timeZone,
     };
@@ -471,9 +472,11 @@ function Composer() {
 
         <section className="composer-section">
           <h3 className="composer-label">{tr('多久一次')}</h3>
-          <RepeatEditor value={d.recurrence} today={today} onChange={(r) => set({ recurrence: r })}>
-            <CategoryPicker store={store} value={d.categoryId} onChange={(id) => set({ categoryId: id })} />
-          </RepeatEditor>
+          <RepeatEditor value={d.recurrence} today={today} onChange={(r) => set({ recurrence: r })} />
+        </section>
+
+        <section className="composer-section">
+          <CategoryPicker compact store={store} value={d.categoryId} onChange={(id) => set({ categoryId: id })} />
         </section>
       </div>
     </Sheet>

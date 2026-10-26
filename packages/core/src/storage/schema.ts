@@ -31,6 +31,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     count_config: 'json',
     target_date: 'text?',
     recurrence: 'text?',
+    category_id: 'text?',
     checkin_category_id: 'text?',
     library_item_id: 'text?',
     remind_time: 'text?',
@@ -41,7 +42,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   },
   dependency: { pred_id: 'text', succ_id: 'text', type: 'text', lag: 'int' },
   group: { name: 'text', icon: 'text', start_at: 'text?', end_at: 'text?', category_id: 'text?', default_type_id: 'text?' },
-  category: { name: 'text', color: 'text' },
+  category: { name: 'text', color: 'text', icon: 'text', builtin: 'bool', hidden: 'bool', sort: 'real', merged_into: 'text?' },
   task_type: {
     name: 'text',
     icon: 'text',
@@ -246,6 +247,25 @@ ALTER TABLE "task" ADD COLUMN "count_config" TEXT NOT NULL DEFAULT '{}';
     name: '日期段的结束日（task.end_date）',
     sql: `
 ALTER TABLE "task" ADD COLUMN "end_date" TEXT;
+`,
+  },
+  {
+    // Rei 2026-10-26：打卡分类、项目分类合成一套「类型」（见 categories.ts）。
+    // 这里只做不看名字的部分：加列、打卡分类按原 id 拷进 category、任务的 checkin_category_id 抄到 category_id。
+    // 都不改 updated_at、不进 outbox（每台设备各迁一遍结果一样）；同名合并在 Store 打开时做。
+    version: 11,
+    name: '类型：打卡分类和项目分类合成一张表（category + task.category_id）',
+    sql: `
+ALTER TABLE "category" ADD COLUMN "icon" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "category" ADD COLUMN "builtin" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "category" ADD COLUMN "hidden" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "category" ADD COLUMN "sort" REAL NOT NULL DEFAULT 1000;
+ALTER TABLE "category" ADD COLUMN "merged_into" TEXT;
+INSERT OR IGNORE INTO "category" ("id", "updated_at", "deleted", "name", "color", "icon", "builtin", "hidden", "sort", "merged_into")
+  SELECT "id", "updated_at", "deleted", "name", "color", "icon", "builtin", "hidden", "sort", NULL FROM "checkin_category";
+ALTER TABLE "task" ADD COLUMN "category_id" TEXT;
+UPDATE "task" SET "category_id" = "checkin_category_id" WHERE "category_id" IS NULL AND "checkin_category_id" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "task_category" ON "task" ("category_id");
 `,
   },
 ];

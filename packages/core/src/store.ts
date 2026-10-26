@@ -28,9 +28,10 @@ import {
   type LibraryEntry,
 } from './library';
 import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTypes, updateField, type NewFieldInput } from './typedef';
-import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
+import { BUILTIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
+import { CategoryDeleteError, categoryFromCheckin, categoryNameTaken, fillCategory, planCategoryMerges, resolveCategoryId, sortCategories, DEFAULT_CATEGORY_COLOR, DEFAULT_CATEGORY_ICON } from './categories';
 import { mergeCycleSurvivors, planItemMerge, planPersonMerge, resolveMerged, duplicateGroups, type DuplicateGroup, type MergeChoices } from './merge';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type Category, type CheckInCategory, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
@@ -152,6 +153,10 @@ export class Store {
       for (const row of snap[t] as BaseRow[]) {
         // M0 旧任务没有 checkin_category_id：只在内存补 null，不改写（无语义变化，不必同步）
         if (t === 'task' && (row as Task).checkin_category_id === undefined) (row as Task).checkin_category_id = null;
+        // v11 之前没有 category_id（类型）：用旧的打卡分类，只在内存补（SQLite 端迁移已抄过）
+        if (t === 'task' && (row as Task).category_id === undefined) (row as Task).category_id = (row as Task).checkin_category_id ?? null;
+        // v11 之前的项目分类没有图标、顺序…：只在内存补默认
+        if (t === 'category') Object.assign(row, fillCategory(row as Category));
         // 资料库之前的任务没有 library_item_id：同上，只在内存补 null
         if (t === 'task' && (row as Task).library_item_id === undefined) (row as Task).library_item_id = null;
         // v4 之前没有 remind_time：同上
@@ -170,13 +175,15 @@ export class Store {
       }
     }
     store.ensureBuiltinTypes();
-    store.ensureBuiltinCheckInCategories();
+    store.adoptCheckinCategories();
+    store.ensureBuiltinCategories();
     store.migrateLegacyStatuses();
     store.migrateToLibrary();
     store.migrateFieldKinds();
     store.migratePersonTypeTasks();
     store.reviveReferencedTypes();
     store.settleMerges();
+    store.settleCategories();
     await store.flush();
     return store;
   }
@@ -285,6 +292,8 @@ export class Store {
     if (!changes.length) return;
     const stamped: Change[] = changes.map((c) => {
       const row = { ...c.row, updated_at: this.clock.tick() };
+      // 类型：旧客户端只认 checkin_category_id，写任务时抄一份过去
+      if (c.table === 'task' && (row as Task).category_id !== undefined) (row as Task).checkin_category_id = (row as Task).category_id;
       // 资料 / 人物总带着 merged_into（没合并过 = null），和重开后读回的样子一致
       if ((c.table === 'library_item' || c.table === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
       (this.tables[c.table] as Map<string, BaseRow>).set(row.id, row);
@@ -340,8 +349,15 @@ export class Store {
       if (!table || !c.row?.id || typeof c.row.updated_at !== 'string') continue;
       const cur = table.get(c.row.id);
       if (/^\d{13}-/.test(c.row.updated_at)) this.clock.receive(c.row.updated_at);
+      if (c.table === 'checkin_category') {
+        // 旧客户端写来的打卡分类：表照存，同时按同一个 id 映射进 category（见 categories.ts）
+        const mapped = this.mapRemoteCheckinCategory(c.row as CheckInCategory);
+        if (mapped) applied.push({ table: 'category', row: mapped } as Change);
+      }
       if (cur && !(c.row.updated_at > cur.updated_at)) continue;
       const row = { ...c.row } as BaseRow;
+      // 旧客户端写来的项目分类没有新列：从本机那行补，别把图标、不显示、顺序冲掉
+      if (c.table === 'category') Object.assign(row, fillCategory(row as Category, cur as Category | undefined));
       if (c.table === 'journal_entry') {
         const j = row as JournalEntry;
         if (j.mood === undefined) j.mood = null;
@@ -355,6 +371,8 @@ export class Store {
       if (c.table === 'task') {
         const t = row as Task;
         if (t.checkin_category_id === undefined) t.checkin_category_id = null;
+        // 旧客户端写来的任务没有 category_id：用它的打卡分类
+        if (t.category_id === undefined) t.category_id = t.checkin_category_id;
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
         if (t.time_zone === undefined) t.time_zone = null;
@@ -379,6 +397,8 @@ export class Store {
       .catch((err) => this.opts.onError?.(err));
     // 拉下来的有合并（来源墓碑）或指向已合并资料的任务：解开成环的合并，把指着旧 id 的改写到目标
     if (applied.some((c) => c.table === 'library_item' || c.table === 'person' || c.table === 'task' || c.table === 'task_person')) this.settleMerges();
+    // 类型：拉下来的有同名的就并、指着被并掉的改指留下的
+    if (applied.some((c) => c.table === 'category' || c.table === 'task' || c.table === 'group')) this.settleCategories();
     // 日记：赢家内容 + 末尾折叠块收着本机那版，作为一次新的本机写入推上去（另一台看到的 base_at 就是赢家，不会再合）
     if (journalMerges.length) this.write(journalMerges.map((row) => ({ table: 'journal_entry' as const, row })));
     return applied.length;
@@ -404,6 +424,7 @@ export class Store {
 
   /** 墓碑删除。 */
   remove(table: TableName, id: string): void {
+    if (table === 'category' || table === 'checkin_category') throw new CategoryDeleteError();
     const cur = (this.tables[table] as Map<string, BaseRow>).get(id);
     if (cur && !cur.deleted) this.write([{ table, row: { ...cur, deleted: true } }]);
   }
@@ -434,13 +455,69 @@ export class Store {
     }
   }
 
-  /** 补齐内置打卡分类（固定 id）；以后在种子里追加的新分类，老用户打开时也会补上。 */
-  private ensureBuiltinCheckInCategories() {
-    const missing = BUILTIN_CHECKIN_CATEGORIES.filter((c) => !this.tables.checkin_category.has(c.id));
+  /** 补齐内置类型（固定 id）；以后在种子里追加的新类型，老用户打开时也会补上。 */
+  private ensureBuiltinCategories() {
+    const missing = BUILTIN_CATEGORIES.filter((c) => !this.tables.category.has(c.id));
     if (!missing.length) return;
-    for (const c of missing) this.tables.checkin_category.set(c.id, c);
+    for (const c of missing) this.tables.category.set(c.id, { ...c });
     this._version++;
-    this.pending = this.pending.then(() => this.adapter.applyChanges(missing.map((row) => ({ table: 'checkin_category', row }))));
+    this.pending = this.pending.then(() => this.adapter.applyChanges(missing.map((row) => ({ table: 'category', row }))));
+  }
+
+  /**
+   * 打卡分类按原 id 拷进 category（v11 合并的不看名字那半；SQLite 端迁移已经拷过，这里管 localStorage / 内存
+   * 和迁移之后才拉到的旧行）。保留原时间戳，落盘不进 outbox（各设备各拷一遍结果一样）。
+   */
+  private adoptCheckinCategories() {
+    const rows: Category[] = [];
+    for (const c of this.tables.checkin_category.values()) {
+      const mapped = this.mapRemoteCheckinCategory(c);
+      if (mapped) rows.push(mapped);
+    }
+    if (!rows.length) return;
+    this._version++;
+    this.pending = this.pending.then(() => this.adapter.applyRemoteChanges(rows.map((row) => ({ table: 'category' as const, row }))));
+  }
+
+  /**
+   * 一行旧打卡分类 → 要写进 category 的行；category 里已经有一样新或更新的就返回 undefined。
+   * 已经并进别的类型的，保持墓碑和 merged_into（旧客户端改了名也不复活）。改的是内存，调用方负责落盘。
+   */
+  private mapRemoteCheckinCategory(c: CheckInCategory): Category | undefined {
+    if (!c?.id || typeof c.updated_at !== 'string') return undefined;
+    const cur = this.tables.category.get(c.id);
+    if (cur && !(c.updated_at > cur.updated_at)) return undefined;
+    const row = categoryFromCheckin(c);
+    if (cur?.merged_into) Object.assign(row, { deleted: true, merged_into: cur.merged_into });
+    this.tables.category.set(row.id, row);
+    return row;
+  }
+
+  /**
+   * 类型的同名合并和引用改写（Store 打开、拉到类型 / 任务 / 项目之后都跑一遍）：
+   * 同名（去首尾空格、不分大小写）的并成一个，被并的打墓碑记 merged_into；任务和项目上指着被并掉的改指留下的。
+   * 挑谁留下只看行本身（categories.ts survivorOrder），两台设备各跑一遍结果一样。只写真变了的行。
+   */
+  settleCategories(): void {
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const m of planCategoryMerges([...this.tables.category.values()])) {
+      if (m.survivorChanged) rows.push({ table: 'category', row: m.survivor });
+      for (const l of m.losers) rows.push({ table: 'category', row: { ...l, deleted: true, merged_into: m.survivor.id } as BaseRow });
+    }
+    this.write(rows);
+    const resolve = (id: string | null) => resolveCategoryId((x) => this.tables.category.get(x), id);
+    const refs: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const t of this.tables.task.values()) {
+      if (t.deleted || !t.category_id) continue;
+      const to = resolve(t.category_id);
+      if (to !== t.category_id) refs.push({ table: 'task', row: { ...t, category_id: to } as BaseRow });
+    }
+    for (const g of this.tables.group.values()) {
+      if (g.deleted || !g.category_id) continue;
+      const to = resolve(g.category_id);
+      if (to !== g.category_id) refs.push({ table: 'group', row: { ...g, category_id: to } as BaseRow });
+    }
+    this.write(refs);
   }
 
   /**
@@ -838,7 +915,8 @@ export class Store {
       count_config: input.count_config ?? {},
       target_date: input.target_date ?? null,
       recurrence: input.recurrence ?? null,
-      checkin_category_id: input.checkin_category_id ?? null,
+      category_id: input.category_id ?? input.checkin_category_id ?? null,
+      checkin_category_id: input.category_id ?? input.checkin_category_id ?? null,
       library_item_id: input.library_item_id ?? null,
       remind_time: input.remind_time ?? null,
       time_zone: input.time_zone ?? null,
@@ -1258,42 +1336,88 @@ export class Store {
     return this.get('attachment', id);
   }
 
-  // ───────────── 打卡分类 ─────────────
+  // ───────────── 类型（统一的分类，见 categories.ts） ─────────────
 
-  /** 打卡分类按显示顺序；默认不含隐藏的。 */
-  checkInCategories(includeHidden = false): TableMap['checkin_category'][] {
-    return this.list('checkin_category')
-      .filter((c) => includeHidden || !c.hidden)
-      .sort((a, b) => a.sort - b.sort);
+  /** 类型按显示顺序；默认不含「不显示」的。并掉的（墓碑）不在里面。 */
+  categories(includeHidden = false): Category[] {
+    return sortCategories(this.list('category').filter((c) => !c.merged_into && (includeHidden || !c.hidden)));
   }
 
-  /** 「常用」打卡分类（选择器第一屏）：按重复任务用到的件数，不够用默认几个补齐。 */
-  frequentCheckInCategories(n = 6): TableMap['checkin_category'][] {
-    const usage = this.tasks()
-      .filter((t) => t.recurrence)
-      .map((t) => ({ categoryId: t.checkin_category_id ?? null, at: t.created_at }));
-    return pickFrequentCategories(this.checkInCategories(), usage, n);
+  /** 一个类型（顺着合并找到留下的那个；不显示的也返回，挂着的照常显示）。 */
+  category(id: string | null | undefined): Category | undefined {
+    const rid = resolveCategoryId((x) => this.tables.category.get(x), id);
+    return this.get('category', rid);
   }
 
-  /** 打卡分类上移 / 下移一位（含隐藏的一起排）；只改 sort，id 不变。 */
-  moveCheckInCategory(id: string, delta: -1 | 1): void {
-    const all = this.checkInCategories(true);
+  /** 任务挂的类型。 */
+  categoryOf(task: Pick<Task, 'category_id'> | null | undefined): Category | undefined {
+    return this.category(task?.category_id);
+  }
+
+  /** 「常用」类型（选择器第一屏）：按挂了它的任务和项目件数，不够用默认几个补齐。 */
+  frequentCategories(n = 6): Category[] {
+    const usage = [
+      ...this.list('task').map((t) => ({ categoryId: resolveCategoryId((x) => this.tables.category.get(x), t.category_id), at: t.created_at })),
+      ...this.list('group').map((g) => ({ categoryId: resolveCategoryId((x) => this.tables.category.get(x), g.category_id), at: '' })),
+    ];
+    return pickFrequentCategories(this.categories(), usage, n);
+  }
+
+  /** 类型上移 / 下移一位（含不显示的一起排）；只改 sort，id 不变。 */
+  moveCategory(id: string, delta: -1 | 1): void {
+    const all = this.categories(true);
     const i = all.findIndex((c) => c.id === id);
     const j = i + delta;
     if (i < 0 || j < 0 || j >= all.length) return;
     const order = all.map((c) => c.id);
     [order[i], order[j]] = [order[j]!, order[i]!];
-    // 只写顺序真的变了的行（重新编号 1..n）
+    this.reorderCategories(order);
+  }
+
+  /** 按给的顺序重新编号 1..n（拖动排序用）；只写顺序真变了的行。 */
+  reorderCategories(order: readonly string[]): void {
     const rows = order
-      .map((cid, k) => ({ cur: this.get('checkin_category', cid)!, sort: k + 1 }))
-      .filter(({ cur, sort }) => cur.sort !== sort)
-      .map(({ cur, sort }) => ({ table: 'checkin_category' as const, row: { ...cur, sort } as BaseRow }));
+      .map((cid, k) => ({ cur: this.get('category', cid), sort: k + 1 }))
+      .filter((x): x is { cur: Category; sort: number } => !!x.cur && x.cur.sort !== x.sort)
+      .map(({ cur, sort }) => ({ table: 'category' as const, row: { ...cur, sort } as BaseRow }));
     this.write(rows);
   }
 
-  createCheckInCategory(name: string, icon = 'tag', color = '#8e8e93'): TableMap['checkin_category'] {
-    const sort = this.list('checkin_category').reduce((m, c) => Math.max(m, c.sort), 0) + 1;
-    return this.insert('checkin_category', { name, icon, color, builtin: false, hidden: false, sort });
+  /** 名字被别的类型占了没有（改名 / 新建前查，同名不让建第二个）。 */
+  categoryNameTaken(name: string, exceptId?: string): Category | undefined {
+    return categoryNameTaken(this.list('category'), name, exceptId);
+  }
+
+  /** 新建类型；同名的已经有了就用那个（不显示的会重新显示）。 */
+  createCategory(name: string, icon = DEFAULT_CATEGORY_ICON, color = DEFAULT_CATEGORY_COLOR): Category {
+    const n = name.trim();
+    const taken = this.categoryNameTaken(n);
+    if (taken) return taken.hidden ? this.update('category', taken.id, { hidden: false }) : taken;
+    const sort = this.list('category').reduce((m, c) => Math.max(m, c.sort), 0) + 1;
+    return this.insert('category', { name: n, icon, color, builtin: false, hidden: false, sort, merged_into: null });
+  }
+
+  /** 改名 / 颜色 / 图标 / 不显示。改成别的类型已经用的名字时不改名，返回 false。 */
+  updateCategory(id: string, patch: Partial<Pick<Category, 'name' | 'icon' | 'color' | 'hidden'>>): boolean {
+    const cur = this.get('category', id);
+    if (!cur) return false;
+    const next = { ...patch };
+    if (next.name !== undefined) {
+      next.name = next.name.trim();
+      if (!next.name || this.categoryNameTaken(next.name, id)) return false;
+    }
+    this.update('category', id, next);
+    return true;
+  }
+
+  /** @deprecated 旧名字，等同 categories()。 */
+  checkInCategories(includeHidden = false): Category[] {
+    return this.categories(includeHidden);
+  }
+
+  /** @deprecated 旧名字，等同 createCategory()。 */
+  createCheckInCategory(name: string, icon = DEFAULT_CATEGORY_ICON, color = DEFAULT_CATEGORY_COLOR): Category {
+    return this.createCategory(name, icon, color);
   }
 
   // ───────────── 类型（M4 类型编辑器，纯逻辑见 typedef.ts） ─────────────

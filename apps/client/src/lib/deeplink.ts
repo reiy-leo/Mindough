@@ -36,6 +36,9 @@ const VIEWS: Record<string, Route> = {
   journal: { page: 'journal' },
   library: { page: 'library' },
   people: { page: 'people' },
+  // 类型（Rei 2026-10-26 侧栏「管理 → 类型」）；categories 是别名
+  types: { page: 'types' },
+  categories: { page: 'types' },
   settings: { page: 'settings' },
 };
 

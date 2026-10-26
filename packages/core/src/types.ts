@@ -106,7 +106,7 @@ export interface Task extends BaseRow {
   group_id: string | null;
   scheduled_date: DateKey | null;
   /**
-   * 结束日（Rei 2026-10-26 日期段，见 date-range.ts）：可空，只会晚于 scheduled_date；空 = 单日（老任务都空）。SQLite 迁移 v10。
+   * 结束日（Rei 2026-10-26 日期段，见 date-range.ts）：可空，只会晚于 scheduled_date；空 = 单日（老任务都空）。SQLite 迁移 v11。
    */
   end_date: DateKey | null;
   type_id: string | null;
@@ -123,7 +123,15 @@ export interface Task extends BaseRow {
   target_date: DateKey | null;
   /** RRULE 子集，见 recurrence.ts；null 表示不重复。 */
   recurrence: string | null;
-  /** 打卡分类（给重复任务用，见 checkin_category）；可空。 */
+  /**
+   * 类型（统一的分类，见 categories.ts；Rei 2026-10-26）：任何任务都能挂一个，指向 category 表；可空。SQLite 迁移 v11。
+   * 读的时候用 store.categoryOf(task)（会顺着合并找到留下的那个）。
+   */
+  category_id: string | null;
+  /**
+   * 旧字段：以前的打卡分类。v11 起只为旧客户端留着——本机写任务时把 category_id 抄过来；
+   * 拉到没有 category_id 的旧任务时，拿它当 category_id。别的地方别读它。
+   */
   checkin_category_id: string | null;
   /**
    * 资料库里的一条资料（片名、海报、作者…都在资料上）；可空。
@@ -167,9 +175,22 @@ export interface Group extends BaseRow {
   default_type_id: string | null;
 }
 
+/**
+ * 类型（统一的分类，Rei 2026-10-26，见 categories.ts）：原来的项目分类 + 打卡分类合成的一套。
+ * 任务和项目共用；能加、改名 / 颜色 / 图标、不显示，不能删。v11 加了 icon、builtin、hidden、sort、merged_into。
+ */
 export interface Category extends BaseRow {
   name: string;
   color: string;
+  /** lucide 图标名；空 = 默认 tag（老项目分类没有图标）。 */
+  icon: string;
+  /** 内置的 27 个（原打卡分类，固定 id）。 */
+  builtin: boolean;
+  /** 不显示：选择器里不出现，已经挂着的照常显示。 */
+  hidden: boolean;
+  sort: number;
+  /** 同名合并时被并掉的那行记下留下的 id（同时打墓碑）；没并过 = null。 */
+  merged_into: string | null;
 }
 
 /** 版式（也决定资料库里图的形状）：poster 竖版海报 2:3、icon_name 方形、banner 横幅 16:9、round 圆形（M4 加）、text 纯文字（普通）。 */
@@ -232,7 +253,9 @@ export interface TaskType extends BaseRow {
   sort: number;
 }
 
-/** 打卡分类：给周期性任务分门别类（记录、健康、运动…）。内置 10 个固定 id，可改名 / 隐藏 / 新增。 */
+/**
+ * 旧的打卡分类表（v11 起合进 category，见 categories.ts）。表还留着：旧客户端还会同步这张表，拉到的行映射进 category。
+ */
 export interface CheckInCategory extends BaseRow {
   name: string;
   /** lucide 图标名。 */

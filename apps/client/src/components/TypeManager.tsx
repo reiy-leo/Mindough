@@ -405,7 +405,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
   );
 }
 
-function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+export function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   const custom = !SWATCHES.includes(value.toLowerCase());
   return (
     <div className="swatches" role="radiogroup" aria-label={tr('颜色')}>

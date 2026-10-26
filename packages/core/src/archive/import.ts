@@ -18,6 +18,7 @@ import { cleanQuick } from '../count';
 import type { CountConfig } from '../types';
 import { isDateKey, journalEntryId } from '../journal';
 import { isFileKey, safeFileName } from '../attachments';
+import { categoryFromCheckin, fillCategory } from '../categories';
 import {
   COMPLETION_MODES,
   TASK_STATUSES,
@@ -313,13 +314,18 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     }
     for (const r of rowsOf('_meta/checkin-categories.json', (r) => typeof r.name === 'string')) {
       const c = r as unknown as CheckInCategory;
+      // 旧文件（2026-10-26 之前）：打卡分类单独一个文件，按原 id 并进类型（category）
       archiveCheckinCats.add(c.id);
-      add('extra', 'checkin_category', '_meta/checkin-categories.json', c.name, fresh<Omit<CheckInCategory, 'updated_at' | 'deleted'>>({ id: c.id, name: c.name, icon: str(c.icon) ?? 'tag', color: str(c.color) ?? '#8e8e93', builtin: c.builtin === true, hidden: c.hidden === true, sort: num(c.sort) ?? 0 }));
+      archiveCats.add(c.id);
+      const { updated_at: _u, deleted: _d, ...cat } = categoryFromCheckin({ ...c, updated_at: '', deleted: false, icon: str(c.icon) ?? 'tag', color: str(c.color) ?? '#8e8e93', builtin: c.builtin === true, hidden: c.hidden === true, sort: num(c.sort) ?? 0 });
+      add('extra', 'category', '_meta/checkin-categories.json', c.name, fresh<Omit<Category, 'updated_at' | 'deleted'>>(cat));
     }
     for (const r of rowsOf('_meta/categories.json', (r) => typeof r.name === 'string')) {
       const c = r as unknown as Category;
       archiveCats.add(c.id);
-      add('extra', 'category', '_meta/categories.json', c.name, fresh<Omit<Category, 'updated_at' | 'deleted'>>({ id: c.id, name: c.name, color: str(c.color) ?? '#8e8e93' }));
+      // 类型（统一的分类）：旧文件只有 name、color，其余补默认
+      const { updated_at: _u, deleted: _d, ...cat } = fillCategory({ id: c.id, updated_at: '', deleted: false, name: c.name, color: str(c.color) ?? '#8e8e93', icon: str(c.icon) ?? '', builtin: c.builtin === true, hidden: c.hidden === true, sort: num(c.sort) ?? undefined, merged_into: str(c.merged_into) ?? null } as Category);
+      add('extra', 'category', '_meta/categories.json', c.name, fresh<Omit<Category, 'updated_at' | 'deleted'>>(cat));
     }
     for (const r of rowsOf('_meta/prefs.json', (r) => typeof r.key === 'string')) {
       const p = r as unknown as Pref;
@@ -539,8 +545,10 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       warn(p.path, tr('找不到它挂的资料，没接上'));
       item = null;
     }
-    let cat: string | null = isId(fm.checkin_category) ? fm.checkin_category.trim() : null;
-    if (cat && !(archiveCheckinCats.has(cat) || store.get('checkin_category', cat))) cat = null;
+    // 类型：新文件写 category，旧文件写 checkin_category（同一套 id）
+    const catRaw = isId(fm.category) ? fm.category : isId(fm.checkin_category) ? fm.checkin_category : null;
+    let cat: string | null = catRaw ? catRaw.trim() : null;
+    if (cat && !(archiveCats.has(cat) || archiveCheckinCats.has(cat) || store.get('category', cat) || store.get('checkin_category', cat))) cat = null;
     let repeat = str(fm.repeat)?.trim() || null;
     if (repeat && !parseRecurrence(repeat)) {
       warn(p.path, tr('重复规则看不懂，当只做一次导入'));
@@ -567,6 +575,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       count_config: countConfigFrom(fm.count),
       target_date: dateKey(fm.target_date),
       recurrence: repeat,
+      category_id: cat,
       checkin_category_id: cat,
       library_item_id: item,
       remind_time: remind && /^\d{1,2}:\d{2}$/.test(remind) ? remind.padStart(5, '0') : null,
@@ -764,7 +773,11 @@ export function applyImport(store: Store, plan: ImportPlan, opts: { overwrite?: 
     }
   }
 
-  store.batch(() => store.write([...rows.values()]));
+  store.batch(() => {
+    store.write([...rows.values()]);
+    // 导进来的类型和本机的同名：并成一个
+    store.settleCategories();
+  });
   return { before, counts: summarizeImport(plan, overwrite), issues };
 }
 

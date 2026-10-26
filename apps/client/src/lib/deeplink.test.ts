@@ -16,6 +16,8 @@ describe('深链接 mindough://', () => {
     expect(parseDeepLink('mindough://view/groups', now)).toEqual({ kind: 'view', route: { page: 'groups' } });
     // 关系图页删掉了：旧链接打开我的一天，不算写错
     expect(parseDeepLink('mindough://view/graph', now)).toEqual({ kind: 'view', route: { page: 'myday' } });
+    expect(parseDeepLink('mindough://view/types', now)).toEqual({ kind: 'view', route: { page: 'types' } });
+    expect(parseDeepLink('mindough://view/categories', now)).toEqual({ kind: 'view', route: { page: 'types' } });
     expect(parseHash('#/graph')).toEqual({ page: 'myday' });
     expect(parseHash('#/projects')).toEqual({ page: 'groups' });
     expect(parseHash('#/projects/g1')).toEqual({ page: 'group', id: 'g1' });

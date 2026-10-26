@@ -51,9 +51,10 @@ export function seedDemo(store: Store): void {
       store.insert('asset', { sha256: '', mime: 'image/svg+xml', width: w, height: h, r2_key: null, url }).id;
 
     // 分类
-    const life = store.insert('category', { name: tr('生活'), color: '#34c759' });
-    const work = store.insert('category', { name: tr('工作'), color: '#0a84ff' });
-    const fun = store.insert('category', { name: tr('爱好'), color: '#af52de' });
+    // 类型（和打卡共用一套）：「工作」是内置的，直接用
+    const life = store.createCategory(tr('生活'), 'home', '#34c759');
+    const work = store.createCategory(tr('工作'), 'briefcase', '#0a84ff');
+    const fun = store.createCategory(tr('爱好'), 'heart', '#af52de');
 
     // 人物
     const mom = store.insert('person', {
@@ -242,23 +243,23 @@ export function seedDemo(store: Store): void {
     // 打卡任务（重复）+ 历史
     const daily = formatRecurrence({ kind: 'daily' });
     const C = BUILTIN_CHECKIN_CATEGORY_IDS;
-    const water = task(tr('每天喝 8 杯水'), { completion_mode: 'count', target_value: 8, unit: tr('杯'), recurrence: daily, checkin_category_id: C.diet, created_at: iso(-200) });
-    const fast = task(tr('16 小时轻断食'), { completion_mode: 'timer', target_value: 16 * 3600_000, recurrence: daily, checkin_category_id: C.diet, created_at: iso(-120) });
-    const read = task(tr('读书 30 页'), { completion_mode: 'count', target_value: 30, unit: tr('页'), count_config: newCountConfig(tr('页')), recurrence: daily, checkin_category_id: C.reading, created_at: iso(-260) });
+    const water = task(tr('每天喝 8 杯水'), { completion_mode: 'count', target_value: 8, unit: tr('杯'), recurrence: daily, category_id: C.diet, created_at: iso(-200) });
+    const fast = task(tr('16 小时轻断食'), { completion_mode: 'timer', target_value: 16 * 3600_000, recurrence: daily, category_id: C.diet, created_at: iso(-120) });
+    const read = task(tr('读书 30 页'), { completion_mode: 'count', target_value: 30, unit: tr('页'), count_config: newCountConfig(tr('页')), recurrence: daily, category_id: C.reading, created_at: iso(-260) });
     const run = task(tr('跑步 5 公里'), {
       completion_mode: 'count',
       target_value: 5,
       unit: tr('公里'),
       count_config: newCountConfig(tr('公里')),
       recurrence: formatRecurrence({ kind: 'weekly', weekdays: [1, 3, 5] }),
-      checkin_category_id: C.sport,
+      category_id: C.sport,
       created_at: iso(-300),
     });
-    task(tr('睡前护肤：洁面 + 保湿'), { completion_mode: 'once', recurrence: daily, checkin_category_id: C.skincare, created_at: iso(0, 0) });
-    task(tr('周六大扫除'), { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'weekly', weekdays: [6] }), checkin_category_id: C.clean, created_at: iso(0, 0) });
+    task(tr('睡前护肤：洁面 + 保湿'), { completion_mode: 'once', recurrence: daily, category_id: C.skincare, created_at: iso(0, 0) });
+    task(tr('周六大扫除'), { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'weekly', weekdays: [6] }), category_id: C.clean, created_at: iso(0, 0) });
     store.linkPerson(run.id, lin.id);
-    const meditate = task(tr('冥想 10 分钟'), { completion_mode: 'once', recurrence: daily, checkin_category_id: C.meditation, created_at: iso(-90) });
-    task(tr('对账、记一下上月开销'), { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'monthly', day: 1 }), checkin_category_id: C.finance, created_at: iso(-330) });
+    const meditate = task(tr('冥想 10 分钟'), { completion_mode: 'once', recurrence: daily, category_id: C.meditation, created_at: iso(-90) });
+    task(tr('对账、记一下上月开销'), { completion_mode: 'once', recurrence: formatRecurrence({ kind: 'monthly', day: 1 }), category_id: C.finance, created_at: iso(-330) });
 
     const ev = (t: Task, kind: CheckInKind, amount: number, at: string, date: string) =>
       store.insert('check_in', { task_id: t.id, period_key: periodKeyFor(parseRecurrence(t.recurrence), date), kind, amount, at });

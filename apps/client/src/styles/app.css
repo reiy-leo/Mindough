@@ -3322,3 +3322,133 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
   height: 0;
   pointer-events: none;
 }
+
+/* ───────── 类型（统一的分类，Rei 2026-10-26）：编辑列表、类型页 ───────── */
+.cat-editor .cat-row.is-selected {
+  background: var(--fill-2, color-mix(in srgb, var(--accent) 10%, transparent));
+  border-radius: var(--radius-sm);
+}
+.cat-editor .cat-name {
+  flex: 1;
+  min-width: 0;
+}
+.cat-icon-btn,
+.cat-color-btn,
+.cat-open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.cat-icon-btn[data-hovered],
+.cat-color-btn[data-hovered],
+.cat-open[data-hovered] {
+  background: var(--hover, color-mix(in srgb, var(--text) 8%, transparent));
+}
+.cat-icon-btn[data-focus-visible],
+.cat-color-btn[data-focus-visible],
+.cat-open[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.cat-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 15%, transparent);
+}
+.cat-count {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.cat-row.is-hidden .cat-icon-btn,
+.cat-row.is-hidden .cat-color-dot {
+  opacity: 0.45;
+}
+.cat-editor-note {
+  margin: var(--space-2) 0 0;
+}
+.cat-color-popover .swatches {
+  padding: var(--space-2);
+  max-width: 260px;
+}
+.types-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.types-list {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.types-uses {
+  min-width: 0;
+}
+.types-uses-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: 18px;
+}
+.types-groups {
+  display: flex;
+  flex-direction: column;
+}
+.types-back {
+  margin-bottom: var(--space-2);
+}
+.app-mobile .types-layout,
+.types-page.is-narrow .types-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 900px) {
+  .types-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.countdown-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.editor-grid-wide {
+  grid-column: 1 / -1;
+}
+.project-cat-btn {
+  display: inline-flex;
+  vertical-align: baseline;
+}
+.cat-open {
+  min-width: 44px;
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+.types-groups .more-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.types-groups .more-item[data-hovered] {
+  background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent));
+}

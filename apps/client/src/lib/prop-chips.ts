@@ -3,11 +3,11 @@
  * 没设的收进行尾「+」菜单。这里是纯逻辑：哪些属性适用、默认值是什么、设没设、清除回默认要改哪些字段。
  *
  * 默认值（= 未设置，胶囊不显示）：
- * - 类型：普通（type_id 为 null 或 PLAIN_TYPE_ID）
+ * - 资料库：不放进资料库（type_id 为 null 或 PLAIN_TYPE_ID；PropId 还叫 type）
  * - 完成方式：打勾（completion_mode = 'once'）
  * - 日期：没有（scheduled_date = null；重复任务按规则出现，不适用）
  * - 重复：一次（recurrence = null / 空）
- * - 打卡分类：未分类（checkin_category_id = null；只有重复任务适用）
+ * - 类型（统一的分类，Rei 2026-10-26）：没有（category_id = null；所有任务都适用，PropId 叫 category）
  * - 提醒：不提醒（remind_time = null；要有日期 / 重复 / 倒数日目标日才适用，见 core canRemind）
  * - 组：不放进组（group_id = null）
  * - 和谁有关：没有人（task_person 没有关联）
@@ -18,15 +18,14 @@ import { PLAIN_TYPE_ID, canRemind, type Task } from '@mindough/core';
 export type PropId = 'type' | 'mode' | 'date' | 'repeat' | 'category' | 'remind' | 'group' | 'people';
 
 /** 胶囊固定顺序：先说「是什么、怎么算完成」，再说「什么时候」，最后「放哪、和谁」。 */
-export const PROP_ORDER: readonly PropId[] = ['type', 'mode', 'date', 'repeat', 'category', 'remind', 'group', 'people'];
+export const PROP_ORDER: readonly PropId[] = ['type', 'category', 'mode', 'date', 'repeat', 'remind', 'group', 'people'];
 
-export type PropTask = Pick<Task, 'type_id' | 'completion_mode' | 'scheduled_date' | 'recurrence' | 'checkin_category_id' | 'remind_time' | 'group_id' | 'target_date'>;
+export type PropTask = Pick<Task, 'type_id' | 'completion_mode' | 'scheduled_date' | 'recurrence' | 'category_id' | 'remind_time' | 'group_id' | 'target_date'>;
 
-/** 这件任务现在能有哪些属性（日期和打卡分类看重不重复，提醒要有时间可以响）。 */
+/** 这件任务现在能有哪些属性（日期看重不重复，提醒要有时间可以响；类型所有任务都能挂）。 */
 export function applicableProps(t: PropTask): PropId[] {
   return PROP_ORDER.filter((id) => {
     if (id === 'date') return !t.recurrence;
-    if (id === 'category') return !!t.recurrence;
     if (id === 'remind') return canRemind(t) || !!t.remind_time;
     return true;
   });
@@ -44,7 +43,7 @@ export function isPropSet(id: PropId, t: PropTask, peopleCount = 0): boolean {
     case 'repeat':
       return !!t.recurrence;
     case 'category':
-      return !!t.checkin_category_id;
+      return !!t.category_id;
     case 'remind':
       return !!t.remind_time;
     case 'group':
@@ -77,7 +76,7 @@ export function clearPatch(id: PropId): Partial<Task> | null {
     case 'repeat':
       return { recurrence: null };
     case 'category':
-      return { checkin_category_id: null };
+      return { category_id: null };
     case 'remind':
       return { remind_time: null };
     case 'group':

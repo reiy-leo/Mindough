@@ -39,7 +39,7 @@ describe('数据：end_date', () => {
     await migrate(d, MIGRATIONS.filter((m) => m.version <= 9));
     await d.run(`INSERT INTO "task" ("id","updated_at","deleted","body_md","scheduled_date","created_at") VALUES ('t1','1',0,'老任务','2026-10-26','2026-10-01T00:00:00Z')`);
     expect(await migrate(d)).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(10);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(10);
     const snap = await new SqlAdapter(d).loadAll();
     expect(snap.task[0]!.end_date).toBeNull();
     expect(snap.task[0]!.scheduled_date).toBe('2026-10-26');

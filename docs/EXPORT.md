@@ -13,8 +13,8 @@ Mindough 2026-10-16/              zip 里的根文件夹（导入时自动去掉
   _meta/
     mindough.json                 格式标记：{ "format": "mindough-markdown", "version": 1, exported_at, device, counts }
     types.json                    资料库（界面叫法，代码里是任务类型 task_type；内置 + 自定义，含归档的；整行，不含 updated_at / deleted；归档写 "archived": true，导入也认旧文件的 "hidden"）
-    checkin-categories.json       打卡分类（含隐藏的）
-    categories.json               项目的分类（名字 + 颜色）
+    categories.json               类型（2026-10-26 打卡分类和项目分类合成的一套；含不显示的；name、color、icon、builtin、hidden、sort、merged_into）。
+                                  旧文件的 checkin-categories.json 导入时还认：按原 id 并进类型，同名的并成一个
     checkins.json                 打卡记录（每条 start / pause / resume / stop / add 事件，带 id）
     assets.json                   用到的图片的 asset 行；有文件的写 "file": "assets/…"
     attachments.json              附件的行（挂在哪：owner_type task / journal + owner_id、file_name、mime、size、宽高、r2_key、thumb_key、created_at）；有文件的写 "file": "attachments/…"
@@ -86,7 +86,7 @@ checkins:
 | `completion` `target` `unit` `target_date` | 完成方式与目标 | once / timer / count / countdown；计时的 target 是毫秒 |
 | `count` | 计数的步长和快捷按钮（只有计数任务、设过才写） | `{ step: 250, step_set: true, quick: [250, 500] }`；没写 = 步长 1 |
 | `repeat` | recurrence | RRULE 子集（见 recurrence.ts） |
-| `checkin_category` | checkin_category_id | |
+| `category` | category_id | 类型（id + 名字注释，2026-10-26 起）；旧文件写的 `checkin_category` 导入时当 `category` |
 | `remind` | remind_time | 「HH:MM」，加了引号（有的 YAML 1.1 解析器会把 08:00 当数字） |
 | `time_zone` | time_zone | 任务时区，IANA 名（如 America/New_York），没设不写；导入时不认识的当没设（2026-10-25） |
 | `sort` | sort | |

@@ -219,7 +219,8 @@ describe('导入', () => {
     undoDida(s, receipt);
     expect(s.list('task').length).toBe(before);
     expect(s.list('group').find((g) => g.name === '项目 A')).toBeUndefined();
-    expect(s.list('category').find((c) => c.name === '工作' && c.id === groupA.category_id)).toBeUndefined();
+    // 「工作」和内置类型同名，用的就是内置那个：撤销不动它（类型不能删）
+    expect(s.category(groupA.category_id)?.builtin).toBe(true);
     expect(s.edges().some((e) => e.succ_id === parentId)).toBe(false);
 
     // 撤销后再导：重新建

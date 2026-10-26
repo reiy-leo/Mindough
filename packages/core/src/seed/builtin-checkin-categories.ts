@@ -1,5 +1,5 @@
 /**
- * 内置打卡分类：给周期性（重复）任务用，共 27 个。Rei 2026-10-15 定的顺序：
+ * 内置类型（原内置打卡分类，2026-10-26 起和项目分类合成一套「类型」，见 categories.ts），共 27 个。Rei 2026-10-15 定的顺序：
  * 记录、整理、游戏、玩乐、健康、运动、护肤、清洁、学习、读书、饮食、作息、冥想、服药、理财、
  * 工作、写作、语言、乐器、创作、社交、宠物、植物、采购、个人护理、维护、观影。
  *
@@ -8,7 +8,7 @@
  * - 以后要加分类：在 SEED 末尾追加一行并给一个没用过的 n（id 由 n 决定，永不复用 / 改号）；
  *   显示顺序由数组位置决定，想插在中间直接放到对应位置即可，id 不受影响。
  */
-import type { CheckInCategory } from '../types';
+import type { Category } from '../types';
 
 const cid = (n: number) => `00000000-0000-7000-8001-${String(n).padStart(12, '0')}`;
 
@@ -45,9 +45,11 @@ const SEED = [
 
 type SeedKey = (typeof SEED)[number][1];
 
-export const BUILTIN_CHECKIN_CATEGORY_IDS = Object.fromEntries(SEED.map(([n, key]) => [key, cid(n)])) as Record<SeedKey, string>;
+export const BUILTIN_CATEGORY_IDS = Object.fromEntries(SEED.map(([n, key]) => [key, cid(n)])) as Record<SeedKey, string>;
+/** 旧名字（打卡分类时代），同一份 id。 */
+export const BUILTIN_CHECKIN_CATEGORY_IDS = BUILTIN_CATEGORY_IDS;
 
-export const BUILTIN_CHECKIN_CATEGORIES: CheckInCategory[] = SEED.map(([n, , name, icon, color], i) => ({
+export const BUILTIN_CATEGORIES: Category[] = SEED.map(([n, , name, icon, color], i) => ({
   id: cid(n),
   updated_at: '0000000000000-0000-builtin',
   deleted: false,
@@ -57,7 +59,10 @@ export const BUILTIN_CHECKIN_CATEGORIES: CheckInCategory[] = SEED.map(([n, , nam
   builtin: true,
   hidden: false,
   sort: i + 1,
+  merged_into: null,
 }));
+/** 旧名字（打卡分类时代）。 */
+export const BUILTIN_CHECKIN_CATEGORIES = BUILTIN_CATEGORIES;
 
 /** 还没用过几个分类时，「常用」先放这几个（按日常最常见的打卡）。 */
 export const DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS: readonly SeedKey[] = ['health', 'sport', 'study', 'reading', 'diet', 'sleep'];
@@ -66,11 +71,11 @@ export const DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS: readonly SeedKey[] = ['heal
  * 「常用」分类：先按用到它的重复任务件数（多的在前，件数一样按最近一次用到），再用默认几个补齐到 n 个。
  * 只返回 visible 里的（隐藏的不算常用）。纯函数，界面经 Store.frequentCheckInCategories 调用。
  */
-export function pickFrequentCategories(
-  visible: readonly CheckInCategory[],
+export function pickFrequentCategories<C extends { id: string }>(
+  visible: readonly C[],
   usage: readonly { categoryId: string | null; at: string }[],
   n = 6,
-): CheckInCategory[] {
+): C[] {
   const byId = new Map(visible.map((c) => [c.id, c]));
   const stat = new Map<string, { count: number; last: string }>();
   for (const u of usage) {
@@ -86,7 +91,7 @@ export function pickFrequentCategories(
   const out = used.slice(0, n);
   for (const key of DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS) {
     if (out.length >= n) break;
-    const c = byId.get(BUILTIN_CHECKIN_CATEGORY_IDS[key]);
+    const c = byId.get(BUILTIN_CATEGORY_IDS[key]);
     if (c && !out.includes(c)) out.push(c);
   }
   for (const c of visible) {

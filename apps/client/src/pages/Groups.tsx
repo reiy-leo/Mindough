@@ -4,7 +4,8 @@ import { CalendarRange, Plus, Shapes } from 'lucide-react';
 import { formatDateZh, isFinished, toDateKey, type Group, type Task } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { navigate } from '../lib/router';
-import { Button, Chip, Empty, Field, ProgressBar, Section, Segmented, Select, Sheet } from '../ui/primitives';
+import { Button, ChipPicker, Empty, Field, PopoverPanel, ProgressBar, Section, Select, Sheet } from '../ui/primitives';
+import { CategoryLabel, CategoryPicker, NO_CATEGORY } from '../components/CategoryPicker';
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { QuickAddBar } from '../components/QuickAddBar';
@@ -25,7 +26,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
   const store = useStore();
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('📁');
-  const [cat, setCat] = useState('__none');
+  const [cat, setCat] = useState<string | null>(null);
   const [type, setType] = useState('__none');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -44,7 +45,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
               icon: icon || '📁',
               start_at: start || null,
               end_at: end || null,
-              category_id: cat === '__none' ? null : cat,
+              category_id: cat,
               default_type_id: type === '__none' ? null : type,
             });
             onClose();
@@ -59,7 +60,9 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
         <Field label={tr('图标（emoji）')} value={icon} onChange={setIcon} />
         <Field label={tr('开始')} type="date" value={start} onChange={setStart} />
         <Field label={tr('结束')} type="date" value={end} onChange={setEnd} />
-        <Select label={tr('分类')} value={cat} onChange={setCat} options={[{ id: '__none', label: tr('无') }, ...store.list('category').map((c) => ({ id: c.id, label: c.name }))]} />
+        <div className="editor-grid-wide">
+          <CategoryPicker compact store={store} value={cat} onChange={setCat} />
+        </div>
         <Select
           label={tr('默认资料库')}
           value={type}
@@ -75,13 +78,17 @@ export function GroupsPage() {
   const store = useStore();
   const [creating, setCreating] = useState(false);
   const [cat, setCat] = useState('all');
-  const categories = store.list('category');
-  const groups = store.list('group').filter((g) => cat === 'all' || g.category_id === cat);
+  // 类型（Rei 2026-10-26，和任务、打卡共用一套）：筛选只列有项目挂着的类型，空的不显示
+  const all = store.list('group');
+  const catOf = (g: Group) => store.category(g.category_id);
+  const usedCats = store.categories(true).filter((c) => all.some((g) => catOf(g)?.id === c.id));
+  const hasNone = all.some((g) => !catOf(g));
+  const groups = all.filter((g) => cat === 'all' || (cat === NO_CATEGORY ? !catOf(g) : catOf(g)?.id === cat));
   return (
     <div className="page">
       <PageHeader
         title={trc('导航', '项目')}
-        subtitle={tr('一批相关的任务，有起止时间和分类')}
+        subtitle={tr('一批相关的任务，有起止时间和类型')}
         icon={<Shapes size={22} />}
         actions={
           <Button variant="primary" onPress={() => setCreating(true)}>
@@ -90,7 +97,18 @@ export function GroupsPage() {
         }
       />
       <div className="filter-row">
-        <Segmented label={tr('按分类筛选')} value={cat} onChange={setCat} options={[{ id: 'all', label: tr('全部') }, ...categories.map((c) => ({ id: c.id, label: c.name }))]} />
+        {usedCats.length > 0 && (
+          <ChipPicker
+            label={tr('按类型筛选')}
+            value={cat}
+            onChange={setCat}
+            options={[
+              { id: 'all', label: tr('全部 {length}', { length: all.length }) },
+              ...usedCats.map((c) => ({ id: c.id, label: <CategoryLabel c={c} />, color: c.color })),
+              ...(hasNone ? [{ id: NO_CATEGORY, label: tr('没有类型') }] : []),
+            ]}
+          />
+        )}
       </div>
       {groups.length === 0 ? (
         <Empty title={tr('还没有项目')} hint={tr('项目用来装一批相关任务，比如“搬家”“开发某个功能”')} />
@@ -102,14 +120,14 @@ export function GroupsPage() {
             const counted = tasks.filter((t) => t.status !== '关闭');
             const done = counted.filter((t) => t.status === '完成').length;
             const blocked = tasks.filter((t) => store.derived().get(t.id)?.state === '被阻塞').length;
-            const c = store.get('category', g.category_id);
+            const c = catOf(g);
             const late = g.end_at && g.end_at < toDateKey(store.now()) && done < counted.length;
             return (
               <RacButton key={g.id} className="card group-card" onPress={() => navigate({ page: 'group', id: g.id })}>
                 <div className="group-card-head">
                   <span className="group-icon">{g.icon}</span>
                   <span className="group-name">{g.name}</span>
-                  {c && <Chip color={c.color}>{c.name}</Chip>}
+                  {c && <CategoryLabel c={c} size={12} />}
                 </div>
                 <div className={`group-range${late ? ' is-late' : ''}`}>
                   <CalendarRange size={13} /> {range(g)}
@@ -148,7 +166,7 @@ export function GroupDetailPage({ id }: { id: string }) {
     prefs.sort,
     prefs.dir,
   );
-  const c = store.get('category', g.category_id);
+  const c = store.category(g.category_id);
   const open = tasks.filter((t) => !isFinished(t.status));
   const ended = tasks.filter((t) => isFinished(t.status));
   // 默认类型归档了照样生效、照常显示（Rei 2026-10-17）
@@ -164,7 +182,29 @@ export function GroupDetailPage({ id }: { id: string }) {
         subtitle={
           <>
             {range(g)}
-            {c && <> · {c.name}</>}
+            {' · '}
+            <PopoverPanel
+              label={trc('分类', '类型')}
+              trigger={
+                <RacButton className="link-btn project-cat-btn" aria-label={tr('改项目的类型')}>
+                  {c ? <CategoryLabel c={c} size={12} /> : <span className="muted">{tr('设类型')}</span>}
+                </RacButton>
+              }
+            >
+              {(close) => (
+                <div className="pop-section">
+                  <CategoryPicker
+                    store={store}
+                    value={g.category_id}
+                    label={false}
+                    onChange={(cid) => {
+                      store.update('group', g.id, { category_id: cid });
+                      close();
+                    }}
+                  />
+                </div>
+              )}
+            </PopoverPanel>
             {defType && <> {tr(' · 默认资料库：{name}', { name: dataLabel(defType.name) })}</>}
           </>
         }

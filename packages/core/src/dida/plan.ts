@@ -11,6 +11,7 @@ import type { Store } from '../store';
 import { tr } from '../i18n';
 import { normalizeName } from '../library';
 import { stableId } from '../archive/text';
+import { LEGACY_CATEGORY_SORT } from '../categories';
 import type { BaseRow, Category, Dependency, Group, TableName, Task, TaskStatus } from '../types';
 import type { DidaIssue, DidaRow, DidaStatus } from './parse';
 import { didaBody, didaInstant, didaLocal, didaRecurrence, didaRemindTime, isValidTimeZone } from './map';
@@ -154,14 +155,14 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
 
   // 组与分类
   const groupOfList = new Map<string, string | null>();
-  const catsByName = new Map(store.list('category').map((c) => [normalizeName(c.name), c.id]));
+  const catsByName = new Map(store.categories(true).map((c) => [normalizeName(c.name), c.id]));
   let groups = 0;
   const categoryFor = (folder: string | null): string | null => {
     if (!folder) return null;
     const hit = catsByName.get(normalizeName(folder));
     if (hit) return hit;
     const id = categoryIdOf(folder);
-    put('category', fresh<Omit<Category, 'updated_at' | 'deleted'>>({ id, name: folder, color: colorOf(folder) }));
+    put('category', fresh<Omit<Category, 'updated_at' | 'deleted'>>({ id, name: folder, color: colorOf(folder), icon: '', builtin: false, hidden: false, sort: LEGACY_CATEGORY_SORT, merged_into: null }));
     catsByName.set(normalizeName(folder), id);
     return id;
   };
@@ -212,6 +213,7 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
       unit: null,
       target_date: null,
       recurrence,
+      category_id: null,
       checkin_category_id: null,
       library_item_id: null,
       remind_time: didaRemindTime(r.reminder, when, r.allDay || !when?.minutes),
@@ -245,7 +247,10 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
     put('dependency', fresh<Omit<Dependency, 'updated_at' | 'deleted'>>({ id: depIdOf(child, parent), pred_id: child, succ_id: parent, type: 'FS', lag: 0 }));
   }
 
-  store.batch(() => store.write([...rows.values()]));
+  store.batch(() => {
+    store.write([...rows.values()]);
+    store.settleCategories();
+  });
   return { before, created: ordered.length, skipped: { already, filtered }, groups, issues };
 }
 

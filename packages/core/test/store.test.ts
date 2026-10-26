@@ -181,15 +181,17 @@ describe('Store', () => {
     );
     expect(new Set(BUILTIN_CHECKIN_CATEGORIES.map((c) => c.id)).size).toBe(27);
     expect(BUILTIN_CHECKIN_CATEGORIES.every((c) => isUuidv7(c.id) && c.icon)).toBe(true);
-    store.update('checkin_category', BUILTIN_CHECKIN_CATEGORY_IDS.game, { hidden: true });
-    store.update('checkin_category', BUILTIN_CHECKIN_CATEGORY_IDS.record, { name: '记账' });
-    const mine = store.createCheckInCategory('冥想', 'leaf');
-    const names = store.checkInCategories().map((c) => c.name);
+    store.updateCategory(BUILTIN_CHECKIN_CATEGORY_IDS.game, { hidden: true });
+    store.updateCategory(BUILTIN_CHECKIN_CATEGORY_IDS.record, { name: '记账' });
+    const mine = store.createCategory('早起', 'leaf');
+    const names = store.categories().map((c) => c.name);
     expect(names).not.toContain('游戏');
     expect(names[0]).toBe('记账');
-    expect(names.at(-1)).toBe('冥想');
-    expect(store.checkInCategories(true)).toHaveLength(28);
-    const t = store.createTask({ recurrence: formatRecurrence({ kind: 'daily' }), checkin_category_id: mine.id });
+    expect(names.at(-1)).toBe('早起');
+    expect(store.categories(true)).toHaveLength(28);
+    const t = store.createTask({ category_id: mine.id });
+    expect(store.get('task', t.id)?.category_id).toBe(mine.id);
+    // 抄给旧客户端
     expect(store.get('task', t.id)?.checkin_category_id).toBe(mine.id);
   });
 
@@ -255,12 +257,12 @@ describe('打卡分类排序', () => {
   it('上移 / 下移只改 sort，id 不变，到头不动', async () => {
     const s = await Store.open(new MemoryAdapter(), { deviceId: 'a' });
     const before = s.checkInCategories(true).map((c) => c.id);
-    s.moveCheckInCategory(before[1]!, -1);
+    s.moveCategory(before[1]!, -1);
     const after = s.checkInCategories(true).map((c) => c.id);
     expect(after[0]).toBe(before[1]);
     expect(after[1]).toBe(before[0]);
     expect(new Set(after)).toEqual(new Set(before));
-    s.moveCheckInCategory(after[0]!, -1);
+    s.moveCategory(after[0]!, -1);
     expect(s.checkInCategories(true).map((c) => c.id)).toEqual(after);
   });
 });

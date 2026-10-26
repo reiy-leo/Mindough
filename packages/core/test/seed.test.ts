@@ -33,7 +33,7 @@ describe('演示数据', () => {
     expect(findCycleEdges(store.edges())).toEqual([]);
     expect(store.tasks().some((t) => t.status === '关闭')).toBe(true);
     // 演示的重复任务都有打卡分类
-    expect(store.tasks().filter((t) => t.recurrence).every((t) => store.get('checkin_category', t.checkin_category_id))).toBe(true);
+    expect(store.tasks().filter((t) => t.recurrence).every((t) => store.categoryOf(t))).toBe(true);
     expect(store.list('my_day').filter((e) => e.date === '2026-10-15')).toHaveLength(5);
     const water = store.tasks().find((t) => t.body_md === '每天喝 8 杯水')!;
     expect(store.progress(water.id)?.value).toBe(3);

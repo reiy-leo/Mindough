@@ -91,6 +91,7 @@ describe.each(ADAPTERS)('%s 适配器契约', (_name, make) => {
         type_data: { title: '沙丘', year: 2024, tags: ['a', 'b'], watched: true, none: null },
         target_value: 1.5,
         recurrence: 'FREQ=DAILY',
+        category_id: 'c1',
         checkin_category_id: 'c1',
         deleted: true,
       }),

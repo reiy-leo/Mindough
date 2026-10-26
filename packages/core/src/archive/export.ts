@@ -272,7 +272,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       count: t.completion_mode === 'count' && t.count_config && Object.keys(t.count_config).length ? t.count_config : undefined,
       target_date: t.target_date ?? undefined,
       repeat: t.recurrence ?? undefined,
-      checkin_category: t.checkin_category_id ? new Noted(t.checkin_category_id, dataLabel(store.get('checkin_category', t.checkin_category_id)?.name ?? '')) : undefined,
+      category: t.category_id ? new Noted(store.categoryOf(t)?.id ?? t.category_id, dataLabel(store.categoryOf(t)?.name ?? '')) : undefined,
       remind: t.remind_time ? new Quoted(t.remind_time) : undefined,
       time_zone: t.time_zone ?? undefined,
       sort: t.sort,
@@ -370,8 +370,8 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
         }),
     ),
   });
-  files.push({ path: '_meta/checkin-categories.json', data: json(store.checkInCategories(true).map(strip)) });
-  files.push({ path: '_meta/categories.json', data: json(store.list('category').map(strip)) });
+  // 类型（打卡分类和项目分类合成的一套，2026-10-26）：只写 categories.json；旧的 checkin-categories.json 不再写，导入还认
+  files.push({ path: '_meta/categories.json', data: json(store.categories(true).map(strip)) });
   files.push({ path: '_meta/prefs.json', data: json(store.list('pref').map(strip)) });
   files.push({ path: '_meta/checkins.json', data: json(checkins.filter((c) => taskById.has(c.task_id)).map(strip)) });
   files.push({ path: '_meta/assets.json', data: json([...images.assets.values()]) });
@@ -387,7 +387,7 @@ function listOf(ids: readonly string[] | undefined, note: (id: string) => string
 }
 
 function groupFront(g: Group, store: Store): Record<string, unknown> {
-  const cat = store.get('category', g.category_id);
+  const cat = store.category(g.category_id);
   const type = store.get('task_type', g.default_type_id);
   return {
     id: g.id,
@@ -395,7 +395,7 @@ function groupFront(g: Group, store: Store): Record<string, unknown> {
     icon: g.icon || undefined,
     start: g.start_at ?? undefined,
     end: g.end_at ?? undefined,
-    category: g.category_id ? new Noted(g.category_id, cat?.name ?? '') : undefined,
+    category: g.category_id ? new Noted(cat?.id ?? g.category_id, cat ? dataLabel(cat.name) : '') : undefined,
     default_type: g.default_type_id ? new Noted(g.default_type_id, type ? dataLabel(type.name) : '') : undefined,
   };
 }

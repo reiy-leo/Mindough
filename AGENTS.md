@@ -53,7 +53,8 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   dida/                 从滴答清单导入（单独入口 @mindough/core/dida，docs/IMPORT-DIDA.md）：csv / parse（备份 CSV）、api（Open API，fetchDidaAccount 注入网络函数）、map（时区 / 提醒 / 重复 / 正文）、plan（预览、applyDida、undoDida）
   archive/              导入导出 Markdown 文件夹（单独入口 @mindough/core/archive，yaml + fflate，按需加载；格式见 docs/EXPORT.md）
   storage/              StorageAdapter 接口；memory、localStorage、SQLite（sql.ts + schema.ts 迁移）适配器；migrate.ts（localStorage → SQLite）
-  seed/                 内置 11 种类型、27 个打卡分类（固定 id）、演示数据
+  categories.ts         类型（Rei 2026-10-26 打卡分类 + 项目分类合成一套，界面叫「类型」）：同名合并（survivorOrder）、merged_into 解析、旧行映射（categoryFromCheckin / fillCategory）；不能删（CategoryDeleteError）。读写走 store.categories() / category(id) / categoryOf(task) / createCategory / updateCategory / moveCategory
+  seed/                 内置 11 种资料库、27 个内置类型（原打卡分类，固定 id）、演示数据
 apps/client/src/
   skin/                 皮肤层：tokens.css（三套令牌 × 明暗）、skins.css（平台形状）、platform.ts（检测）
   styles/app.css        结构样式（只用令牌变量）

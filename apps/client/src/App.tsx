@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Tags, Users, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route, type SettingsSection } from './lib/router';
 import { openSettingsWindow } from './lib/windows';
 import { isTauri } from './store/sqlite-tauri';
@@ -19,6 +19,7 @@ import { CheckInsPage } from './pages/CheckIns';
 import { COUNTDOWN_DEFAULTS, CountdownsPage } from './pages/Countdowns';
 import { SettingsPage } from './pages/Settings';
 import { JournalPage } from './pages/Journal';
+import { CategoriesPage } from './pages/Categories';
 import { TaskDetail } from './components/task/TaskDetail';
 import { DetailPane } from './components/task/DetailPane';
 import { WIDE_MIN } from './lib/detail-pane';
@@ -44,7 +45,9 @@ interface NavItem {
 
 /**
  * 导航分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：
- * 今天（要动手的）· 计划（怎么安排）· 持续（天天记、慢慢攒的）· 资料（记下的东西）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ * 今天（要动手的）· 计划（怎么安排）· 持续（天天记、慢慢攒的）· 管理（资料库、人物、类型）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ * 「管理」（Rei 2026-10-26 18:02「主窗口侧边栏的“资料”section，更改成“管理”，任务入口删掉，添加一个“类型”入口」）：原来叫「资料」；
+ *   小节 id 还是 library（本机记的收起状态不丢）。小节里本来没有「任务」入口，只加了「类型」。
  * 「持续」（Rei 2026-10-26「把倒数日从“打卡”中拆出来单独一个侧边栏入口，把打卡、倒数日、日记放在另一个section：持续」）：打卡、倒数日、日记。
  */
 interface NavSection {
@@ -83,10 +86,11 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: 'library',
-    get title() { return tr('资料'); },
+    get title() { return trc('导航', '管理'); },
     items: [
       { page: 'library', get label() { return tr('资料库'); }, icon: Library, match: ['library', 'libitem'] },
       { page: 'people', get label() { return tr('人物'); }, icon: Users, match: ['people', 'person'] },
+      { page: 'types', get label() { return trc('分类', '类型'); }, icon: Tags, match: ['types'] },
     ],
   },
 ];
@@ -183,6 +187,8 @@ function Page({ route }: { route: Route }) {
       return <JournalPage {...(route.date ? { date: route.date } : {})} />;
     case 'settings':
       return <SettingsPage {...(route.section ? { section: route.section } : {})} />;
+    case 'types':
+      return <CategoriesPage {...(route.id ? { id: route.id } : {})} />;
     case 'more':
       return <MorePage />;
   }

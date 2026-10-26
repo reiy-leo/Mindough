@@ -14,8 +14,7 @@ import {
   type Task,
 } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
-import { CategoryLabel, NO_CATEGORY } from '../components/CheckInCategory';
-import { CategoryManager } from '../components/CategoryManager';
+import { CategoryLabel, NO_CATEGORY, openCategorySettings } from '../components/CategoryPicker';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
 import { Button, ChipPicker, Empty, Section, Segmented, TipButton } from '../ui/primitives';
@@ -40,14 +39,14 @@ export function CheckInsPage() {
   const dayRatio = useCallback((d: DateKey) => idx.dayRatio(d), [idx]);
 
   const [cat, setCat] = useState<string>('all');
-  const [managing, setManaging] = useState(false);
   const [arrange, setArrange] = useState<'today' | 'category'>('today');
   const allRecurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
-  const catOf = (t: Task) => store.get('checkin_category', t.checkin_category_id);
-  // 筛选标签：只列出有重复任务的分类（按分类顺序），有未分类的再加一个“未分类”
-  const usedCats = store.checkInCategories(true).filter((c) => allRecurring.some((t) => t.checkin_category_id === c.id));
+  // 类型（Rei 2026-10-26：和项目、倒数日共用一套）：顺着合并找到留下的那个
+  const catOf = (t: Task) => store.categoryOf(t);
+  // 筛选标签：只列出有重复任务挂着的类型（按类型顺序，不显示的也算，挂着就列），有没类型的再加一个“没有类型”
+  const usedCats = store.categories(true).filter((c) => allRecurring.some((t) => catOf(t)?.id === c.id));
   const hasUncategorized = allRecurring.some((t) => !catOf(t));
-  const recurring = cat === 'all' ? allRecurring : allRecurring.filter((t) => (cat === NO_CATEGORY ? !catOf(t) : t.checkin_category_id === cat));
+  const recurring = cat === 'all' ? allRecurring : allRecurring.filter((t) => (cat === NO_CATEGORY ? !catOf(t) : catOf(t)?.id === cat));
   const dueNow = recurring.filter((t) => dueToday(t, today));
   const others = recurring.filter((t) => !dueToday(t, today));
   const metToday = dueNow.filter((t) => store.progress(t.id, today)?.met).length;
@@ -117,7 +116,7 @@ export function CheckInsPage() {
           <Button
             variant="primary"
             onPress={() =>
-              ui.openQuickCreate({ recurrence: formatRecurrence({ kind: 'daily' }), checkin_category_id: cat !== 'all' && cat !== NO_CATEGORY ? cat : null })
+              ui.openQuickCreate({ recurrence: formatRecurrence({ kind: 'daily' }), category_id: cat !== 'all' && cat !== NO_CATEGORY ? cat : null })
             }
           >
             <Plus size={16} />
@@ -136,16 +135,16 @@ export function CheckInsPage() {
       {allRecurring.length > 0 && (
         <div className="filter-row checkin-filters">
           <ChipPicker
-            label={tr('按打卡分类筛选')}
+            label={tr('按类型筛选')}
             value={cat}
             onChange={setCat}
             options={[
               { id: 'all', label: tr('全部 {length}', { length: allRecurring.length }) },
               ...usedCats.map((c) => ({ id: c.id, label: <CategoryLabel c={c} />, color: c.color })),
-              ...(hasUncategorized ? [{ id: NO_CATEGORY, label: tr('未分类') }] : []),
+              ...(hasUncategorized ? [{ id: NO_CATEGORY, label: tr('没有类型') }] : []),
             ]}
           />
-          <RacButton className="btn btn-quiet filter-edit" onPress={() => setManaging(true)}>
+          <RacButton className="btn btn-quiet filter-edit" onPress={openCategorySettings}>
             {tr('编辑')}</RacButton>
           <Segmented
             label={tr('排列方式')}
@@ -153,7 +152,7 @@ export function CheckInsPage() {
             onChange={setArrange}
             options={[
               { id: 'today', label: tr('按今天') },
-              { id: 'category', label: tr('按分类') },
+              { id: 'category', label: tr('按类型') },
             ]}
           />
         </div>
@@ -162,17 +161,17 @@ export function CheckInsPage() {
       {arrange === 'category' ? (
         <>
           {[...usedCats.map((c) => ({ key: c.id, c })), { key: NO_CATEGORY, c: undefined }].map(({ key, c }) => {
-            const list = recurring.filter((t) => (c ? t.checkin_category_id === c.id : !catOf(t)));
+            const list = recurring.filter((t) => (c ? catOf(t)?.id === c.id : !catOf(t)));
             if (!list.length) return null;
-            // 分类内：今天要打卡的在前
+            // 同一类型里：今天要打卡的在前
             list.sort((a, b) => Number(dueToday(b, today)) - Number(dueToday(a, today)));
             return (
-              <Section key={key} title={c ? <CategoryLabel c={c} size={15} /> : tr('未分类')} extra={<span className="muted small">{tr('{length} 项', { length: list.length })}</span>}>
+              <Section key={key} title={c ? <CategoryLabel c={c} size={15} /> : tr('没有类型')} extra={<span className="muted small">{tr('{length} 项', { length: list.length })}</span>}>
                 <div className="habit-list">{list.map(row)}</div>
               </Section>
             );
           })}
-          {!recurring.length && <Empty title={tr('这个分类下还没有重复任务')} />}
+          {!recurring.length && <Empty title={tr('这个类型下还没有重复任务')} />}
         </>
       ) : (
         <>
@@ -193,8 +192,6 @@ export function CheckInsPage() {
       )}
         </>
       )}
-
-      <CategoryManager isOpen={managing} onOpenChange={setManaging} />
     </div>
   );
 }

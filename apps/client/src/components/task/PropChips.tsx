@@ -1,7 +1,7 @@
 /**
  * 任务详情的属性胶囊行（Rei 2026-10-25 选方案 A · 胶囊行）：
  * - 只显示设置过的单值属性（默认值 = 没设，见 lib/prop-chips.ts），一行胶囊、自动换行，顺序固定；
- * - 点胶囊打开这个属性原来的选择器（类型格子、完成方式、日期面板、重复、打卡分类、提醒、组、人物）；
+ * - 点胶囊打开这个属性原来的选择器（类型格子、完成方式、日期面板、重复、类型、提醒、组、人物）；
  * - 桌面悬停出现小 ×，点了清除回默认（胶囊消失，提示里可撤销）；触屏没有 ×，在选择器里选「无」那一项；
  * - 键盘：Tab 到胶囊，Enter / 空格打开，Backspace / Delete 清除；
  * - 行尾「+」：菜单列出没设的属性，选一项直接打开它的选择器；全都设了「+」隐藏；一个都没设时是「+ 添加属性」。
@@ -27,6 +27,7 @@ import {
   type Person,
   type Store,
   type Task,
+  categoryIcon,
 } from '@mindough/core';
 import { useUi } from '../../lib/ui';
 import { useLunarUi } from '../../lib/lunar';
@@ -34,7 +35,7 @@ import { dataLabel, tr, trc } from '../../lib/i18n';
 import { typeIcon } from '../../lib/icons';
 import { addMenuItems, clearPatch, setProps, unsetProps, type AddMenuId, type PropId } from '../../lib/prop-chips';
 import { AvatarStack } from '../Avatar';
-import { CategoryPicker } from '../CheckInCategory';
+import { CategoryPicker } from '../CategoryPicker';
 import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeGrid, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { TaskDateText } from '../TaskDateText';
@@ -53,7 +54,7 @@ export function propLabel(id: PropId): string {
     case 'repeat':
       return tr('重复');
     case 'category':
-      return tr('打卡分类');
+      return trc('分类', '类型');
     case 'remind':
       return tr('提醒');
     case 'group':
@@ -107,7 +108,7 @@ export function PropChips({
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
   const type = store.get('task_type', task.type_id);
   const group = store.get('group', task.group_id);
-  const cat = task.checkin_category_id ? store.get('checkin_category', task.checkin_category_id) : undefined;
+  const cat = store.categoryOf(task);
 
   const view = (id: PropId): ChipView => {
     switch (id) {
@@ -143,7 +144,7 @@ export function PropChips({
       }
       case 'category': {
         const s = cat ? dataLabel(cat.name) : '';
-        const Icon = cat ? typeIcon(cat.icon) : Tag;
+        const Icon = cat ? typeIcon(categoryIcon(cat)) : Tag;
         return { icon: <Icon size={14} />, text: s, aria: s, ...(cat?.color ? { color: cat.color } : {}) };
       }
       case 'remind': {
@@ -247,9 +248,10 @@ export function PropChips({
           <div className="pop-section">
             <CategoryPicker
               store={store}
-              value={task.checkin_category_id}
+              value={task.category_id}
+              label={false}
               onChange={(cid) => {
-                patch({ checkin_category_id: cid });
+                patch({ category_id: cid });
                 close();
               }}
             />
