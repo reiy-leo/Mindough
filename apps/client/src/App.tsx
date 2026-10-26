@@ -320,7 +320,8 @@ export function App() {
   // 中等宽度：侧边栏是图标栏，小节标题不显示，收起的小节也照样列出来（不然点不开）
   const narrow = useNarrow();
   const selected = !!store.get('task', ui.editingId);
-  const hideFab = route.page === 'journal';
+  // 项目页顶上有添加框（Rei 2026-10-26「新建任务也统一换成输入框」），不再放新建按钮
+  const hideFab = route.page === 'journal' || route.page === 'group';
 
   let shell: ReactNode;
   if (layout === 'desktop') {

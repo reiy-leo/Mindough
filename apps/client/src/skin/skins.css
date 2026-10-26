@@ -317,8 +317,7 @@
 [data-skin='material'] .task-list,
 [data-skin='material'] .habit-list,
 [data-skin='material'] .agenda-items,
-[data-skin='material'] .add-bar,
-[data-skin='material'] .task-card {
+[data-skin='material'] .add-bar {
   border: 0;
   background: var(--surface);
   border-radius: 12px;
@@ -1043,7 +1042,6 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--alert) 10%, transparent);
 }
-
 
 /* ───────── 日记（改版 B，Rei 2026-10-25）：情绪月历格子、心情大脸、写作区的平台形状 ───────── */
 /* Apple：圆角方块格子（像 macOS 小组件），心情大脸是白底圆 */

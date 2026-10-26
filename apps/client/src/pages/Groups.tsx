@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarRange, LayoutGrid, List, Network, Plus, Shapes } from 'lucide-react';
+import { CalendarRange, Plus, Shapes } from 'lucide-react';
 import { formatDateZh, isFinished, toDateKey, type Group, type Task } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
-import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
 import { Button, Chip, Empty, Field, ProgressBar, Section, Segmented, Select, Sheet } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
-import { TaskCard } from '../components/TaskCard';
 import { PageHeader } from '../components/PageHeader';
-import { LazyGraph as DependencyGraph } from '../components/LazyGraph';
+import { QuickAddBar } from '../components/QuickAddBar';
+import { ProjectBoard } from '../components/project/ProjectBoard';
+import { ProjectTimeline } from '../components/project/ProjectTimeline';
+import { ProjectChains } from '../components/project/ProjectChains';
+import { SortMenu, ViewMenu } from '../components/project/ProjectMenus';
+import { useSettings } from '../lib/settings';
+import { normalizePrefs, sortTasks, type ProjectViewPrefs } from '../lib/project-view';
 
 import { dataLabel, tr, trc } from '../lib/i18n';
 function range(g: Group) {
@@ -126,21 +130,35 @@ export function GroupsPage() {
   );
 }
 
+/**
+ * 单个项目的任务页（Rei 2026-10-26：「每个项目的视图支持列表、看板、时间轴，排序支持创建时间、修改时间、开始时间、到期时间，正序、倒序。
+ * 视图和排序放在右上角图标按钮，点击dropdown。新建任务也统一换成输入框。标题和图标左上角，小一点，和右侧图标对齐」；
+ * 同日「关系图完全去掉」「添加另外一个视图：任务链」「把项目中的任务关系按照任务链排列」）。
+ * 视图、排序每个项目单独记在本机设置（settings.projectViews，不同步）；逻辑见 lib/project-view。
+ */
 export function GroupDetailPage({ id }: { id: string }) {
   const store = useStore();
-  const ui = useUi();
-  const [view, setView] = useState<'list' | 'cards' | 'graph'>('list');
+  const { settings, set } = useSettings();
+  const prefs = normalizePrefs(settings.projectViews[id]);
+  const setPrefs = (patch: Partial<ProjectViewPrefs>) => set('projectViews', { ...settings.projectViews, [id]: { ...prefs, ...patch } });
   const g = store.get('group', id);
   if (!g) return <Empty title={tr('找不到这个项目')} hint={tr('可能已经删除了')} />;
-  const tasks: Task[] = store.tasks().filter((t) => t.group_id === id);
+  const tasks: Task[] = sortTasks(
+    store.tasks().filter((t) => t.group_id === id),
+    prefs.sort,
+    prefs.dir,
+  );
   const c = store.get('category', g.category_id);
   const open = tasks.filter((t) => !isFinished(t.status));
   const ended = tasks.filter((t) => isFinished(t.status));
   // 默认类型归档了照样生效、照常显示（Rei 2026-10-17）
   const defType = store.get('task_type', store.effectiveDefaultTypeId(g));
+  // 回车建到本项目（带项目的默认类型），马上打开；看板里新任务是「待办」，自然在待办列
+  const create = (text: string) => store.createTask({ body_md: text, group_id: g.id }).id;
   return (
-    <div className="page">
+    <div className={`page project-page is-${prefs.view}`}>
       <PageHeader
+        compact
         title={g.name}
         icon={<span className="page-emoji">{g.icon}</span>}
         subtitle={
@@ -151,31 +169,19 @@ export function GroupDetailPage({ id }: { id: string }) {
           </>
         }
         actions={
-          <Button variant="primary" onPress={() => ui.openQuickCreate({ group_id: g.id })}>
-            <Plus size={16} />
-            {tr('新建任务')}</Button>
+          <>
+            <ViewMenu view={prefs.view} onChange={(view) => setPrefs({ view })} />
+            <SortMenu field={prefs.sort} dir={prefs.dir} onChange={(sort, dir) => setPrefs({ sort, dir })} />
+          </>
         }
       />
-      <div className="filter-row">
-        <Segmented
-          label={tr('视图')}
-          value={view}
-          onChange={setView}
-          options={[
-            { id: 'list', label: <><List size={14} /> {tr('列表')}</> },
-            { id: 'cards', label: <><LayoutGrid size={14} /> {tr('卡片')}</> },
-            { id: 'graph', label: <><Network size={14} /> {tr('关系图')}</> },
-          ]}
-        />
-      </div>
-      {view === 'graph' ? (
-        <DependencyGraph store={store} tasks={tasks} height="min(560px, 64vh)" />
-      ) : view === 'cards' ? (
-        <div className="task-card-grid">
-          {tasks.map((t) => (
-            <TaskCard key={t.id} store={store} task={t} />
-          ))}
-        </div>
+      <QuickAddBar label={tr('添加任务到这个项目')} placeholder={tr('这个项目里要做什么？按回车添加')} create={create} />
+      {prefs.view === 'board' ? (
+        <ProjectBoard store={store} tasks={tasks} />
+      ) : prefs.view === 'timeline' ? (
+        <ProjectTimeline store={store} tasks={tasks} scale={prefs.scale} onScale={(scale) => setPrefs({ scale })} />
+      ) : prefs.view === 'chain' ? (
+        <ProjectChains store={store} groupId={g.id} tasks={tasks} />
       ) : (
         <>
           <div className="task-list plain">

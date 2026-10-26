@@ -23,9 +23,14 @@ export interface Settings {
    * 存打卡任务的 id，只记在本机，不同步，默认都收起。读写经 lib/habit-heatmap。
    */
   habitHeatmapOpen: string[];
+  /**
+   * 每个项目选的视图和排序（Rei 2026-10-26「每个项目的视图支持列表、看板、时间轴」）：项目 id → 视图 / 排序 / 正倒序 / 时间轴缩放。
+   * 只记在本机，不同步，不改项目的数据结构。读写经 lib/project-view 的 normalizePrefs（认不出的值、以前的关系图都回落成列表）。
+   */
+  projectViews: Record<string, unknown>;
 }
 
-const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false, habitHeatmapOpen: [] };
+const DEFAULTS: Settings = { skin: 'auto', theme: 'system', layout: 'auto', monthMarker: 'auto', taskChain: false, chineseLunar: false, habitHeatmapOpen: [], projectViews: {} };
 const KEY = 'mindough:settings';
 
 function load(): Settings {

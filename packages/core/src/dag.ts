@@ -226,10 +226,39 @@ export function taskChain(id: string, deps: readonly ChainEdge[], tasks?: readon
   const desc = walk(down);
   const nodes = new Set<string>([...anc, id, ...desc]);
   const inner = edges.filter((e) => nodes.has(e.pred_id) && nodes.has(e.succ_id));
-  // 层号 = 最长路径（Kahn 顺序上传递）；入队顺序按边出现的先后，结果稳定
+  const { topo, layers, level } = layerNodes(nodes, inner, [id]);
+  return {
+    id,
+    ids: topo,
+    ancestors: topo.filter((n) => anc.has(n)),
+    descendants: topo.filter((n) => desc.has(n)),
+    layers,
+    currentLayer: level.get(id)!,
+    edges: inner,
+  };
+}
+
+/**
+ * 给一组节点和它们之间的边排层（任务链和项目页「任务链」视图共用）：
+ * 层号 = 从最上游数过来最长的那条路（Kahn 顺序上传递）；入队顺序按边出现的先后，结果稳定。
+ * extra：没有边也要算进来的节点（排在 order 末尾）。万一有环，剩下的按出现顺序放到最后一层。
+ */
+function layerNodes(nodes: ReadonlySet<string>, inner: readonly Edge[], extra: readonly string[] = []): { topo: string[]; layers: string[][]; level: Map<string, number> } {
+  const down = new Map<string, string[]>();
+  for (const e of inner) (down.get(e.pred_id) ?? down.set(e.pred_id, []).get(e.pred_id)!).push(e.succ_id);
   const order: string[] = [];
-  for (const e of inner) for (const n of [e.pred_id, e.succ_id]) if (!order.includes(n)) order.push(n);
-  if (!order.includes(id)) order.push(id);
+  const seen = new Set<string>();
+  for (const e of inner)
+    for (const n of [e.pred_id, e.succ_id])
+      if (!seen.has(n)) {
+        seen.add(n);
+        order.push(n);
+      }
+  for (const n of extra)
+    if (!seen.has(n)) {
+      seen.add(n);
+      order.push(n);
+    }
   const indeg = new Map(order.map((n) => [n, 0]));
   for (const e of inner) indeg.set(e.succ_id, indeg.get(e.succ_id)! + 1);
   const level = new Map<string, number>();
@@ -247,8 +276,8 @@ export function taskChain(id: string, deps: readonly ChainEdge[], tasks?: readon
       if (d === 0) queue.push(s);
     }
   }
-  // 有环（不该发生）：剩下的按出现顺序放到最后一层
-  const rest = order.filter((n) => !topo.includes(n));
+  const placed = new Set(topo);
+  const rest = order.filter((n) => !placed.has(n));
   if (rest.length) {
     const last = topo.reduce((m, n) => Math.max(m, level.get(n) ?? 0), -1) + 1;
     for (const n of rest) level.set(n, last);
@@ -256,15 +285,106 @@ export function taskChain(id: string, deps: readonly ChainEdge[], tasks?: readon
   }
   const layers: string[][] = [];
   for (const n of topo) (layers[level.get(n)!] ??= []).push(n);
-  return {
-    id,
-    ids: topo,
-    ancestors: topo.filter((n) => anc.has(n)),
-    descendants: topo.filter((n) => desc.has(n)),
-    layers: layers.filter((l) => l?.length),
-    currentLayer: level.get(id)!,
-    edges: inner,
+  return { topo, layers: layers.filter((l) => l?.length), level };
+}
+
+// ───────── 项目页「任务链」视图（Rei 2026-10-26「添加另外一个视图：任务链」「把项目中的任务关系按照任务链排列」）─────────
+
+export interface ProjectChain {
+  /** 链上所有任务，拓扑顺序（先上游后下游）；含跨项目的前置 / 后续。 */
+  ids: string[];
+  /** 按层排，和详情「任务链」同一套算法（layerNodes）。 */
+  layers: string[][];
+  /** 链内部的前后关系。 */
+  edges: Edge[];
+}
+
+export interface ProjectChains {
+  chains: ProjectChain[];
+  /** 本项目里没有任何前后关系的任务（保持传入顺序）。 */
+  single: string[];
+}
+
+/**
+ * 把一个项目的任务按前后关系（FS 边）排成任务链：
+ * - 节点 = 项目里有前后关系的任务，加上它们所有的上游、下游（可以在别的项目里，链不断开）；
+ * - 这些节点按边连通的部分各成一条链（分叉 / 汇合留在同一条链里），链内用 layerNodes 排层；
+ * - 链的先后看链首：链里按依赖顺序排第一的本项目任务，它在 order（当前排序）里越靠前，链越靠前；
+ *   链内顺序只看依赖，不受排序影响；
+ * - 没有前后关系的项目任务放进 single。
+ * order：项目任务 id，已按当前排序排好。deps / tasks 同 taskChain（删掉的边、任务不算）。
+ */
+export function projectChains(order: readonly string[], deps: readonly ChainEdge[], tasks?: readonly TaskLike[] | ReadonlyMap<string, TaskLike>): ProjectChains {
+  const byId = tasks ? (tasks instanceof Map ? (tasks as ReadonlyMap<string, TaskLike>) : new Map((tasks as readonly TaskLike[]).map((t) => [t.id, t]))) : null;
+  const alive = (x: string) => !byId || (!!byId.get(x) && !byId.get(x)!.deleted);
+  const edges: Edge[] = [];
+  const seenEdge = new Set<string>();
+  for (const d of deps) {
+    if (d.deleted || d.pred_id === d.succ_id || !alive(d.pred_id) || !alive(d.succ_id)) continue;
+    const k = `${d.pred_id}>${d.succ_id}`;
+    if (seenEdge.has(k)) continue;
+    seenEdge.add(k);
+    edges.push({ pred_id: d.pred_id, succ_id: d.succ_id });
+  }
+  const down = new Map<string, string[]>();
+  const up = new Map<string, string[]>();
+  for (const e of edges) {
+    (down.get(e.pred_id) ?? down.set(e.pred_id, []).get(e.pred_id)!).push(e.succ_id);
+    (up.get(e.succ_id) ?? up.set(e.succ_id, []).get(e.succ_id)!).push(e.pred_id);
+  }
+  const own = order.filter(alive);
+  const linked = own.filter((id) => down.has(id) || up.has(id));
+  const single = own.filter((id) => !down.has(id) && !up.has(id));
+  // 所有上游、下游（传递）
+  const nodes = new Set<string>();
+  const walk = (start: string, adj: Map<string, string[]>) => {
+    const queue = [start];
+    while (queue.length) {
+      const n = queue.shift()!;
+      for (const m of adj.get(n) ?? [])
+        if (!nodes.has(m)) {
+          nodes.add(m);
+          queue.push(m);
+        }
+    }
   };
+  for (const id of linked) {
+    nodes.add(id);
+    walk(id, up);
+    walk(id, down);
+  }
+  const inner = edges.filter((e) => nodes.has(e.pred_id) && nodes.has(e.succ_id));
+  // 连通的部分（不分方向）
+  const adj = new Map<string, string[]>();
+  for (const e of inner) {
+    (adj.get(e.pred_id) ?? adj.set(e.pred_id, []).get(e.pred_id)!).push(e.succ_id);
+    (adj.get(e.succ_id) ?? adj.set(e.succ_id, []).get(e.succ_id)!).push(e.pred_id);
+  }
+  const comp = new Map<string, number>();
+  const chains: ProjectChain[] = [];
+  for (const id of linked) {
+    if (comp.has(id)) continue;
+    const ci = chains.length;
+    const members = new Set<string>([id]);
+    comp.set(id, ci);
+    const queue = [id];
+    while (queue.length) {
+      const n = queue.shift()!;
+      for (const m of adj.get(n) ?? [])
+        if (!comp.has(m)) {
+          comp.set(m, ci);
+          members.add(m);
+          queue.push(m);
+        }
+    }
+    const cEdges = inner.filter((e) => members.has(e.pred_id));
+    const { topo, layers } = layerNodes(members, cEdges);
+    chains.push({ ids: topo, layers, edges: cEdges });
+  }
+  const rank = new Map(own.map((id, i) => [id, i]));
+  const head = (c: ProjectChain) => rank.get(c.ids.find((n) => rank.has(n))!) ?? 0;
+  chains.sort((a, b) => head(a) - head(b));
+  return { chains, single };
 }
 
 // ───────── 任务链每一步的相对时间（Rei 2026-10-23：「每个步骤显示相对时间，而不是第几步」）─────────

@@ -55,22 +55,51 @@ export function ChainToggle({ isOn, onChange }: { isOn: boolean; onChange: (on: 
 
 /** 任务链（内联在详情「关系」里）。 */
 export function TaskChainInline({ store, task }: { store: Store; task: Task }) {
-  const ui = useUi();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const chain = useMemo(() => taskChain(task.id, store.edges(), store.list('task')), [task.id, store, store.version]);
-  // 我的一天：任务 id → 进过哪些天（没有日期的任务拿它当计划日期）
+  return <ChainSteps store={store} layers={chain.layers} edges={chain.edges} currentId={task.id} currentLayer={chain.currentLayer} />;
+}
+
+/** 我的一天：任务 id → 进过哪些天（没有日期的任务拿它当计划日期）。 */
+export function useMyDayDates(store: Store): Map<string, DateKey[]> {
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const myDay = useMemo(() => {
+  return useMemo(() => {
     const m = new Map<string, DateKey[]>();
     for (const e of store.list('my_day')) (m.get(e.task_id) ?? m.set(e.task_id, []).get(e.task_id)!).push(e.date);
     return m;
   }, [store, store.version]);
+}
+
+/**
+ * 一条任务链的竖排步骤：详情「任务链」和项目页「任务链」视图（Rei 2026-10-26）共用。
+ * currentId：详情里正在看的那件（标「这件」、不可点）；项目页不传。
+ * groupId：项目页传本项目 id，链上别的项目的任务标出所属项目。
+ */
+export function ChainSteps({
+  store,
+  layers,
+  edges,
+  currentId,
+  currentLayer,
+  groupId,
+  label,
+}: {
+  store: Store;
+  layers: string[][];
+  edges: readonly { pred_id: string; succ_id: string }[];
+  currentId?: string;
+  currentLayer?: number;
+  groupId?: string;
+  label?: string;
+}) {
+  const ui = useUi();
+  const myDay = useMyDayDates(store);
   const today = todayKey(store.now());
-  const tasks = chain.ids.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
+  const tasks = layers.flat().map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const done = tasks.filter((t) => t.status === '完成').length;
-  const predsIn = (id: string) => chain.edges.filter((e) => e.succ_id === id).map((e) => e.pred_id);
+  const predsIn = (id: string) => edges.filter((e) => e.succ_id === id).map((e) => e.pred_id);
   return (
-    <div className="chain" aria-label={tr('任务链')} role="group">
+    <div className="chain" aria-label={label ?? tr('任务链')} role="group">
       <div className="chain-summary">
         <span className="chain-progress" role="status">
           {tr('已完成 {done} / 共 {total}', { done, total: tasks.length })}
@@ -80,15 +109,15 @@ export function TaskChainInline({ store, task }: { store: Store; task: Task }) {
         </span>
       </div>
       <ol className="chain-layers">
-        {chain.layers.map((layer, li) => {
-          const prev = new Set(chain.layers[li - 1] ?? []);
+        {layers.map((layer, li) => {
+          const prev = new Set(layers[li - 1] ?? []);
           const layerTasks = layer.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
           const when = chainWhenLabel(chainStepWhen(layerTasks, today, { myDay }), today);
           return (
-            <li key={li} className={`chain-layer${li === chain.currentLayer ? ' is-current-layer' : ''}`}>
+            <li key={li} className={`chain-layer${li === currentLayer ? ' is-current-layer' : ''}`}>
               <div className="chain-rail" aria-hidden>
                 <span className="chain-node" />
-                {li < chain.layers.length - 1 && (
+                {li < layers.length - 1 && (
                   <span className="chain-line">
                     <ArrowDown size={12} strokeWidth={2.5} />
                   </span>
@@ -103,18 +132,22 @@ export function TaskChainInline({ store, task }: { store: Store; task: Task }) {
                   {layerTasks.map((t) => {
                     const id = t.id;
                     const st = stateOf(store, t);
-                    const current = id === task.id;
+                    const current = id === currentId;
                     const preds = predsIn(id);
                     // 接的不正好是上一层的全部（只接其中几件、或跨层接更早的）时，写清楚接在谁后面；正好是上一层全部时看连线就懂，不写
                     const showAfter = li > 0 && (preds.length !== prev.size || preds.some((p) => !prev.has(p)));
+                    const other = groupId !== undefined && t.group_id !== groupId ? store.get('group', t.group_id) : undefined;
+                    const otherNone = groupId !== undefined && !t.group_id;
                     return (
-                      <li key={id} className={`chain-card is-${st}${current ? ' is-current' : ''}`}>
+                      <li key={id} className={`chain-card is-${st}${current ? ' is-current' : ''}`} data-task-id={id}>
                         <RacButton className="chain-card-btn" onPress={() => !current && ui.openEditor(id)} aria-current={current ? 'true' : undefined}>
                           <StateDot state={st} />
                           <span className="chain-card-text">
                             <span className="chain-card-title">{titleOf(store, t)}</span>
                             <span className="chain-card-meta">
                               <span className="chain-state">{STATE_TEXT[st]()}</span>
+                              {other && <span className="chain-group">{tr('在「{name}」里', { name: other.name })}</span>}
+                              {otherNone && <span className="chain-group">{tr('不在项目里')}</span>}
                               {showAfter && preds.length > 0 && (
                                 <span className="chain-after">
                                   {tr('接在 {list} 后面', {

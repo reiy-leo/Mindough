@@ -30,6 +30,7 @@ import './styles/attachments.css';
 import './styles/lunar.css';
 import './styles/prop-chips.css';
 import './styles/settings.css';
+import './styles/project.css';
 import './skin/skins.css';
 
 // 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
