@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handle, type Env } from '../src/index';
 import { handleIcsProxy, icsTarget } from '../src/calendar';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const env = (): Env => ({ SESSION_SECRET: 'test-secret-0123456789', ALLOWED_EMAILS: 'reiy.leoz@gmail.com' });
 const ICS = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261023\r\nSUMMARY:霜降\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
 const proxy = (target: string, f: typeof fetch, fresh = false) => handleIcsProxy(new URL(`${ORIGIN}/api/calendar/ics?url=${encodeURIComponent(target)}${fresh ? '&fresh=1' : ''}`), f);

@@ -22,7 +22,7 @@
   - 只看不改不写回：没真改字就不调 onChange（`editor.ts` 的 controller）。
 - 依赖图：React Flow（xyflow）+ elkjs
 - ✅ 本地存储：原生 SQLite（rusqlite 命令层，src-tauri/src/db.rs）/ Web Turso database-wasm（OPFS），两边用同一份 schema 和迁移（packages/core/src/storage/schema.ts）
-- ✅ 同步：云端默认是 Turso Cloud 库 `mindough`（东京），也可用 Worker 环境变量 `STORAGE_BACKEND=d1` 换成 Cloudflare D1 库 `mindough`（存储层 `apps/server/src/sql.ts` / `storage.ts`，切换前跑 `pnpm --filter server storage:copy`，见 PLAN“云端存储：Turso / D1”）；客户端走 Worker 的 `/api/sync/*`，用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）。Worker `mindough`（`mindough.rei8t.dev`）管 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
+- ✅ 同步：云端默认是 Turso Cloud 库 `mindough`（东京），也可用 Worker 环境变量 `STORAGE_BACKEND=d1` 换成 Cloudflare D1 库 `mindough`（存储层 `apps/server/src/sql.ts` / `storage.ts`，切换前跑 `pnpm --filter server storage:copy`，见 PLAN“云端存储：Turso / D1”）；客户端走 Worker 的 `/api/sync/*`，用 core 的 outbox + 游标协议推拉（行级 LWW），没用 Turso Sync SDK（原因见 PLAN“同步引擎选型”）。Worker `mindough`（网页版和 API 在 `app.mindough.rei8t.dev`；`mindough.rei8t.dev` 根路径是介绍页，`/api`、`/auth` 照常留给老客户端，地址常量见 `apps/client/src/lib/origins.ts` 和 `apps/server/src/hosts.ts`）管 Google OAuth（Web + 原生 deep link）、同步 API、Web 静态资源；图片放 R2 `mindough-assets`
 - 包管理用 pnpm，测试用 Vitest
 
 ## 目录（M1 实际）

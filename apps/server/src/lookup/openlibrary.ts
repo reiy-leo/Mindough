@@ -15,7 +15,7 @@ const LABEL = 'Open Library';
 const BASE = 'https://openlibrary.org';
 const API = `${BASE}/search.json`;
 const FIELDS = 'key,title,subtitle,author_name,first_publish_year,number_of_pages_median';
-const HEADERS = { 'user-agent': 'Mindough/1.0 (https://mindough.rei8t.dev)', accept: 'application/json' };
+const HEADERS = { 'user-agent': 'Mindough/1.0 (https://app.mindough.rei8t.dev)', accept: 'application/json' };
 
 interface Doc {
   key?: string;

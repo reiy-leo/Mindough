@@ -4,6 +4,7 @@
 
 一个多端任务管理 app。任务之间用 FS 依赖（完成→开始）串起来，琐事记在一条 Agenda 式的时间线上。支持 macOS、Windows、iOS、Android 和 Web，数据先存在本机，再在各端之间同步。
 
+- 网页版：https://app.mindough.rei8t.dev（介绍页：https://mindough.rei8t.dev）
 - 产品说明：[docs/PRODUCT.md](docs/PRODUCT.md)
 - 计划与里程碑：[docs/PLAN.md](docs/PLAN.md)
 - 协作约定：[AGENTS.md](AGENTS.md)

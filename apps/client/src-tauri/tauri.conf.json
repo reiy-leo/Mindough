@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://mindough.rei8t.dev ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://app.mindough.rei8t.dev https://mindough.rei8t.dev ipc: http://ipc.localhost"
     }
   },
   "bundle": {

@@ -3,7 +3,7 @@ import { handle, type Env } from '../src/index';
 import { allowedDidaPath, handleDidaProxy } from '../src/dida';
 import { sign } from '../src/session';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const SECRET = 'test-secret-0123456789';
 const env = (): Env => ({ SESSION_SECRET: SECRET, ALLOWED_EMAILS: 'reiy.leoz@gmail.com' });
 const bearer = async () => `Bearer ${await sign({ sub: 's', email: 'reiy.leoz@gmail.com', name: 'Rei', picture: null, exp: Date.now() + 60_000 }, SECRET)}`;

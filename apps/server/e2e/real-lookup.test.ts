@@ -76,7 +76,7 @@ describe.skipIf(!on)('真实来源', () => {
       'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg',
       'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2902227445.jpg',
     ]) {
-      const res = await handle(new Request('https://mindough.rei8t.dev/api/lookup/image', { method: 'POST', headers: { authorization: auth }, body: JSON.stringify({ url }) }), { SESSION_SECRET, ALLOWED_EMAILS: 'e2e@mindough.test', FILES });
+      const res = await handle(new Request('https://app.mindough.rei8t.dev/api/lookup/image', { method: 'POST', headers: { authorization: auth }, body: JSON.stringify({ url }) }), { SESSION_SECRET, ALLOWED_EMAILS: 'e2e@mindough.test', FILES });
       const body = (await res.json()) as { size?: number; mime?: string; error?: string };
       console.log('image', url, res.status, body.mime, body.size, body.error ?? '');
       expect(res.status).toBe(200);

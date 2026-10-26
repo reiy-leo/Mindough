@@ -7,7 +7,7 @@ import { sha256b64url } from '../src/native';
 import type { AssetBucket } from '../src/assets';
 import { FakeTurso } from './fake-turso';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 let turso: FakeTurso;
 let env: Env;
 

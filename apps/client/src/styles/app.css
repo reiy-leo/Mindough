@@ -2584,6 +2584,13 @@ button {
   background: var(--surface);
   font-size: 14px;
 }
+.banner > svg,
+.banner > a {
+  flex: none;
+}
+.banner > a {
+  text-decoration: none;
+}
 .banner-error {
   border-color: color-mix(in srgb, var(--state-blocked) 45%, transparent);
   background: color-mix(in srgb, var(--state-blocked) 10%, var(--surface));

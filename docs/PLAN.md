@@ -5,10 +5,10 @@
 
 ## 技术方案
 - 平台（MVP 都要能用）：macOS、Windows、iOS、Android、Web。
-- 外壳：Tauri 2。一套 React 前端，同时打 macOS / Windows（顺带 Linux）、iOS、Android 的安装包；Web 端是同一份前端的浏览器版，部署在 `mindough.rei8t.dev`。
+- 外壳：Tauri 2。一套 React 前端，同时打 macOS / Windows（顺带 Linux）、iOS、Android 的安装包；Web 端是同一份前端的浏览器版，部署在 `app.mindough.rei8t.dev`（2026-10-26 起；`mindough.rei8t.dev` 是介绍页，见「网页版搬到 app 域名」）。
 - 前端：TypeScript + React + Vite；UI 用 headless 组件，每端配一套原生风格的皮肤（见“设计风格”）；浅色、深色跟着系统走。
 - 存储：数据先存本机，离线能用。原生端用 SQLite，Web 端用 SQLite WASM（存在 OPFS 里）。两端用同一套 schema；前端只写一层数据访问接口，底下按平台换驱动。
-- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；也可以换成 Cloudflare D1 库 `mindough`，用 Worker 环境变量 `STORAGE_BACKEND` 切（Rei 2026-10-17，见“云端存储：Turso / D1”）；客户端只跟 Worker（同域 `mindough.rei8t.dev/api/sync`）打交道，Worker 用 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端先开系统浏览器登录，再用 deep link 跳回 app。见“多端同步怎么做”。
+- 同步（M2 ✅）：云端数据存在 Turso Cloud（数据库 `mindough`，org rei8，东京 aws-ap-northeast-1）；也可以换成 Cloudflare D1 库 `mindough`，用 Worker 环境变量 `STORAGE_BACKEND` 切（Rei 2026-10-17，见“云端存储：Turso / D1”）；客户端只跟 Worker（同域 `app.mindough.rei8t.dev/api/sync`；老客户端还连 `mindough.rei8t.dev/api/sync`，两个域名是同一个 Worker）打交道，Worker 用 Hrana HTTP 读写 Turso；图片放 R2（`mindough-assets`）。登录用 Google OAuth；原生端先开系统浏览器登录，再用 deep link 跳回 app。见“多端同步怎么做”。
 - Markdown 编辑：Tiptap 3（所见即所得，支持任务清单、代码块；2026-10-16 起先用 Milkdown 7，2026-10-25 换成 Tiptap），原文存成 .md 文本。
 - 依赖图：React Flow（xyflow）画图 + elkjs 自动分层布局。
 
@@ -304,7 +304,7 @@ M0 实现时定下的细节（Rei 2026-10-15 已确认）：
    - ✅ 修：列表里 Tab 让焦点跑出编辑器（Rei 2026-10-17「ul ol 还是用 tab 缩进会 unfocus 整个编辑器」）：缩进其实做了（Milkdown 列表 keymap 的 Tab → sinkListItem），但详情是弹层，React Aria FocusScope（contain）在 document 上自己接 Tab 挪焦点，不看 defaultPrevented；happy-dom 单测里没有弹层所以测不出来。改为编辑器根节点上拦下 Tab 的冒泡（preventDefault + stopPropagation），测试里断言 document 收不到 Tab。
    - 去掉了备注标签旁的「支持 Markdown」小字（写的时候就是排好的样子，用不着说）；新建面板的 ? 提示改成「直接这样写，会自动排好版：」。
    - 修：详情第一行的标题样式漏到了整段（`.detail-md > :first-child` 套到了编辑器外壳上），小标题比正文大一点（h1 19 / h2 17）。
-   - ✅ 网络图片不渲染（Rei 2026-10-17：「编辑器的网络插图」「编辑器不渲染网络图片」；先误解成去掉资料图片框的「粘贴图片链接」，Rei 澄清后改回，那个照留）：判断在 `lib/remote-image.ts`（http(s) 和 `//` 开头算网络图片；`data:` / `blob:` / 相对路径 / `https://mindough.rei8t.dev/api/assets/…` 和同源的 `/api/assets/` 是自己的图，照常显示）。编辑器里覆盖 image 节点视图（`components/editor/remote-image.ts`，`$view`）渲染成 `span.md-remote-image`（alt，没有就网址；title 是网址），不建 `<img>`；只读预览（`lib/markdown.ts` 的 marked image 渲染器）同样处理（编辑器加载前的占位也是它）。markdown 原文不动，往返一致；粘贴 markdown / HTML 也不加载（ProseMirror 和 Milkdown 剪贴板都在惰性文档 / template 里解析）。不迁移旧数据；导出时正文里的网络图片仍照旧去取回打包（`remoteImageUrls`），没改。
+   - ✅ 网络图片不渲染（Rei 2026-10-17：「编辑器的网络插图」「编辑器不渲染网络图片」；先误解成去掉资料图片框的「粘贴图片链接」，Rei 澄清后改回，那个照留）：判断在 `lib/remote-image.ts`（http(s) 和 `//` 开头算网络图片；`data:` / `blob:` / 相对路径 / `https://app.mindough.rei8t.dev/api/assets/…`、旧的 `https://mindough.rei8t.dev/api/assets/…` 和同源的 `/api/assets/` 是自己的图，照常显示）。编辑器里覆盖 image 节点视图（`components/editor/remote-image.ts`，`$view`）渲染成 `span.md-remote-image`（alt，没有就网址；title 是网址），不建 `<img>`；只读预览（`lib/markdown.ts` 的 marked image 渲染器）同样处理（编辑器加载前的占位也是它）。markdown 原文不动，往返一致；粘贴 markdown / HTML 也不加载（ProseMirror 和 Milkdown 剪贴板都在惰性文档 / template 里解析）。不迁移旧数据；导出时正文里的网络图片仍照旧去取回打包（`remoteImageUrls`），没改。
    - ✅ GitHub 扩展语法（Rei 2026-10-17 截图：引用块里原样显示「[!NOTE]」和「$O(n)$」）。编辑器 `components/editor/gh-syntax.ts`，只读 `lib/markdown.ts`，共用 `lib/gh-alerts.ts`（标记、标题、图标）、`lib/math.ts`（KaTeX 加载、GitHub 公式规则）。markdown 原文不变：
      - 提示块 `> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`（大小写不敏感、标记独占第一行，同 GitHub）：编辑器里是 `gh_alert` 节点（attrs kind + marker 原样大小写；标题图标不可编辑），remark 读入时把引用块改成 ghAlert，写出还原成引用块、标记用 html 节点原样输出（不被转义成 `\[`），和下一块之间不空行（toMarkdown join）。旧编辑器把 `[!NOTE]` 存成了 `\[!NOTE]`，两边都照样认，编辑器写回时改成 `[!NOTE]`。手打：`> ` 变引用后打 `[!note]`，打完 `]` 就是提示块。标题中英：注意 Note / 提示 Tip / 重要 Important / 警告 Warning / 小心 Caution；颜色是每个皮肤 × 明暗的 `--alert-*` 令牌，Apple / Material 整块浅色圆角、WinUI 细边框（skins.css），通用是左色带。
      - 数学公式 KaTeX 0.19（JS、CSS、字体都打包在应用里，不走 CDN；只读显示里用到才按需加载，没加载完先显示源码）：行内 `$…$` / `$$…$$`、块级 `$$` 独占行、```math。是不是公式按 GitHub 规则：开头 $ 后紧跟非空白、结尾 $ 前非空白、结尾 $ 后不是数字——「$5 和 $10」「$5和$10」「$ x $」都不算。编辑器读入用 micromark-extension-math，再按这条规则把不像公式的还原成文字；只读用自写的 marked 扩展，配对方式和 micromark 一样（不成立的那一对整段当文字，后面那个 $ 不再拿去开头），两边结果一致。写出：文字里的 $ 不转义（以前的「$5」不会变成「\$5」），只有读回来会被当成公式的那一对才加反斜杠；行内公式照原来的 $ 个数。编辑器里 `math_inline` / `math_block` 节点存源码，平时显示 KaTeX，光标进去（点它；←/→、退格挨着它）显示源码可改、块级下面实时预览；手打 `$x$` 收尾即变，紧接着打数字（`$5$1`）变回文字；一行 `$$` 回车（或 `$$ `）开公式块，块里最后一行打 `$$` 回车结束；光标离开时空的行内公式删掉。
@@ -947,6 +947,19 @@ Rei 2026-10-26 18:54 原话：「侧边栏的：管理-人物入口删掉」（1
 - 侧栏那一项不跟库的颜色走，图标和别的入口一样是灰的。
 - 手机上在库里时，顶栏标题是库名。
 
+### 网页版搬到 app 域名，旧域名留给介绍页 ✅（2026-10-26）
+Rei 2026-10-26 19:12：「那就把app搬到 app.mindough.rei8t.dev，mindough.rei8t.dev留给介绍页」。
+
+- 同一个 Worker `mindough` 挂两个 custom domain。`app.mindough.rei8t.dev` 出网页版和全部 API；`mindough.rei8t.dev` 根路径出介绍页（`apps/server/src/landing/`）。地址常量：Worker 在 `src/hosts.ts`，客户端在 `src/lib/origins.ts`，原生端（Tauri 桌面、Android、iOS）默认连 app 域名；Tauri CSP 两个地址都放行。
+- 旧域名的 `/api/*`、`/auth/*` 不跳转、照常服务。原因：老的 alpha.5 桌面 / 安卓包写死了旧地址，POST 遇到 308 要重发、预检也可能被拦；Google 登录的回调地址要和控制台登记的一致，旧地址的登记还在；正文里存的图片地址是 `https://mindough.rei8t.dev/api/assets/…`，这个地址得一直能打开。新上传的图片用请求的域名，所以以后是 app 域名。
+- 旧链接：介绍页的脚本看到 `#/…`、`?task=` 这类 app 地址，或者是从主屏幕打开的旧 PWA，就 `location.replace` 到 app 域名同一路径。
+- 本机数据：网页端数据在浏览器 OPFS 里，按域名隔离，新域名一开始是空的。登录过、同步完的，到新域名登录就同步回来。没登录过的会留在旧域名。所以介绍页先看这个浏览器在旧域名有没有本机数据（OPFS 里 app 的库，或更早的 localStorage 数据）；有就先显示「网页版搬到了新地址」的提示，不自动跳。提示里两个按钮：「在旧地址导出备份」打开 `https://mindough.rei8t.dev/local/#/settings/data`（旧域名其他路径照旧出 app，顶上有一条不能关的提示），「已同步，去新地址」记下已确认、以后不再拦。
+- 旧 PWA：scope 在旧域名，没法原地搬到新域名，要重新装。旧域名的 `/sw.js` 换成「清缓存、注销自己」的版本，免得缓存里的旧外壳顶替介绍页；从主屏幕打开旧版时，第一次显示提示（含「请重新添加到主屏幕」），之后直接跳 app 域名。
+- 新域名不用改 manifest / sw.js / Cookie：manifest 的 id、start_url、scope 都是相对的 `/`；会话 Cookie 不带 Domain，只认当前域名；COOP / COEP 照旧由 Worker 加；Google 回调地址按请求的域名生成。
+- 介绍页：中英两种，按浏览器语言，右上角能切；图标和名字、一句话介绍、五条功能、「打开网页版」、GitHub Releases 下载提示。以后换更完整的介绍页，只换 `landing/page.ts`（或按「app 的网站单独建 `<仓库名>-web` 仓库」的约定另起 Mindough-web，再让旧域名的 `/api`、`/auth` 走 service binding 回这个 Worker），搬家脚本那段要留着。
+
+待 Rei 做：Google Cloud 控制台给 OAuth 客户端加重定向 URI `https://app.mindough.rei8t.dev/auth/callback`（旧的别删）；装过旧 PWA 的设备重新安装。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
@@ -958,7 +971,7 @@ Rei 2026-10-26 18:54 原话：「侧边栏的：管理-人物入口删掉」（1
 
 ## 工程默认
 - 名字：英文 Mindough、中文「念头团」（Rei 2026-10-24 定、10-25 中文名由「思想团」改为「念头团」；做法见上面「App 名字」）；仓库 reiy-leo/mindough，分支 main，MIT
-- Web 与同步 API：Cloudflare Worker `mindough`，域名 `mindough.rei8t.dev`
+- Web 与同步 API：Cloudflare Worker `mindough`，域名 `app.mindough.rei8t.dev`；`mindough.rei8t.dev` 是介绍页（API 照常能用）
 - AGENTS.md（+ CLAUDE.md 指向）、.agents/、docs/PRODUCT.md
 - GitHub Actions 打 macOS / Windows / Android 包发布到 Releases；iOS 需 Apple 开发者账号签名（待定）
 - 每轮完成后 commit + push

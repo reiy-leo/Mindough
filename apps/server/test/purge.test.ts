@@ -11,7 +11,7 @@ import { DAY_MS, FRESH_UPLOAD_MS, fileKeysIn, hlcMs, purgeOrphans, purgeTiming, 
 import type { AssetBucket, R2Object } from '../src/assets';
 import { FakeTurso } from './fake-turso';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const REI = 'reiy.leoz@gmail.com';
 const OTHER = 'other@example.com';
 const NOW = Date.UTC(2026, 9, 25, 19, 0, 0);

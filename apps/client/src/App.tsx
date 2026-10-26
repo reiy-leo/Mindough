@@ -31,6 +31,7 @@ import { TaskComposer } from './components/task/TaskComposer';
 import { CommandPalette } from './components/CommandPalette';
 import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
+import { MovedBanner } from './components/MovedBanner';
 import { ReminderHost } from './components/ReminderHost';
 import { useLunarSubScheduler } from './lib/lunar';
 import { MenuAt, Tip, useContextMenuAt } from './ui/primitives';
@@ -438,6 +439,7 @@ export function App() {
           <main className="main">
             <div className="titlebar-space" data-tauri-drag-region aria-hidden />
             <div className="main-scroll">
+              <MovedBanner />
               <LoginErrorBanner />
               {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
             </div>
@@ -464,6 +466,7 @@ export function App() {
           </RacButton>
         </div>
         <main className="main">
+          <MovedBanner />
           <LoginErrorBanner />
           {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
         </main>

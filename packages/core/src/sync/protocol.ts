@@ -34,7 +34,7 @@ export interface PullResult {
 
 /** 同步凭据（POST /api/sync/token）。 */
 export interface SyncToken {
-  /** 同步接口的基址，如 https://mindough.rei8t.dev/api/sync */
+  /** 同步接口的基址，如 https://app.mindough.rei8t.dev/api/sync */
   url: string;
   token: string;
   /** ISO 时间；过期前客户端重新取。 */

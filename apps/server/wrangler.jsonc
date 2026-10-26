@@ -6,7 +6,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
-  "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
+  // app.mindough.rei8t.dev 是网页版 app 和 API；mindough.rei8t.dev 根路径是介绍页，/api、/auth 照常（Rei 2026-10-26，见 src/hosts.ts）
+  "routes": [
+    { "pattern": "app.mindough.rei8t.dev", "custom_domain": true },
+    { "pattern": "mindough.rei8t.dev", "custom_domain": true }
+  ],
   "assets": {
     "directory": "../client/dist",
     "binding": "ASSETS",

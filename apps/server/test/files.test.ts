@@ -4,7 +4,7 @@ import { sign } from '../src/session';
 import type { AssetBucket, R2Object } from '../src/assets';
 import { MAX_FILE_BYTES, cleanMime, contentDisposition, ownerHash } from '../src/files';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const SECRET = 'test-secret-0123456789';
 
 class MemBucket implements AssetBucket {

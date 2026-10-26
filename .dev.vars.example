@@ -1,6 +1,6 @@
 # 复制为 apps/server/.dev.vars（不要提交），给 `pnpm --filter server dev`（http://localhost:8787）用。
 # Google Cloud Console → OAuth 客户端（Web 应用）→ 已获授权的重定向 URI 加：
-#   http://localhost:8787/auth/callback 与 https://mindough.rei8t.dev/auth/callback
+#   http://localhost:8787/auth/callback、https://app.mindough.rei8t.dev/auth/callback 与 https://mindough.rei8t.dev/auth/callback
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 # 随机长串，签会话 cookie 用：openssl rand -base64 32

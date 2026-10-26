@@ -11,8 +11,9 @@ import { useSyncExternalStore } from 'react';
 import { isTauri } from '../store/sqlite-tauri';
 
 import { tr } from './i18n';
-/** 线上 Worker。 */
-export const SERVER_ORIGIN = 'https://mindough.rei8t.dev';
+import { SERVER_ORIGIN } from './origins';
+/** 线上 Worker（地址写在 lib/origins.ts）。 */
+export { SERVER_ORIGIN };
 
 /** API 基址：Web 端同源（''，本地 vite 开发经 proxy 转到 wrangler dev :8787）；原生端直连线上 Worker。 */
 export const API_BASE: string = import.meta.env.VITE_API_BASE ?? (isTauri() ? SERVER_ORIGIN : '');

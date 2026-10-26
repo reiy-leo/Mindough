@@ -1,5 +1,5 @@
 /**
- * Mindough Worker：Google 登录（Web + 原生端 deep link）、农历订阅代拉（calendar.ts）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、滴答清单导入代理（dida.ts）、Web 静态资源。
+ * Mindough Worker：Google 登录（Web + 原生端 deep link）、介绍页（旧域名根路径，landing/）、农历订阅代拉（calendar.ts）、同步 API（Turso Cloud，或 STORAGE_BACKEND=d1 时 Cloudflare D1）、图片与附件（R2）、在线找资料（lookup/）、滴答清单导入代理（dida.ts）、Web 静态资源。
  * 状态码都带中文说明，如 401 未登录、403 无权限。
  */
 import { serveFromR2, type R2Like } from './static-r2';
@@ -14,6 +14,8 @@ import { handleDidaProxy } from './dida';
 import { purgeAfterPush, purgeOrphans, type PurgeBucket } from './purge';
 import { openDb, storageBackend } from './storage';
 import type { LookupEnv } from './lookup/types';
+import { isLegacyHost } from './hosts';
+import { serveLanding, serveLegacySw } from './landing';
 
 export interface Env extends SyncEnv, AssetEnv, LookupEnv {
   /** wrangler assets 绑定（apps/client/dist）；本地单测里没有。 */
@@ -121,6 +123,12 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
   if (pathname.startsWith('/api/dida/')) return handleDidaProxy(request, env, url);
 
   if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) return json({ error: '404 未找到' }, 404);
+  // 旧域名 mindough.rei8t.dev 留给介绍页（Rei 2026-10-26）：根路径出介绍页，/sw.js 换成注销自己的版本；
+  // 上面的 /api/*、/auth/* 照常（老客户端和旧图片地址还连这里），其他路径照旧出 app（/local/ 用来导出本机数据）。
+  if (isLegacyHost(url) && (method === 'GET' || method === 'HEAD')) {
+    if (pathname === '/' || pathname === '/index.html') return serveLanding(request);
+    if (pathname === '/sw.js') return serveLegacySw();
+  }
   if (env.ASSETS) return env.ASSETS.fetch(request);
   if (env.WEB) return serveFromR2(request, env.WEB);
   void url;

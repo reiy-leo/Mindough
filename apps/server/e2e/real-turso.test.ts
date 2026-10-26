@@ -23,7 +23,7 @@ describe.skipIf(!url || !tokenFile)('真实 Turso：两台设备同步一件任�
     TURSO_DB_URL: url,
     TURSO_DB_TOKEN: tokenFile ? readFileSync(tokenFile, 'utf8').trim() : '',
   };
-  const ORIGIN = 'https://mindough.rei8t.dev';
+  const ORIGIN = 'https://app.mindough.rei8t.dev';
 
   async function transport(): Promise<SyncTransport> {
     const session = await sign({ sub: 'e2e', email: EMAIL, name: 'E2E', picture: null, exp: Date.now() + 600_000 }, env.SESSION_SECRET!);

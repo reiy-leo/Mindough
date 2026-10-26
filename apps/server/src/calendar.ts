@@ -56,7 +56,7 @@ export async function handleIcsProxy(url: URL, fetcher: typeof fetch = fetch): P
   let res: Response;
   try {
     res = await fetcher(target.toString(), {
-      headers: { accept: 'text/calendar, text/plain;q=0.9, */*;q=0.5', 'user-agent': 'Mindough/1.0 (+https://mindough.rei8t.dev)' },
+      headers: { accept: 'text/calendar, text/plain;q=0.9, */*;q=0.5', 'user-agent': 'Mindough/1.0 (+https://app.mindough.rei8t.dev)' },
       redirect: 'follow',
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

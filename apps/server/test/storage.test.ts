@@ -16,7 +16,7 @@ import { DbError, type SqlDb } from '../src/sql';
 import { issueNativeCode, sha256b64url } from '../src/native';
 import { FakeTurso } from './fake-turso';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 let mf: Miniflare;
 let n = 0;
 

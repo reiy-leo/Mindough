@@ -22,7 +22,7 @@ describe('云端存在哪（设置 → 账户，只读）', () => {
 
   it('数据流向说明两种语言都有，库名填进去', () => {
     const key =
-      '改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）核对是你本人，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。';
+      '改动先存在这台设备上。用 Google 登录后，Worker（app.mindough.rei8t.dev）核对是你本人，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。';
     setLocale('zh');
     expect(tr(key, { storage: cloudStorageName('turso') })).toContain('核对是你本人，把改动存进 Turso（东京）；你的其他设备也经 Worker 同步');
     setLocale('en');

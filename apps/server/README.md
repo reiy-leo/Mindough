@@ -1,6 +1,11 @@
 # apps/server — Mindough Worker
 
-Cloudflare Worker `mindough`，域名 `mindough.rei8t.dev`（`workers_dev: false`，custom domain）。已部署（M2，2026-10-15）。
+Cloudflare Worker `mindough`，两个 custom domain（`workers_dev: false`）：
+
+- `app.mindough.rei8t.dev`：网页版 app 和全部 API（2026-10-26 起的默认地址）。
+- `mindough.rei8t.dev`：根路径是介绍页（`src/landing/`），`/sw.js` 换成注销自己的版本；`/api/*`、`/auth/*` 照常（老的 alpha.5 包和正文里旧的图片地址还连这里），其他路径照旧出 app，`/local/` 用来在旧地址导出本机数据。
+
+地址常量在 `src/hosts.ts`（客户端在 `apps/client/src/lib/origins.ts`）。已部署（M2，2026-10-15）。
 
 | 路径 | 说明 |
 |---|---|
@@ -21,7 +26,7 @@ login_error 代码：config_missing、access_denied、state_mismatch、token_exc
 
 环境变量（`.dev.vars` / `wrangler secret put`）：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、SESSION_SECRET、ALLOWED_EMAILS（逗号分隔；空 = 拒绝所有）、APP_ORIGINS（允许跳回 / CORS 的其他源，如 http://localhost:1420）、TURSO_DB_URL、TURSO_DB_TOKEN（同步数据库；token 只放 Worker 密钥）。绑定：R2 `WEB`（mindough-web，线上静态文件）、R2 `FILES`（mindough-assets，图片）。
 
-Google Cloud OAuth 客户端的重定向 URI：`https://mindough.rei8t.dev/auth/callback`、`http://localhost:8787/auth/callback`。
+Google Cloud OAuth 客户端的重定向 URI：`https://app.mindough.rei8t.dev/auth/callback`（2026-10-26 加）、`https://mindough.rei8t.dev/auth/callback`（老客户端还用，别删）、`http://localhost:8787/auth/callback`。
 
 单测：`pnpm --filter server test`（模拟 Google 的 fetch）。
 
@@ -30,7 +35,7 @@ Google Cloud OAuth 客户端的重定向 URI：`https://mindough.rei8t.dev/auth/
 本地开发：`pnpm --filter server dev`（需要 `.dev.vars`，参考仓库根的 `.dev.vars.example`）。
 
 ## 线上部署（2026-10-15 起）
-- 地址：https://mindough.rei8t.dev（Worker 名 mindough，custom domain）。
+- 地址：https://app.mindough.rei8t.dev（Worker 名 mindough，custom domain）；https://mindough.rei8t.dev 是介绍页。
 - Hark 的 API Token 网关下 wrangler 静态资源上传会 401 未授权，所以线上用 `wrangler.deploy.jsonc`：Web 端 `apps/client/dist` 放 R2 桶 `mindough-web`，Worker（`src/static-r2.ts`）读出并加 COOP / COEP。
 - 一键：`pnpm --filter server deploy`（先构建 client，再 `scripts/upload-web.sh` 上传，再 `wrangler deploy -c wrangler.deploy.jsonc`）。
 - 已设密钥：SESSION_SECRET、ALLOWED_EMAILS（reiy.leoz@gmail.com）、TURSO_DB_URL、TURSO_DB_TOKEN（2026-10-15）。GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET 由 Rei 在控制台配好（2026-10-15），`keep_vars: true` 保证部署时不被清掉。

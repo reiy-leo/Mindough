@@ -679,8 +679,8 @@ function DataFlowRow({ signedIn, storage }: { signedIn: boolean; storage: CloudS
         <div className="setting-name">{signedIn ? tr('数据存在：这台设备 + {storage}', { storage: name }) : tr('登录后数据怎么走')}</div>
         <div className="setting-hint">
           {signedIn
-            ? tr('改动先存在这台设备上。Worker（mindough.rei8t.dev）核对是你本人以后，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })
-            : tr('改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）核对是你本人，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })}
+            ? tr('改动先存在这台设备上。Worker（app.mindough.rei8t.dev）核对是你本人以后，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })
+            : tr('改动先存在这台设备上。用 Google 登录后，Worker（app.mindough.rei8t.dev）核对是你本人，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })}
         </div>
         <div className="data-flow-box">
           <div className="data-flow" role="group" aria-label={tr('数据流向')}>

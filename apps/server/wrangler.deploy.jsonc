@@ -6,7 +6,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
-  "routes": [{ "pattern": "mindough.rei8t.dev", "custom_domain": true }],
+  // app.mindough.rei8t.dev 是网页版 app 和 API；mindough.rei8t.dev 根路径是介绍页，/api、/auth 照常（Rei 2026-10-26，见 src/hosts.ts）
+  "routes": [
+    { "pattern": "app.mindough.rei8t.dev", "custom_domain": true },
+    { "pattern": "mindough.rei8t.dev", "custom_domain": true }
+  ],
   "r2_buckets": [
     { "binding": "WEB", "bucket_name": "mindough-web" },
     // 用户上传的图片（/api/assets）和附件（/api/files）

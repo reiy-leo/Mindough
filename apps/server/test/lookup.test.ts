@@ -7,7 +7,7 @@ import { parseDoubanRexxar, parseDoubanSubject } from '../src/lookup/douban';
 import { steamPlatforms } from '../src/lookup/steam';
 import type { AssetBucket, R2Object } from '../src/assets';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const SECRET = 'test-secret-0123456789';
 const V3 = '0123456789abcdef0123456789abcdef';
 const V4 = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJ4In0.c2lnbmF0dXJl';

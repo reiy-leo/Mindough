@@ -11,6 +11,9 @@ describe('网络图片的判断（Rei 2026-10-17）', () => {
     expect(isRemoteImage('https://mindough.rei8t.dev/other.png')).toBe(true);
     expect(isRemoteImage('https://evil.com/api/assets/a.png')).toBe(true);
     expect(isRemoteImage('https://mindough.rei8t.dev/api/assets/u/1.webp')).toBe(false);
+    // 搬到 app 域名后（Rei 2026-10-26），新旧两个地址的 /api/assets/ 都算自己的图
+    expect(isRemoteImage('https://app.mindough.rei8t.dev/api/assets/u/1.webp')).toBe(false);
+    expect(isRemoteImage('https://app.mindough.rei8t.dev/x.png')).toBe(true);
     expect(isRemoteImage('data:image/png;base64,AAAA')).toBe(false);
     expect(isRemoteImage('blob:https://x/1')).toBe(false);
     expect(isRemoteImage('/api/assets/u/1.webp')).toBe(false);

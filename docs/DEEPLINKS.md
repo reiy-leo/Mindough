@@ -35,7 +35,7 @@
 
 - id 都用任务 / 资料本来的 uuid；找不到就打开 app，提示「找不到这件任务」，不报错。
 - app 没开时点链接：先启动 app，等数据库打开再执行。
-- Web 端用同样的路径，写成 https://mindough.rei8t.dev/#/task/{id} 这样的 hash 路由。以后要做 Universal Links / App Links（点 https 链接直接打开 app），到时再单独审。
+- Web 端用同样的路径，写成 https://app.mindough.rei8t.dev/#/task/{id} 这样的 hash 路由。旧地址 https://mindough.rei8t.dev/#/… 的链接还能点：介绍页会跳到 app 域名的同一路径（2026-10-26 起）。以后要做 Universal Links / App Links（点 https 链接直接打开 app），到时再单独审。
 - 中文参数要 URL 编码（快捷指令会自动做）。
 
 关系图页删掉以后（Rei 2026-10-23），旧链接 `mindough://view/graph` 打开默认页「我的一天」，不提示写错；Web 的旧地址 `#/graph` 也打开我的一天。2026-10-26 项目页里的关系图视图也删了（Rei「关系图完全去掉」）：项目页从来没有选视图的地址参数，`#/groups/{id}` 打开时用这台设备上次给这个项目选的视图，以前存的「关系图」读出来是列表。

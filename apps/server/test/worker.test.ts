@@ -3,7 +3,7 @@ import { handle, type Env } from '../src/index';
 import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL, safeReturnTo, withLoginError } from '../src/auth';
 import { sign, verify } from '../src/session';
 
-const ORIGIN = 'https://mindough.rei8t.dev';
+const ORIGIN = 'https://app.mindough.rei8t.dev';
 const env: Env = {
   GOOGLE_CLIENT_ID: 'cid',
   GOOGLE_CLIENT_SECRET: 'csecret',
