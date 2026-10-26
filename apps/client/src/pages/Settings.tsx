@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from 'react';
-import { AlertCircle, Bell, ChevronLeft, ChevronRight, CircleUser, CloudCheck, CloudOff, Database, Laptop, ListTodo, LogIn, LogOut, MonitorSmartphone, Palette, RefreshCw, Settings as SettingsIcon, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { AlertCircle, ArrowLeftRight, Bell, ChevronLeft, ChevronRight, CircleUser, CloudCheck, CloudOff, Database, Info, Laptop, NotebookPen, ListTodo, LogIn, LogOut, MonitorSmartphone, Palette, RefreshCw, Settings as SettingsIcon, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { href, isSettingsSection, navigate, useRoute, type SettingsSection } from '../lib/router';
 import { focusMainWindow, isSettingsWindow, SETTINGS_NAV_EVENT } from '../lib/windows';
 import { relay } from '../lib/window-relay';
@@ -24,6 +24,7 @@ import { storageInfo, useNow, useStore } from '../store/StoreProvider';
 
 import { appName, getLocale, LOCALE_NAMES, LOCALES, tr, trc } from '../lib/i18n';
 import tmdbLogo from '../assets/tmdb-logo.svg';
+import { versionLabel } from '../lib/version';
 import { useLocalePref } from '../lib/locale';
 import { exportToZip } from '../lib/archive';
 
@@ -31,24 +32,28 @@ const ArchiveImportSheet = lazy(() => import('../components/ArchiveImport').then
 import type { LocalePref } from '../lib/i18n';
 
 /**
- * 设置分成五项（Rei 2026-10-26「设置在桌面端做成一个单独的窗口，设置窗口侧边栏：账户、外观」，补充「数据、提醒、任务」，
- * 又说「农历、类型、日记这三个可以放在一个」）：
+ * 设置分成七项（Rei 2026-10-26「设置在桌面端做成一个单独的窗口，设置窗口侧边栏：账户、外观」，补充「数据、提醒、任务」，
+ * 又说「农历、类型、日记这三个可以放在一个」；同一天又说「这个页面的底部的关于念头团的说明，可以放在一个单独的选项卡：关于」「设置中日记单独一个tab」）：
  * - 账户：登录、同步状态、数据怎么走
  * - 外观：皮肤、语言、明暗、布局、热力图每月 1 号标记
- * - 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据、关于
+ * - 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据
  * - 提醒：提醒通知开关（这台设备）、什么时候提醒
- * - 任务：类型、日记（一天从几点开始、每天提醒写日记）、农历
+ * - 任务：类型、农历
+ * - 日记：一天从几点开始、每天提醒写日记
+ * - 关于：图标、名字、版本号、一句说明、第三方数据署名（TMDB）
  * 桌面 app（Tauri）里设置是单独的窗口（SettingsWindow，?window=settings）；Web 和手机是页面：
- * 宽屏左边一列五项、右边内容；窄屏先列出五项，点进去整页推入，左上角返回。
+ * 宽屏左边一列七项、右边内容；窄屏先列出七项，点进去整页推入，左上角返回。
  */
 type SettingsItem = { id: SettingsSection; icon: LucideIcon; label: () => string; hint: () => string };
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
   { id: 'account', icon: CircleUser, label: () => tr('账户'), hint: () => tr('登录与同步') },
   { id: 'appearance', icon: Palette, label: () => tr('外观'), hint: () => tr('皮肤、语言、明暗、布局') },
-  { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储、关于') },
+  { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储') },
   { id: 'reminders', icon: Bell, label: () => trc('设置分区', '提醒'), hint: () => tr('任务提醒的通知') },
-  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、日记、农历') : tr('类型、日记')) },
+  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、农历') : tr('类型和字段')) },
+  { id: 'journal', icon: NotebookPen, label: () => tr('日记'), hint: () => tr('一天从几点开始、每天提醒写日记') },
+  { id: 'about', icon: Info, label: () => tr('关于'), hint: () => tr('版本、数据来源') },
 ];
 
 const itemOf = (id: SettingsSection) => SETTINGS_ITEMS.find((i) => i.id === id)!;
@@ -83,14 +88,17 @@ function SectionBody({ id }: { id: SettingsSection }) {
       return (
         <>
           <TypesSection />
-          <JournalSection />
           <LunarSection />
         </>
       );
+    case 'journal':
+      return <JournalSection />;
+    case 'about':
+      return <AboutSection />;
   }
 }
 
-/** 左边那一列（宽屏页面和设置窗口共用）：↑ ↓ 在五项之间换。 */
+/** 左边那一列（宽屏页面和设置窗口共用）：↑ ↓ 在七项之间换。名字太长就截断加省略号，整列不左右滚（Rei 2026-10-26「设置的侧边栏禁止左右滚动」）。 */
 function SettingsNav({ current }: { current: SettingsSection }) {
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
@@ -119,7 +127,7 @@ function SettingsNav({ current }: { current: SettingsSection }) {
             <span className="nav-icon">
               <Icon size={18} />
             </span>
-            <span className="nav-label">{it.label()}</span>
+            <span className="nav-label settings-nav-label">{it.label()}</span>
           </a>
         );
       })}
@@ -127,7 +135,7 @@ function SettingsNav({ current }: { current: SettingsSection }) {
   );
 }
 
-/** Web 与手机的设置页。section 省略：宽屏显示上次那项，窄屏列出五项。 */
+/** Web 与手机的设置页。section 省略：宽屏显示上次那项，窄屏列出七项。 */
 export function SettingsPage({ section }: { section?: SettingsSection }) {
   const { layout } = useSettings();
   const narrow = layout === 'mobile';
@@ -336,7 +344,7 @@ function AppearanceSection() {
   );
 }
 
-/** 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据、关于。 */
+/** 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据。 */
 function DataSection() {
   const store = useStore();
   const sync = useSyncView();
@@ -385,7 +393,6 @@ function DataSection() {
           {tr('重置')}</Button>
       </div>
     </div>
-      <AboutSection />
     </>
   );
 }
@@ -493,13 +500,16 @@ function ArchiveRows() {
 }
 
 /**
- * 关于：app 自己的标识（名字随语言：念头团 / Mindough）在前；TMDB 的署名按它的要求放（认可的 logo、比我们的标识不显眼、原文声明、链接到 themoviedb.org）。
+ * 关于（2026-10-26 从数据页底部挪成单独一项）：app 自己的标识（名字随语言：念头团 / Mindough）和版本号在前；
+ * TMDB 的署名按它的要求放（认可的 logo、比我们的标识不显眼、原文声明、链接到 themoviedb.org）。
  */
 function AboutSection() {
+  const version = versionLabel();
   return (
     <section className="about" aria-label={tr('关于')}>
       <img src="/icons/icon-192.png" alt="" className="about-icon" width={36} height={36} />
       <div className="about-name">{appName()}</div>
+      {version && <div className="about-version">{tr('版本 {version}', { version })}</div>}
       <p className="muted small">{tr('数据先存在这台设备上，离线也能用')}</p>
       <div className="about-credits">
         <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="about-tmdb" aria-label="TMDB">
@@ -572,16 +582,19 @@ function AccountSection() {
 }
 
 /**
- * 数据怎么走（Rei 2026-10-17「写清楚数据流向，先经过 worker 认证是你自己，再存到 turso 中，也可以选择存在 D1 中」）：
- * 一句说明 + 流向示意（这台设备 → Worker 核对 → 云端库 → 其他设备）。云端库是哪个由服务器的 STORAGE_BACKEND 决定，这里只读显示。
+ * 数据怎么走（Rei 2026-10-17「写清楚数据流向，先经过 worker 认证是你自己，再存到 turso 中，也可以选择存在 D1 中」；
+ * 2026-10-26「这个数据流不对吧，其他设备不也要通过worker么？」）：一句说明 + 流向示意。
+ * Worker 在中间：这台设备 ⇄ Worker ⇄ 云端库，其他设备 ⇄ Worker（推送、拉取都走 /api/sync，所以箭头是双向的）。
+ * 宽时排成 T 字（上一排三格，其他设备在 Worker 下面）；窄时两列竖排，箭头转 90°（styles/app.css 按容器宽度切）。
+ * 云端库是哪个由服务器的 STORAGE_BACKEND 决定，这里只读显示。
  */
 function DataFlowRow({ signedIn, storage }: { signedIn: boolean; storage: CloudStorage | null }) {
   const name = cloudStorageName(storage);
   const steps = [
-    { icon: <Laptop size={16} />, name: tr('这台设备'), hint: tr('先存在这里') },
-    { icon: <ShieldCheck size={16} />, name: 'Worker', hint: tr('核对是你本人') },
-    { icon: <Database size={16} />, name, hint: storage ? tr('云端数据库') : '' },
-    { icon: <MonitorSmartphone size={16} />, name: tr('其他设备'), hint: tr('从这里同步') },
+    { id: 'device', icon: <Laptop size={16} />, name: tr('这台设备'), hint: tr('先存在这里') },
+    { id: 'worker', icon: <ShieldCheck size={16} />, name: 'Worker', hint: tr('核对是你本人，转发改动') },
+    { id: 'cloud', icon: <Database size={16} />, name, hint: tr('保存一份') },
+    { id: 'other', icon: <MonitorSmartphone size={16} />, name: tr('其他设备'), hint: tr('也经 Worker 同步') },
   ];
   return (
     <div className="setting data-flow-row">
@@ -589,22 +602,29 @@ function DataFlowRow({ signedIn, storage }: { signedIn: boolean; storage: CloudS
         <div className="setting-name">{signedIn ? tr('数据存在：这台设备 + {storage}', { storage: name }) : tr('登录后数据怎么走')}</div>
         <div className="setting-hint">
           {signedIn
-            ? tr('改动先存在这台设备上，再由 Worker（mindough.rei8t.dev）核对是你本人后存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。', { storage: name })
-            : tr('改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）先核对是你本人，再存进 {storage}，你的其他设备从那里同步下来。图片存在 Cloudflare R2。', { storage: name })}
+            ? tr('改动先存在这台设备上。Worker（mindough.rei8t.dev）核对是你本人以后，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })
+            : tr('改动先存在这台设备上。用 Google 登录后，Worker（mindough.rei8t.dev）核对是你本人，把改动存进 {storage}；你的其他设备也经 Worker 同步。图片存在 Cloudflare R2。', { storage: name })}
         </div>
-        <ol className="data-flow" aria-label={tr('数据流向')}>
-          {steps.map((s, i) => (
-            <li key={i} className="data-flow-step">
-              <span className="data-flow-icon" aria-hidden>
-                {s.icon}
+        <div className="data-flow-box">
+          <div className="data-flow" role="group" aria-label={tr('数据流向')}>
+            {steps.map((s) => (
+              <div key={s.id} className={`data-flow-step is-${s.id}`}>
+                <span className="data-flow-icon" aria-hidden>
+                  {s.icon}
+                </span>
+                <span className="data-flow-text">
+                  <span className="data-flow-name">{s.name}</span>
+                  <span className="data-flow-hint">{s.hint}</span>
+                </span>
+              </div>
+            ))}
+            {(['a1', 'a2', 'a3'] as const).map((a) => (
+              <span key={a} className={`data-flow-arrow is-${a}`} aria-hidden>
+                <ArrowLeftRight size={14} />
               </span>
-              <span className="data-flow-text">
-                <span className="data-flow-name">{s.name}</span>
-                {s.hint && <span className="data-flow-hint">{s.hint}</span>}
-              </span>
-            </li>
-          ))}
-        </ol>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -677,8 +697,7 @@ function JournalSection() {
   useEffect(() => onReminderSettings(() => setDeviceOn(remindersEnabled())), []);
   const hourLabel = (h: number) => formatRemindTime(`${String(h).padStart(2, '0')}:00`);
   return (
-    <Section title={tr('日记')}>
-      <div className="card settings-card">
+    <div className="card settings-card">
         <div className="setting">
           <div className="setting-text">
             <div className="setting-name">{tr('一天从几点开始')}</div>
@@ -710,8 +729,7 @@ function JournalSection() {
             <Switch label={tr('每天提醒写日记')} isSelected={remind} onChange={(v) => store.setPref(JOURNAL_PREFS.remind, v)} />
           </div>
         </div>
-      </div>
-    </Section>
+    </div>
   );
 }
 

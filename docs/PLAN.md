@@ -838,6 +838,28 @@ Rei 2026-10-26：「这个计数，如果是喝2000mL水的话，每次只能加
 - **小数**：步长、快捷量、手输都能是小数，最多两位；累加后四舍五入到两位，免得出 0.30000000000000004。目标还是至少 1。
 - 测试：core `test/count.test.ts`（默认步长、换单位不覆盖手改、快捷按钮默认 / 改 / 上限、手输解析、加量完成后撤销改回待办、撤销上一次、老数据补空对象）。截图在 `work/shots-count-step/`。
 
+### 设置拆成七项：关于、日记单独一项；侧栏不左右滚；数据流向改对 ✅（2026-10-26）
+Rei 2026-10-26 原话：
+
+- 「这个页面的底部的关于念头团的说明，可以放在一个单独的选项卡：关于」（截图是设置 → 数据页底部那块）
+- 17:12「设置的侧边栏禁止左右滚动」
+- 17:13「这个数据流不对吧，其他设备不也要通过worker么？」（截图是设置 → 账户的流向图：这台设备 → Worker → Turso（东京）→ 其他设备，窄了以后箭头单独掉到第二行）
+- 17:17「设置中日记单独一个tab」
+
+改了什么：
+
+- **七项**：账户、外观、数据、提醒、任务、日记、关于。桌面设置窗口、Web 宽屏侧栏、窄屏列表三处都一样。
+  - 关于（Lucide `Info`）：app 图标、名字（中文界面念头团，其他语言 Mindough）、「版本 0.1.0 (60eeba0)」、「数据先存在这台设备上，离线也能用」、TMDB 署名（logo + 英文原文，中文界面再加一行中文）。数据页底部不再有这块。署名照原样搬过来：仓库里原本只有 TMDB 的署名，豆瓣、Open Library、Steam 没有现成署名，这次没加。
+  - 版本号：`vite.config.ts` 用 define 注入 `__APP_VERSION__`（读 `src-tauri/tauri.conf.json` 的 version，和安装包一致）和 `__GIT_SHA__`（`GITHUB_SHA` 前 7 位，没有就跑 `git rev-parse --short HEAD`，再没有就不写）。`lib/version.ts` 拼成「0.1.0 (60eeba0)」。
+  - 日记（Lucide `NotebookPen`，和侧边栏日记页同一个图标）：一天从几点开始、每天提醒写日记（21:00）。任务页只留类型和农历。
+  - 深链：`#/settings/journal`、`#/settings/about`，`mindough://view/settings/journal|about`。旧的 `#/settings/tasks`、`#/settings/data` 照旧能打开（原来没有指向日记或关于的锚点，不用另做跳转）。
+  - macOS 应用菜单「关于念头团」还是系统默认的关于面板，Rust 没动。
+- **侧栏不左右滚**：设置窗口的 `.settings-side` 纵向照旧能滚（项多、窗口矮时），横向 `overflow-x: hidden` + `overscroll-behavior-x: none` + `touch-action: pan-y`；侧栏列表 `.settings-nav`（窗口和 Web 宽屏共用）`overflow-x: clip`，纵向保持 visible，不会多出一个能纵向滚的外层（29ea3bd 的教训）。名字太长截断加省略号。
+- **数据流向**：同步的推送、拉取都走 Worker 的 `/api/sync/*`，其他设备也一样。改成 Worker 在中间：这台设备 ⇄ Worker ⇄ 云端库，其他设备 ⇄ Worker，箭头都是双向（Lucide `ArrowLeftRight`）。格子上的字：这台设备「先存在这里」、Worker「核对是你本人，转发改动」、云端库（Turso（东京）/ Cloudflare D1，按服务器的 STORAGE_BACKEND）「保存一份」、其他设备「也经 Worker 同步」。上面那段说明也改成「你的其他设备也经 Worker 同步」。
+  - 排法按这块自己的宽度切（容器查询，不看窗口宽度）：≥ 560px 排成 T 字，上一排三格，其他设备在 Worker 正下方；窄了两列竖排，这台设备、其他设备在上，Worker、云端库各占一整行，箭头转 90°。格子和箭头都在网格里固定的位置，不会再有掉到下一行的箭头。设置窗口 760 × 560 里走竖排。
+- 新字符串 9 个、改 5 个，九种语言都补了。
+- 检查：typecheck、全部单测（`deeplink.test.ts` 加了 journal / about，`cloud.test.ts` 改成新说法）。Playwright `work/shots-tool/settings-about.mjs`：三种皮肤宽屏、390 手机、模拟设置窗口 760 × 560；七项和顺序、关于内容（含版本号）、数据页没有关于、任务页没有日记、日记页内容、流向图宽时 T 字窄时竖排、窗口里流向图不超出内容区；侧栏用滚轮横扫、脚本设 `scrollLeft`、德语和俄语加超长名字，`scrollLeft` 都是 0，长名字有省略号。截图在 `work/shots-settings-about/`。桌面 Tauri 窗口和 macOS 触控板没在真机上试。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
  * 设置的五个分区（Rei 2026-10-26「设置窗口侧边栏：账户、外观」，补充「数据、提醒、任务」）：
  * #/settings/account|appearance|data|reminders|tasks；不带分区的 #/settings 照旧能用。
  */
-export const SETTINGS_SECTIONS = ['account', 'appearance', 'data', 'reminders', 'tasks'] as const;
+export const SETTINGS_SECTIONS = ['account', 'appearance', 'data', 'reminders', 'tasks', 'journal', 'about'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 export const isSettingsSection = (v: unknown): v is SettingsSection => typeof v === 'string' && (SETTINGS_SECTIONS as readonly string[]).includes(v);
 

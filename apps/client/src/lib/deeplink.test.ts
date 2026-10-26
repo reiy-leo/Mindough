@@ -93,6 +93,8 @@ describe('设置分成五项（Rei 2026-10-26）', () => {
     expect(parseHash('#/settings')).toEqual({ page: 'settings' });
     expect(parseHash('#/settings/appearance')).toEqual({ page: 'settings', section: 'appearance' });
     expect(parseHash('#/settings/tasks')).toEqual({ page: 'settings', section: 'tasks' });
+    expect(parseHash('#/settings/journal')).toEqual({ page: 'settings', section: 'journal' });
+    expect(parseHash('#/settings/about')).toEqual({ page: 'settings', section: 'about' });
     expect(parseHash('#/settings/nope')).toEqual({ page: 'settings' });
     expect(href({ page: 'settings', section: 'data' })).toBe('#/settings/data');
     expect(href({ page: 'settings' })).toBe('#/settings');
@@ -100,6 +102,8 @@ describe('设置分成五项（Rei 2026-10-26）', () => {
   it('mindough://view/settings 和 view/settings/<项>', () => {
     expect(parseDeepLink('mindough://view/settings', now)).toEqual({ kind: 'view', route: { page: 'settings' } });
     expect(parseDeepLink('mindough://view/settings/reminders', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'reminders' } });
+    expect(parseDeepLink('mindough://view/settings/journal', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'journal' } });
+    expect(parseDeepLink('mindough://view/settings/about', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'about' } });
     expect(parseDeepLink('mindough://view/settings/xyz', now)).toEqual({ kind: 'view', route: { page: 'settings' } });
   });
 });

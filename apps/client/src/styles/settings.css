@@ -1,5 +1,5 @@
 /*
- * 设置（Rei 2026-10-26）：五项——账户、外观、数据、提醒、任务。
+ * 设置（Rei 2026-10-26）：六项——账户、外观、数据、提醒、任务、关于。
  * - Web 宽屏：页面里左边一列五项，右边内容
  * - 窄屏 / 手机：先列出五项，点进去整页推入，左上角返回
  * - 桌面 app：单独的设置窗口（.settings-window），左边侧栏、右边内容；macOS 隐藏标题栏，给红绿灯让位
@@ -17,6 +17,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  /* 侧栏不左右滚（Rei 2026-10-26「设置的侧边栏禁止左右滚动」）：只裁横向，纵向照旧 visible，
+     不会多出一个能纵向滚的外层（29ea3bd 的教训）。名字太长截断加省略号。 */
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+.settings-nav-item {
+  min-width: 0;
+}
+.settings-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .settings-layout > .settings-nav {
   position: sticky;
@@ -43,6 +57,10 @@
 }
 .settings-pane .about {
   margin-top: var(--space-4);
+}
+/* 关于单独一项：上面多留点空 */
+.settings-pane > .about:only-child {
+  margin-top: var(--space-6);
 }
 
 /* ── 窄屏：列表 + 推入 ── */
@@ -131,7 +149,12 @@ html:has(.settings-window) #root {
   backdrop-filter: var(--sidebar-blur);
   -webkit-backdrop-filter: var(--sidebar-blur);
   border-right: 1px solid var(--border);
+  /* 侧栏自己纵向滚（项多、窗口矮时），横向不滚：触控板横扫、scrollLeft 都动不了它 */
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+  min-width: 0;
 }
 /* 红绿灯的位置：只在 macOS 隐藏标题栏时占高（38px，和主窗口一样），可拖动窗口 */
 .settings-titlebar {

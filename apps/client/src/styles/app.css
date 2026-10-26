@@ -2602,18 +2602,30 @@ button {
   width: calc(100% - 2 * var(--space-4));
 }
 
-/* 设置 → 账户：数据怎么走（这台设备 → Worker → 云端库 → 其他设备） */
+/* 设置 → 账户：数据怎么走（Rei 2026-10-26「其他设备不也要通过worker么？」）。
+   Worker 在中间：这台设备 ⇄ Worker ⇄ 云端库，其他设备 ⇄ Worker。
+   按这块的宽度切（不看窗口宽度：设置窗口和宽屏页面里内容区窄）：
+   - 宽（≥ 560px）：T 字，上一排三格，其他设备在 Worker 正下方
+   - 窄：两列，这台设备、其他设备在上，Worker、云端库各占一整行，箭头都转 90° 竖着
+   格子和箭头都放在网格里固定的位置，不会换行后剩一个箭头。 */
+.data-flow-box {
+  container-type: inline-size;
+  margin-top: var(--space-3);
+}
 .data-flow {
-  list-style: none;
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  display: flex;
-  align-items: stretch;
-  gap: 22px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'device other'
+    'a1 a3'
+    'worker worker'
+    'a2 a2'
+    'cloud cloud';
+  row-gap: 2px;
+  column-gap: 10px;
+  align-items: center;
 }
 .data-flow-step {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2622,15 +2634,23 @@ button {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   min-width: 0;
+  height: 100%;
 }
-.data-flow-step + .data-flow-step::before {
-  content: '→';
-  position: absolute;
-  left: -18px;
-  top: 50%;
-  transform: translateY(-50%);
+.data-flow-step.is-device { grid-area: device; }
+.data-flow-step.is-worker { grid-area: worker; }
+.data-flow-step.is-cloud { grid-area: cloud; }
+.data-flow-step.is-other { grid-area: other; }
+.data-flow-arrow.is-a1 { grid-area: a1; }
+.data-flow-arrow.is-a2 { grid-area: a2; }
+.data-flow-arrow.is-a3 { grid-area: a3; }
+.data-flow-arrow {
+  display: grid;
+  place-items: center;
+  height: 20px;
   color: var(--text-3);
-  font-size: 13px;
+}
+.data-flow-arrow svg {
+  transform: rotate(90deg);
 }
 .data-flow-icon {
   display: grid;
@@ -2647,22 +2667,25 @@ button {
 .data-flow-name {
   font-size: 13px;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 .data-flow-hint {
   font-size: 11px;
   color: var(--text-2);
 }
-/* 手机：竖排，箭头朝下 */
-.app-mobile .data-flow {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-}
-.app-mobile .data-flow-step + .data-flow-step::before {
-  content: '↓';
-  left: 18px;
-  top: -17px;
-  transform: none;
+@container (min-width: 560px) {
+  .data-flow {
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 28px minmax(0, 1fr);
+    grid-template-areas:
+      'device a1 worker a2 cloud'
+      '. . a3 . .'
+      '. . other . .';
+    column-gap: 4px;
+  }
+  .data-flow-arrow.is-a1 svg,
+  .data-flow-arrow.is-a2 svg {
+    transform: none;
+  }
 }
 
 /* 设置 → 账户：同步状态 */

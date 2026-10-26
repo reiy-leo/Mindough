@@ -1,5 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+// 设置 → 关于里显示的版本号：取 tauri.conf.json 的 version（和安装包一致），有 git 就带上短哈希
+const appVersion = (JSON.parse(readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf8')) as { version?: string }).version ?? '';
+let gitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? '';
+if (!gitSha) {
+  try {
+    gitSha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    /* 没有 git（比如从源码包构建）：只显示版本号 */
+  }
+}
 
 // Tauri 开发时固定端口；TAURI_ENV_PLATFORM 由 tauri cli 注入
 const host = process.env.TAURI_DEV_HOST;
@@ -14,6 +27,10 @@ const isolation = {
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __GIT_SHA__: JSON.stringify(gitSha),
+  },
   clearScreen: false,
   server: {
     port: 1420,
