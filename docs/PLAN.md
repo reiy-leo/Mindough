@@ -956,9 +956,18 @@ Rei 2026-10-26 19:12：「那就把app搬到 app.mindough.rei8t.dev，mindough.r
 - 本机数据：网页端数据在浏览器 OPFS 里，按域名隔离，新域名一开始是空的。登录过、同步完的，到新域名登录就同步回来。没登录过的会留在旧域名。所以介绍页先看这个浏览器在旧域名有没有本机数据（OPFS 里 app 的库，或更早的 localStorage 数据）；有就先显示「网页版搬到了新地址」的提示，不自动跳。提示里两个按钮：「在旧地址导出备份」打开 `https://mindough.rei8t.dev/local/#/settings/data`（旧域名其他路径照旧出 app，顶上有一条不能关的提示），「已同步，去新地址」记下已确认、以后不再拦。
 - 旧 PWA：scope 在旧域名，没法原地搬到新域名，要重新装。旧域名的 `/sw.js` 换成「清缓存、注销自己」的版本，免得缓存里的旧外壳顶替介绍页；从主屏幕打开旧版时，第一次显示提示（含「请重新添加到主屏幕」），之后直接跳 app 域名。
 - 新域名不用改 manifest / sw.js / Cookie：manifest 的 id、start_url、scope 都是相对的 `/`；会话 Cookie 不带 Domain，只认当前域名；COOP / COEP 照旧由 Worker 加；Google 回调地址按请求的域名生成。
-- 介绍页：中英两种，按浏览器语言，右上角能切；图标和名字、一句话介绍、五条功能、「打开网页版」、GitHub Releases 下载提示。以后换更完整的介绍页，只换 `landing/page.ts`（或按「app 的网站单独建 `<仓库名>-web` 仓库」的约定另起 Mindough-web，再让旧域名的 `/api`、`/auth` 走 service binding 回这个 Worker），搬家脚本那段要留着。
+- 介绍页：九种语言（见下面「介绍页 i18n」），右上角能切；图标和名字、一句话介绍、五条功能、「打开网页版」、GitHub Releases 下载提示。以后换更完整的介绍页，只换 `landing/page.ts`（或按「app 的网站单独建 `<仓库名>-web` 仓库」的约定另起 Mindough-web，再让旧域名的 `/api`、`/auth` 走 service binding 回这个 Worker），搬家脚本那段要留着。
 
 待 Rei 做：Google Cloud 控制台给 OAuth 客户端加重定向 URI `https://app.mindough.rei8t.dev/auth/callback`（旧的别删）；装过旧 PWA 的设备重新安装。
+
+### 介绍页 i18n ✅（2026-10-26）
+Rei 2026-10-26 19:41：「这个网站也要i18n」。
+
+- 介绍页（`mindough.rei8t.dev`）和 app 一样用九种语言：zh（简体）、en、es、pt-BR、ru、ja、de、fr、id。文字在 `apps/server/src/landing/text.ts`，标题、一句话介绍、五条功能、按钮、下载提示、搬家提示和旧 PWA 重装提示都有九种。
+- 说法跟 app 语言包一致：资料库 = Collection（de Sammlung、ja コレクション……），打卡 = 习惯（Habits），「设置 → 数据 → 导入」用各语言 app 里的菜单名。
+- 选语言的顺序：`?lang=` → 手动选过的（localStorage `mindough:landing-lang`）→ `navigator.languages` → 英文。服务端先按 `?lang=` 和 Accept-Language（按 q 值）出对应语言，页面脚本再定一次。zh-TW 等都归简体中文，pt-PT 归 pt-BR。
+- 右上角是下拉框，九种语言用各自本名显示；`<html lang>` 跟着换。
+- 旧地址 `/local/` 顶上的横幅是 app 里的字符串，九种语言早就有了。
 
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。

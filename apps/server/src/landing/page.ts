@@ -1,9 +1,11 @@
 /**
- * 介绍页（mindough.rei8t.dev 根路径，Rei 2026-10-26）。一个静态单页，中英两种，按浏览器语言选，右上角能切。
+ * 介绍页（mindough.rei8t.dev 根路径，Rei 2026-10-26）。一个静态单页，九种语言（文字在 text.ts）：
+ * 先看 ?lang=，再看手动选过的（localStorage），再按 navigator.languages 选；右上角能切。
  * 以后要换成更完整的介绍页：只换这个文件（或让 landing/index.ts 改从 R2 / 单独的 Mindough-web 仓库出页面），
  * 但「搬家脚本」那段（跳转到 app 域名、提醒导出本机数据）要留着，老链接和装到主屏幕的旧版靠它。
  */
 import { APP_ORIGIN } from '../hosts';
+import { HTML_LANG, LANDING_LANGS, LANDING_TEXT, LANG_NAMES, matchLang, type LandingKey, type LandingLang } from './text';
 
 export const RELEASES_URL = 'https://github.com/reiy-leo/Mindough/releases';
 
@@ -16,64 +18,13 @@ const ICONS = {
   library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
   book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
   sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  languages: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
 };
 
-/** 页面上的文字。key 写在 HTML 的 data-t 上，脚本按语言换。 */
-export const LANDING_TEXT = {
-  zh: {
-    title: '念头团 Mindough',
-    name: '念头团',
-    tagline: '做完一件，接上下一件。任务、打卡、资料和日记放在一处，离线能用，登录后多台设备同步。',
-    open: '打开网页版',
-    download: '下载安装包',
-    f1t: '任务链',
-    f1d: '给任务设好先后：前面的做完了，后面的自动变成可开始。整条线一眼看完。',
-    f2t: '打卡、计时、计数、倒数日',
-    f2d: '读书记时长，喝水记毫升，考试倒数天数，定期的事记连续次数。',
-    f3t: '资料库',
-    f3d: '影视、书、游戏、餐厅、菜谱……一条资料能给好几件任务用，在线查封面和信息。',
-    f4t: '日记',
-    f4d: '每天写几句，按日期翻看。',
-    f5t: '离线能用，多端同步',
-    f5d: '数据先存在本机。用 Google 登录后，电脑、手机和网页之间自动同步。',
-    dl: 'macOS、Windows、Android 安装包在 GitHub Releases 下载。iPhone 和 iPad 先用网页版，可以添加到主屏幕。',
-    movedT: '网页版搬到了新地址',
-    movedD: '网页版现在在 app.mindough.rei8t.dev。这个浏览器在旧地址里还存着本机数据：登录过、同步完的，到新地址登录后会自动同步回来；没登录过的，先在旧地址导出备份，再到新地址的「设置 → 数据 → 导入」导进去。',
-    pwaD: '装到主屏幕的旧版以后不再更新。到新地址打开后，请重新添加到主屏幕，再删掉旧的。',
-    exportBtn: '在旧地址导出备份',
-    goBtn: '已同步，去新地址',
-    footer: '念头团 · Mindough',
-  },
-  en: {
-    title: 'Mindough',
-    name: 'Mindough',
-    tagline: 'Finish one thing, and the next one is ready. Tasks, habits, collections and a journal in one place — works offline, syncs across devices when you sign in.',
-    open: 'Open web app',
-    download: 'Download',
-    f1t: 'Task chains',
-    f1d: 'Set what comes first. When a task is done, the ones after it become ready. See the whole chain at a glance.',
-    f2t: 'Check-ins, timers, counters, countdowns',
-    f2d: 'Track reading time, glasses of water, days until the exam, and streaks for recurring habits.',
-    f3t: 'Collections',
-    f3d: 'Movies, books, games, restaurants, recipes… one entry can serve many tasks, with covers and details looked up online.',
-    f4t: 'Journal',
-    f4d: 'Write a few lines a day and flip back by date.',
-    f5t: 'Offline first, synced everywhere',
-    f5d: 'Your data lives on your device first. Sign in with Google to sync between computer, phone and web.',
-    dl: 'Installers for macOS, Windows and Android are on GitHub Releases. On iPhone and iPad, use the web app and add it to your Home Screen.',
-    movedT: 'The web app has moved',
-    movedD: 'The web app now lives at app.mindough.rei8t.dev. This browser still has local data at the old address. If you signed in and synced, just sign in at the new address and it comes back. If you never signed in, export a backup here first, then import it at the new address under Settings → Data → Import.',
-    pwaD: 'The old Home Screen app will no longer be updated. Open the new address, add it to your Home Screen again, then remove the old one.',
-    exportBtn: 'Export a backup here',
-    goBtn: 'Synced — take me there',
-    footer: 'Mindough',
-  },
-} as const;
-
-export type LandingLang = keyof typeof LANDING_TEXT;
-type Key = keyof (typeof LANDING_TEXT)['zh'];
+export { LANDING_TEXT, LANDING_LANGS, LANG_NAMES, HTML_LANG, matchLang, type LandingLang } from './text';
+type Key = LandingKey;
 
 const FEATURES: [keyof typeof ICONS, Key, Key][] = [
   ['workflow', 'f1t', 'f1d'],
@@ -92,8 +43,11 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   const features = FEATURES.map(
     ([ic, title, desc]) => `<li class="card"><span class="ic">${icon(ICONS[ic])}</span><h3 ${tx(title)}</h3><p ${tx(desc)}</p></li>`,
   ).join('');
+  const langOptions = LANDING_LANGS.map(
+    (l) => `<option value="${l}" lang="${HTML_LANG[l]}"${l === lang ? ' selected' : ''}>${esc(LANG_NAMES[l])}</option>`,
+  ).join('');
   return `<!doctype html>
-<html lang="${lang === 'zh' ? 'zh-CN' : 'en'}">
+<html lang="${HTML_LANG[lang]}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -112,9 +66,12 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   a { color: inherit; }
   .wrap { max-width: 960px; margin: 0 auto; padding: 24px 24px 48px; }
   header.top { display: flex; justify-content: flex-end; }
-  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
-  .lang button { border: 0; background: none; color: var(--muted); padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-  .lang button[aria-pressed="true"] { background: var(--soft); color: var(--fg); }
+  .lang { position: relative; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); padding: 0 10px 0 12px; }
+  .lang svg { width: 16px; height: 16px; flex: none; pointer-events: none; }
+  .lang select { appearance: none; -webkit-appearance: none; border: 0; background: none; color: var(--fg); font: inherit; font-size: 13px; padding: 6px 16px 6px 0; cursor: pointer; }
+  .lang::after { content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; margin-top: -5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); pointer-events: none; }
+  .lang select option { color: #151a24; background: #fff; }
+  :lang(ja) body, body:lang(ja) { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", sans-serif; }
   .hero { text-align: center; padding: 48px 0 32px; }
   .hero img { width: 112px; height: 112px; display: block; margin: 0 auto; }
   .hero h1 { font-size: 40px; line-height: 1.2; margin: 20px 0 8px; letter-spacing: .01em; }
@@ -125,13 +82,14 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   .btn svg { width: 18px; height: 18px; }
   .btn.primary { background: var(--accent); color: var(--accent-fg); }
   .btn.ghost { background: var(--card); border-color: var(--line); color: var(--fg); }
-  .btn:focus-visible, .lang button:focus-visible { outline: 3px solid var(--soft); outline-offset: 2px; }
+  .btn:focus-visible, .lang:focus-within { outline: 3px solid var(--soft); outline-offset: 2px; }
   .cards { list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
   .card .ic { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 10px; background: var(--soft); color: var(--accent); }
   .card h3 { margin: 12px 0 4px; font-size: 17px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
   .dl { margin: 32px auto 0; max-width: 640px; text-align: center; color: var(--muted); font-size: 14px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 40px; }
   .moved { display: none; margin: 8px auto 0; max-width: 640px; background: var(--card); border: 1px solid var(--accent); border-radius: 16px; padding: 20px; }
   .moved.show { display: block; }
@@ -144,9 +102,9 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="lang" role="group" aria-label="Language">
-      <button type="button" data-lang="zh" aria-pressed="${lang === 'zh'}">中文</button><button type="button" data-lang="en" aria-pressed="${lang === 'en'}">English</button>
-    </div>
+    <label class="lang">${icon(ICONS.languages)}<span class="sr" data-t="langLabel">${esc(t.langLabel)}</span>
+      <select id="lang">${langOptions}</select>
+    </label>
   </header>
   <section class="moved" id="moved" role="alert">
     <h2 data-t="movedT">${esc(t.movedT)}</h2>
@@ -160,7 +118,7 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   <main>
     <section class="hero">
       <img src="/icons/icon-512.png" alt="" width="112" height="112" />
-      <h1><span data-t="name">${esc(t.name)}</span><small>${lang === 'zh' ? 'Mindough' : ''}</small></h1>
+      <h1><span data-t="name">${esc(t.name)}</span><small data-t="sub">${esc(t.sub)}</small></h1>
       <p data-t="tagline">${esc(t.tagline)}</p>
       <div class="actions">
         <a class="btn primary" id="open" href="${APP_ORIGIN}/"><span data-t="open">${esc(t.open)}</span>${icon(ICONS.arrow)}</a>
@@ -180,24 +138,33 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   var PWA_SEEN = 'mindough:pwa-moved-seen';
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 
-  // 语言：先看手动选过的，再看浏览器语言
+  // 语言：?lang= 优先，再看手动选过的，再按浏览器语言（navigator.languages），都对不上用英文
+  var HTML_LANG = ${JSON.stringify(HTML_LANG)};
+  var LANG_KEY = 'mindough:landing-lang';
+  var matchLang = ${matchLang.toString()};
   function pickLang() {
-    var saved = store('mindough:landing-lang');
-    if (saved === 'zh' || saved === 'en') return saved;
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+    var fromQuery = q && matchLang(q); if (fromQuery) return fromQuery;
+    var saved = matchLang(store(LANG_KEY)); if (saved) return saved;
     var ls = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
-    for (var i = 0; i < ls.length; i++) { var l = String(ls[i]).toLowerCase(); if (l.indexOf('zh') === 0) return 'zh'; if (l.indexOf('en') === 0) return 'en'; }
+    for (var i = 0; i < ls.length; i++) { var m = matchLang(ls[i]); if (m) return m; }
     return 'en';
   }
   function apply(lang) {
     var t = TEXT[lang];
-    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
-    document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.getAttribute('data-t'); if (t[k]) el.textContent = t[k]; });
-    var sub = document.querySelector('.hero h1 small'); if (sub) sub.textContent = lang === 'zh' ? 'Mindough' : '';
-    document.querySelectorAll('.lang button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang)); });
+    document.documentElement.lang = HTML_LANG[lang];
+    document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.getAttribute('data-t'); if (k in t) el.textContent = t[k]; });
+    var meta = document.querySelector('meta[name="description"]'); if (meta) meta.setAttribute('content', t.tagline);
+    var sel = document.getElementById('lang'); if (sel) sel.value = lang;
   }
   apply(pickLang());
-  document.querySelectorAll('.lang button').forEach(function (b) {
-    b.addEventListener('click', function () { var l = b.getAttribute('data-lang'); store('mindough:landing-lang', l); apply(l); });
+  document.getElementById('lang').addEventListener('change', function (e) {
+    var l = matchLang(e.target.value) || 'en';
+    store(LANG_KEY, l);
+    // 地址栏里的 ?lang= 会盖过手动选的，换成新选的
+    try { var u = new URL(location.href); if (u.searchParams.has('lang')) { u.searchParams.set('lang', l); history.replaceState(null, '', u.toString()); } } catch (err) {}
+    apply(l);
   });
 
   // ── 搬家：旧链接（#/…、?task=…）和装到主屏幕的旧版，跳到 app 域名同一路径 ──

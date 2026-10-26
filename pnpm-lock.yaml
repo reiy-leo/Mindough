@@ -344,6 +344,9 @@ importers:
       '@types/node':
         specifier: ^22.20.5
         version: 22.20.5
+      happy-dom:
+        specifier: ^21.0.1
+        version: 21.0.1
       miniflare:
         specifier: 4.20260730.0
         version: 4.20260730.0
