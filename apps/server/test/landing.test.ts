@@ -193,11 +193,14 @@ describe('介绍页内容', () => {
     expect(html).toContain("location.replace(target)");
     expect(html).toContain('/local/#/settings/data');
   });
-  it('有自己部署六步、跳转按钮和 ydiyr 链接', () => {
+  it('有自己部署八步（默认收起）、跳转按钮和 ydiyr 链接', () => {
     const html = landingHtml('zh');
     expect(html).toContain('href="#self-host"');
     expect(html).toContain('id="self-host"');
-    expect((html.match(/class="step"/g) ?? []).length).toBe(6);
+    expect((html.match(/class="step"/g) ?? []).length).toBe(8);
+    expect(html).toContain('<details>');
+    expect(html).toContain('ALLOWED_EMAILS');
+    expect(html).toContain('/auth/callback');
     expect(html).toContain('pnpm run deploy');
     expect(html).toContain('https://your-data-is-your-responsibility.rei8t.dev');
   });

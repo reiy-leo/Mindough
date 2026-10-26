@@ -30,6 +30,9 @@ const ICONS = {
   server: '<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
   devices: '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/>',
   shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
   external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3"/>',
 };
 
@@ -37,16 +40,49 @@ const ICONS = {
 export const YDIYR_URL = 'https://your-data-is-your-responsibility.rei8t.dev';
 
 /**
- * 自己部署的六步（Rei 2026-10-26「web介绍页，要显示自己部署的步骤图」）。说明文字在 text.ts，命令各语言一样。
- * 例子域名用 todo.example.com。命令跟仓库里的实际做法保持一致：apps/server/README.md、wrangler.deploy.jsonc、package.json 的 deploy。
+ * 自己部署的八步（Rei 2026-10-26 20:37「web介绍页，要显示自己部署的步骤图」；20:55「步骤缺少……环境变量、数据库、可以登录的账号、Google登录……
+ * 这些步骤可以先collapse，用户点击再展开代码和说明」）。每步默认收起，只露标题和一句话；展开后是要点列表（text.ts 里按 \n 分行）和命令。
+ * 命令各语言一样，例子域名用 todo.example.com。跟仓库里的实际做法保持一致：apps/server/README.md、wrangler.deploy.jsonc、package.json 的 deploy。
  */
-const SELF_HOST_STEPS: [keyof typeof ICONS, Key, Key, string][] = [
-  ['terminal', 's1t', 's1d', 'git clone https://github.com/reiy-leo/mindough.git\ncd mindough && pnpm install'],
-  ['database', 's2t', 's2d', 'cd apps/server\npnpm exec wrangler r2 bucket create mindough-web\npnpm exec wrangler r2 bucket create mindough-assets\nturso db create mindough'],
-  ['login', 's3t', 's3d', 'https://todo.example.com/auth/callback'],
-  ['fileCode', 's4t', 's4d', '"name": "mindough",\n"routes": [{ "pattern": "todo.example.com", "custom_domain": true }]'],
-  ['key', 's5t', 's5d', 'for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SESSION_SECRET \\\n  ALLOWED_EMAILS TURSO_DB_URL TURSO_DB_TOKEN; do\n  pnpm exec wrangler secret put $k -c wrangler.deploy.jsonc\ndone'],
-  ['rocket', 's6t', 's6d', 'pnpm run deploy'],
+const W = 'pnpm exec wrangler';
+const C = '-c wrangler.deploy.jsonc';
+const SELF_HOST_STEPS: [keyof typeof ICONS, Key, Key, Key, string][] = [
+  ['terminal', 's1t', 's1s', 's1d', `git clone https://github.com/reiy-leo/mindough.git
+cd mindough && pnpm install
+cd apps/server && ${W} login`],
+  ['database', 's2t', 's2s', 's2d', `# Turso (default)
+turso db create mindough
+turso db show mindough --url      # -> TURSO_DB_URL
+turso db tokens create mindough   # -> TURSO_DB_TOKEN
+
+# or Cloudflare D1
+${W} d1 create mindough           # -> database_id`],
+  ['box', 's3t', 's3s', 's3d', `${W} r2 bucket create mindough-web
+${W} r2 bucket create mindough-assets`],
+  ['login', 's4t', 's4s', 's4d', `Authorized JavaScript origins:  https://todo.example.com
+Authorized redirect URIs:       https://todo.example.com/auth/callback`],
+  ['fileCode', 's5t', 's5s', 's5d', `"name": "mindough",
+"routes": [{ "pattern": "todo.example.com", "custom_domain": true }],
+"r2_buckets": [
+  { "binding": "WEB", "bucket_name": "mindough-web" },
+  { "binding": "FILES", "bucket_name": "mindough-assets" }
+],
+"vars": { "STORAGE_BACKEND": "turso" },   // or "d1"
+"d1_databases": [{ "binding": "DB", "database_name": "mindough", "database_id": "<D1 only>" }]`],
+  ['key', 's6t', 's6s', 's6d', `openssl rand -base64 32 | ${W} secret put SESSION_SECRET ${C}
+${W} secret put GOOGLE_CLIENT_ID ${C}
+${W} secret put GOOGLE_CLIENT_SECRET ${C}
+
+# Turso only
+${W} secret put TURSO_DB_URL ${C}
+${W} secret put TURSO_DB_TOKEN ${C}
+
+# optional: movie & TV lookup
+${W} secret put TMDB_API_KEY ${C}`],
+  ['users', 's7t', 's7s', 's7d', `${W} secret put ALLOWED_EMAILS ${C}
+# you@gmail.com,family@gmail.com`],
+  ['rocket', 's8t', 's8s', 's8d', `pnpm run deploy
+curl https://todo.example.com/api/health   # 200`],
 ];
 
 export { LANDING_TEXT, LANDING_LANGS, LANG_NAMES, HTML_LANG, matchLang, type LandingLang } from './text';
@@ -69,9 +105,14 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   const features = FEATURES.map(
     ([ic, title, desc]) => `<li class="card"><span class="ic">${icon(ICONS[ic])}</span><h3 ${tx(title)}</h3><p ${tx(desc)}</p></li>`,
   ).join('');
+  const bullets = (k: Key) =>
+    t[k]
+      .split('\n')
+      .map((line) => `<li>${esc(line)}</li>`)
+      .join('');
   const steps = SELF_HOST_STEPS.map(
-    ([ic, title, desc, cmd], i) =>
-      `<li class="step"><span class="num" aria-hidden="true">${i + 1}</span><div class="body"><h3><span class="sic">${icon(ICONS[ic])}</span><span ${tx(title)}</span></h3><p ${tx(desc)}</p><pre><code>${esc(cmd)}</code></pre></div></li>`,
+    ([ic, title, short, detail, cmd], i) =>
+      `<li class="step"><span class="num" aria-hidden="true">${i + 1}</span><details><summary><span class="sic">${icon(ICONS[ic])}</span><span class="st"><b ${tx(title)}</b><small ${tx(short)}</small></span><span class="chev">${icon(ICONS.chevron)}</span></summary><div class="more"><ul data-tl="${detail}">${bullets(detail)}</ul><pre><code>${esc(cmd)}</code></pre></div></details></li>`,
   ).join('');
   const arch = `<div class="arch" aria-hidden="true">
       <div class="node">${icon(ICONS.devices)}<b data-t="archDev">${esc(t.archDev)}</b></div>
@@ -143,16 +184,30 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   .arch .node b { color: var(--fg); font-size: 15px; }
   .arch .node small { color: var(--muted); font-size: 13px; }
   .arch .link { display: flex; align-items: center; color: var(--muted); flex: none; }
-  .steps { list-style: none; padding: 0; margin: 32px auto 0; max-width: 760px; }
-  .step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
-  .step:not(:last-child)::before { content: ""; position: absolute; left: 17px; top: 40px; bottom: 4px; width: 2px; background: var(--line); }
-  .step .num { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
-  .step .body { flex: 1 1 auto; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
-  .step h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 17px; }
-  .step .sic { display: inline-flex; color: var(--accent); }
-  .step .sic svg { width: 18px; height: 18px; }
-  .step p { margin: 0 0 10px; color: var(--muted); font-size: 15px; }
+  .steps { list-style: none; padding: 0; margin: 8px auto 0; max-width: 760px; }
+  .step { position: relative; display: flex; gap: 16px; padding-bottom: 14px; }
+  .step:not(:last-child)::before { content: ""; position: absolute; left: 17px; top: 40px; bottom: 0; width: 2px; background: var(--line); }
+  .step .num { flex: none; width: 36px; height: 36px; margin-top: 8px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .step details { flex: 1 1 auto; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+  .step details[open] { border-color: var(--accent); }
+  .step summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; border-radius: 16px; }
+  .step summary::-webkit-details-marker { display: none; }
+  .step summary:focus-visible { outline: 3px solid var(--soft); outline-offset: 2px; }
+  .step .sic { flex: none; display: inline-flex; color: var(--accent); }
+  .step .sic svg { width: 20px; height: 20px; }
+  .step .st { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .step .st b { font-size: 16px; }
+  .step .st small { color: var(--muted); font-size: 14px; }
+  .step .chev { flex: none; display: inline-flex; color: var(--muted); transition: transform .15s; }
+  .step .chev svg { width: 18px; height: 18px; }
+  .step details[open] .chev { transform: rotate(180deg); }
+  .step .more { padding: 0 16px 16px 48px; }
+  .step ul { margin: 0 0 12px; padding-left: 18px; color: var(--muted); font-size: 15px; }
+  .step ul li + li { margin-top: 4px; }
   .step pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .toggle-all { display: flex; justify-content: flex-end; max-width: 760px; margin: 24px auto 0; }
+  .toggle-all button { border: 0; background: none; color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+  @media (max-width: 480px) { .step .more { padding-left: 16px; } .step { gap: 10px; } }
   .note { max-width: 760px; margin: 4px auto 0; color: var(--muted); font-size: 14px; text-align: center; }
   .yd { display: flex; gap: 16px; align-items: center; max-width: 760px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
   .yd .ic { flex: none; display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; border-radius: 12px; background: var(--soft); color: var(--accent); }
@@ -197,6 +252,7 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
       <h2 data-t="shT">${esc(t.shT)}</h2>
       <p class="lead" data-t="shD">${esc(t.shD)}</p>
       ${arch}
+      <div class="toggle-all"><button type="button" id="toggle-all" data-t="expandAll">${esc(t.expandAll)}</button></div>
       <ol class="steps">${steps}</ol>
       <p class="note" data-t="shNote">${esc(t.shNote)}</p>
     </section>
@@ -235,13 +291,36 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
     var t = TEXT[lang];
     document.documentElement.lang = HTML_LANG[lang];
     document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.getAttribute('data-t'); if (k in t) el.textContent = t[k]; });
+    document.querySelectorAll('[data-tl]').forEach(function (ul) {
+      var k = ul.getAttribute('data-tl'); if (!(k in t)) return;
+      ul.textContent = '';
+      String(t[k]).split('\\n').forEach(function (line) { var li = document.createElement('li'); li.textContent = line; ul.appendChild(li); });
+    });
+    syncToggle();
     var meta = document.querySelector('meta[name="description"]'); if (meta) meta.setAttribute('content', t.tagline);
     var sel = document.getElementById('lang'); if (sel) sel.value = lang;
   }
-  apply(pickLang());
+  // 「全部展开 / 全部收起」：看有没有收着的步骤决定按钮文字
+  var curLang = 'en';
+  function stepsAll() { return Array.prototype.slice.call(document.querySelectorAll('.step details')); }
+  function syncToggle() {
+    var b = document.getElementById('toggle-all'); if (!b || !TEXT[curLang]) return;
+    var anyClosed = stepsAll().some(function (d) { return !d.open; });
+    b.setAttribute('data-t', anyClosed ? 'expandAll' : 'collapseAll');
+    b.textContent = TEXT[curLang][anyClosed ? 'expandAll' : 'collapseAll'];
+  }
+  document.getElementById('toggle-all').addEventListener('click', function () {
+    var anyClosed = stepsAll().some(function (d) { return !d.open; });
+    stepsAll().forEach(function (d) { d.open = anyClosed; });
+    syncToggle();
+  });
+  stepsAll().forEach(function (d) { d.addEventListener('toggle', syncToggle); });
+  curLang = pickLang();
+  apply(curLang);
   document.getElementById('lang').addEventListener('change', function (e) {
     var l = matchLang(e.target.value) || 'en';
     store(LANG_KEY, l);
+    curLang = l;
     // 地址栏里的 ?lang= 会盖过手动选的，换成新选的
     try { var u = new URL(location.href); if (u.searchParams.has('lang')) { u.searchParams.set('lang', l); history.replaceState(null, '', u.toString()); } } catch (err) {}
     apply(l);
