@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 /**
  * 我的一天快速添加后立即打开（Rei 2026-10-26「从这里添加任务后立即打开任务」）：
- * 建好、进今天、选中；空白不建；连着加以最后一件为准；手机收起键盘，宽屏光标留在添加框；新行滚进视野。
+ * 建好、进今天（待安排 / 可做页进待安排）、选中；空白不建；连着加以最后一件为准；手机收起键盘，宽屏光标留在添加框；新行滚进视野。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { afterQuickAdd, quickAddToday, type QuickAddDeps } from './quick-add';
+import { afterQuickAdd, quickAdd, quickAddToday, type QuickAddDeps } from './quick-add';
 
 function deps() {
   let n = 0;
@@ -45,6 +45,23 @@ describe('quickAddToday', () => {
     quickAddToday(d, '二', '2026-10-26');
     quickAddToday(d, '三', '2026-10-26');
     expect(d.opened.at(-1)).toBe('t3');
+  });
+});
+
+describe('quickAdd（待安排、可做）', () => {
+  it('交给 create 建（进待安排），再打开它，不碰我的一天', () => {
+    const d = deps();
+    const id = quickAdd({ create: (b) => d.createTask({ body_md: b }).id, openEditor: d.openEditor }, ' 研究一下新相机 ');
+    expect(id).toBe('t1');
+    expect(d.log).toEqual(['create t1 研究一下新相机', 'open t1']);
+  });
+
+  it('空白不建', () => {
+    const create = vi.fn(() => 'x');
+    const openEditor = vi.fn();
+    expect(quickAdd({ create, openEditor }, '\n  ')).toBeNull();
+    expect(create).not.toHaveBeenCalled();
+    expect(openEditor).not.toHaveBeenCalled();
   });
 });
 

@@ -224,6 +224,10 @@ button {
   font-size: 17px;
   opacity: 0;
 }
+/* 没有页头的页面（我的一天、待安排、可做，Rei 2026-10-26）：手机上标题放在顶栏 */
+.topbar.is-titled .topbar-title {
+  opacity: 1;
+}
 .tabbar {
   position: fixed;
   left: 0;
@@ -1042,6 +1046,20 @@ button {
 }
 .add-bar-input::placeholder {
   color: var(--text-3);
+}
+/* 添加框行尾的小图标按钮（我的一天的「打开小窗」） */
+.add-bar-btn {
+  flex: none;
+}
+/* 列表上方的小字：原来页头副标题里的日期、件数（Rei 2026-10-26 去掉中间列页头后挪到这里） */
+.list-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: calc(-1 * var(--space-2)) var(--space-1) var(--space-3);
+  color: var(--text-2);
+  font-size: 13px;
 }
 
 /* ───────── Agenda ───────── */

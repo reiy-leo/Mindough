@@ -9,7 +9,7 @@ import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { Button, PopoverPanel } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
-import { PageHeader } from '../components/PageHeader';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { DatePanel } from '../components/task/DatePanel';
 import { titleOf } from '../lib/view';
 import { useReorderGuard } from '../lib/drag-guard';
@@ -38,16 +38,13 @@ export function BacklogPage() {
 
   return (
     <div className="page">
-      <PageHeader
-        title={tr('待安排')}
-        subtitle={list.length ? tr('{length} 件还没定哪天做', { length: list.length }) : tr('都安排好了')}
-        icon={<Inbox size={22} />}
-        actions={
-          <Button variant="primary" className="hide-mobile" onPress={() => ui.openQuickCreate()}>
-            <Plus size={16} />
-            {tr('新建任务')}</Button>
-        }
-      />
+      {/* 中间列不放页头（Rei 2026-10-26）：最上面是添加框，加进待安排；件数挪到列表上方的小字。
+          原来页头的「新建任务」按钮去掉了：右下角新建按钮和 N 一样打开完整的新建面板 */}
+      <QuickAddBar placeholder={tr('想到什么先记下，按回车添加到待安排')} label={tr('添加任务到待安排')} create={(body) => store.createTask({ body_md: body }).id} />
+      <div className="list-meta">
+        <h1 className="sr-only">{tr('待安排')}</h1>
+        {list.length ? tr('{length} 件还没定哪天做', { length: list.length }) : tr('都安排好了')}
+      </div>
       {list.length ? (
         <GridList ref={reorderGuard.ref} aria-label={tr('待安排的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={list}>
           {(t) => (

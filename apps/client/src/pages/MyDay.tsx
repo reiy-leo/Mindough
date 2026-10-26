@@ -1,6 +1,5 @@
-import { useRef, useState } from 'react';
-import { GridList, GridListItem, useDragAndDrop, Button as RacButton, Form, Input, TextField } from 'react-aria-components';
-import { GripVertical, Lightbulb, PictureInPicture2, Plus, RotateCcw, Sun } from 'lucide-react';
+import { GridList, GridListItem, useDragAndDrop, Button as RacButton } from 'react-aria-components';
+import { GripVertical, Lightbulb, PictureInPicture2, RotateCcw, Sun } from 'lucide-react';
 import { formatDateZh, myDayItems, recentlyUnlocked, suggestions, toDateKey, yesterdayUnfinished } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
@@ -8,13 +7,13 @@ import { Button, Empty, Section, Tip } from '../ui/primitives';
 import { openMiniWindow } from '../lib/windows';
 import { isTauri } from '../store/sqlite-tauri';
 import { useReorderGuard } from '../lib/drag-guard';
-import { afterQuickAdd, quickAddToday } from '../lib/quick-add';
+import { createToday } from '../lib/quick-add';
+import { QuickAddBar } from '../components/QuickAddBar';
 
 /** 小窗只在桌面 app 里有（手机、网页没有置顶窗口）。 */
 const canMini = isTauri() && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 import { TaskRow } from '../components/TaskRow';
 import { LunarLine } from '../components/LunarLine';
-import { PageHeader } from '../components/PageHeader';
 import { useSettings } from '../lib/settings';
 import { JournalCard } from '../components/journal/JournalCard';
 
@@ -25,7 +24,6 @@ export function MyDayPage() {
   const ui = useUi();
   const now = useNow();
   const today = toDateKey(now);
-  const [draft, setDraft] = useState('');
   const { layout } = useSettings();
   const inlineCheckIn = layout !== 'mobile';
   const tasks = store.list('task');
@@ -59,52 +57,29 @@ export function MyDayPage() {
     },
   });
 
-  const addInput = useRef<HTMLInputElement>(null);
-  // 回车加进今天，马上打开它（Rei 2026-10-26「从这里添加任务后立即打开任务」）；焦点和滚动见 lib/quick-add
-  const add = () => {
-    const id = quickAddToday({ createTask: (i) => store.createTask(i), addToMyDay: (t, d) => store.addToMyDay(t, d), openEditor: ui.openEditor }, draft, today);
-    if (!id) return;
-    setDraft('');
-    afterQuickAdd(id, addInput.current, layout);
-  };
-
   return (
     <div className="page">
-      <PageHeader
-        title={tr('我的一天')}
-        subtitle={
-          <>
-            {`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
-            <LunarLine date={today} className="page-subtitle-lunar" />
-          </>
+      {/* 中间列不放页头（Rei 2026-10-26「我的一天、待安排、可做的中间列的header去掉，换成输入框」）：最上面就是添加框，
+          日期和完成数挪到列表上方的小字，小窗按钮挪到添加框行尾 */}
+      <QuickAddBar
+        placeholder={tr('今天要做什么？按回车添加')}
+        label={tr('添加任务到今天')}
+        create={(body) => createToday(store, body, today)}
+        trailing={
+          canMini ? (
+            <Tip content={tr('小窗：置顶显示今天的事')}>
+              <RacButton className="icon-btn add-bar-btn" aria-label={tr('打开小窗')} onPress={() => void openMiniWindow()}>
+                <PictureInPicture2 size={17} />
+              </RacButton>
+            </Tip>
+          ) : undefined
         }
-        icon={<Sun size={22} />}
-        {...(canMini
-          ? {
-              actions: (
-                <Tip content={tr('小窗：置顶显示今天的事')}>
-                  <RacButton className="icon-btn" aria-label={tr('打开小窗')} onPress={() => void openMiniWindow()}>
-                    <PictureInPicture2 size={18} />
-                  </RacButton>
-                </Tip>
-              ),
-            }
-          : {})}
       />
-
-      <Form
-        className="add-bar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          add();
-        }}
-      >
-        <Plus size={18} className="add-bar-icon" aria-hidden />
-        <TextField aria-label={tr('添加任务到今天')} value={draft} onChange={setDraft} className="add-bar-field">
-          <Input ref={addInput} className="add-bar-input" placeholder={tr('今天要做什么？按回车添加')} />
-        </TextField>
-        {/* 右边不再放「从全部任务添加 ⌘K」（Rei 2026-10-26「删除从全部任务添加的按钮」）：输入框占满一行；全局 ⌘K 照旧 */}
-      </Form>
+      <div className="list-meta">
+        <h1 className="sr-only">{tr('我的一天')}</h1>
+        {`${formatDateZh(today)} · ${items.length ? (closedCount ? tr('{doneCount}/{counted} 已完成 · {closed} 个已关闭', { doneCount, counted, closed: closedCount }) : tr('{doneCount}/{counted} 已完成', { doneCount, counted })) : tr('还没有安排')}`}
+        <LunarLine date={today} className="page-subtitle-lunar" />
+      </div>
 
       {items.length ? (
         <GridList ref={reorderGuard.ref} aria-label={tr('今天的任务')} className="task-list" dragAndDropHooks={dragAndDropHooks} dependencies={[ui.editingId]} items={items.map((i) => ({ ...i, id: i.task.id }))}>
