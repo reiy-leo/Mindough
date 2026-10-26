@@ -1077,4 +1077,15 @@ export const EN: Record<string, EnValue> = {
   没有找到这个时区: 'No matching time zone',
   '时区：{zone}': (p) => `Time zone: ${p.zone}`,
   显示更多: 'Show More',
+  // ── 设置分成五项、设置窗口（Rei 2026-10-26）──
+  '设置分区|提醒': 'Reminders',
+  '设置分区|任务': 'Tasks',
+  '设置分区': 'Settings sections',
+  '登录与同步': 'Sign-in and sync',
+  '皮肤、语言、明暗、布局': 'Skin, language, theme, layout',
+  '导入导出、本机存储、关于': 'Import, export, storage, about',
+  '任务提醒的通知': 'Notifications for task reminders',
+  '类型、日记、农历': 'Types, journal, Chinese calendar',
+  '类型、日记': 'Types, journal',
+  '菜单|设置…': 'Settings…',
 };

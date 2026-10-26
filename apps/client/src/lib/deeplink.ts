@@ -6,7 +6,7 @@
  * Web 端同样的东西走 hash：#/task/{id}、#/new?text=…、#/checkin-now/{id}（打卡页 #/checkin 已占用）。
  */
 import { addDays, BUILTIN_TYPE_IDS, toDateKey, type DateKey } from '@mindough/core';
-import type { Route } from './router';
+import { isSettingsSection, type Route } from './router';
 
 export type DeepLinkAction =
   | { kind: 'task'; id: string }
@@ -70,6 +70,9 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
       return segs[0] ? { kind: 'task', id: segs[0] } : { kind: 'invalid', url: raw };
     case 'view': {
       const route = VIEWS[(segs[0] ?? '').toLowerCase()];
+      // view/settings/appearance：直接打开设置的某一项（Rei 2026-10-26 设置分成五项）
+      const sec = (segs[1] ?? '').toLowerCase();
+      if (route?.page === 'settings' && isSettingsSection(sec)) return { kind: 'view', route: { page: 'settings', section: sec } };
       return route ? { kind: 'view', route } : { kind: 'invalid', url: raw };
     }
     case 'new': {

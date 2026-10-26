@@ -20,6 +20,7 @@ export function journalRemindTime(store: Store): string | null {
 }
 import { dueReminders, journalReminders, pruneFired, reminderBody, upcomingReminders, JOURNAL_PREFS, JOURNAL_REMIND_TIME_DEFAULT, SNOOZE_MS, type Reminder, type Store } from '@mindough/core';
 import { isTauri } from '../store/sqlite-tauri';
+import { relay } from './window-relay';
 import { titleOf } from './view';
 import { tr } from './i18n';
 
@@ -43,6 +44,13 @@ export function remindersEnabled(): boolean {
 
 export function setRemindersEnabled(on: boolean): void {
   localStorage.setItem(KEY, on ? '1' : '0');
+  emit();
+  // 设置窗口里改的：主窗口（排提醒的那个）也要知道
+  relay('reminders');
+}
+
+/** 别的窗口改了「提醒通知」开关：重新读一遍。 */
+export function reloadReminderSettings(): void {
   emit();
 }
 

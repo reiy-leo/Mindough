@@ -132,7 +132,7 @@ export function statusZh(code: number): string {
   return m[code] ?? '';
 }
 
-export function loginUrl(returnTo = `${window.location.origin}${window.location.pathname}#/settings`): string {
+export function loginUrl(returnTo = `${window.location.origin}${window.location.pathname}#/settings/account`): string {
   return `${API_BASE}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
 }
 

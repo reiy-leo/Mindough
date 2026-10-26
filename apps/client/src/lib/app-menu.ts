@@ -1,15 +1,16 @@
 /**
- * 桌面菜单栏（Tauri，src-tauri/src/menu.rs）：文件 → 导入 → 滴答清单。
+ * 桌面菜单栏（Tauri，src-tauri/src/menu.rs）：文件 → 导入 → 滴答清单；「设置…」（⌘, / Ctrl+,，Rei 2026-10-26 设置做成单独的窗口）。
  * 菜单在 Rust 里建，文字从这里按界面语言传过去（换语言时整棵界面重新挂载，effect 会再跑一遍）；
  * 点了菜单，Rust 发 `mindough:menu` 给主窗口，这里打开对应的窗口。小窗和 Web 端什么都不做。
  */
 import { useEffect } from 'react';
 import { isTauri } from '../store/sqlite-tauri';
-import { isMiniWindow } from './windows';
+import { isAuxWindow } from './windows';
 import { tr, trc } from './i18n';
 
 export const MENU_EVENT = 'mindough:menu';
 export const IMPORT_DIDA = 'import-dida365';
+export const OPEN_SETTINGS = 'open-settings';
 
 /** 菜单上的文字（和 menu.rs 的 MenuLabels 一一对应）。 */
 export function menuLabels() {
@@ -17,6 +18,7 @@ export function menuLabels() {
     file: trc('菜单', '文件'),
     import: trc('菜单', '导入'),
     dida365: tr('滴答清单'),
+    settings: trc('菜单', '设置…'),
     edit: trc('菜单', '编辑'),
     window: trc('菜单', '窗口'),
     about: tr('关于念头团'),
@@ -38,10 +40,10 @@ export function menuLabels() {
   };
 }
 
-export function useAppMenu(handlers: { importDida: () => void }) {
-  const { importDida } = handlers;
+export function useAppMenu(handlers: { importDida: () => void; openSettings: () => void }) {
+  const { importDida, openSettings } = handlers;
   useEffect(() => {
-    if (!isTauri() || isMiniWindow()) return;
+    if (!isTauri() || isAuxWindow()) return;
     let dead = false;
     let off: (() => void) | null = null;
     void (async () => {
@@ -49,6 +51,7 @@ export function useAppMenu(handlers: { importDida: () => void }) {
       await invoke('set_app_menu', { labels: menuLabels() }).catch(() => {});
       const un = await listen<string>(MENU_EVENT, (e) => {
         if (e.payload === IMPORT_DIDA) importDida();
+        else if (e.payload === OPEN_SETTINGS) openSettings();
       });
       if (dead) un();
       else off = un;
@@ -57,5 +60,5 @@ export function useAppMenu(handlers: { importDida: () => void }) {
       dead = true;
       off?.();
     };
-  }, [importDida]);
+  }, [importDida, openSettings]);
 }

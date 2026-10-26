@@ -1,12 +1,16 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { AlertCircle, CloudCheck, CloudOff, Database, Laptop, LogIn, LogOut, MonitorSmartphone, RefreshCw, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from 'react';
+import { AlertCircle, Bell, ChevronLeft, ChevronRight, CircleUser, CloudCheck, CloudOff, Database, Laptop, ListTodo, LogIn, LogOut, MonitorSmartphone, Palette, RefreshCw, Settings as SettingsIcon, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { href, isSettingsSection, navigate, useRoute, type SettingsSection } from '../lib/router';
+import { focusMainWindow, isSettingsWindow, SETTINGS_NAV_EVENT } from '../lib/windows';
+import { relay } from '../lib/window-relay';
+import { IMPORT_DIDA, MENU_EVENT } from '../lib/app-menu';
 import { loginUrl, logout, useAccount } from '../lib/account';
 import { syncNow, useSyncView, type SyncView } from '../lib/sync';
 import { cloudStorageName, useCloudStorage, type CloudStorage } from '../lib/cloud';
 import { startNativeLogin } from '../lib/native-login';
 import { isTauri } from '../store/sqlite-tauri';
 import { useUi } from '../lib/ui';
-import { resetSyncState, syncedAgo } from '@mindough/core';
+import { isChineseLocale, resetSyncState, syncedAgo } from '@mindough/core';
 import { Button, Section, Segmented, Select, Switch } from '../ui/primitives';
 import { JOURNAL_PREFS, JOURNAL_REMIND_TIME_DEFAULT, normalizeRemindTime } from '@mindough/core';
 import { formatRemindTime } from '../components/task/RemindPanel';
@@ -26,152 +30,363 @@ import { exportToZip } from '../lib/archive';
 const ArchiveImportSheet = lazy(() => import('../components/ArchiveImport').then((m) => ({ default: m.ArchiveImportSheet })));
 import type { LocalePref } from '../lib/i18n';
 
-export function SettingsPage() {
+/**
+ * 设置分成五项（Rei 2026-10-26「设置在桌面端做成一个单独的窗口，设置窗口侧边栏：账户、外观」，补充「数据、提醒、任务」，
+ * 又说「农历、类型、日记这三个可以放在一个」）：
+ * - 账户：登录、同步状态、数据怎么走
+ * - 外观：皮肤、语言、明暗、布局、热力图每月 1 号标记
+ * - 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据、关于
+ * - 提醒：提醒通知开关（这台设备）、什么时候提醒
+ * - 任务：类型、日记（一天从几点开始、每天提醒写日记）、农历
+ * 桌面 app（Tauri）里设置是单独的窗口（SettingsWindow，?window=settings）；Web 和手机是页面：
+ * 宽屏左边一列五项、右边内容；窄屏先列出五项，点进去整页推入，左上角返回。
+ */
+type SettingsItem = { id: SettingsSection; icon: LucideIcon; label: () => string; hint: () => string };
+
+export const SETTINGS_ITEMS: SettingsItem[] = [
+  { id: 'account', icon: CircleUser, label: () => tr('账户'), hint: () => tr('登录与同步') },
+  { id: 'appearance', icon: Palette, label: () => tr('外观'), hint: () => tr('皮肤、语言、明暗、布局') },
+  { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储、关于') },
+  { id: 'reminders', icon: Bell, label: () => trc('设置分区', '提醒'), hint: () => tr('任务提醒的通知') },
+  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、日记、农历') : tr('类型、日记')) },
+];
+
+const itemOf = (id: SettingsSection) => SETTINGS_ITEMS.find((i) => i.id === id)!;
+
+/** 上次看的那项：只记在本机。 */
+const LAST_KEY = 'mindough:settings-section';
+function lastSection(): SettingsSection {
+  try {
+    const v = localStorage.getItem(LAST_KEY);
+    return isSettingsSection(v) ? v : 'account';
+  } catch {
+    return 'account';
+  }
+}
+function useRememberSection(sec: SettingsSection | undefined) {
+  useEffect(() => {
+    if (sec) localStorage.setItem(LAST_KEY, sec);
+  }, [sec]);
+}
+
+function SectionBody({ id }: { id: SettingsSection }) {
+  switch (id) {
+    case 'account':
+      return <AccountSection />;
+    case 'appearance':
+      return <AppearanceSection />;
+    case 'data':
+      return <DataSection />;
+    case 'reminders':
+      return <ReminderSection />;
+    case 'tasks':
+      return (
+        <>
+          <TypesSection />
+          <JournalSection />
+          <LunarSection />
+        </>
+      );
+  }
+}
+
+/** 左边那一列（宽屏页面和设置窗口共用）：↑ ↓ 在五项之间换。 */
+function SettingsNav({ current }: { current: SettingsSection }) {
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const i = SETTINGS_ITEMS.findIndex((x) => x.id === current);
+    const n = SETTINGS_ITEMS.length;
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+    e.preventDefault();
+    const nav = e.currentTarget;
+    const next = SETTINGS_ITEMS[j]!.id;
+    navigate({ page: 'settings', section: next });
+    requestAnimationFrame(() => (nav.querySelector(`[data-section="${next}"]`) as HTMLElement | null)?.focus());
+  };
+  return (
+    <nav className="settings-nav" aria-label={tr('设置分区')} onKeyDown={onKeyDown}>
+      {SETTINGS_ITEMS.map((it) => {
+        const Icon = it.icon;
+        const active = it.id === current;
+        return (
+          <a
+            key={it.id}
+            data-section={it.id}
+            href={href({ page: 'settings', section: it.id })}
+            className={`nav-item settings-nav-item${active ? ' is-active' : ''}`}
+            aria-current={active ? 'page' : undefined}
+          >
+            <span className="nav-icon">
+              <Icon size={18} />
+            </span>
+            <span className="nav-label">{it.label()}</span>
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** Web 与手机的设置页。section 省略：宽屏显示上次那项，窄屏列出五项。 */
+export function SettingsPage({ section }: { section?: SettingsSection }) {
+  const { layout } = useSettings();
+  const narrow = layout === 'mobile';
+  useRememberSection(section);
+
+  if (narrow && !section) {
+    return (
+      <div className="page settings-page">
+        <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
+        <nav className="card more-list settings-list" aria-label={tr('设置分区')}>
+          {SETTINGS_ITEMS.map((it) => {
+            const Icon = it.icon;
+            return (
+              <a key={it.id} className="more-item settings-list-item" href={href({ page: 'settings', section: it.id })}>
+                <span className="more-icon">
+                  <Icon size={20} />
+                </span>
+                <span className="grow settings-list-text">
+                  <span className="settings-list-name">{it.label()}</span>
+                  <span className="settings-list-hint">{it.hint()}</span>
+                </span>
+                <ChevronRight size={16} className="muted" aria-hidden />
+              </a>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  }
+
+  if (narrow && section) {
+    return (
+      <div className="page settings-page settings-push" key={section}>
+        <header className="settings-push-head">
+          <a className="settings-back" href={href({ page: 'settings' })}>
+            <ChevronLeft size={20} aria-hidden />
+            <span>{tr('设置')}</span>
+          </a>
+          <h1 className="settings-push-title">{itemOf(section).label()}</h1>
+        </header>
+        <div className="settings-pane">
+          <SectionBody id={section} />
+        </div>
+      </div>
+    );
+  }
+
+  const sec = section ?? lastSection();
+  return (
+    <div className="page settings-page">
+      <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
+      <div className="settings-layout">
+        <SettingsNav current={sec} />
+        <section className="settings-pane" aria-labelledby="settings-pane-title">
+          <h2 id="settings-pane-title" className="settings-pane-title">
+            {itemOf(sec).label()}
+          </h2>
+          <SectionBody id={sec} />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 桌面 app 的设置窗口（Tauri label settings，像 macOS 的系统设置）：左边侧栏图标 + 名字，右边内容。
+ * macOS 隐藏标题栏，红绿灯浮在侧栏上方（styles/settings.css 给它让位）。主窗口按 ⌘, / 菜单「设置…」/ 深链 view/settings 打开或叫到前面。
+ */
+export function SettingsWindow() {
+  const route = useRoute();
+  const sec = (route.page === 'settings' && route.section) || lastSection();
+  useRememberSection(sec);
+  // 主窗口要换到某一项（已经开着时）
+  useEffect(() => {
+    if (!isTauri()) return;
+    let off: (() => void) | null = null;
+    let dead = false;
+    void import('@tauri-apps/api/event').then(async ({ listen }) => {
+      const un = await listen<string>(SETTINGS_NAV_EVENT, (e) => {
+        if (isSettingsSection(e.payload)) navigate({ page: 'settings', section: e.payload });
+      });
+      if (dead) un();
+      else off = un;
+    });
+    return () => {
+      dead = true;
+      off?.();
+    };
+  }, []);
+  // 窗口标题跟着界面语言（换语言整棵重挂，这里会再跑）
+  useEffect(() => {
+    document.title = tr('设置');
+    if (!isTauri()) return;
+    void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().setTitle(tr('设置'))).catch(() => {});
+  }, []);
+  return (
+    <div className="settings-window">
+      <aside className="settings-side">
+        <div className="settings-titlebar" data-tauri-drag-region aria-hidden />
+        <SettingsNav current={sec} />
+      </aside>
+      <main className="settings-main" aria-labelledby="settings-window-title">
+        <header className="settings-main-head" data-tauri-drag-region>
+          <h1 id="settings-window-title" className="settings-main-title" data-tauri-drag-region>
+            {itemOf(sec).label()}
+          </h1>
+        </header>
+        <div className="settings-main-scroll">
+          <div className="settings-pane">
+            <SectionBody id={sec} />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/** 外观：皮肤、语言、明暗、布局、热力图每月 1 号标记（都是本机设置，语言除外：语言跟着账户同步）。 */
+function AppearanceSection() {
   const { settings, set, platform, skin } = useSettings();
+  const [localePref, setLocalePref] = useLocalePref();
+  return (
+    <div className="card settings-card">
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('皮肤')}</div>
+          <div className="setting-hint">
+            {tr('自动：检测到 {p}，使用 {p2}。当前：{p3}', { p: PLATFORM_LABEL[platform], p2: SKIN_LABEL[skinForPlatform(platform)], p3: SKIN_LABEL[skin] })}
+          </div>
+        </div>
+        <Segmented<Settings['skin']>
+          label={tr('皮肤')}
+          value={settings.skin}
+          onChange={(v) => set('skin', v)}
+          options={[
+            { id: 'auto', label: tr('自动') },
+            { id: 'apple', label: 'Apple' },
+            { id: 'winui', label: 'Windows' },
+            { id: 'material', label: 'Material' },
+          ]}
+        />
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('语言')}</div>
+          <div className="setting-hint">{tr('跟随系统时按系统语言显示，系统语言不在这几种里就用英文；会同步到你的其他设备')}</div>
+        </div>
+        <Select
+          label={tr('语言')}
+          className="setting-select"
+          value={localePref}
+          onChange={(v) => setLocalePref(v as LocalePref)}
+          options={[{ id: 'system', label: tr('跟随系统') }, ...LOCALES.map((l) => ({ id: l, label: LOCALE_NAMES[l] }))]}
+        />
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('明暗')}</div>
+          <div className="setting-hint">{tr('默认跟随系统')}</div>
+        </div>
+        <Segmented<Settings['theme']>
+          label={tr('明暗')}
+          value={settings.theme}
+          onChange={(v) => set('theme', v)}
+          options={[
+            { id: 'system', label: tr('跟随系统') },
+            { id: 'light', label: tr('浅色') },
+            { id: 'dark', label: tr('深色') },
+          ]}
+        />
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('布局')}</div>
+          <div className="setting-hint">{tr('自动：窗口变窄时改用底部标签栏')}</div>
+        </div>
+        <Segmented<Settings['layout']>
+          label={tr('布局')}
+          value={settings.layout}
+          onChange={(v) => set('layout', v)}
+          options={[
+            { id: 'auto', label: tr('自动') },
+            { id: 'desktop', label: tr('桌面') },
+            { id: 'mobile', label: tr('手机') },
+          ]}
+        />
+      </div>
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('热力图每月 1 号标记')}</div>
+          <div className="setting-hint">{tr('自动：格子够大显示月份数字，小格子显示圆点')}</div>
+        </div>
+        <Segmented<Settings['monthMarker']>
+          label={tr('每月 1 号标记')}
+          value={settings.monthMarker}
+          onChange={(v) => set('monthMarker', v)}
+          options={[
+            { id: 'auto', label: tr('自动') },
+            { id: 'number', label: tr('数字') },
+            { id: 'dot', label: tr('圆点') },
+            { id: 'none', label: tr('不标') },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 数据：本机存储、导出、导入、从滴答清单导入、重置演示数据、关于。 */
+function DataSection() {
   const store = useStore();
   const sync = useSyncView();
-  const [localePref, setLocalePref] = useLocalePref();
   const [pending, setPending] = useState<number | null>(null);
   useEffect(() => {
     store.adapter.pendingOutbox(100000).then((o) => setPending(o.length));
   }, [store, store.version]);
-
   return (
-    <div className="page">
-      <PageHeader title={tr('设置')} icon={<SettingsIcon size={22} />} />
-      <AccountSection />
-      <ReminderSection />
-      <JournalSection />
-      <LunarSection />
-      <TypesSection />
-      <Section title={tr('外观')}>
-        <div className="card settings-card">
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('皮肤')}</div>
-              <div className="setting-hint">
-                {tr('自动：检测到 {p}，使用 {p2}。当前：{p3}', { p: PLATFORM_LABEL[platform], p2: SKIN_LABEL[skinForPlatform(platform)], p3: SKIN_LABEL[skin] })}
-              </div>
-            </div>
-            <Segmented<Settings['skin']>
-              label={tr('皮肤')}
-              value={settings.skin}
-              onChange={(v) => set('skin', v)}
-              options={[
-                { id: 'auto', label: tr('自动') },
-                { id: 'apple', label: 'Apple' },
-                { id: 'winui', label: 'Windows' },
-                { id: 'material', label: 'Material' },
-              ]}
-            />
-          </div>
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('语言')}</div>
-              <div className="setting-hint">{tr('跟随系统时按系统语言显示，系统语言不在这几种里就用英文；会同步到你的其他设备')}</div>
-            </div>
-            <Select
-              label={tr('语言')}
-              className="setting-select"
-              value={localePref}
-              onChange={(v) => setLocalePref(v as LocalePref)}
-              options={[{ id: 'system', label: tr('跟随系统') }, ...LOCALES.map((l) => ({ id: l, label: LOCALE_NAMES[l] }))]}
-            />
-          </div>
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('明暗')}</div>
-              <div className="setting-hint">{tr('默认跟随系统')}</div>
-            </div>
-            <Segmented<Settings['theme']>
-              label={tr('明暗')}
-              value={settings.theme}
-              onChange={(v) => set('theme', v)}
-              options={[
-                { id: 'system', label: tr('跟随系统') },
-                { id: 'light', label: tr('浅色') },
-                { id: 'dark', label: tr('深色') },
-              ]}
-            />
-          </div>
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('布局')}</div>
-              <div className="setting-hint">{tr('自动：窗口变窄时改用底部标签栏')}</div>
-            </div>
-            <Segmented<Settings['layout']>
-              label={tr('布局')}
-              value={settings.layout}
-              onChange={(v) => set('layout', v)}
-              options={[
-                { id: 'auto', label: tr('自动') },
-                { id: 'desktop', label: tr('桌面') },
-                { id: 'mobile', label: tr('手机') },
-              ]}
-            />
-          </div>
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('热力图每月 1 号标记')}</div>
-              <div className="setting-hint">{tr('自动：格子够大显示月份数字，小格子显示圆点')}</div>
-            </div>
-            <Segmented<Settings['monthMarker']>
-              label={tr('每月 1 号标记')}
-              value={settings.monthMarker}
-              onChange={(v) => set('monthMarker', v)}
-              options={[
-                { id: 'auto', label: tr('自动') },
-                { id: 'number', label: tr('数字') },
-                { id: 'dot', label: tr('圆点') },
-                { id: 'none', label: tr('不标') },
-              ]}
-            />
+    <>
+    <div className="card settings-card">
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('本地存储')}</div>
+          <div className="setting-hint">
+            {storageInfo.engine === 'sqlite'
+              ? storageInfo.detail === 'tauri-rusqlite'
+                ? tr('SQLite（本机文件）')
+                : tr('SQLite（浏览器本地）')
+              : storageInfo.fallbackReason
+                ? tr('浏览器 localStorage（{reason}）', { reason: storageInfo.fallbackReason })
+                : tr('浏览器 localStorage')}
+            {tr(' · 设备 {id}', { id: store.deviceId })}
+            {pending !== null && pending > 0 && tr(' · {pending} 处改动还没同步', { pending })}
           </div>
         </div>
-      </Section>
-      <Section title={tr('数据')}>
-        <div className="card settings-card">
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('本地存储')}</div>
-              <div className="setting-hint">
-                {storageInfo.engine === 'sqlite'
-                  ? storageInfo.detail === 'tauri-rusqlite'
-                    ? tr('SQLite（本机文件）')
-                    : tr('SQLite（浏览器本地）')
-                  : storageInfo.fallbackReason
-                    ? tr('浏览器 localStorage（{reason}）', { reason: storageInfo.fallbackReason })
-                    : tr('浏览器 localStorage')}
-                {tr(' · 设备 {id}', { id: store.deviceId })}
-                {pending !== null && pending > 0 && tr(' · {pending} 处改动还没同步', { pending })}
-              </div>
-            </div>
-          </div>
-          <ArchiveRows />
-          <div className="setting">
-            <div className="setting-text">
-              <div className="setting-name">{tr('重置演示数据')}</div>
-              <div className="setting-hint">
-                {sync.enabled ? tr('登录同步时不能重置：会影响你的其他设备。先退出登录再重置。') : tr('清空本机所有任务，重新生成一份演示数据')}
-              </div>
-            </div>
-            <Button
-              variant="danger"
-              isDisabled={sync.enabled}
-              onPress={async () => {
-                if (!confirm(tr('确定清空本机数据并重新生成演示数据？'))) return;
-                await store.adapter.clear();
-                await store.adapter.setMeta('demo_seeded', ''); // 空值 = 未生成，刷新后重新生成
-                await resetSyncState(store.adapter); // 下次登录重新合并，云端数据会回来
-                location.reload();
-              }}
-            >
-              {tr('重置')}</Button>
+      </div>
+      <ArchiveRows />
+      <div className="setting">
+        <div className="setting-text">
+          <div className="setting-name">{tr('重置演示数据')}</div>
+          <div className="setting-hint">
+            {sync.enabled ? tr('登录同步时不能重置：会影响你的其他设备。先退出登录再重置。') : tr('清空本机所有任务，重新生成一份演示数据')}
           </div>
         </div>
-      </Section>
-      <AboutSection />
+        <Button
+          variant="danger"
+          isDisabled={sync.enabled}
+          onPress={async () => {
+            if (!confirm(tr('确定清空本机数据并重新生成演示数据？'))) return;
+            await store.adapter.clear();
+            await store.adapter.setMeta('demo_seeded', ''); // 空值 = 未生成，刷新后重新生成
+            await resetSyncState(store.adapter); // 下次登录重新合并，云端数据会回来
+            reloadAfterReset();
+          }}
+        >
+          {tr('重置')}</Button>
+      </div>
     </div>
+      <AboutSection />
+    </>
   );
 }
 
@@ -198,6 +413,21 @@ function TypesSection() {
       <TypeManager isOpen={open} onOpenChange={setOpen} />
     </Section>
   );
+}
+
+/** 重置演示数据之后重新载入。设置窗口里点的：先让主窗口（和小窗）重新载入，等它生成好演示数据再载入自己，免得生成两份。 */
+function reloadAfterReset() {
+  if (isSettingsWindow() && isTauri()) {
+    relay('reload');
+    setTimeout(() => location.reload(), 1500);
+  } else location.reload();
+}
+
+/** 设置窗口里点「从滴答清单导入…」：导入窗口开在主窗口里（和菜单栏 文件 → 导入 一样）。 */
+async function importDidaInMain() {
+  const { emitTo } = await import('@tauri-apps/api/event');
+  await focusMainWindow();
+  await emitTo('main', MENU_EVENT, IMPORT_DIDA);
 }
 
 /** 导出 / 导入 Markdown 文件夹（格式见 docs/EXPORT.md）。 */
@@ -249,7 +479,7 @@ function ArchiveRows() {
           <div className="setting-name">{tr('从滴答清单导入')}</div>
           <div className="setting-hint">{tr('连接滴答清单（TickTick）账户，或用它的备份文件；清单变成项目，再导一次不会重复')}</div>
         </div>
-        <Button variant="secondary" onPress={() => setDidaImportOpen(true)}>
+        <Button variant="secondary" onPress={() => (isSettingsWindow() && isTauri() ? void importDidaInMain() : setDidaImportOpen(true))}>
           {tr('从滴答清单导入…')}
         </Button>
       </div>
@@ -294,8 +524,7 @@ function AccountSection() {
     else window.location.href = loginUrl();
   };
   return (
-    <Section title={tr('账户')}>
-      <div className="card settings-card">
+    <div className="card settings-card">
         <div className="setting account-row">
           {acc.status === 'in' ? (
             <>
@@ -338,8 +567,7 @@ function AccountSection() {
         </div>
         {acc.status === 'in' && sync.enabled && <SyncRow sync={sync} onLogin={login} />}
         <DataFlowRow signedIn={acc.status === 'in'} storage={storage} />
-      </div>
-    </Section>
+    </div>
   );
 }
 
@@ -524,8 +752,7 @@ function ReminderSection() {
           ? tr('这里发不了系统通知：到点只在念头团里提示。')
           : tr('还没允许通知：到点只在念头团里提示。');
   return (
-    <Section title={tr('提醒')}>
-      <div className="card settings-card">
+    <div className="card settings-card">
         <div className="setting">
           <div className="setting-text">
             <div className="setting-name">{tr('提醒通知')}</div>
@@ -546,7 +773,6 @@ function ReminderSection() {
             <div className="setting-hint">{tr('在任务上设「提醒」时间：有日期的那天、倒数日的目标日、定期打卡的每个要打卡的日子。计时有目标时长的，到点总会提醒。')}</div>
           </div>
         </div>
-      </div>
-    </Section>
+    </div>
   );
 }

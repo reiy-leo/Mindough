@@ -1340,6 +1340,17 @@ export const MESSAGES: Record<string, MessageValue> = {
   "没有找到这个时区": "Ninguna zona horaria coincide",
   "时区：{zone}": "Zona horaria: {zone}",
   "显示更多": "Mostrar más",
+  // ── 设置分成五项、设置窗口（Rei 2026-10-26）──
+  "设置分区|提醒": "Recordatorios",
+  "设置分区|任务": "Tareas",
+  "设置分区": "Secciones de ajustes",
+  "登录与同步": "Inicio de sesión y sincronización",
+  "皮肤、语言、明暗、布局": "Aspecto, idioma, tema, diseño",
+  "导入导出、本机存储、关于": "Importar, exportar, almacenamiento, acerca de",
+  "任务提醒的通知": "Notificaciones de recordatorios de tareas",
+  "类型、日记、农历": "Tipos, diario, calendario chino",
+  "类型、日记": "Tipos, diario",
+  "菜单|设置…": "Ajustes…",
 };
 
 export const DATA: Record<string, string> = {

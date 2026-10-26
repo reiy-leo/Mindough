@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Users, X, type LucideIcon } from 'lucide-react';
-import { href, navigate, useRoute, type Route } from './lib/router';
+import { href, navigate, useRoute, type Route, type SettingsSection } from './lib/router';
+import { openSettingsWindow } from './lib/windows';
+import { isTauri } from './store/sqlite-tauri';
 import { useSettings } from './lib/settings';
 import { useUi } from './lib/ui';
 import { useStore } from './store/StoreProvider';
@@ -127,10 +129,20 @@ function useNarrow(): boolean {
   return match;
 }
 
-function NavLink({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
+function NavLink({ item, active, badge, onOpen }: { item: NavItem; active: boolean; badge?: number; onOpen?: () => void }) {
   const Icon = item.icon;
   return (
-    <a href={href({ page: item.page } as Route)} className={`nav-item${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}>
+    <a
+      href={href({ page: item.page } as Route)}
+      onClick={
+        onOpen
+          ? (e) => {
+              e.preventDefault();
+              onOpen();
+            }
+          : undefined
+      }
+      className={`nav-item${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}>
       <span className="nav-icon">
         <Icon size={18} />
       </span>
@@ -170,7 +182,7 @@ function Page({ route }: { route: Route }) {
     case 'journal':
       return <JournalPage {...(route.date ? { date: route.date } : {})} />;
     case 'settings':
-      return <SettingsPage />;
+      return <SettingsPage {...(route.section ? { section: route.section } : {})} />;
     case 'more':
       return <MorePage />;
   }
@@ -264,16 +276,33 @@ export function App() {
   const store = useStore();
   useLunarSubScheduler(store);
   const { setDidaImportOpen } = ui;
-  useAppMenu({ importDida: useCallback(() => setDidaImportOpen(true), [setDidaImportOpen]) });
-  const { layout, skin } = useSettings();
+  const { layout, skin, platform } = useSettings();
+  // 桌面 app（Tauri）：设置是单独的窗口（Rei 2026-10-26）；Web 和手机仍是页面
+  const settingsInWindow = isTauri() && (platform === 'macos' || platform === 'windows' || platform === 'linux');
+  const openSettings = useCallback(
+    (section?: SettingsSection) => void openSettingsWindow({ ...(section ? { section } : {}), title: tr('设置'), macOverlay: platform === 'macos' }),
+    [platform],
+  );
+  useAppMenu({ importDida: useCallback(() => setDidaImportOpen(true), [setDidaImportOpen]), openSettings: useCallback(() => openSettings(), [openSettings]) });
+  // 走到 #/settings（深链 view/settings、手机布局「更多」里的设置、旧链接）：开设置窗口，主窗口退回原来的页面
+  useEffect(() => {
+    if (!settingsInWindow || route.page !== 'settings') return;
+    openSettings(route.section);
+    if (history.length > 1) history.back();
+    else location.replace('#/myday');
+  }, [settingsInWindow, route, openSettings]);
   const isActive = (n: NavItem) => n.match.includes(route.page);
   const [collapsed, toggleSection] = useCollapsed();
   const todayCount = store.list('my_day').filter((e) => e.date === toDateKey(store.now()) && store.get('task', e.task_id)).length;
 
-  // 快捷键：⌘K / Ctrl+K 搜索；N 快速新建（不在输入框时）
+  // 快捷键：⌘K / Ctrl+K 搜索；⌘, / Ctrl+, 设置；N 快速新建（不在输入框时）
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key === ',') {
+        e.preventDefault();
+        if (settingsInWindow) openSettings();
+        else navigate({ page: 'settings' });
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         ui.setPaletteOpen(true);
       } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'n' && !isTyping(e.target) && !ui.paletteOpen && !ui.quickCreate) {
@@ -283,7 +312,7 @@ export function App() {
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [ui, route]);
+  }, [ui, route, settingsInWindow, openSettings]);
 
   const newTask = () => ui.openQuickCreate(newTaskDefaults(route), { myDay: route.page === 'myday' });
   const backlogCount = store.backlog(toDateKey(store.now())).length;
@@ -321,7 +350,7 @@ export function App() {
             })}
           </nav>
           <div className="sidebar-foot">
-            <NavLink item={SETTINGS} active={isActive(SETTINGS)} />
+            {settingsInWindow ? <NavLink item={SETTINGS} active={false} onOpen={() => openSettings()} /> : <NavLink item={SETTINGS} active={isActive(SETTINGS)} />}
           </div>
         </aside>
         {/* 中间一列：当前视图的列表；新建按钮浮在这一列右下角（不压住右列的详情） */}
@@ -330,7 +359,7 @@ export function App() {
             <div className="titlebar-space" data-tauri-drag-region aria-hidden />
             <div className="main-scroll">
               <LoginErrorBanner />
-              <Page route={route} />
+              {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
             </div>
           </main>
           {/* 日记页不放新建按钮（改版 B 按原型默认，待 Rei 确认）：写作区像一页纸，按钮会压在正文上；N 和 ⌘K 照常能新建任务 */}
@@ -356,7 +385,7 @@ export function App() {
         </div>
         <main className="main">
           <LoginErrorBanner />
-          <Page route={route} />
+          {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
         </main>
         {!hideFab && <NewTaskFab onPress={newTask} />}
         <nav className="tabbar" aria-label={tr('主导航')}>

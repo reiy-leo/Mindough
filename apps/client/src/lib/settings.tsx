@@ -4,6 +4,7 @@ import { detectPlatform, layoutForWidth, MAC_OVERLAY_CLASS, resolveSkin, usesMac
 
 import { tr } from './i18n';
 import { isMiniWindow } from './windows';
+import { onRelay, relay } from './window-relay';
 import { isTauri } from '../store/sqlite-tauri';
 export interface Settings {
   skin: SkinPref;
@@ -99,11 +100,25 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const layout = settings.layout === 'auto' ? layoutForWidth(width) : settings.layout;
 
   const set = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setStored((s) => {
-      const next = { ...s, [key]: value };
-      localStorage.setItem(KEY, JSON.stringify(next));
-      return next;
-    });
+    // 先落到 localStorage 再通知别的窗口（它们收到就重新读）；以 localStorage 为准，别的窗口刚改的也不丢
+    const next = { ...load(), [key]: value };
+    localStorage.setItem(KEY, JSON.stringify(next));
+    setStored(next);
+    relay('settings');
+  }, []);
+
+  // 别的窗口（Tauri）或同一浏览器的别的标签页改了本机设置：重新读
+  useEffect(() => {
+    const reload = () => setStored(load());
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY) reload();
+    };
+    window.addEventListener('storage', onStorage);
+    const off = onRelay('settings', reload);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      off();
+    };
   }, []);
 
   useEffect(() => {

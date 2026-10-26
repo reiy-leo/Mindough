@@ -1,5 +1,5 @@
 /**
- * 多窗口（Tauri 桌面）：主窗口 + 置顶的「小窗」（?window=mini）。
+ * 多窗口（Tauri 桌面）：主窗口 + 置顶的「小窗」（?window=mini）+ 设置窗口（?window=settings，Rei 2026-10-26）。
  *
  * 两个窗口各有一份 Store 内存快照，底下是同一个 rusqlite 连接（src-tauri/src/db.rs）。
  * 一个窗口写了什么，经 Tauri 事件 `mindough:changes` 发给另一个，对方用 store.applyRemote 合进内存
@@ -9,7 +9,12 @@
 import { appName, type Change, type Store } from '@mindough/core';
 import { isTauri } from '../store/sqlite-tauri';
 
-export const isMiniWindow = (): boolean => typeof location !== 'undefined' && new URLSearchParams(location.search).get('window') === 'mini';
+const windowParam = (): string | null => (typeof location !== 'undefined' ? new URLSearchParams(location.search).get('window') : null);
+export const isMiniWindow = (): boolean => windowParam() === 'mini';
+/** 设置窗口（桌面端单独一个窗口）；Web 用 ?window=settings 也能看这个布局（截图、调试）。 */
+export const isSettingsWindow = (): boolean => windowParam() === 'settings';
+/** 副窗口（小窗、设置窗口）：不跑同步、不排提醒、不传附件，都交给主窗口。 */
+export const isAuxWindow = (): boolean => isMiniWindow() || isSettingsWindow();
 
 const EVENT = 'mindough:changes';
 
@@ -58,6 +63,56 @@ export async function openMiniWindow(): Promise<void> {
     resizable: true,
     skipTaskbar: false,
   });
+}
+
+/** 设置窗口里换到某一项（主窗口按 ⌘, 或深链打开时，窗口已经开着就发这个）。 */
+export const SETTINGS_NAV_EVENT = 'mindough:settings-nav';
+export const SETTINGS_LABEL = 'settings';
+
+let opening: Promise<void> | null = null;
+
+/**
+ * 打开（或叫到前面）设置窗口：760 × 560，最小 640 × 440，可以调大小。
+ * macOS 和主窗口一样隐藏标题栏，红绿灯浮在左侧边栏上（样式见 styles/settings.css）。
+ * 已经开着就聚焦，不开第二个；section 给了就换到那一项。
+ */
+export function openSettingsWindow(opts: { section?: string; title: string; macOverlay: boolean }): Promise<void> {
+  if (!isTauri()) return Promise.resolve();
+  // 菜单快捷键和网页里的 ⌘, 可能同时到：一次只开一个
+  if (opening) return opening;
+  opening = (async () => {
+    const [{ WebviewWindow }, { emitTo }, { LogicalPosition }] = await Promise.all([
+      import('@tauri-apps/api/webviewWindow'),
+      import('@tauri-apps/api/event'),
+      import('@tauri-apps/api/dpi'),
+    ]);
+    const existing = await WebviewWindow.getByLabel(SETTINGS_LABEL);
+    if (existing) {
+      await existing.unminimize();
+      await existing.show();
+      await existing.setFocus();
+      if (opts.section) await emitTo(SETTINGS_LABEL, SETTINGS_NAV_EVENT, opts.section);
+      return;
+    }
+    const w = new WebviewWindow(SETTINGS_LABEL, {
+      url: `index.html?window=settings#/settings${opts.section ? `/${opts.section}` : ''}`,
+      title: opts.title,
+      width: 760,
+      height: 560,
+      minWidth: 640,
+      minHeight: 440,
+      resizable: true,
+      center: true,
+      ...(opts.macOverlay ? { titleBarStyle: 'overlay' as const, hiddenTitle: true, trafficLightPosition: new LogicalPosition(16, 18) } : {}),
+    });
+    await new Promise<void>((resolve) => {
+      void w.once('tauri://created', () => resolve());
+      void w.once('tauri://error', () => resolve());
+    });
+  })().finally(() => {
+    opening = null;
+  });
+  return opening;
 }
 
 /** 小窗里：把主窗口叫到前面（打开某件任务时也用它）。 */

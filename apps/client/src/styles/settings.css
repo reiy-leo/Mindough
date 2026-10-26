@@ -1,0 +1,183 @@
+/*
+ * 设置（Rei 2026-10-26）：五项——账户、外观、数据、提醒、任务。
+ * - Web 宽屏：页面里左边一列五项，右边内容
+ * - 窄屏 / 手机：先列出五项，点进去整页推入，左上角返回
+ * - 桌面 app：单独的设置窗口（.settings-window），左边侧栏、右边内容；macOS 隐藏标题栏，给红绿灯让位
+ * 侧栏的项沿用主侧边栏的 .nav-item（三种皮肤的选中样式都跟着走）。
+ */
+
+/* ── Web 宽屏 ── */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-layout > .settings-nav {
+  position: sticky;
+  top: var(--space-3);
+}
+.settings-nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.settings-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.settings-pane > .section {
+  margin: 0;
+}
+.settings-pane-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.settings-pane .about {
+  margin-top: var(--space-4);
+}
+
+/* ── 窄屏：列表 + 推入 ── */
+.settings-list-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-list-name {
+  font-weight: 500;
+}
+.settings-list-hint {
+  font-size: 12px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-list-item:focus-visible,
+.settings-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-ctl);
+}
+.settings-push {
+  animation: settings-push-in 0.22s var(--ease);
+}
+@keyframes settings-push-in {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-push {
+    animation: none;
+  }
+}
+.settings-push-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+  padding: 4px 6px;
+  color: var(--accent);
+  font-size: 15px;
+}
+.settings-push-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ── 桌面设置窗口 ── */
+html:has(.settings-window),
+html:has(.settings-window) body,
+html:has(.settings-window) #root {
+  height: 100%;
+  overflow: hidden;
+}
+.settings-window {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+.settings-side {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  background: var(--sidebar-bg);
+  backdrop-filter: var(--sidebar-blur);
+  -webkit-backdrop-filter: var(--sidebar-blur);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+/* 红绿灯的位置：只在 macOS 隐藏标题栏时占高（38px，和主窗口一样），可拖动窗口 */
+.settings-titlebar {
+  display: none;
+}
+.platform-macos-overlay .settings-side {
+  padding-top: 0;
+}
+.platform-macos-overlay .settings-titlebar {
+  display: block;
+  flex: none;
+  height: calc(var(--titlebar-h, 38px) + 6px);
+  margin: 0 calc(-1 * var(--space-3));
+}
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.settings-main-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: var(--space-3) var(--space-5) var(--space-2);
+}
+.platform-macos-overlay .settings-main-head {
+  min-height: calc(var(--titlebar-h, 38px) + 6px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.settings-main-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.settings-main-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-5) var(--space-6);
+}
+.settings-window .settings-pane {
+  max-width: 640px;
+}
+.settings-window .setting-text {
+  min-width: 180px;
+}

@@ -1,13 +1,16 @@
-//! 桌面菜单栏：File → Import → Dida365（中文界面：文件 → 导入 → 滴答清单）。
+//! 桌面菜单栏：File → Import → Dida365（中文界面：文件 → 导入 → 滴答清单）；「设置…」（⌘, / Ctrl+,，Rei 2026-10-26）。
 //! - macOS：全局菜单，保留标准的 App / 编辑 / 窗口菜单（复制粘贴、撤销、全选的快捷键靠「编辑」菜单）。
 //! - Windows / Linux：只给主窗口加一条「文件」菜单（导入、退出），不加编辑菜单，免得抢 WebView 自己的快捷键；小窗没有菜单。
 //! 启动时先用英文建好（macOS 一开窗就要有编辑菜单）；前端定下界面语言后调 set_app_menu 换成对应文字（文字走前端的 tr()）。
 //! 点「Dida365」发事件 `mindough:menu`（payload `import-dida365`）给主窗口，前端打开导入窗口。
+//! 点「设置…」发 `open-settings` 给主窗口，前端开（或叫到前面）设置窗口（label settings，lib/windows.ts）。
+//! macOS 的「设置…」在 App 菜单「关于」下面；Windows / Linux 在「文件」菜单里。
 
 use serde::Deserialize;
 
 pub const MENU_EVENT: &str = "mindough:menu";
 pub const IMPORT_DIDA_ID: &str = "import-dida365";
+pub const OPEN_SETTINGS_ID: &str = "open-settings";
 
 /// 菜单上的文字（前端按界面语言传过来；没传的用英文）。
 #[derive(Deserialize, Clone)]
@@ -16,6 +19,7 @@ pub struct MenuLabels {
     pub file: String,
     pub import: String,
     pub dida365: String,
+    pub settings: String,
     pub edit: String,
     pub window: String,
     pub about: String,
@@ -42,6 +46,7 @@ impl Default for MenuLabels {
             file: "File".into(),
             import: "Import".into(),
             dida365: "Dida365".into(),
+            settings: "Settings…".into(),
             edit: "Edit".into(),
             window: "Window".into(),
             about: "About Mindough".into(),
@@ -73,6 +78,7 @@ mod desktop {
     fn build<R: Runtime>(app: &AppHandle<R>, l: &MenuLabels) -> tauri::Result<Menu<R>> {
         let dida = MenuItem::with_id(app, IMPORT_DIDA_ID, &l.dida365, true, None::<&str>)?;
         let import = Submenu::with_items(app, &l.import, true, &[&dida])?;
+        let settings = MenuItem::with_id(app, OPEN_SETTINGS_ID, &l.settings, true, Some("CmdOrCtrl+,"))?;
 
         #[cfg(target_os = "macos")]
         {
@@ -88,6 +94,8 @@ mod desktop {
                 true,
                 &[
                     &PredefinedMenuItem::about(app, Some(&l.about), Some(about))?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &settings,
                     &PredefinedMenuItem::separator(app)?,
                     &PredefinedMenuItem::services(app, Some(&l.services))?,
                     &PredefinedMenuItem::separator(app)?,
@@ -135,7 +143,12 @@ mod desktop {
 
         #[cfg(not(target_os = "macos"))]
         {
-            let file = Submenu::with_items(app, &l.file, true, &[&import, &PredefinedMenuItem::separator(app)?, &PredefinedMenuItem::quit(app, Some(&l.quit))?])?;
+            let file = Submenu::with_items(
+                app,
+                &l.file,
+                true,
+                &[&import, &PredefinedMenuItem::separator(app)?, &settings, &PredefinedMenuItem::separator(app)?, &PredefinedMenuItem::quit(app, Some(&l.quit))?],
+            )?;
             Menu::with_items(app, &[&file])
         }
     }
@@ -156,8 +169,12 @@ mod desktop {
         Ok(())
     }
 
-    /// 菜单点击：导入滴答清单 → 叫出主窗口并发事件。
+    /// 菜单点击：导入滴答清单 → 叫出主窗口并发事件；设置… → 发给主窗口，由前端开设置窗口（主窗口不用叫到前面）。
     pub fn on_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
+        if id == OPEN_SETTINGS_ID {
+            let _ = app.emit_to("main", MENU_EVENT, OPEN_SETTINGS_ID);
+            return;
+        }
         if id == IMPORT_DIDA_ID {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();

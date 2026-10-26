@@ -1340,6 +1340,17 @@ export const MESSAGES: Record<string, MessageValue> = {
   "没有找到这个时区": "Aucun fuseau correspondant",
   "时区：{zone}": "Fuseau horaire : {zone}",
   "显示更多": "Afficher plus",
+  // ── 设置分成五项、设置窗口（Rei 2026-10-26）──
+  "设置分区|提醒": "Rappels",
+  "设置分区|任务": "Tâches",
+  "设置分区": "Sections des réglages",
+  "登录与同步": "Connexion et synchronisation",
+  "皮肤、语言、明暗、布局": "Habillage, langue, thème, disposition",
+  "导入导出、本机存储、关于": "Import, export, stockage, à propos",
+  "任务提醒的通知": "Notifications des rappels de tâches",
+  "类型、日记、农历": "Types, journal, calendrier chinois",
+  "类型、日记": "Types, journal",
+  "菜单|设置…": "Réglages…",
 };
 
 export const DATA: Record<string, string> = {

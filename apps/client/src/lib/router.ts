@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 
+/**
+ * 设置的五个分区（Rei 2026-10-26「设置窗口侧边栏：账户、外观」，补充「数据、提醒、任务」）：
+ * #/settings/account|appearance|data|reminders|tasks；不带分区的 #/settings 照旧能用。
+ */
+export const SETTINGS_SECTIONS = ['account', 'appearance', 'data', 'reminders', 'tasks'] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+export const isSettingsSection = (v: unknown): v is SettingsSection => typeof v === 'string' && (SETTINGS_SECTIONS as readonly string[]).includes(v);
+
 export type Route =
   | { page: 'myday' }
   | { page: 'backlog' }
@@ -17,7 +25,8 @@ export type Route =
   | { page: 'countdown' }
   /** 日记：date 省略 = 今天（按「一天从几点开始」算）。 */
   | { page: 'journal'; date?: string }
-  | { page: 'settings' }
+  /** 设置：section 省略时宽屏显示上次看的那项，窄屏先列出五项。 */
+  | { page: 'settings'; section?: SettingsSection }
   | { page: 'more' };
 
 /** hash 里 ? 之前的路径部分（?task= 等参数不算路由）。 */
@@ -55,7 +64,7 @@ export function parseHash(hash: string): Route {
     case 'journal':
       return b && b !== 'today' ? { page: 'journal', date: decodeURIComponent(b) } : { page: 'journal' };
     case 'settings':
-      return { page: 'settings' };
+      return isSettingsSection(b) ? { page: 'settings', section: b } : { page: 'settings' };
     case 'more':
       return { page: 'more' };
     default:
@@ -75,6 +84,8 @@ export function href(route: Route): string {
       return `#/library/${route.typeId}/${route.id}`;
     case 'journal':
       return route.date ? `#/journal/${route.date}` : '#/journal';
+    case 'settings':
+      return route.section ? `#/settings/${route.section}` : '#/settings';
     default:
       return `#/${route.page}`;
   }

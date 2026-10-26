@@ -6,7 +6,9 @@ import { UiProvider } from './lib/ui';
 import { App, Toasts } from './App';
 import { MiniWindow } from './components/MiniWindow';
 import { TaskDetail } from './components/task/TaskDetail';
-import { isMiniWindow } from './lib/windows';
+import { isAuxWindow, isMiniWindow, isSettingsWindow } from './lib/windows';
+import { installCrossWindow } from './lib/cross-window';
+import { SettingsWindow } from './pages/Settings';
 import { initLoginError, startAccountWatch } from './lib/account';
 import { registerServiceWorker } from './lib/reminders';
 import { initNativeLogin } from './lib/native-login';
@@ -26,17 +28,21 @@ import './styles/journal.css';
 import './styles/attachments.css';
 import './styles/lunar.css';
 import './styles/prop-chips.css';
+import './styles/settings.css';
 import './skin/skins.css';
 
 // 登录失败回跳带的 ?login_error：先取出并从地址栏去掉，再渲染
 initLoginError();
 // 账户状态（同步跟着它开 / 停）；原生端监听登录回调的 deep link
-// 小窗不跑同步、不接登录回调（都交给主窗口）
+// 小窗、设置窗口不跑同步、不接登录回调（都交给主窗口）
 const mini = isMiniWindow();
-if (!mini) {
+const settingsWin = isSettingsWindow();
+if (!isAuxWindow()) {
   registerServiceWorker();
   void initNativeLogin();
 }
+// 窗口之间：账户、同步状态、提醒开关（Tauri 桌面，见 lib/cross-window.ts）
+installCrossWindow();
 // App 里的外链交给系统浏览器
 installExternalLinks();
 // 浏览器 / WebView 自带的右键菜单不出（能打字的地方除外）
@@ -64,7 +70,12 @@ createRoot(document.getElementById('root')!).render(
       <StoreProvider>
         <LocaleRoot>
           <UiProvider>
-            {mini ? (
+            {settingsWin ? (
+              <>
+                <SettingsWindow />
+                <Toasts />
+              </>
+            ) : mini ? (
               <>
                 <MiniWindow />
                 <TaskDetail />

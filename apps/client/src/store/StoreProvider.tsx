@@ -3,7 +3,7 @@ import { DEMO_STAMP_META, SqlAdapter, Store, TABLES, WebStorageAdapter, migrateS
 import { bindSync } from '../lib/sync';
 import { installUploader } from '../lib/attachments';
 import { installAttachmentCache } from '../lib/attachment-cache';
-import { installWindowSync, isMiniWindow } from '../lib/windows';
+import { installWindowSync, isAuxWindow, isMiniWindow } from '../lib/windows';
 import { installWidgetSnapshot } from '../lib/widget-snapshot';
 import { migrateFromTurso, openWebSqlite, terminateWebSqlite, webSqliteSupported } from './sqlite-web';
 import { acquireTabLock, type TabLock } from './tab-lock';
@@ -108,14 +108,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [attempt]);
   // 登录后多设备同步；退出登录就停（本机数据不动）
-  // 同步只在主窗口跑（小窗的写入经窗口事件交给主窗口，主窗口照常推）
-  useEffect(() => (store && !isMiniWindow() ? bindSync(store) : undefined), [store]);
+  // 同步只在主窗口跑（小窗、设置窗口的写入经窗口事件交给主窗口，主窗口照常推）
+  useEffect(() => (store && !isAuxWindow() ? bindSync(store) : undefined), [store]);
   useEffect(() => (store ? installWindowSync(store) : undefined), [store]);
   useEffect(() => (store ? installWidgetSnapshot(store) : undefined), [store]);
   // 附件上传队列：只在主窗口跑（和同步一样）
-  useEffect(() => (store && !isMiniWindow() ? installUploader(store) : undefined), [store]);
+  useEffect(() => (store && !isAuxWindow() ? installUploader(store) : undefined), [store]);
   // 附件本机缓存：启动、回到前台、每小时清掉到期（24 小时）的本机副本
-  useEffect(() => (store && !isMiniWindow() ? installAttachmentCache(store) : undefined), [store]);
+  useEffect(() => (store && !isAuxWindow() ? installAttachmentCache(store) : undefined), [store]);
   if (error) return <div className="boot-error">{tr('打不开本地数据：{error}', { error })}</div>;
   if (blocked)
     return (

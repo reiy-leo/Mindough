@@ -87,3 +87,19 @@ describe('倒数日单独一页（Rei 2026-10-26）', () => {
     expect(parseHash('#/checkin#other')).toEqual({ page: 'checkin' });
   });
 });
+
+describe('设置分成五项（Rei 2026-10-26）', () => {
+  it('#/settings/<项> 能深链到某一项，旧的 #/settings 照旧能用，认不得的项当作 #/settings', () => {
+    expect(parseHash('#/settings')).toEqual({ page: 'settings' });
+    expect(parseHash('#/settings/appearance')).toEqual({ page: 'settings', section: 'appearance' });
+    expect(parseHash('#/settings/tasks')).toEqual({ page: 'settings', section: 'tasks' });
+    expect(parseHash('#/settings/nope')).toEqual({ page: 'settings' });
+    expect(href({ page: 'settings', section: 'data' })).toBe('#/settings/data');
+    expect(href({ page: 'settings' })).toBe('#/settings');
+  });
+  it('mindough://view/settings 和 view/settings/<项>', () => {
+    expect(parseDeepLink('mindough://view/settings', now)).toEqual({ kind: 'view', route: { page: 'settings' } });
+    expect(parseDeepLink('mindough://view/settings/reminders', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'reminders' } });
+    expect(parseDeepLink('mindough://view/settings/xyz', now)).toEqual({ kind: 'view', route: { page: 'settings' } });
+  });
+});

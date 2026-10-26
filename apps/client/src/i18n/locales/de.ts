@@ -1340,6 +1340,17 @@ export const MESSAGES: Record<string, MessageValue> = {
   "没有找到这个时区": "Keine passende Zeitzone",
   "时区：{zone}": "Zeitzone: {zone}",
   "显示更多": "Mehr anzeigen",
+  // ── 设置分成五项、设置窗口（Rei 2026-10-26）──
+  "设置分区|提醒": "Erinnerungen",
+  "设置分区|任务": "Aufgaben",
+  "设置分区": "Einstellungsbereiche",
+  "登录与同步": "Anmeldung und Synchronisierung",
+  "皮肤、语言、明暗、布局": "Design, Sprache, Hell/Dunkel, Layout",
+  "导入导出、本机存储、关于": "Import, Export, Speicher, Über",
+  "任务提醒的通知": "Mitteilungen für Aufgabenerinnerungen",
+  "类型、日记、农历": "Typen, Journal, chinesischer Kalender",
+  "类型、日记": "Typen, Journal",
+  "菜单|设置…": "Einstellungen …",
 };
 
 export const DATA: Record<string, string> = {

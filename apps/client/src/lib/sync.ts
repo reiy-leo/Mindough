@@ -144,9 +144,29 @@ export function bindSync(store: Store): () => void {
   return subscribeAccount(apply);
 }
 
-/** 立即同步（设置里的按钮、出错后的重试）。 */
+let forwardSyncNow: (() => void) | null = null;
+
+/** 立即同步（设置里的按钮、出错后的重试）。设置窗口里没有同步引擎，交给主窗口去同步。 */
 export function syncNow(): Promise<void> {
+  if (forwardSyncNow) {
+    forwardSyncNow();
+    return Promise.resolve();
+  }
   return engine?.syncNow() ?? Promise.resolve();
+}
+
+/** 现在的同步状态（主窗口把它发给设置窗口）。 */
+export const getSyncView = (): SyncView => view;
+export function subscribeSyncView(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+/** 设置窗口：显示主窗口发来的同步状态；「立即同步」转给主窗口（lib/cross-window.ts 接上）。 */
+export function mirrorSyncFromMain(v: SyncView): void {
+  setView(v);
+}
+export function setSyncNowForwarder(fn: (() => void) | null): void {
+  forwardSyncNow = fn;
 }
 
 export function useSyncView(): SyncView {

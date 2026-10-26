@@ -1340,6 +1340,17 @@ export const MESSAGES: Record<string, MessageValue> = {
   "没有找到这个时区": "Tidak ada zona waktu yang cocok",
   "时区：{zone}": "Zona waktu: {zone}",
   "显示更多": "Tampilkan lebih banyak",
+  // ── 设置分成五项、设置窗口（Rei 2026-10-26）──
+  "设置分区|提醒": "Pengingat",
+  "设置分区|任务": "Tugas",
+  "设置分区": "Bagian pengaturan",
+  "登录与同步": "Masuk dan sinkronisasi",
+  "皮肤、语言、明暗、布局": "Skin, bahasa, tema, tata letak",
+  "导入导出、本机存储、关于": "Impor, ekspor, penyimpanan, tentang",
+  "任务提醒的通知": "Notifikasi pengingat tugas",
+  "类型、日记、农历": "Tipe, jurnal, kalender Tionghoa",
+  "类型、日记": "Tipe, jurnal",
+  "菜单|设置…": "Pengaturan…",
 };
 
 export const DATA: Record<string, string> = {
