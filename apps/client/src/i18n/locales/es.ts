@@ -6,6 +6,16 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  // ── 日期段（Rei 2026-10-26）──
+  "{when}，共 {n} 天": "{when}, {n, plural, one {# día} other {# días}}",
+  "这几天要做": "Para estos días",
+  "第 {index}/{total} 天": "Día {index}/{total}",
+  "单日还是日期段": "Un día o un rango de fechas",
+  "单日": "Un día",
+  "日期段": "Rango de fechas",
+  "选开始日": "Elige la fecha de inicio",
+  "选结束日": "Elige la fecha de fin",
+  "去掉结束日": "Quitar fecha de fin",
   // ── 计数步长（Rei 2026-10-26）──
   "{amount} {unit}": "{amount} {unit}",
   "{amount} 次": "{amount} veces",

@@ -24,6 +24,7 @@ export function mkTask(id: string, patch: Partial<Task> = {}): Task {
     status: '待办',
     group_id: null,
     scheduled_date: null,
+    end_date: null,
     type_id: null,
     type_data: {},
     completion_mode: 'once',

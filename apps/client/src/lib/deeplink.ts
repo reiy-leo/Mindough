@@ -11,7 +11,7 @@ import { isSettingsSection, type Route } from './router';
 export type DeepLinkAction =
   | { kind: 'task'; id: string }
   | { kind: 'view'; route: Route }
-  | { kind: 'new'; text: string; date: DateKey | null; myDay: boolean; typeId: string | null; groupId: string | null }
+  | { kind: 'new'; text: string; date: DateKey | null; end: DateKey | null; myDay: boolean; typeId: string | null; groupId: string | null }
   | { kind: 'checkin'; id: string; amount: number }
   /** 日记：date = 'today' 或 YYYY-MM-DD（不是真日期的也原样带着，执行时提示「没有这一天」）。 */
   | { kind: 'journal'; date: string }
@@ -79,10 +79,14 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
     }
     case 'new': {
       const text = (q.get('text') ?? '').trim();
+      // 日期段（Rei 2026-10-26）：end= 结束日，写法同 date；没有 date、或不晚于 date 就当没写
+      const date = parseLinkDate(q.get('date'), now);
+      const end = parseLinkDate(q.get('end'), now);
       return {
         kind: 'new',
         text,
-        date: parseLinkDate(q.get('date'), now),
+        date,
+        end: date && end && end > date ? end : null,
         myDay: truthy(q.get('myday')),
         // library= 是新名字，type= 照旧能用（Rei 2026-10-26 类型改叫资料库）
         typeId: typeIdOf(q.get('library') ?? q.get('type')),

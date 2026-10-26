@@ -5,6 +5,7 @@
 import { HlcClock } from './hlc';
 import { uuidv7 } from './uuid';
 import { toDateKey } from './dates';
+import { normalizeRange } from './date-range';
 import { backlogTasks } from './backlog';
 import { assertCanAddEdge, deriveAll, findCycleEdges, unlockedSuccessors, type DerivedStatus, type Edge } from './dag';
 import { computeProgress, periodKeyForTask, type Progress } from './checkin';
@@ -29,7 +30,7 @@ import {
 import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTypes, updateField, type NewFieldInput } from './typedef';
 import { BUILTIN_CHECKIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
 import { mergeCycleSurvivors, planItemMerge, planPersonMerge, resolveMerged, duplicateGroups, type DuplicateGroup, type MergeChoices } from './merge';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
@@ -100,6 +101,11 @@ export type NewTaskInput = Partial<Omit<Task, 'id' | 'updated_at' | 'deleted'>> 
 /** 用户点过「不是同一个」的重复组（pref，值是组签名数组）。 */
 export const NOT_DUPLICATES_PREF = 'library.not_duplicates';
 
+function normalizeRangeFields(start: DateKey | null, end: DateKey | null): { scheduled_date: DateKey | null; end_date: DateKey | null } {
+  const r = normalizeRange(start, end);
+  return { scheduled_date: r.start, end_date: r.end };
+}
+
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** 同一行写了多次只留最后一次。 */
@@ -152,6 +158,8 @@ export class Store {
         if (t === 'task' && (row as Task).remind_time === undefined) (row as Task).remind_time = null;
         // v8 之前没有 time_zone（空 = 跟着设备）：同上
         if (t === 'task' && (row as Task).time_zone === undefined) (row as Task).time_zone = null;
+        // v10 之前没有 end_date（空 = 单日）：同上
+        if (t === 'task' && (row as Task).end_date === undefined) (row as Task).end_date = null;
         // v9 之前没有 count_config（空 = 步长 1）：同上
         if (t === 'task' && !isPlainObject((row as Task).count_config)) (row as Task).count_config = {};
         // v5 之前没有 merged_into：同上
@@ -821,7 +829,7 @@ export class Store {
       body_md: input.body_md ?? dataLabel(resolvedType?.body_template ?? ''),
       status: input.status ?? '待办',
       group_id: input.group_id ?? null,
-      scheduled_date: input.scheduled_date ?? null,
+      ...normalizeRangeFields(input.scheduled_date ?? null, input.end_date ?? null),
       type_id: typeId === PLAIN_TYPE_ID ? null : typeId,
       type_data: input.type_data ?? {},
       completion_mode: input.completion_mode ?? resolvedType?.default_completion_mode ?? 'once',
@@ -844,6 +852,13 @@ export class Store {
   }
 
   updateTask(id: string, patch: Partial<Omit<Task, 'id' | 'updated_at'>>): Task {
+    // 改了开始或结束：结束日只能晚于开始日，否则回到单日（date-range.ts normalizeRange）
+    if ('scheduled_date' in patch || 'end_date' in patch) {
+      const cur = this.tables.task.get(id);
+      const start = 'scheduled_date' in patch ? (patch.scheduled_date ?? null) : (cur?.scheduled_date ?? null);
+      const end = 'end_date' in patch ? (patch.end_date ?? null) : (cur?.end_date ?? null);
+      patch = { ...patch, ...normalizeRangeFields(start, end) };
+    }
     return this.update('task', id, patch);
   }
 

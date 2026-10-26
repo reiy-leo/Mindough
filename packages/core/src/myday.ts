@@ -8,6 +8,7 @@ import { isFinished, type CheckIn, type DateKey, type MyDayEntry, type Task } fr
 
 import { tr } from './i18n';
 import { taskToday } from './timezone';
+import { taskEndDate } from './date-range';
 export function entriesFor(entries: readonly MyDayEntry[], date: DateKey): MyDayEntry[] {
   const seen = new Set<string>();
   // 同一 task_id + date 只保留一条（同步时按此合并）
@@ -70,10 +71,11 @@ export function yesterdayUnfinished(
   return out;
 }
 
-export type SuggestionReason = '今天到期' | '今天要打卡' | '刚解锁' | '倒数日到了';
+export type SuggestionReason = '今天到期' | '这几天要做' | '今天要打卡' | '刚解锁' | '倒数日到了';
 /** 建议理由的显示文字（内部值是中文，显示按当前语言）。 */
 export const SUGGESTION_REASON_LABEL: Record<SuggestionReason, string> = {
   get 今天到期() { return tr('今天到期'); },
+  get 这几天要做() { return tr('这几天要做'); },
   get 今天要打卡() { return tr('今天要打卡'); },
   get 刚解锁() { return tr('刚解锁'); },
   get 倒数日到了() { return tr('倒数日到了'); },
@@ -107,7 +109,14 @@ export function suggestions({ tasks, entries, checkIns, derived, recentlyUnlocke
   };
   const live = tasks.filter((t) => !t.deleted && !isFinished(t.status));
   // 到期按任务时区的今天（Rei 2026-10-25 任务时区；没设时区就是 today）
-  for (const t of live) if (t.scheduled_date && t.scheduled_date <= taskToday(t, now, today) && !t.recurrence) push(t, '今天到期');
+  // 日期段（Rei 2026-10-26）：今天落在段里、还没到结束日的是「这几天要做」；到了结束日或过了才算「今天到期」。只建议，不自动加进我的一天
+  for (const t of live) {
+    if (!t.scheduled_date || t.recurrence) continue;
+    const zoneToday = taskToday(t, now, today);
+    if (t.scheduled_date > zoneToday) continue;
+    const end = taskEndDate(t)!;
+    push(t, end > zoneToday ? '这几天要做' : '今天到期');
+  }
   for (const t of live) if (t.completion_mode === 'countdown' && t.target_date === taskToday(t, now, today)) push(t, '倒数日到了');
   for (const t of live)
     if (dueToday(t, today) && !progressOn(t, checkIns.filter((c) => c.task_id === t.id), today, now).met) push(t, '今天要打卡');

@@ -13,6 +13,7 @@ import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
 import { tr } from '../i18n';
 import { normalizeTimeZone } from '../timezone';
+import { normalizeRange } from '../date-range';
 import { cleanQuick } from '../count';
 import type { CountConfig } from '../types';
 import { isDateKey, journalEntryId } from '../journal';
@@ -553,7 +554,11 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       body_md: body(md, p.path),
       status,
       group_id: group,
-      scheduled_date: dateKey(fm.scheduled ?? (ownFile ? undefined : (fm.due ?? fm.date))),
+      ...(() => {
+        // 日期段（Rei 2026-10-26）：end_date 只会晚于开始日，否则当单日
+        const r = normalizeRange(dateKey(fm.scheduled ?? (ownFile ? undefined : (fm.due ?? fm.date))), dateKey(fm.end_date));
+        return { scheduled_date: r.start, end_date: r.end };
+      })(),
       type_id: type,
       type_data: fieldsOf(fm.fields, p.path),
       completion_mode: completion,

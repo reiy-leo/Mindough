@@ -58,7 +58,7 @@ export function runDeepLink(store: Store, ui: Ui, a: DeepLinkAction): void {
       const linkType = a.typeId ? store.get('task_type', a.typeId) : undefined;
       const typeId = linkType && !isArchivedType(linkType) ? linkType.id : undefined;
       const groupId = a.groupId && store.get('group', a.groupId) ? a.groupId : undefined;
-      const defaults = { ...(typeId ? { type_id: typeId } : {}), ...(groupId ? { group_id: groupId } : {}), ...(a.date ? { scheduled_date: a.date } : {}) };
+      const defaults = { ...(typeId ? { type_id: typeId } : {}), ...(groupId ? { group_id: groupId } : {}), ...(a.date ? { scheduled_date: a.date } : {}), ...(a.date && a.end ? { end_date: a.end } : {}) };
       // 没写内容：打开新建面板，参数预填好
       if (!a.text) return ui.openQuickCreate(defaults, { myDay: a.myDay });
       const t = store.createTask({ ...defaults, body_md: a.text });

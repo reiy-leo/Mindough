@@ -925,6 +925,11 @@ button {
 .meta-date.is-overdue {
   color: var(--danger);
 }
+/* 日期段：列表里「第 3/5 天」（Rei 2026-10-26） */
+.meta-span {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 .myday-btn.is-on {
   color: #f5a623;
 }

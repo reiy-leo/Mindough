@@ -40,6 +40,28 @@ describe('开始 / 到期字段', () => {
   });
 });
 
+describe('日期段（Rei 2026-10-26）', () => {
+  it('到期取结束日；开始还是 scheduled_date；倒数日仍取目标日', () => {
+    const a = t({ scheduled_date: '2026-10-26', end_date: '2026-10-30' });
+    expect(taskStart(a)).toBe('2026-10-26');
+    expect(taskDue(a)).toBe('2026-10-30');
+    expect(taskDue(t({ scheduled_date: '2026-10-26', end_date: '2026-10-26' }))).toBe('2026-10-26');
+    expect(taskDue(t({ completion_mode: 'countdown', scheduled_date: '2026-10-26', end_date: '2026-10-30', target_date: '2026-12-01' }))).toBe('2026-12-01');
+  });
+  it('排序：开始按 scheduled_date，到期按结束日（没有就 scheduled_date）', () => {
+    const long = t({ scheduled_date: '2026-10-20', end_date: '2026-11-10' });
+    const mid = t({ scheduled_date: '2026-10-25' });
+    const short = t({ scheduled_date: '2026-10-22', end_date: '2026-10-24' });
+    expect(sortTasks([long, mid, short], 'start', 'asc').map((x) => x.id)).toEqual([long.id, short.id, mid.id]);
+    expect(sortTasks([long, mid, short], 'due', 'asc').map((x) => x.id)).toEqual([short.id, mid.id, long.id]);
+  });
+  it('时间轴：开始 → 结束画一条', () => {
+    expect(taskSpan(t({ scheduled_date: '2026-10-26', end_date: '2026-10-30' }))).toEqual({ start: '2026-10-26', end: '2026-10-30' });
+    const lay = timelineLayout([t({ id: 'r', scheduled_date: '2026-10-26', end_date: '2026-10-30' })], '2026-10-26', 'day', { weekStartsOn: 1 });
+    expect(lay.bars[0]!.width).toBe(5 * 44);
+  });
+});
+
 describe('排序 sortTasks', () => {
   const a = t({ id: 'a', sort: 3, created_at: '2026-10-03T00:00:00Z', updated_at: '0000000100-0000-x', scheduled_date: '2026-10-10' });
   const b = t({ id: 'b', sort: 1, created_at: '2026-10-01T00:00:00Z', updated_at: '0000000300-0000-x', scheduled_date: null });

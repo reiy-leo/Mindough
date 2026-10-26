@@ -24,9 +24,14 @@ describe('深链接 mindough://', () => {
   });
   it('new：中文、日期、我的一天、类型', () => {
     expect(parseDeepLink(`mindough://new?text=${encodeURIComponent('买牙膏')}&date=today&myday=1&type=movie`, now)).toEqual({
-      kind: 'new', text: '买牙膏', date: '2026-10-16', myDay: true, typeId: BUILTIN_TYPE_IDS.movie, groupId: null,
+      kind: 'new', text: '买牙膏', date: '2026-10-16', end: null, myDay: true, typeId: BUILTIN_TYPE_IDS.movie, groupId: null,
     });
-    expect(parseDeepLink('mindough://new', now)).toMatchObject({ kind: 'new', text: '', date: null, myDay: false, typeId: null });
+    expect(parseDeepLink('mindough://new', now)).toMatchObject({ kind: 'new', text: '', date: null, end: null, myDay: false, typeId: null });
+    // 日期段：end 晚于 date 才算；没有 date 或不晚于 date 都当没写
+    expect(parseDeepLink('mindough://new?text=x&date=today&end=2026-10-20', now)).toMatchObject({ date: '2026-10-16', end: '2026-10-20' });
+    expect(parseDeepLink('mindough://new?text=x&date=2026-10-20&end=today', now)).toMatchObject({ date: '2026-10-20', end: null });
+    expect(parseDeepLink('mindough://new?text=x&end=2026-10-20', now)).toMatchObject({ date: null, end: null });
+    expect(parseHashLink('#/new?date=today&end=tomorrow', now)).toMatchObject({ kind: 'new', date: '2026-10-16', end: '2026-10-17' });
   });
   it('new?library= 是 type= 的新名字，两个都认；view/settings/library 打开设置的任务那项', () => {
     expect(parseDeepLink('mindough://new?text=x&library=book', now)).toMatchObject({ typeId: BUILTIN_TYPE_IDS.book });

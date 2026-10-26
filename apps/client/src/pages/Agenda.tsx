@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Form, Input, TextField, Button as RacButton } from 'react-aria-components';
 import { CalendarDays, ChevronsUp, Plus } from 'lucide-react';
-import { weekdayLabel, addDays, compareDateKey, diffDays, formatDateZh, relativeDayZh, toDateKey, weekday } from '@mindough/core';
+import { weekdayLabel, addDays, agendaBuckets, compareDateKey, diffDays, formatTaskDateRange, formatDateZh, relativeDayZh, toDateKey, weekday, type AgendaItem, type Task } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
 import { Button } from '../ui/primitives';
 import { TaskRow } from '../components/TaskRow';
@@ -9,11 +9,13 @@ import { LunarLine } from '../components/LunarLine';
 import { PageHeader } from '../components/PageHeader';
 
 import { tr, trc } from '../lib/i18n';
+import { useDateDisplay } from '../lib/date-display';
 import { scrollIntoContainer } from '../lib/root-scroll';
 /** Agenda 式时间线：按日期往下流，今天居中；过去在上、将来在下。 */
 export function AgendaPage() {
   const store = useStore();
   const now = useNow();
+  const dateMode = useDateDisplay();
   const today = toDateKey(now);
   const [pastDays, setPastDays] = useState(14);
   const [adding, setAdding] = useState<string | null>(null);
@@ -22,15 +24,13 @@ export function AgendaPage() {
 
   const dated = store.tasks().filter((t) => t.scheduled_date && !t.recurrence);
   const from = addDays(today, -pastDays);
-  const byDate = new Map<string, typeof dated>();
-  for (const t of dated) {
-    if (t.scheduled_date! < from) continue;
-    byDate.set(t.scheduled_date!, [...(byDate.get(t.scheduled_date!) ?? []), t]);
-  }
+  // 日期段（Rei 2026-10-26）：放在开始那天；跨过今天的，今天也放一份，标「第 3/5 天」
+  const { byDate, hiddenPast } = agendaBuckets(dated, from, today);
   // 今天和明天总是显示，方便随手记
   for (const d of [today, addDays(today, 1)]) if (!byDate.has(d)) byDate.set(d, []);
   const dates = [...byDate.keys()].sort(compareDateKey);
-  const hiddenPast = dated.filter((t) => t.scheduled_date! < from).length;
+  const spanNote = (it: AgendaItem<Task>, day: string) =>
+    !it.span ? undefined : day === it.task.scheduled_date ? formatTaskDateRange(it.task.scheduled_date, it.task.end_date, { mode: dateMode, today, timeZone: it.task.time_zone }) : tr('第 {index}/{total} 天', it.span);
 
   useLayoutEffect(() => {
     // 只滚中间这一列，不带着外层一起滚（2026-10-26 整页能滚）
@@ -72,8 +72,8 @@ export function AgendaPage() {
                 <LunarLine date={d} />
               </div>
               <div className="agenda-items">
-                {list.map((t) => (
-                  <TaskRow key={t.id} store={store} task={t} />
+                {list.map((it) => (
+                  <TaskRow key={it.task.id} store={store} task={it.task} spanNote={spanNote(it, d)} />
                 ))}
                 {adding === d ? (
                   <Form

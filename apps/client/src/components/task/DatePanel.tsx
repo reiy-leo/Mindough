@@ -6,17 +6,22 @@ import {
   LUNAR_FIRST_YEAR,
   LUNAR_LAST_YEAR,
   formatDate,
+  formatDateRange,
   lunarDayLabel,
   lunarMonthLabel,
   lunarToSolar,
   lunarYearLabel,
   lunarYearMonths,
+  pickRangeDay,
   quickDates,
+  rangeCellRole,
+  shiftRangeTo,
   solarToLunar,
   todayIn,
   type DateKey,
   type LunarDate,
   type QuickDateKind,
+  type RangeEdge,
   weekStartsOn,
 } from '@mindough/core';
 import { Button, Segmented, Select, TipButton } from '../../ui/primitives';
@@ -30,6 +35,8 @@ function toKey(d: CalendarDate): DateKey {
 }
 
 type PickMode = 'solar' | 'lunar';
+/** 单日 / 日期段（Rei 2026-10-26）。 */
+type SpanKind = 'single' | 'range';
 
 /** 快捷按钮的图标（Rei 2026-10-25：图标按钮 + hover 提示文字）。 */
 const QUICK_ICON: Record<QuickDateKind, LucideIcon> = { today: Sun, tomorrow: Sunrise, weekend: Sofa, monday: CalendarArrowUp };
@@ -65,6 +72,8 @@ export function DatePanel({
   quick = true,
   timeZone,
   onTimeZoneChange,
+  end = null,
+  onRangeChange,
 }: {
   value: DateKey | null;
   today: DateKey;
@@ -74,6 +83,13 @@ export function DatePanel({
   /** 任务时区（空 = 跟着设备）。给了 onTimeZoneChange 才显示「时区」一行（Rei 2026-10-25）。 */
   timeZone?: string | null;
   onTimeZoneChange?: (tz: string) => void;
+  /** 日期段的结束日（空 = 单日）。 */
+  end?: DateKey | null;
+  /**
+   * 给了才能切「单日 / 日期段」（Rei 2026-10-26「现在的日期只是单个日期，要支持日期段」）。
+   * 日期段里每点一下都回调一次；done = 这一段选完了（点了结束日、清掉结束日、点了快捷项），弹层可以关。
+   */
+  onRangeChange?: (start: DateKey | null, end: DateKey | null, done: boolean) => void;
 }) {
   const store = useStore();
   // 快捷「今天 / 明天…」和日历上的「今天」按所选时区的今天算
@@ -84,21 +100,69 @@ export function DatePanel({
     setModeState(m);
     localStorage.setItem(LUNAR_PICK_KEY, m);
   };
+  const canRange = !!onRangeChange;
+  const [kind, setKind] = useState<SpanKind>(() => (canRange && end && value && end > value ? 'range' : 'single'));
+  // 日期段：下一次点格子改哪一头。打开时有开始没结束就等结束，否则从开始选起
+  const [editing, setEditing] = useState<RangeEdge>(() => (value && !end ? 'end' : 'start'));
+  const ranged = canRange && kind === 'range';
+  // 月历显示哪个月：点「开始 / 结束」时跳到那一头所在的月
+  const [focused, setFocused] = useState<CalendarDate>(() => parseDate(value ?? zoneToday));
+  const editEdge = (e: RangeEdge) => {
+    setEditing(e);
+    const d = e === 'end' ? (end ?? value) : value;
+    if (d) setFocused(parseDate(d));
+  };
   const lunarMode = lunar.show && mode === 'lunar';
+
+  const pickDay = (d: DateKey) => {
+    if (!ranged) return onChange(d);
+    const next = pickRangeDay({ start: value, end, editing }, d);
+    setEditing(next.editing);
+    onRangeChange!(next.start, next.end, next.done);
+  };
+  const pickQuick = (d: DateKey) => {
+    setFocused(parseDate(d));
+    if (!ranged) return onChange(d);
+    // 日期段里点快捷项：开始挪到那天，天数不变
+    const r = shiftRangeTo({ start: value, end }, d);
+    setEditing('start');
+    onRangeChange!(r.start, r.end, true);
+  };
+  const switchKind = (k: SpanKind) => {
+    setKind(k);
+    if (k === 'single') {
+      if (end) onRangeChange!(value, null, false);
+    } else setEditing(value ? 'end' : 'start');
+  };
+  const quickSelected = (d: DateKey) => value === d && (!ranged || !end);
+
   return (
-    <div className={`date-panel${lunar.show ? ' has-lunar' : ''}`}>
+    <div className={`date-panel${lunar.show ? ' has-lunar' : ''}${ranged ? ' is-range' : ''}`}>
       {quick && (
         <div className="date-quick">
           {quickDates(zoneToday).map((q) => {
             const Icon = QUICK_ICON[q.kind];
+            const on = quickSelected(q.date);
             return (
-              <TipButton key={q.kind} tip={q.label} isPressed={value === q.date} className={`date-quick-item${value === q.date ? ' is-selected' : ''}`} onPress={() => onChange(q.date)}>
+              <TipButton key={q.kind} tip={q.label} isPressed={on} className={`date-quick-item${on ? ' is-selected' : ''}`} onPress={() => pickQuick(q.date)}>
                 <Icon size={16} aria-hidden />
               </TipButton>
             );
           })}
         </div>
       )}
+      {canRange && (
+        <Segmented<SpanKind>
+          label={tr('单日还是日期段')}
+          value={kind}
+          onChange={switchKind}
+          options={[
+            { id: 'single', label: tr('单日') },
+            { id: 'range', label: tr('日期段') },
+          ]}
+        />
+      )}
+      {ranged && <RangeEnds start={value} end={end} editing={editing} today={zoneToday} onEdit={editEdge} />}
       {lunar.show && (
         <Segmented<PickMode>
           label={tr('选日期的方式')}
@@ -111,15 +175,17 @@ export function DatePanel({
         />
       )}
       {lunarMode ? (
-        <LunarPicker value={value} today={zoneToday} onChange={onChange} />
+        <LunarPicker key={ranged ? editing : "single"} value={ranged ? (editing === 'end' ? (end ?? value) : value) : value} today={zoneToday} onChange={pickDay} />
       ) : (
         <Calendar
-          aria-label={tr('选择日期')}
+          aria-label={ranged ? (editing === 'start' ? tr('选开始日') : tr('选结束日')) : tr('选择日期')}
           className="calendar"
           firstDayOfWeek={weekStartsOn() === 0 ? 'sun' : 'mon'}
-          value={value ? parseDate(value) : null}
-          defaultFocusedValue={parseDate(value ?? zoneToday)}
-          onChange={(d) => onChange(toKey(d))}
+          // 日期段自己画高亮：value 一直是 null，点同一天也会回调
+          value={ranged ? null : value ? parseDate(value) : null}
+          focusedValue={focused}
+          onFocusChange={setFocused}
+          onChange={(d) => pickDay(toKey(d))}
         >
           <header className="calendar-head">
             <Heading className="calendar-title" />
@@ -136,8 +202,9 @@ export function DatePanel({
               {(date) => {
                 const key = toKey(date);
                 const info = lunar.show ? lunar.day(key) : null;
+                const role = ranged ? rangeCellRole({ start: value, end }, key) : null;
                 return (
-                  <CalendarCell date={date} className={`calendar-cell${key === zoneToday ? ' is-today' : ''}`} {...(info ? { title: lunarTitle(info) } : {})}>
+                  <CalendarCell date={date} className={`calendar-cell${key === zoneToday ? ' is-today' : ''}${role ? ` in-range is-range-${role}` : ''}`} {...(info ? { title: lunarTitle(info) } : {})}>
                     {info ? (
                       <>
                         <span className="calendar-num">{date.day}</span>
@@ -153,12 +220,43 @@ export function DatePanel({
           </CalendarGrid>
         </Calendar>
       )}
+      {ranged && value && end && <p className="date-range-sum">{formatDateRange(value, end, zoneToday)}</p>}
       {onTimeZoneChange && <TimeZoneRow value={timeZone ?? null} date={value ?? zoneToday} onChange={onTimeZoneChange} />}
+      {ranged && end && (
+        <RacButton
+          className="date-clear"
+          onPress={() => {
+            setKind('single');
+            setEditing('end');
+            onRangeChange!(value, null, true);
+          }}
+        >
+          {tr('去掉结束日')}
+        </RacButton>
+      )}
       {clearLabel && value && (
-        <RacButton className="date-clear" onPress={() => onChange(null)}>
+        <RacButton className="date-clear" onPress={() => (canRange ? onRangeChange!(null, null, true) : onChange(null))}>
           {clearLabel}
         </RacButton>
       )}
+    </div>
+  );
+}
+
+/** 日期段的两头：「开始 10月26日」「结束 10月30日」，点一个只改那一头。 */
+function RangeEnds({ start, end, editing, today, onEdit }: { start: DateKey | null; end: DateKey | null; editing: RangeEdge; today: DateKey; onEdit: (e: RangeEdge) => void }) {
+  const text = (d: DateKey | null) => (d ? formatDate(d, { weekday: false, year: d.slice(0, 4) !== today.slice(0, 4) }) : null);
+  return (
+    <div className="range-ends" role="group" aria-label={tr('日期段')}>
+      {(['start', 'end'] as const).map((e) => {
+        const d = e === 'start' ? start : end;
+        return (
+          <RacButton key={e} className={`range-end${editing === e ? ' is-editing' : ''}`} aria-pressed={editing === e} onPress={() => onEdit(e)}>
+            <span className="range-end-label">{e === 'start' ? tr('开始') : tr('结束')}</span>
+            <span className={`range-end-value${d ? '' : ' is-empty'}`}>{text(d) ?? (e === 'start' ? tr('选开始日') : tr('选结束日'))}</span>
+          </RacButton>
+        );
+      })}
     </div>
   );
 }

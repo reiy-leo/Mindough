@@ -105,6 +105,10 @@ export interface Task extends BaseRow {
   status: TaskStatus;
   group_id: string | null;
   scheduled_date: DateKey | null;
+  /**
+   * 结束日（Rei 2026-10-26 日期段，见 date-range.ts）：可空，只会晚于 scheduled_date；空 = 单日（老任务都空）。SQLite 迁移 v10。
+   */
+  end_date: DateKey | null;
   type_id: string | null;
   type_data: Record<string, FieldValue>;
   completion_mode: CompletionMode;

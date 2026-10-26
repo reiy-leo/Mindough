@@ -2,9 +2,9 @@
  * 项目页（单个项目的任务页）的视图和排序（Rei 2026-10-26：「每个项目的视图支持列表、看板、时间轴，排序支持创建时间、修改时间、开始时间、到期时间，正序、倒序」；
  * 同日「关系图完全去掉」「添加另外一个视图：任务链」）。这里只放纯逻辑，界面在 pages/Groups.tsx 和 components/project/*。
  *
- * 字段对应（任务表没有单独的「开始」「到期」两列，按现有字段取，不改数据结构）：
- * - 开始时间：scheduled_date（界面上的「日期」，要做的那天）。
- * - 到期时间：倒数日用 target_date（目标日）；其他任务用 scheduled_date（同一个日期就是要做 / 截止的那天）。
+ * 字段对应：
+ * - 开始时间：scheduled_date（界面上的「日期」，要做的那天；日期段的开始日）。
+ * - 到期时间：倒数日用 target_date（目标日）；其他任务用结束日 end_date（Rei 2026-10-26 日期段），单日任务没有结束日就用 scheduled_date。
  * - 创建时间：created_at；修改时间：updated_at（HLC，前 13 位是毫秒时间，可按字符串比较）。
  * 没有这个日期的任务不论正序倒序都排最后。
  */
@@ -44,20 +44,21 @@ export function normalizePrefs(v: unknown): ProjectViewPrefs {
   };
 }
 
-type DatedTask = Pick<Task, 'scheduled_date' | 'target_date' | 'completion_mode'>;
+type DatedTask = Pick<Task, 'scheduled_date' | 'target_date' | 'completion_mode'> & { end_date?: DateKey | null };
 
 /** 开始时间：scheduled_date。 */
 export function taskStart(t: DatedTask): DateKey | null {
   return t.scheduled_date || null;
 }
 
-/** 到期时间：倒数日取目标日，其他取 scheduled_date。 */
+/** 到期时间：倒数日取目标日，日期段取结束日，其他取 scheduled_date。 */
 export function taskDue(t: DatedTask): DateKey | null {
   if (t.completion_mode === 'countdown' && t.target_date) return t.target_date;
+  if (t.scheduled_date && t.end_date && t.end_date > t.scheduled_date) return t.end_date;
   return t.scheduled_date || null;
 }
 
-type SortableTask = Pick<Task, 'id' | 'sort' | 'created_at' | 'updated_at' | 'scheduled_date' | 'target_date' | 'completion_mode'>;
+type SortableTask = Pick<Task, 'id' | 'sort' | 'created_at' | 'updated_at' | 'scheduled_date' | 'target_date' | 'completion_mode'> & { end_date?: DateKey | null };
 
 function keyOf(t: SortableTask, field: Exclude<SortField, 'default'>): string | null {
   switch (field) {

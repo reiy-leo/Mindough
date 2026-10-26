@@ -12,6 +12,14 @@ const n = (v: unknown, one: string, other: string) => `${v} ${pl(v, one, other)}
 const c = (p: Params, k: string) => p.count ?? p[k];
 
 export const EN: Record<string, EnValue> = {
+  // ── 日期段（Rei 2026-10-26）──
+  "第 {index}/{total} 天": "Day {index}/{total}",
+  "单日还是日期段": "Single day or date range",
+  "单日": "Single Day",
+  "日期段": "Date Range",
+  "选开始日": "Pick a start date",
+  "选结束日": "Pick an end date",
+  "去掉结束日": "Remove End Date",
   // ── 计数步长、快捷按钮、手输、撤销（components/CountControls.tsx，Rei 2026-10-26）──
   "{amount} {unit}": "{amount} {unit}",
   "{amount} 次": "{amount}×",

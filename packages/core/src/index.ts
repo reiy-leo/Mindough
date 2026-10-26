@@ -4,6 +4,7 @@ export * from './uuid';
 export * from './hlc';
 export * from './dates';
 export * from './date-display';
+export * from './date-range';
 export * from './dag';
 export * from './related';
 export * from './recurrence';

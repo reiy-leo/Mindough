@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
 import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, formatTaskDate, formatTaskTime, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, formatTaskDate, formatTaskDateRange, formatTaskTime, normalizeRange, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
 import { newCountConfig, shownFields } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
@@ -66,6 +66,8 @@ interface Draft extends CompletionValue {
   recurrence: string | null;
   categoryId: string | null;
   date: string | null;
+  /** 日期段的结束日（Rei 2026-10-26），空 = 单日。 */
+  endDate: string | null;
   /** 提醒时间「HH:MM」（有日期 / 倒数日 / 定期打卡时才出现）。 */
   remindTime: string | null;
   /** 任务时区（Rei 2026-10-25）：在日期面板里选过才有，空 = 跟着设备。 */
@@ -105,6 +107,7 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     recurrence: d.recurrence ?? null,
     categoryId: d.checkin_category_id ?? null,
     date: d.scheduled_date ?? null,
+    endDate: d.scheduled_date && d.end_date && d.end_date > d.scheduled_date ? d.end_date : null,
     remindTime: d.remind_time ?? null,
     timeZone: d.time_zone ?? null,
     groupId: d.group_id ?? null,
@@ -203,6 +206,7 @@ function Composer() {
       library_item_id: itemId,
       group_id: d.groupId,
       scheduled_date: d.date,
+      end_date: d.recurrence ? null : d.endDate,
       completion_mode: d.completion_mode,
       target_value: d.completion_mode === 'timer' || d.completion_mode === 'count' ? d.target_value : null,
       unit: d.completion_mode === 'count' ? d.unit : null,
@@ -367,16 +371,31 @@ function Composer() {
               </div>
             )}
           </PopoverPanel>
-          <PopoverPanel label={tr('日期')} trigger={<PropChip icon={<CalendarDays size={14} />} label={tr('日期')} {...(d.date ? { value: formatTaskDate(d.date, { mode: dateMode, today, timeZone: d.timeZone }) } : {})} />}>
+          <PopoverPanel
+            label={tr('日期')}
+            trigger={
+              <PropChip
+                icon={<CalendarDays size={14} />}
+                label={tr('日期')}
+                {...(d.date ? { value: d.endDate ? formatTaskDateRange(d.date, d.endDate, { mode: dateMode, today, timeZone: d.timeZone }) : formatTaskDate(d.date, { mode: dateMode, today, timeZone: d.timeZone }) } : {})}
+              />
+            }
+          >
             {(close) => (
               <DatePanel
                 value={d.date}
+                end={d.endDate}
                 today={today}
                 timeZone={d.timeZone}
                 onTimeZoneChange={(tz) => set({ timeZone: tz })}
                 onChange={(v) => {
-                  set({ date: v });
+                  set({ date: v, endDate: null });
                   close();
+                }}
+                onRangeChange={(start, end, done) => {
+                  const r = normalizeRange(start, end);
+                  set({ date: r.start, endDate: r.end });
+                  if (done) close();
                 }}
               />
             )}

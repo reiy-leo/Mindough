@@ -18,7 +18,7 @@
 
 | host | 写法 | 示例 | 用途 |
 |---|---|---|---|
-| new | mindough://new?text=…&date=…&myday=1&type=…&group=… | mindough://new?text=买牙膏&date=today；mindough://new?text=沙丘2&type=movie | 快速新建（快捷指令、Raycast、Alfred）。参数都能省：date 可以写 today / tomorrow / 2026-10-20，不带 date 就进待安排；myday=1 表示加进我的一天；type= 是放进哪个资料库（英文短名同下面 library），`library=` 是它的新名字，两个都认（Rei 2026-10-26 类型改叫资料库） |
+| new | mindough://new?text=…&date=…&end=…&myday=1&type=…&group=… | mindough://new?text=买牙膏&date=today；mindough://new?text=沙丘2&type=movie；mindough://new?text=出差&date=2026-10-26&end=2026-10-30 | 快速新建（快捷指令、Raycast、Alfred）。参数都能省：date 可以写 today / tomorrow / 2026-10-20，不带 date 就进待安排；end 是日期段的结束日，写法同 date，没有 date 或不晚于 date 就不算（2026-10-26）；myday=1 表示加进我的一天；type= 是放进哪个资料库（英文短名同下面 library），`library=` 是它的新名字，两个都认（Rei 2026-10-26 类型改叫资料库） |
 | checkin | mindough://checkin/{任务id}?amount=1 | mindough://checkin/0199f2a4-…?amount=2 | 打卡 / 计数 +n（小组件按钮、快捷指令） |
 | timer | mindough://timer/{任务id}?action=start | action=start / pause / stop | 开始、暂停、结束计时 |
 | done | mindough://done/{任务id} | mindough://done/0199f2a4-… | 标为完成 |

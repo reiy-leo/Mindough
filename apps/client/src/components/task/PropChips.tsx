@@ -16,7 +16,9 @@ import {
   describeCompletion,
   describeRecurrence,
   formatTaskDate,
+  formatTaskDateRange,
   formatTaskTime,
+  isDateRange,
   isFinished,
   isTaskOverdue,
   parseRecurrence,
@@ -122,7 +124,11 @@ export function PropChips({
       case 'date': {
         // 按任务时区的今天说「明天」、判断过期；时区和设备不同时旁边小字「UTC−4」（Rei 2026-10-25 任务时区）
         const zoneToday = taskToday(task, store.now(), today);
-        const s = task.scheduled_date ? formatTaskDate(task.scheduled_date, { mode: dateMode, today: zoneToday, timeZone: task.time_zone }) : '';
+        const s = task.scheduled_date
+          ? isDateRange(task)
+            ? formatTaskDateRange(task.scheduled_date, task.end_date, { mode: dateMode, today: zoneToday, timeZone: task.time_zone })
+            : formatTaskDate(task.scheduled_date, { mode: dateMode, today: zoneToday, timeZone: task.time_zone })
+          : '';
         const badge = dateMode === 'ymd-tz' ? null : timeZoneBadge(task, task.scheduled_date);
         return {
           icon: <CalendarDays size={14} />,
@@ -219,9 +225,14 @@ export function PropChips({
             today={today}
             timeZone={task.time_zone}
             onTimeZoneChange={(tz) => patch({ time_zone: tz })}
+            end={task.end_date}
             onChange={(v) => {
-              patch({ scheduled_date: v });
+              patch({ scheduled_date: v, end_date: null });
               close();
+            }}
+            onRangeChange={(start, end, done) => {
+              patch({ scheduled_date: start, end_date: end });
+              if (done) close();
             }}
           />
         );

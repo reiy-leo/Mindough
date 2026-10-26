@@ -79,6 +79,7 @@ checkins:
 | `status` | status | 内部值：待办 / 进行中 / 完成 / 关闭 |
 | `created` / `done` | created_at / done_at | ISO 时间；done 只在结束了才有 |
 | `scheduled` | scheduled_date | YYYY-MM-DD |
+| `end_date` | end_date | 日期段的结束日，YYYY-MM-DD；单日不写。导入时不晚于 scheduled 就当单日（2026-10-26） |
 | `group` | group_id | 项目的 id；行尾注释是项目名 |
 | `type` / `item` | type_id / library_item_id | 放进哪个资料库、挂的资料（id）；不放进资料库就不写 `type` |
 | `fields` | type_data | 只有任务字段（看到哪、读到第几页…）；资料字段在资料文件里。图片字段写 `assets/…` |

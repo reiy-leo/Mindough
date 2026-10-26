@@ -391,15 +391,16 @@ export function projectChains(order: readonly string[], deps: readonly ChainEdge
 // ───────── 任务链每一步的相对时间（Rei 2026-10-23：「每个步骤显示相对时间，而不是第几步」）─────────
 
 /** 算一步的时间要用到的任务字段。 */
-export type ChainWhenTask = Pick<Task, 'id' | 'status' | 'scheduled_date' | 'target_date' | 'completion_mode' | 'done_at'> & { deleted?: boolean | number };
+export type ChainWhenTask = Pick<Task, 'id' | 'status' | 'scheduled_date' | 'target_date' | 'completion_mode' | 'done_at'> & { end_date?: DateKey | null; deleted?: boolean | number };
 
 /**
- * 一件任务的计划日期：倒数日用目标日（它就是截止）；其他用「日期」（scheduled_date，界面上那一个日期就是要做 / 截止的那天）；
+ * 一件任务的计划日期：倒数日用目标日（它就是截止）；其他用「日期」（scheduled_date，界面上那一个日期就是要做 / 截止的那天；日期段用结束日 end_date）；
  * 都没有时用它最晚一次进「我的一天」的日期（myDay 传这件任务的我的一天日期）。没有就 null。
  */
 export function taskPlannedDate(t: ChainWhenTask, myDay?: readonly DateKey[]): DateKey | null {
   if (t.completion_mode === 'countdown' && t.target_date) return t.target_date;
-  if (t.scheduled_date) return t.scheduled_date;
+  // 日期段按结束日算「已过 / 明天」（Rei 2026-10-26）
+  if (t.scheduled_date) return t.end_date && t.end_date > t.scheduled_date ? t.end_date : t.scheduled_date;
   if (myDay?.length) return myDay.reduce((m, d) => (d > m ? d : m));
   return null;
 }

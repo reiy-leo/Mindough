@@ -155,9 +155,11 @@ export function todayIn(tz: string | null | undefined, now: Date): DateKey {
   return z ? dateKeyInZone(now.getTime(), z) : dateKeyInZone(now.getTime());
 }
 
-/** 任务的日期过期了没有（按任务时区的今天）。 */
-export function isTaskOverdue(task: Pick<Task, 'time_zone' | 'scheduled_date'>, now: Date, deviceToday?: DateKey): boolean {
-  return !!task.scheduled_date && task.scheduled_date < taskToday(task, now, deviceToday);
+/** 任务的日期过期了没有（按任务时区的今天）。日期段看结束日（Rei 2026-10-26 日期段）：还在段里不算过期。 */
+export function isTaskOverdue(task: Pick<Task, 'time_zone' | 'scheduled_date'> & { end_date?: DateKey | null }, now: Date, deviceToday?: DateKey): boolean {
+  if (!task.scheduled_date) return false;
+  const last = task.end_date && task.end_date > task.scheduled_date ? task.end_date : task.scheduled_date;
+  return last < taskToday(task, now, deviceToday);
 }
 
 /**

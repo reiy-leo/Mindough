@@ -203,6 +203,8 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
       status: STATUS[r.status],
       group_id: groupFor(r.list),
       scheduled_date: recurrence ? null : (when?.date ?? null),
+      // 滴答清单的截止日先照旧写进正文，不变成日期段（全天任务的截止是不是「不含当天」没核对过）
+      end_date: null,
       type_id: null,
       type_data: {},
       completion_mode: 'once',

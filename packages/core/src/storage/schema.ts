@@ -22,6 +22,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     status: 'text',
     group_id: 'text?',
     scheduled_date: 'text?',
+    end_date: 'text?',
     type_id: 'text?',
     type_data: 'json',
     completion_mode: 'text',
@@ -238,6 +239,13 @@ ALTER TABLE "task" ADD COLUMN "time_zone" TEXT;
     name: '计数的步长和快捷按钮（task.count_config）',
     sql: `
 ALTER TABLE "task" ADD COLUMN "count_config" TEXT NOT NULL DEFAULT '{}';
+`,
+  },
+  {
+    version: 10,
+    name: '日期段的结束日（task.end_date）',
+    sql: `
+ALTER TABLE "task" ADD COLUMN "end_date" TEXT;
 `,
   },
 ];

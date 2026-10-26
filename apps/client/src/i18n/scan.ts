@@ -31,7 +31,7 @@ const isTrCall = (n: ts.Node): n is ts.CallExpression =>
   ts.isCallExpression(n) && ts.isIdentifier(n.expression) && (n.expression.text === 'tr' || n.expression.text === 'trx' || n.expression.text === 'trc');
 
 /** 任务状态等内部枚举值：比较、赋值时是数据，不算漏翻（显示时另有 tr）。 */
-export const ENUM_WORDS = new Set(['待办', '进行中', '完成', '关闭', '可开始', '被阻塞', '取消', '今天到期', '今天要打卡', '刚解锁', '倒数日到了']);
+export const ENUM_WORDS = new Set(['待办', '进行中', '完成', '关闭', '可开始', '被阻塞', '取消', '今天到期', '这几天要做', '今天要打卡', '刚解锁', '倒数日到了']);
 
 /** 显示位置：JSX 属性 / 表达式、label / title / message… 这类属性的值。枚举值放在这里就是漏翻。 */
 const DISPLAY_PROPS = new Set(['label', 'title', 'message', 'text', 'hint', 'placeholder', 'subtitle']);

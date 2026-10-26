@@ -241,6 +241,8 @@ export const CORE_EN: Record<string, V> = {
 
   // ── 我的一天 ──
   今天到期: 'Due Today',
+  这几天要做: 'Due These Days',
+  '{when}，共 {n} 天': (p) => `${p.when}, ${p.n} ${Number(p.n) === 1 ? 'day' : 'days'}`,
   今天要打卡: 'Check In Today',
   刚解锁: 'Just Unlocked',
   倒数日到了: 'Countdown Day',

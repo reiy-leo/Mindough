@@ -26,6 +26,8 @@ export interface TaskRowProps {
   trailing?: ReactNode;
   /** 打卡任务是否显示行内打卡按钮。 */
   showCheckIn?: boolean;
+  /** 列表（Agenda）里日期段的小字：「10月26日 – 30日」「第 3/5 天」（Rei 2026-10-26 日期段）。 */
+  spanNote?: string;
 }
 
 export function TaskThumb({ media, layout, isAvatar, color, icon, name }: { media: string | null; layout: string; isAvatar: boolean; color?: string; icon?: string; name?: string | null }) {
@@ -41,7 +43,7 @@ export function TaskThumb({ media, layout, isAvatar, color, icon, name }: { medi
   );
 }
 
-export function TaskRow({ store, task, showGroup = true, showDate = false, showMyDay = true, doneOverride, trailing, showCheckIn = true }: TaskRowProps) {
+export function TaskRow({ store, task, showGroup = true, showDate = false, showMyDay = true, doneOverride, trailing, showCheckIn = true, spanNote }: TaskRowProps) {
   const ui = useUi();
   const v = viewOf(store, task);
   const today = toDateKey(store.now());
@@ -168,6 +170,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               <TaskDateText task={task} today={today} relative />
             </span>
           )}
+          {spanNote && <span className="meta-span">{spanNote}</span>}
           {/* 按天分组的列表不写日期，但任务时区和设备不同时照样标出偏移（Rei 2026-10-25 任务时区） */}
           {!showDate && tzBadge && <span className="tz-badge" title={tr('时区：{zone}', { zone: task.time_zone ?? '' })}>{tzBadge}</span>}
           {rec && (

@@ -261,6 +261,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       created: t.created_at,
       done: t.done_at ?? undefined,
       scheduled: t.scheduled_date ?? undefined,
+      end_date: t.scheduled_date && t.end_date && t.end_date > t.scheduled_date ? t.end_date : undefined,
       group: t.group_id ? new Noted(t.group_id, store.get('group', t.group_id)?.name ?? '') : undefined,
       type: t.type_id ? new Noted(t.type_id, typeNote(t.type_id)) : undefined,
       item: t.library_item_id ? new Noted(t.library_item_id, item?.name ?? '') : undefined,
