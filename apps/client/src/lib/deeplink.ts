@@ -39,7 +39,7 @@ const VIEWS: Record<string, Route> = {
   settings: { page: 'settings' },
 };
 
-/** new?type= 的英文短名 → 内置类型 id；也接受类型 id 本身。 */
+/** new?library=（旧名 type=）的英文短名 → 内置资料库 id；也接受 id 本身。 */
 function typeIdOf(name: string | null): string | null {
   if (!name) return null;
   const builtin = (BUILTIN_TYPE_IDS as Record<string, string>)[name.toLowerCase()];
@@ -71,7 +71,9 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
     case 'view': {
       const route = VIEWS[(segs[0] ?? '').toLowerCase()];
       // view/settings/appearance：直接打开设置的某一项（Rei 2026-10-26 设置分成五项）
-      const sec = (segs[1] ?? '').toLowerCase();
+      // view/settings/library（或 types）：资料库在「任务」那项里（Rei 2026-10-26 类型改叫资料库）
+      const sec0 = (segs[1] ?? '').toLowerCase();
+      const sec = sec0 === 'library' || sec0 === 'types' ? 'tasks' : sec0;
       if (route?.page === 'settings' && isSettingsSection(sec)) return { kind: 'view', route: { page: 'settings', section: sec } };
       return route ? { kind: 'view', route } : { kind: 'invalid', url: raw };
     }
@@ -82,7 +84,8 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
         text,
         date: parseLinkDate(q.get('date'), now),
         myDay: truthy(q.get('myday')),
-        typeId: typeIdOf(q.get('type')),
+        // library= 是新名字，type= 照旧能用（Rei 2026-10-26 类型改叫资料库）
+        typeId: typeIdOf(q.get('library') ?? q.get('type')),
         groupId: q.get('group') || null,
       };
     }

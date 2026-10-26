@@ -52,8 +52,8 @@ export const CORE_EN: Record<string, V> = {
   '开头的属性（front matter）没有用 --- 收尾': 'The properties at the top (front matter) don’t end with ---',
   '找不到图片文件 {file}': 'Can’t find the image file {file}',
   '找不到它挂的资料，没接上': 'Its library entry is missing, so it wasn’t linked',
-  '找不到它的类型，当普通任务导入': 'Its type is missing, so it was imported as a plain task',
-  '找不到它的类型，没导入': 'Its type is missing, so it wasn’t imported',
+  '找不到它的资料库，没放进资料库': 'Its collection is missing, so it was imported without one',
+  '找不到它的资料库，没导入': 'Its collection is missing, so it wasn’t imported',
   '找不到它的项目，放进所在的文件夹': 'Its project is missing, so it went into the project of its folder',
   '有 {n} 个人物找不到，没关联': (p) => `${count(p.n, 'person', 'people')} couldn’t be found and weren’t linked`,
   '有 {n} 件关联的任务找不到，没连上': (p) => `${count(p.n, 'linked task', 'linked tasks')} couldn’t be found and weren’t connected`,
@@ -161,7 +161,7 @@ export const CORE_EN: Record<string, V> = {
   '字段种类|更多链接': 'More Links',
   名字: 'Name',
   图片: 'Image',
-  新类型: 'New Type',
+  新资料库: 'New Collection',
 
   // ── 季 / 集 ──
   '第 {s} 季第 {e} 集': 'Season {s}, Episode {e}',
@@ -275,7 +275,7 @@ export const CORE_EN: Record<string, V> = {
   // ── Store ──
   '找不到记录：{table}/{id}': 'Record not found: {table}/{id}',
   任务不存在: 'Task not found',
-  类型不存在: 'Type not found',
+  资料库不存在: 'Collection not found',
   '{name} 副本': '{name} Copy',
 
   // ── 同步 ──

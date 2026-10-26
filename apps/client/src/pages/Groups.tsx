@@ -61,10 +61,10 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
         <Field label={tr('结束')} type="date" value={end} onChange={setEnd} />
         <Select label={tr('分类')} value={cat} onChange={setCat} options={[{ id: '__none', label: tr('无') }, ...store.list('category').map((c) => ({ id: c.id, label: c.name }))]} />
         <Select
-          label={tr('默认类型')}
+          label={tr('默认资料库')}
           value={type}
           onChange={setType}
-          options={[{ id: '__none', label: tr('普通') }, ...store.pickableTypes().filter((t) => t.layout !== 'text').map((t) => ({ id: t.id, label: dataLabel(t.name) }))]}
+          options={[{ id: '__none', label: tr('不放进资料库') }, ...store.pickableTypes().filter((t) => t.layout !== 'text').map((t) => ({ id: t.id, label: dataLabel(t.name) }))]}
         />
       </div>
     </Sheet>
@@ -165,7 +165,7 @@ export function GroupDetailPage({ id }: { id: string }) {
           <>
             {range(g)}
             {c && <> · {c.name}</>}
-            {defType && <> {tr(' · 默认类型：{name}', { name: dataLabel(defType.name) })}</>}
+            {defType && <> {tr(' · 默认资料库：{name}', { name: dataLabel(defType.name) })}</>}
           </>
         }
         actions={

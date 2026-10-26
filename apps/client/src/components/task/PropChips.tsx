@@ -43,7 +43,7 @@ import { formatRemindTime, RemindPanel } from './RemindPanel';
 export function propLabel(id: PropId): string {
   switch (id) {
     case 'type':
-      return tr('类型');
+      return trc('属性', '资料库');
     case 'mode':
       return tr('完成方式');
     case 'date':
@@ -111,7 +111,7 @@ export function PropChips({
     switch (id) {
       case 'type': {
         const Icon = typeIcon(type?.icon ?? 'file-text');
-        const name = type ? dataLabel(type.name) : tr('普通');
+        const name = type ? dataLabel(type.name) : tr('不放进资料库');
         return { icon: <Icon size={14} />, text: name, aria: name, ...(type?.color ? { color: type.color } : {}) };
       }
       case 'mode': {
@@ -197,11 +197,12 @@ export function PropChips({
               types={store.pickableTypes()}
               value={task.type_id ?? PLAIN_TYPE_ID}
               onChange={(tid) => {
-                // 改类型清空原来的资料（Rei 2026-10-16），新类型从「未选」开始；正文为空时套用模板
+                // 换资料库清空原来的资料（Rei 2026-10-16），新资料库从「未选」开始；正文为空时套用模板
                 store.changeTaskType(task.id, tid);
                 close();
               }}
             />
+            {(task.library_item_id || Object.keys(task.type_data ?? {}).length > 0) && <p className="pop-note">{tr('换资料库会清空原来的资料')}</p>}
           </div>
         );
       case 'mode':

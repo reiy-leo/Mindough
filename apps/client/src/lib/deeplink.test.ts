@@ -28,6 +28,13 @@ describe('深链接 mindough://', () => {
     });
     expect(parseDeepLink('mindough://new', now)).toMatchObject({ kind: 'new', text: '', date: null, myDay: false, typeId: null });
   });
+  it('new?library= 是 type= 的新名字，两个都认；view/settings/library 打开设置的任务那项', () => {
+    expect(parseDeepLink('mindough://new?text=x&library=book', now)).toMatchObject({ typeId: BUILTIN_TYPE_IDS.book });
+    expect(parseDeepLink('mindough://new?text=x&type=book', now)).toMatchObject({ typeId: BUILTIN_TYPE_IDS.book });
+    expect(parseDeepLink('mindough://new?text=x&library=plain', now)).toMatchObject({ typeId: null });
+    expect(parseDeepLink('mindough://view/settings/library', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'tasks' } });
+    expect(parseDeepLink('mindough://view/settings/types', now)).toEqual({ kind: 'view', route: { page: 'settings', section: 'tasks' } });
+  });
   it('checkin 默认 +1，乱写的数量当 1', () => {
     expect(parseDeepLink('mindough://checkin/t1?amount=3', now)).toEqual({ kind: 'checkin', id: 't1', amount: 3 });
     expect(parseDeepLink('mindough://checkin/t1?amount=-2', now)).toEqual({ kind: 'checkin', id: 't1', amount: 1 });

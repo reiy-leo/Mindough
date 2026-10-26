@@ -12,7 +12,7 @@
 Mindough 2026-10-16/              zip 里的根文件夹（导入时自动去掉这一层）
   _meta/
     mindough.json                 格式标记：{ "format": "mindough-markdown", "version": 1, exported_at, device, counts }
-    types.json                    任务类型（内置 + 自定义，含归档的；整行，不含 updated_at / deleted；归档写 "archived": true，导入也认旧文件的 "hidden"）
+    types.json                    资料库（界面叫法，代码里是任务类型 task_type；内置 + 自定义，含归档的；整行，不含 updated_at / deleted；归档写 "archived": true，导入也认旧文件的 "hidden"）
     checkin-categories.json       打卡分类（含隐藏的）
     categories.json               项目的分类（名字 + 颜色）
     checkins.json                 打卡记录（每条 start / pause / resume / stop / add 事件，带 id）
@@ -80,7 +80,7 @@ checkins:
 | `created` / `done` | created_at / done_at | ISO 时间；done 只在结束了才有 |
 | `scheduled` | scheduled_date | YYYY-MM-DD |
 | `group` | group_id | 项目的 id；行尾注释是项目名 |
-| `type` / `item` | type_id / library_item_id | 类型、挂的资料（id） |
+| `type` / `item` | type_id / library_item_id | 放进哪个资料库、挂的资料（id）；不放进资料库就不写 `type` |
 | `fields` | type_data | 只有任务字段（看到哪、读到第几页…）；资料字段在资料文件里。图片字段写 `assets/…` |
 | `completion` `target` `unit` `target_date` | 完成方式与目标 | once / timer / count / countdown；计时的 target 是毫秒 |
 | `count` | 计数的步长和快捷按钮（只有计数任务、设过才写） | `{ step: 250, step_set: true, quick: [250, 500] }`；没写 = 步长 1 |

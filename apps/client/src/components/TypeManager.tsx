@@ -105,14 +105,14 @@ export function TypeManager({ isOpen, onOpenChange, initialTypeId }: { isOpen: b
     <Sheet
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      title={type ? dataLabel(type.name) || trc('类型编辑器', '类型') : trc('类型编辑器', '类型')}
+      title={type ? dataLabel(type.name) || trc('资料库编辑器', '资料库') : trc('资料库编辑器', '资料库')}
       className="modal-types"
       {...(type
         ? {
             headerStart: (
               <RacButton className="btn btn-quiet type-back" onPress={() => setEditing(null)}>
                 <ChevronLeft size={18} />
-                {trc('类型编辑器', '类型')}
+                {trc('资料库编辑器', '资料库')}
               </RacButton>
             ),
           }
@@ -130,12 +130,12 @@ export function TypeManager({ isOpen, onOpenChange, initialTypeId }: { isOpen: b
             <Button
               variant="secondary"
               onPress={() => {
-                const t = store.createType({ name: tr('新类型') });
+                const t = store.createType({ name: tr('新资料库') });
                 setEditing(t.id);
               }}
             >
               <Plus size={15} />
-              {tr('新建类型')}
+              {tr('新建资料库')}
             </Button>
             {done}
           </>
@@ -187,7 +187,7 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
   });
   return (
     <>
-      <GridList ref={reorderGuard.ref} aria-label={trc('类型编辑器', '类型')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => !isDragPress() && onOpen(String(k))}>
+      <GridList ref={reorderGuard.ref} aria-label={trc('资料库编辑器', '资料库')} className="type-manage-list" items={types} dragAndDropHooks={dragAndDropHooks} onAction={(k) => !isDragPress() && onOpen(String(k))}>
         {(t) => {
           const Icon = typeIcon(t.icon);
           const name = dataLabel(t.name);
@@ -219,7 +219,7 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
             <ChevronRight size={13} className={`type-archived-chevron${showArchived ? ' is-open' : ''}`} aria-hidden />
           </RacButton>
           {showArchived && (
-            <ul className="type-archived-list" aria-label={tr('已归档的类型')}>
+            <ul className="type-archived-list" aria-label={tr('已归档的资料库')}>
               {archived.map((t) => {
                 const Icon = typeIcon(t.icon);
                 const name = dataLabel(t.name);
@@ -292,8 +292,8 @@ function TypeEditor({ type, onArchived }: { type: TaskType; onArchived: () => vo
             />
           )}
         </PopoverPanel>
-        <TextField aria-label={tr('类型名字')} value={name.value} onChange={name.setValue} className="type-name-field">
-          <Input className="input type-name-input" placeholder={tr('类型名字')} onBlur={name.commit} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+        <TextField aria-label={tr('资料库名字')} value={name.value} onChange={name.setValue} className="type-name-field">
+          <Input className="input type-name-input" placeholder={tr('资料库名字')} onBlur={name.commit} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
         </TextField>
       </div>
 
@@ -337,7 +337,7 @@ function TypeEditor({ type, onArchived }: { type: TaskType; onArchived: () => vo
 
       <div className="type-danger">
         <span className="foot-note">
-          {archived ? tr('已归档：新建任务时选不到它，用过它的任务和资料照常显示。') : tr('类型不能删。不再用了就归档：新建任务时选不到它，用过它的任务和资料照常显示。')}
+          {archived ? tr('已归档：新建任务时选不到它，用过它的任务和资料照常显示。') : tr('资料库不能删。不再用了就归档：新建任务时选不到它，用过它的任务和资料照常显示。')}
         </span>
         <span className="grow" />
         {archived ? (
@@ -354,7 +354,7 @@ function TypeEditor({ type, onArchived }: { type: TaskType; onArchived: () => vo
             }}
           >
             <Archive size={15} />
-            {tr('归档这个类型')}
+            {tr('归档这个资料库')}
           </Button>
         )}
       </div>

@@ -128,7 +128,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
     ['group', (n) => tr('{n} 个项目', { n })],
     ['library', (n) => tr('{n} 条资料', { n })],
     ['person', (n) => tr('{n} 位人物', { n })],
-    ['type', (n) => tr('{n} 个类型', { n })],
+    ['type', (n) => tr('{n} 个资料库', { n })],
     ['journal', (n) => tr('{n} 篇日记', { n })],
     ['attachment', (n) => tr('{n} 个附件', { n })],
   ];

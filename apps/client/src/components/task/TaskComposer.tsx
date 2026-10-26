@@ -352,7 +352,7 @@ function Composer() {
         />
 
         <div className="prop-chips" role="group" aria-label={tr('更多属性')}>
-          <PopoverPanel label={tr('类型')} trigger={<PropChip icon={<TypeIcon size={14} />} label={tr('类型')} {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: dataLabel(type.name), color: type.color } : {})} />}>
+          <PopoverPanel label={trc('属性', '资料库')} trigger={<PropChip icon={<TypeIcon size={14} />} label={trc('属性', '资料库')} {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: dataLabel(type.name), color: type.color } : {})} />}>
             {(close) => (
               <div className="pop-section">
                 <TypeGrid
@@ -363,7 +363,7 @@ function Composer() {
                     close();
                   }}
                 />
-                <p className="pop-note">{tr('类型决定卡片的样子，并带上一组要填的信息。')}</p>
+                <p className="pop-note">{tr('放进资料库后，卡片换成它的样子，还会带上一组要填的信息。')}</p>
               </div>
             )}
           </PopoverPanel>

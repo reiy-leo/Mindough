@@ -1331,7 +1331,7 @@ export class Store {
   createType(input: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template'>> = {}): TableMap['task_type'] {
     const sort = this.list('task_type').reduce((m, t) => Math.max(m, t.sort), 0) + 1;
     const t = this.insert('task_type', {
-      name: input.name?.trim() || tr('新类型'),
+      name: input.name?.trim() || tr('新资料库'),
       icon: input.icon ?? 'star',
       color: input.color ?? '#5e5ce6',
       layout: input.layout ?? 'icon_name',
@@ -1356,7 +1356,7 @@ export class Store {
    */
   updateType(id: string, patch: Partial<Pick<TableMap['task_type'], 'name' | 'icon' | 'color' | 'layout' | 'default_completion_mode' | 'body_template'>>): TableMap['task_type'] {
     const cur = this.get('task_type', id);
-    if (!cur) throw new Error(tr('类型不存在'));
+    if (!cur) throw new Error(tr('资料库不存在'));
     // 归档只走 archiveType / unarchiveType；旧调用方传来的 hidden 忽略
     const { hidden: _hidden, ...p } = patch as typeof patch & { hidden?: unknown };
     if (p.name !== undefined && !p.name.trim()) delete p.name;
@@ -1368,7 +1368,7 @@ export class Store {
   /** 换一个类型的整张字段表（字段纯函数见 typedef.ts：addField / updateField / removeField / reorderFields）。 */
   setTypeFields(id: string, fields: FieldDef[]): TableMap['task_type'] {
     const cur = this.get('task_type', id);
-    if (!cur) throw new Error(tr('类型不存在'));
+    if (!cur) throw new Error(tr('资料库不存在'));
     if (JSON.stringify(cur.fields) === JSON.stringify(fields)) return cur;
     return this.update('task_type', id, { fields });
   }
@@ -1376,7 +1376,7 @@ export class Store {
   /** 加字段（同名同种类的删掉的字段会翻回来，旧值又能看到），返回 key。 */
   addTypeField(id: string, input: NewFieldInput): string {
     const cur = this.get('task_type', id);
-    if (!cur) throw new Error(tr('类型不存在'));
+    if (!cur) throw new Error(tr('资料库不存在'));
     const legacy = LEGACY_BUILTIN_FIELDS[id];
     const r = addField(cur.fields, input, legacy ? { legacy } : {});
     this.setTypeFields(id, r.fields);
@@ -1475,7 +1475,7 @@ export class Store {
   /** 复制一个类型（内置类型也可复制后修改）。 */
   duplicateType(typeId: string, name?: string): TableMap['task_type'] {
     const src = this.get('task_type', typeId);
-    if (!src) throw new Error(tr('类型不存在'));
+    if (!src) throw new Error(tr('资料库不存在'));
     const { id: _id, updated_at: _u, deleted: _d, ...rest } = src;
     return this.insert('task_type', { ...rest, name: name ?? tr('{name} 副本', { name: src.name }), builtin: false, sort: this.list('task_type').length });
   }

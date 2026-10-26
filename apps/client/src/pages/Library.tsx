@@ -161,7 +161,7 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
           );
         })}
       </nav>
-        <RacButton className="btn btn-quiet filter-edit lib-tabs-edit" onPress={() => setManaging(true)}>
+        <RacButton className="btn btn-quiet filter-edit lib-tabs-edit" aria-label={tr('编辑资料库')} onPress={() => setManaging(true)}>
           {tr('编辑')}</RacButton>
       </div>
       <TypeManager isOpen={managing} onOpenChange={setManaging} />

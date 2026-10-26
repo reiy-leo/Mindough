@@ -38,7 +38,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
-  typedef.ts            类型编辑器的纯逻辑：字段增改排序隐藏、删字段留墓碑（key 不变、值保留）、类型顺序（同步偏好 type_order）；类型不能删、只能归档（存 hidden 列，Store.archiveType）
+  typedef.ts            类型编辑器（界面叫资料库编辑器）的纯逻辑：字段增改排序隐藏、删字段留墓碑（key 不变、值保留）、类型顺序（同步偏好 type_order）；类型不能删、只能归档（存 hidden 列，Store.archiveType）
   attachment-cache.ts   附件本机缓存的纯逻辑（Rei 2026-10-25）：缓存记录、24 小时到期与清理、点一下做什么（图片灯箱 / 其他下载）、每个附件哪些操作能用
   attachments.ts        附件（Rei 2026-10-17）：文件类型（10 种）、大小显示、文件名安全化 / 改名保留扩展名 / 导出去重、50 MB 上限；写入在 Store（attachmentsOf / addAttachment / setAttachmentFile / renameAttachment / removeAttachment / restoreAttachment / ensureJournal）
   lunar/                农历（Rei 2026-10-17）：data.ts（1900–2100 表，scripts/gen-lunar-data.mjs 生成，别手改）、lunar.ts（公历 ⇄ 农历、节气、节日、格子小字）、names.ts（月名日名节气节日，i18n 白名单）、ics.ts（订阅日历解析）、subscription.ts（默认源、偏好 lunar.*、什么时候同步、状态文案）
@@ -105,7 +105,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 界面文案用中文，**都按 [docs/COPY.md](docs/COPY.md) 写**（术语表 + 语气原则：简洁、口语但不随便、不用技术术语）；有新词先补进术语表。出现 HTTP 状态码时附中文说明（如「408 请求超时」）。
 - 界面有九种语言（Rei 2026-10-25「支持西、葡、俄、日、德、法、印尼」）：中文、英文，加西班牙语 `es`、巴西葡萄牙语 `pt-BR`、俄语 `ru`、日语 `ja`、德语 `de`、法语 `fr`、印尼语 `id`。**加新字符串时九种都要补**：中文写在 `tr()` 里，英文写进 `packages/core/src/i18n-en.ts` 或 `apps/client/src/i18n/en.ts`，另外七种写进 `apps/client/src/i18n/locales/<语言>.ts` 的 `MESSAGES`（内置数据的名字写进 `DATA`）。`locales.test.ts` 会查：缺 key、多 key、空值、占位符对不上、俄语复数没写 one / few / many、法语 `: ; ? ! »` 前面没用不换行空格（`:` 用 U+00A0，其余 U+202F）。不会写的语言先照英文意思译，提交说明里写上「待母语者看」。多语言的术语对照在 COPY.md「其他语言」。
 - 排版跟语言走：中文、日文不在数字和单位之间空格，其他语言空（CSS 用 `html:not(:lang(zh)):not(:lang(ja))`）；会比中文长两三倍的文字（按钮、提示）要在手机 390、中等宽度、右列打开时都看一遍，装不下就换行或只留图标，别靠截断。
-- 代码和文档里的概念名是固定的：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上怎么叫，以 COPY.md 为准（比如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」；“组”在界面上叫「项目」/ Project，Rei 2026-10-25 改的，代码、表名、字段、`#/groups` 深链接都还叫 group，别跟着改）。
+- 代码和文档里的概念名是固定的：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板；界面上叫「资料库」）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上怎么叫，以 COPY.md 为准（比如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」；“组”在界面上叫「项目」/ Project，Rei 2026-10-25 改的，代码、表名、字段、`#/groups` 深链接都还叫 group，别跟着改；“任务类型”在界面上叫「资料库」/ Collection，Rei 2026-10-26 改的，`task_type`、`type_id`、`new?type=` 都不改，空的那个叫「不放进资料库」）。
 - 新建和详情是两个组件：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。详情的单值属性是一行胶囊 `components/task/PropChips.tsx`（Rei 2026-10-25 方案 A：只显示设过的；默认值、适用与否、清除回默认都在 `lib/prop-chips.ts`，加新的单值属性就在那里加 PropId 和默认值）；资料行、任务字段还是属性卡片里的 `PropRow`。
 - 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不用弹窗。桌面上在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开都用 `ui.openEditor(id)`（选中的任务写在 hash 的 `?task=` 里，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
 - 进度都由 check_in 事件累加出来，不直接改写进度字段（多端合并靠的就是这个）。计数的加量、手输、撤销都在 `components/CountControls.tsx`：手输总数记成差值事件，撤销用 `store.undoCheckIn`（打墓碑）；步长和快捷按钮读 core `countStep` / `quickAmounts`，空的 `count_config` 就是老任务（+1）。

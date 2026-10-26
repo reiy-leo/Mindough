@@ -52,7 +52,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { id: 'appearance', icon: Palette, label: () => tr('外观'), hint: () => tr('皮肤、语言、明暗、布局') },
   { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储') },
   { id: 'reminders', icon: Bell, label: () => trc('设置分区', '提醒'), hint: () => tr('任务提醒的通知') },
-  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('类型、日期显示、农历') : tr('类型、日期显示')) },
+  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('资料库、日期显示、农历') : tr('资料库、日期显示')) },
   { id: 'journal', icon: NotebookPen, label: () => tr('日记'), hint: () => tr('一天从几点开始、每天提醒写日记') },
   { id: 'about', icon: Info, label: () => tr('关于'), hint: () => tr('版本、数据来源') },
 ];
@@ -451,17 +451,17 @@ function TypesSection() {
   const types = store.editableTypes();
   const archived = store.archivedTypes().length;
   return (
-    <Section title={trc('类型编辑器', '类型')}>
+    <Section title={trc('资料库编辑器', '资料库')}>
       <div className="card settings-card">
         <div className="setting">
           <div className="setting-text">
-            <div className="setting-name">{tr('任务类型')}</div>
+            <div className="setting-name">{tr('全部资料库')}</div>
             <div className="setting-hint">
-              {archived ? tr('{n} 种，另有 {h} 种已归档。改字段、图标、版式，或新建自己的类型。', { n: types.length, h: archived }) : tr('{n} 种。改字段、图标、版式，或新建自己的类型。', { n: types.length })}
+              {archived ? tr('{n} 个，另有 {h} 个已归档。改字段、图标、版式，或新建自己的资料库。', { n: types.length, h: archived }) : tr('{n} 个。改字段、图标、版式，或新建自己的资料库。', { n: types.length })}
             </div>
           </div>
           <Button variant="secondary" onPress={() => setOpen(true)}>
-            {tr('编辑类型')}</Button>
+            {tr('编辑资料库')}</Button>
         </div>
       </div>
       <TypeManager isOpen={open} onOpenChange={setOpen} />

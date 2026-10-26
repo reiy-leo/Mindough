@@ -445,7 +445,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       continue;
     }
     if (!type || !(archiveTypes.has(type) || store.get('task_type', type))) {
-      err(p.path, tr('找不到它的类型，没导入'));
+      err(p.path, tr('找不到它的资料库，没导入'));
       continue;
     }
     const name = str(p.fm.name)?.trim() || stemOf(p.path);
@@ -530,7 +530,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     }
     let type: string | null = isId(fm.type) ? fm.type.trim() : null;
     if (type && !(archiveTypes.has(type) || store.get('task_type', type))) {
-      warn(p.path, tr('找不到它的类型，当普通任务导入'));
+      warn(p.path, tr('找不到它的资料库，没放进资料库'));
       type = null;
     }
     let item: string | null = isId(fm.item) ? fm.item.trim() : null;

@@ -48,7 +48,7 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
+  PLAIN_TYPE_ID, type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
 import { useDateDisplay } from '../../lib/date-display';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
@@ -377,11 +377,11 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
   );
 }
 
-/** 类型网格（弹层里用）。 */
+/** 资料库网格（弹层里用）：选一个库就是把任务放进那个库；内置的「普通」显示成「不放进资料库」（Rei 2026-10-26 类型改叫资料库）。 */
 export function TypeGrid({ types, value, onChange }: { types: TaskType[]; value: string; onChange: (id: string) => void }) {
   return (
     <ToggleButtonGroup
-      aria-label={tr('类型')}
+      aria-label={trc('属性', '资料库')}
       className="type-pick-grid"
       selectionMode="single"
       disallowEmptySelection
@@ -398,7 +398,7 @@ export function TypeGrid({ types, value, onChange }: { types: TaskType[]; value:
             <span className="type-pick-icon">
               <Icon size={16} />
             </span>
-            <span>{dataLabel(t.name)}</span>
+            <span>{t.id === PLAIN_TYPE_ID ? tr('不放进资料库') : dataLabel(t.name)}</span>
           </ToggleButton>
         );
       })}
