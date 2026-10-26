@@ -6,11 +6,12 @@
 //! - notification：提醒（前端 lib/reminders.ts 排程）
 //! - widget：主屏小组件读的 JSON 快照（widget-snapshot.json）；桌面「小窗」是前端开的第二个窗口（label mini），设置窗口也是前端开的（label settings）
 //! - menu：桌面菜单栏 File → Import → Dida365、「设置…」（文字由前端按界面语言传来，点了发 mindough:menu 给主窗口）
-//! - 以后：窗口毛玻璃等。
+//! - vibrancy：窗口材质（macOS 侧边栏毛玻璃、Windows 11 Mica），前端问 window_material 决定背景透不透明
 
 mod db;
 mod files;
 mod menu;
+mod vibrancy;
 mod widget;
 
 #[cfg(desktop)]
@@ -40,6 +41,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|_app| {
+            // Windows 主窗口在这里建：Win11 透明 + Mica，Win10 不透明（tauri.windows.conf.json 里 create: false）
+            #[cfg(windows)]
+            vibrancy::create_main_window(_app)?;
             // 菜单栏先用英文建好（macOS 一开窗就要有编辑菜单，复制粘贴快捷键靠它）；前端定下语言后换成对应文字
             #[cfg(desktop)]
             menu::install(_app.handle(), &menu::MenuLabels::default())?;
@@ -52,7 +56,7 @@ pub fn run() {
             Ok(())
         })
         .manage(db::Db::new())
-        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot, files::save_download, files::save_to_path, files::att_cache_put, files::att_cache_get, files::att_cache_delete, files::att_cache_list, files::att_cache_copy, menu::set_app_menu])
+        .invoke_handler(tauri::generate_handler![db::db_exec, db::db_run, db::db_all, widget::widget_snapshot, files::save_download, files::save_to_path, files::att_cache_put, files::att_cache_get, files::att_cache_delete, files::att_cache_list, files::att_cache_copy, menu::set_app_menu, vibrancy::window_material])
         .run(tauri::generate_context!())
         .expect("启动 Mindough 失败");
 }

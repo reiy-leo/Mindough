@@ -1,0 +1,58 @@
+/*
+ * 窗口材质（Rei 2026-10-26「mindough app的背景，侧边栏背景不像是原生app的bg sensitive的」）。
+ *
+ * 只在桌面 app 里、窗口材质真的开着时生效：html 上有 is-vibrant（lib/vibrancy.ts 问过原生端才加），
+ * data-material 是 vibrancy（macOS 侧边栏材质）或 mica（Windows 11）。网页版、PWA、Win10、Linux 都没有这个 class，照旧纯色。
+ * Material 皮肤不改：它的背景还是不透明，正好盖住材质。
+ *
+ * - Apple：侧边栏透明，透出窗口的 Sidebar 材质（壁纸颜色）；内容区、详情照旧不透明，像「提醒事项」「邮件」。
+ * - WinUI：整窗是真的 Mica，去掉以前假 Mica 的渐变底；卡片本来就是半透明白，直接叠在 Mica 上。
+ * - 小窗：整窗透出材质。设置窗口：和主窗口一样，左栏透、右边不透。
+ * 手机布局（窗口拉得很窄）不透明，保持原样。
+ */
+
+/* 透明的底：主窗口（桌面布局）、小窗、设置窗口 */
+html.is-vibrant[data-skin='apple'][data-layout='desktop'] body,
+html.is-vibrant[data-skin='winui'][data-layout='desktop'] body,
+html.is-vibrant[data-skin='apple']:has(.mini-window) body,
+html.is-vibrant[data-skin='winui']:has(.mini-window) body,
+html.is-vibrant[data-skin='apple']:has(.settings-window) body,
+html.is-vibrant[data-skin='winui']:has(.settings-window) body {
+  background: transparent;
+  background-image: none;
+}
+html.is-vibrant[data-skin='apple'] .mini-window,
+html.is-vibrant[data-skin='winui'] .mini-window,
+html.is-vibrant[data-skin='apple'] .settings-window,
+html.is-vibrant[data-skin='winui'] .settings-window {
+  background: transparent;
+}
+
+/* ── Apple：侧边栏透出材质，内容区不透明 ── */
+html.is-vibrant[data-skin='apple'] {
+  /* 材质上的填充色：系统控件在侧边栏里是半透明的灰，不是白块 */
+  --vibrant-fill: rgba(0, 0, 0, 0.05);
+  --vibrant-fill-hover: rgba(0, 0, 0, 0.08);
+}
+html.is-vibrant[data-skin='apple'][data-theme='dark'] {
+  --vibrant-fill: rgba(255, 255, 255, 0.07);
+  --vibrant-fill-hover: rgba(255, 255, 255, 0.11);
+}
+html.is-vibrant[data-skin='apple'] .app-desktop .sidebar,
+html.is-vibrant[data-skin='apple'] .settings-side {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.is-vibrant[data-skin='apple'] .app-desktop .sidebar-search {
+  background: var(--vibrant-fill);
+  border-color: transparent;
+}
+html.is-vibrant[data-skin='apple'] .app-desktop .sidebar-search:hover {
+  background: var(--vibrant-fill-hover);
+}
+html.is-vibrant[data-skin='apple'] .app-desktop .main-col,
+html.is-vibrant[data-skin='apple'] .app-desktop .detail-pane,
+html.is-vibrant[data-skin='apple'] .settings-main {
+  background: var(--bg);
+}

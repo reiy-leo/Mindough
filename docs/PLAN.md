@@ -969,6 +969,19 @@ Rei 2026-10-26 19:41：「这个网站也要i18n」。
 - 右上角是下拉框，九种语言用各自本名显示；`<html lang>` 跟着换。
 - 旧地址 `/local/` 顶上的横幅是 app 里的字符串，九种语言早就有了。
 
+### 桌面窗口透出壁纸：macOS 侧边栏毛玻璃、Windows 11 Mica ✅（2026-10-26）
+Rei 2026-10-26 20:58：「mindough app的背景，侧边栏背景不像是原生app的bg sensitive的」。以前窗口和侧边栏都是不透明的纯色，看不出桌面壁纸的颜色。
+
+- macOS：主窗口、小窗、设置窗口都开透明，铺 NSVisualEffectView 的 Sidebar 材质，窗口失焦时跟系统一样变灰（`followsWindowActiveState`）。Apple 皮肤下侧边栏透明、透出材质；内容区和详情照旧不透明（`--bg` / 白底），像「提醒事项」「邮件」。侧边栏的搜索框改成半透明灰。窗口透明要用 Tauri 的 `macOSPrivateApi`，代价是不能上 Mac App Store（现在也不上）。
+- Windows 11（build ≥ 22000）：整窗 Mica，WinUI 皮肤去掉以前假 Mica 的渐变底，卡片本来就是半透明白，直接叠在 Mica 上。Windows 10 没有 Mica：主窗口在 Rust 里按系统版本建（`tauri.windows.conf.json` 写 `create: false`），Win10 建成不透明窗口，界面照旧纯色。
+- Linux、手机、网页版、PWA：不变（浏览器透不出壁纸）。Material 皮肤也不变，背景不透明，正好盖住材质。窗口拉窄成手机布局时也不透明。
+- 深浅色：界面手动选了深色或浅色，窗口也跟着换（材质和 Mica 按窗口的深浅色画）；跟着系统时不动。
+- 怎么接：原生端 `src-tauri/src/vibrancy.rs` 的 `window_material` 说这台机器用哪种材质（vibrancy / mica / none），顺便设窗口深浅色；前端 `lib/vibrancy.ts` 拿到 vibrancy / mica 才给 html 加 `is-vibrant` 和 `data-material`，样式都在 `styles/vibrancy.css`。前端开小窗、设置窗口时用 `materialWindowOptions()` 带上同样的 transparent / windowEffects。
+
+待 Rei 定：
+- 内容区要不要也半透明一点（现在 macOS 内容区不透明，和系统 app 一样）。
+- Windows 10 要不要退回 Acrylic（Win10 有，但拖动窗口时会卡），现在是纯色。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
