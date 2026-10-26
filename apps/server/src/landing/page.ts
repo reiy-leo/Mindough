@@ -158,8 +158,11 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   .hero h1 small { display: block; font-size: 16px; font-weight: 500; color: var(--muted); margin-top: 6px; letter-spacing: .04em; }
   .hero p { max-width: 560px; margin: 0 auto; color: var(--muted); font-size: 18px; }
   .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer; font-size: 16px; font-family: inherit; }
-  .btn svg { width: 18px; height: 18px; }
+  .btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 22px; line-height: 1; border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer; font-size: 16px; font-family: inherit; }
+  .btn svg { flex: none; display: block; width: 18px; height: 18px; }
+  .btn span { display: block; }
+  /* 首屏三个按钮一样宽、一样高，内容居中（Rei 2026-10-26「这三个button怎么高高低低的，文字也不平衡」） */
+  .hero .actions .btn { min-width: 190px; }
   .btn.primary { background: var(--accent); color: var(--accent-fg); }
   .btn.ghost { background: var(--card); border-color: var(--line); color: var(--fg); }
   .btn:focus-visible, .lang:focus-within { outline: 3px solid var(--soft); outline-offset: 2px; }
