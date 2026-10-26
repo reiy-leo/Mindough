@@ -97,8 +97,15 @@ export async function migrate(db: SqlDriver, migrations: readonly Migration[] = 
   let current = Number(rows[0]?.v ?? 0);
   for (const m of migrations) {
     if (m.version <= current) continue;
-    await db.exec('BEGIN');
+    await db.exec('BEGIN IMMEDIATE');
     try {
+      // 拿到写锁后再看一次：别的窗口可能刚跑完这一步
+      const again = await db.all<{ v: number | null }>(`SELECT MAX("version") AS v FROM "schema_version"`);
+      if (Number(again[0]?.v ?? 0) >= m.version) {
+        await db.exec('COMMIT');
+        current = Number(again[0]?.v ?? 0);
+        continue;
+      }
       await db.exec(m.sql);
       await db.run(`INSERT INTO "schema_version" ("version", "name", "applied_at") VALUES (?, ?, ?)`, [m.version, m.name, new Date().toISOString()]);
       await db.exec('COMMIT');
