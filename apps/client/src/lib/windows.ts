@@ -8,6 +8,7 @@
  */
 import { appName, type Change, type Store } from '@mindough/core';
 import { isTauri } from '../store/sqlite-tauri';
+import { materialWindowOptions } from './vibrancy';
 
 const windowParam = (): string | null => (typeof location !== 'undefined' ? new URLSearchParams(location.search).get('window') : null);
 export const isMiniWindow = (): boolean => windowParam() === 'mini';
@@ -52,6 +53,7 @@ export async function openMiniWindow(): Promise<void> {
     await existing.setFocus();
     return;
   }
+  const material = await materialWindowOptions();
   new WebviewWindow('mini', {
     url: 'index.html?window=mini#/mini',
     title: appName(),
@@ -62,6 +64,8 @@ export async function openMiniWindow(): Promise<void> {
     alwaysOnTop: true,
     resizable: true,
     skipTaskbar: false,
+    // 和主窗口同一种材质（macOS 毛玻璃 / Windows 11 Mica），见 lib/vibrancy.ts
+    ...material,
   });
 }
 
@@ -94,6 +98,7 @@ export function openSettingsWindow(opts: { section?: string; title: string; macO
       if (opts.section) await emitTo(SETTINGS_LABEL, SETTINGS_NAV_EVENT, opts.section);
       return;
     }
+    const material = await materialWindowOptions();
     const w = new WebviewWindow(SETTINGS_LABEL, {
       url: `index.html?window=settings#/settings${opts.section ? `/${opts.section}` : ''}`,
       title: opts.title,
@@ -103,6 +108,7 @@ export function openSettingsWindow(opts: { section?: string; title: string; macO
       minHeight: 440,
       resizable: true,
       center: true,
+      ...material,
       ...(opts.macOverlay ? { titleBarStyle: 'overlay' as const, hiddenTitle: true, trafficLightPosition: new LogicalPosition(16, 18) } : {}),
     });
     await new Promise<void>((resolve) => {

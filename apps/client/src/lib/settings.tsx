@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { DateDisplay, MonthMarker } from '@mindough/core';
+import { applyMaterialClass, syncWindowMaterial } from './vibrancy';
 import { detectPlatform, layoutForWidth, MAC_OVERLAY_CLASS, resolveSkin, usesMacOverlayTitlebar, type LayoutKind, type Platform, type Skin, type SkinPref, type ThemePref } from '../skin/platform';
 
 import { tr } from './i18n';
@@ -145,6 +146,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle(MAC_OVERLAY_CLASS, usesMacOverlayTitlebar(platform, { tauri: isTauri(), mini: isMiniWindow() }));
   }, [platform]);
+
+  // 桌面 app：窗口材质（macOS 侧边栏毛玻璃 / Windows 11 Mica，lib/vibrancy.ts）。界面手动选了深浅色时窗口也跟着换
+  const themeOverride = settings.theme === 'system' ? null : theme;
+  useEffect(() => {
+    if (!isTauri()) return;
+    let dead = false;
+    void syncWindowMaterial(themeOverride).then((m) => {
+      if (!dead) applyMaterialClass(document.documentElement, m);
+    });
+    return () => {
+      dead = true;
+    };
+  }, [themeOverride]);
 
   const value = useMemo(() => ({ settings, set, platform, skin, theme, layout }), [settings, set, platform, skin, theme, layout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
