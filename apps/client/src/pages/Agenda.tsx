@@ -9,6 +9,7 @@ import { LunarLine } from '../components/LunarLine';
 import { PageHeader } from '../components/PageHeader';
 
 import { tr, trc } from '../lib/i18n';
+import { scrollIntoContainer } from '../lib/root-scroll';
 /** Agenda 式时间线：按日期往下流，今天居中；过去在上、将来在下。 */
 export function AgendaPage() {
   const store = useStore();
@@ -32,7 +33,8 @@ export function AgendaPage() {
   const hiddenPast = dated.filter((t) => t.scheduled_date! < from).length;
 
   useLayoutEffect(() => {
-    todayRef.current?.scrollIntoView({ block: 'center' });
+    // 只滚中间这一列，不带着外层一起滚（2026-10-26 整页能滚）
+    if (todayRef.current) scrollIntoContainer(todayRef.current, { block: 'center' });
   }, []);
 
   const submit = (date: string) => {

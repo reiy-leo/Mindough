@@ -11,17 +11,30 @@ body,
   height: 100%;
   margin: 0;
 }
-/* 页面不能左右移动（Rei 2026-10-17「不允许页面左右移动」）：根上不横向滚动、不左右回弹；
-   表格、代码块、公式等在各自容器里横向滚 */
-html,
-body {
-  overflow-x: hidden;
-  overscroll-behavior-x: none;
+/* 整页不滚（Rei 2026-10-26「整个页面居然可以滚动」），也不左右移动（Rei 2026-10-17「不允许页面左右移动」）：
+   html、body、#root、.app 这几层都不滚，只有侧边栏、列表、详情这些列自己滚；
+   表格、代码块、公式等在各自容器里横向滚。
+   以前只写了 overflow-x: hidden，浏览器会把 overflow-y 跟着算成 auto，.app 就成了能滚的盒子：
+   里面有东西超出底边时，滚轮、scrollIntoView、聚焦都会把整个界面往上推。
+   overflow: clip 连脚本都滚不动它；不认 clip 的老 WebKit 退回 hidden，再由 lib/root-scroll 把滚动复位。 */
+html {
+  overflow: hidden;
 }
+body,
 #root,
 .app {
   max-width: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
+  overflow: clip;
+}
+/* 桌面（含 Tauri）整页不回弹；手机网页不动，保留浏览器自己的下拉刷新 */
+html[data-layout='desktop'],
+html[data-layout='desktop'] body {
+  overscroll-behavior: none;
+}
+html[data-layout='mobile'],
+html[data-layout='mobile'] body {
+  overscroll-behavior-x: none;
 }
 body {
   font-family: var(--font);
@@ -164,6 +177,18 @@ button {
   overflow-y: auto;
   min-width: 0;
   min-height: 0;
+}
+/* 会滚的列都给 position: relative，让里面 position: absolute 的东西以这一列为参照、被这一列裁住。
+   不然 React Aria 的隐藏 input（开关、复选框）等按自然位置排在长列表底下，参照物却是外面的 .main-col，
+   就跑出列的裁剪，把外层撑高（2026-10-26 整页能滚的根因）。 */
+.sidebar,
+.nav,
+.main,
+.main-scroll,
+.detail-pane-box,
+.pane-body,
+.mini-body {
+  position: relative;
 }
 /* 桌面主区里的滚动层：平时不占盒子（等于没有），macOS 无标题栏时才接手滚动（见 skin/skins.css） */
 .main-scroll {
@@ -3197,7 +3222,8 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
 .mini-window {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 跟着 #root 的 100%，不用视口单位（WebKit 里视口高度和实际可见高度可能对不上） */
+  height: 100%;
   background: var(--bg);
   color: var(--text);
 }

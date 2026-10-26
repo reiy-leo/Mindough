@@ -4,6 +4,7 @@ import { useUi } from '../../lib/ui';
 import { clampDetailWidth, DETAIL_W_DEFAULT, DETAIL_W_KEY, loadDetailWidth, nextTaskId } from '../../lib/detail-pane';
 import { TaskDetail, useSelectedTask } from './TaskDetail';
 import { tr } from '../../lib/i18n';
+import { scrollIntoContainer } from '../../lib/root-scroll';
 
 function isTyping(el: EventTarget | null) {
   const t = el as HTMLElement | null;
@@ -73,7 +74,7 @@ export function DetailPane() {
         ui.openEditor(next);
         requestAnimationFrame(() => {
           const row = document.querySelector<HTMLElement>(`.main [data-task-id="${CSS.escape(next)}"]`);
-          row?.scrollIntoView({ block: 'nearest' });
+          if (row) scrollIntoContainer(row, { block: 'nearest' });
         });
       }
     };

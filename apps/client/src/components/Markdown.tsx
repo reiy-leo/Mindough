@@ -3,6 +3,7 @@ import { renderMarkdown } from '../lib/markdown';
 import { katexReady, loadKatex, mayHaveMath } from '../lib/math';
 
 import { tr } from '../lib/i18n';
+import { scrollIntoContainer } from '../lib/root-scroll';
 /**
  * 只读的 Markdown。有公式（$…$）时按需加载 KaTeX（本地打包），加载好之前公式先显示源码。
  * 脚注的跳转（#md-fn-…）在这一块里面滚过去，不改地址栏（地址栏的 # 是路由）。
@@ -29,7 +30,7 @@ export function Markdown({ source, className }: { source: string; className?: st
     e.stopPropagation();
     const id = a.getAttribute('href')!.slice(1);
     const target = e.currentTarget.querySelector(`[id="${CSS.escape(id)}"]`);
-    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (target) scrollIntoContainer(target, { block: 'center', behavior: 'smooth' });
   };
   return <div className={`md ${className ?? ''}`} onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
 }

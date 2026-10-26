@@ -14,6 +14,7 @@ import { registerServiceWorker } from './lib/reminders';
 import { initNativeLogin } from './lib/native-login';
 import { installExternalLinks } from './lib/external';
 import { installContextMenuBlock } from './lib/contextmenu';
+import { installRootScrollGuard } from './lib/root-scroll';
 import { applyLocalePref, initialLocalePref, loadLocale, resolveLocale } from './lib/i18n';
 import { LocaleRoot } from './lib/locale';
 import { preloadMdEditor } from './components/editor/LazyMdEditor';
@@ -47,6 +48,8 @@ installCrossWindow();
 installExternalLinks();
 // 浏览器 / WebView 自带的右键菜单不出（能打字的地方除外）
 installContextMenuBlock();
+// 整页不滚：外层万一被滚动了就复位（桌面布局才管，手机软键盘要滚整页）
+installRootScrollGuard();
 
 // 编辑器在空闲时先加载好：新建面板一打开就能写
 const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500));

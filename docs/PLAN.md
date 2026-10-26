@@ -779,6 +779,22 @@ Rei 2026-10-26 原话：「设置在桌面端做成一个单独的窗口，设�
 - 新字符串 10 个，九种语言都补了。Rust 改了 `menu.rs`（「设置…」菜单项和 CmdOrCtrl+, 快捷键）；capabilities 给 `settings` 窗口同样的权限，另加 `core:window:allow-set-title`（换语言时改窗口标题）。
 - 检查：`deeplink.test.ts` 加了 `#/settings/<项>` 和 `view/settings/<项>`；截图 `work/shots-settings-win/`（脚本 `work/shots-tool/settingswin.mjs`）。桌面窗口在沙箱里跑不了，截图是用 Web 的 `?window=settings` 按 760 × 560 模拟的；真机 Tauri 还没验。
 
+### 整页不再能滚 ✅（2026-10-26）
+Rei 2026-10-26 报 bug：「整个页面居然可以滚动」。截图是 macOS 桌面版、暗色：整个界面往上跑了一截，侧边栏顶上的项目压在红绿灯下面，窗口下面三成是空白，列表最后一行被切掉。
+
+- **根因**：两件事叠在一起。
+  1. 外层只写了 `overflow-x: hidden`（10-17「页面不能左右移动」时加的）。横向设成 hidden，浏览器会把纵向也算成 auto，于是 `#root`、`.app` 成了能滚的盒子。
+  2. 会滚的列（`.main`、`.main-scroll`、侧边栏）没有 `position`。列表里 `position: absolute` 的东西，比如 React Aria 开关、复选框里藏着的 input，参照物就成了外面的 `.main-col`，不受这一列裁剪，排在长列表底下把 `.app` 撑高。设置页撑出 172–475 px，列表（日程）页撑出 1000 多 px。
+- **结果**：这几种操作都会把整个 `.app` 往上推：在侧边栏上滚滚轮（macOS 无标题栏时侧边栏本身不滚，滚动交给外层）、列表页打开时 `scrollIntoView({ block: 'center' })` 定位「今天」（一打开就上移 19 px）、键盘和聚焦把行滚进视野。手机网页也一样：列表、可做、设置三页整页能滚，顶栏会被滚走。
+- **改法**：
+  1. `html` 设 `overflow: hidden`；`body`、`#root`、`.app` 设 `overflow: clip`（连脚本都滚不动；老 WebKit 不认就退回 hidden）。桌面布局再加 `overscroll-behavior: none`，整页不回弹；手机网页不加，保留浏览器的下拉刷新。
+  2. 侧边栏、导航、`.main`、`.main-scroll`、详情框、`.pane-body`、小窗列表都加 `position: relative`，里面的绝对定位元素被各自那一列裁住。
+  3. 小窗高度从 `100vh` 改成 `100%`，跟着 `#root` 走。
+  4. 列表页定位「今天」、详情里方向键切换任务、Markdown 脚注跳转，改用 `lib/root-scroll` 的 `scrollIntoContainer`：只滚最近的那一列。
+  5. 兜底：`installRootScrollGuard` 监听外层的滚动，桌面布局、鼠标操作时一被滚动就归零。手机、触屏、软键盘弹出（可见区域变矮）、手指放大时不拦，系统要滚整页让输入框露出来。
+- **验证**：Playwright 在 Chromium 和 WebKit 里跑（`work/shots-tool/noscroll*.mjs`）：我的一天、待安排、列表、项目、资料库、人物、日记、打卡、设置逐页点开，各在中列和侧边栏上滚滚轮，再按方向键、End、Home、PageDown、空格，点最后一行开详情，编辑器里连打 40 个回车，开关 ⌘K 和新建面板，窗口变矮再变高，最后脚本强行滚外层。修前列表、设置两页 `.app` 被推上去；修后每一步 `window.scrollY` 和外层 `scrollTop` 都是 0。修前修后同一状态截图逐像素比：只有列表页不一样（修前整页上移了 19 px）；其他页在 Chromium 里逐像素相同，WebKit 里资料库、打卡有一百来个像素的差别，Chromium 里没有，判断是图片和动画的抖动。
+- **桌面版要重新打包才有效**：Tauri 打包的是本地资源，网页版部署后马上生效，装在 Mac 上的 App 要等下一次打包。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
