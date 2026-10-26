@@ -7,6 +7,7 @@ import {
   findEpisode,
   firstLine,
   formatEpisode,
+  formatAmount,
   formatDuration,
   formatTarget,
   friendlyDate,
@@ -46,6 +47,7 @@ import { detailMenu, type DetailMenuId } from '../../lib/task-menu';
 import { Attachments, DropOverlay, useAddFiles, useFileDrop } from '../attachments/Attachments';
 import { ChainToggle, TaskChainInline } from './TaskChain';
 import { PropChips } from './PropChips';
+import { CountNumber, CountQuickButtons, CountUndoButton, useCountAdd } from '../CountControls';
 
 import { dataLabel, tr, trc } from '../../lib/i18n';
 /**
@@ -303,17 +305,19 @@ function useActions(store: Store, task: Task, done: () => void) {
         else primary = { label: tr('开始计时'), icon: <Play size={16} />, onPress: () => record('start') };
         break;
       case 'count':
-        primary = { label: `+1${task.unit ? ` ${task.unit}` : ''}`, icon: <Plus size={16} />, onPress: () => record('add', 1) };
+        // 计数不用单个主按钮：底栏和进度弹层放快捷加量（Rei 2026-10-26，CountQuickButtons）
         break;
       case 'countdown':
         primary = recurring ? { label: tr('打卡'), icon: <Check size={16} />, onPress: () => record('stop'), disabled: p.met } : { label: tr('完成'), icon: <Check size={16} />, onPress: complete };
         break;
     }
   }
-  return { primary, secondary, today, complete };
+  const addCount = useCountAdd(store, task, today, done);
+  const counting = task.completion_mode === 'count' && !isFinished(task.status) && !!p;
+  return { primary, secondary, today, complete, addCount, counting };
 }
 
-function Progress({ store, task, today }: { store: Store; task: Task; today: string }) {
+function Progress({ store, task, today, onCountInput }: { store: Store; task: Task; today: string; onCountInput?: (delta: number, how: 'add' | 'set') => void }) {
   const p = store.progress(task.id, today);
   const recurring = !!task.recurrence;
   if (!p || (task.completion_mode === 'once' && !recurring)) return null;
@@ -328,16 +332,20 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
       main = p.value > 0 || p.running ? formatDuration(p.value) : tr('还没开始');
       sub = p.target ? tr('目标 {formatTarget}', { formatTarget: formatTarget(p.target) }) : tr('不限时长');
       break;
-    case 'count':
-      main = (
+    case 'count': {
+      const nums = (
         <>
-          {p.value}
-          <span className="progress-of"> / {p.target ?? 1}</span>
+          {formatAmount(p.value)}
+          <span className="progress-of"> / {formatAmount(p.target ?? 1)}</span>
           {task.unit && <span className="progress-unit"> {task.unit}</span>}
         </>
       );
-      sub = p.met ? tr('已达标') : (task.unit ? tr('还差 {max} {p}', { max: Math.max(0, (p.target ?? 1) - p.value), p: task.unit }) : tr('还差 {max} 次', { max: Math.max(0, (p.target ?? 1) - p.value) }));
+      // 点数字手输（Rei 2026-10-26）：改成总数，或 +330 加上
+      main = onCountInput && !isFinished(task.status) ? <CountNumber value={p.value} onSubmit={onCountInput}>{nums}</CountNumber> : nums;
+      const left = formatAmount(Math.max(0, (p.target ?? 1) - p.value));
+      sub = p.met ? tr('已达标') : (task.unit ? tr('还差 {max} {p}', { max: left, p: task.unit }) : tr('还差 {max} 次', { max: left }));
       break;
+    }
     case 'countdown':
       main = countdownPhrase(task.target_date, today);
       sub = task.target_date ? friendlyDate(task.target_date, today) : null;
@@ -364,7 +372,7 @@ function Progress({ store, task, today }: { store: Store; task: Task; today: str
  * 顶栏的完成方式小胶囊（Rei 2026-10-16 方案 A：计时 / 计数 / 倒数日不再占正文下面一大块）：
  * 「▶ 1:50 / 10 分钟」「3 / 5」「还有 12 天」，点开是完整的进度和开始 / 暂停。
  */
-function CompletionPill({ store, task, today, primary, secondary }: { store: Store; task: Task; today: string; primary: Act | null; secondary: Act | null }) {
+function CompletionPill({ store, task, today, primary, secondary, addCount, counting }: { store: Store; task: Task; today: string; primary: Act | null; secondary: Act | null; addCount: ReturnType<typeof useCountAdd>; counting: boolean }) {
   const p = store.progress(task.id, today);
   const recurring = !!task.recurrence;
   if (!p || (task.completion_mode === 'once' && !recurring)) return null;
@@ -377,7 +385,7 @@ function CompletionPill({ store, task, today, primary, secondary }: { store: Sto
       text = formatDuration(p.value) + (p.target ? ` / ${formatTarget(p.target)}` : '');
       break;
     case 'count':
-      text = `${p.value} / ${p.target ?? 1}${task.unit ? ` ${task.unit}` : ''}`;
+      text = `${formatAmount(p.value)} / ${formatAmount(p.target ?? 1)}${task.unit ? ` ${task.unit}` : ''}`;
       break;
     case 'countdown':
       text = countdownPhrase(task.target_date, today);
@@ -397,7 +405,14 @@ function CompletionPill({ store, task, today, primary, secondary }: { store: Sto
     >
       {(close) => (
         <div className="pop-section completion-pop">
-          <Progress store={store} task={task} today={today} />
+          <Progress store={store} task={task} today={today} onCountInput={counting ? addCount : undefined} />
+          {counting && (
+            <div className="completion-pop-actions count-pop-actions">
+              <CountUndoButton store={store} task={task} today={today} />
+              <span className="grow" />
+              <CountQuickButtons task={task} add={addCount} variant="primary" className="btn-sm" />
+            </div>
+          )}
           {(primary || secondary) && (
             <div className="completion-pop-actions">
               {secondary && (
@@ -813,7 +828,7 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   const afterFinish = mode === 'pane' ? () => {} : close;
   // 右列和手机整页都是一栏：属性跟在正文后面（弹窗在宽屏上属性在右边一栏）
   const stacked = mode !== 'modal' || layout === 'mobile';
-  const { primary, secondary, today, complete } = useActions(store, task, afterFinish);
+  const { primary, secondary, today, complete, addCount, counting } = useActions(store, task, afterFinish);
   // 附件：拖文件到详情整列（顶栏、正文、底栏都算）就加（Rei 2026-10-17；2026-10-25「拖拽文件到详情页面可以直接添加附件」）。
   // 弹窗（置顶小窗）没有自己的外框 ref，照旧用内容区。
   const owner = useMemo(() => ({ type: 'task' as const, id: task.id }), [task.id]);
@@ -898,7 +913,7 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
         headerStart={
           <>
             {badge}
-            <CompletionPill store={store} task={task} today={today} primary={primary} secondary={secondary} />
+            <CompletionPill store={store} task={task} today={today} primary={primary} secondary={secondary} addCount={addCount} counting={counting} />
           </>
         }
         headerEnd={
@@ -929,6 +944,12 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
                 <RotateCcw size={16} />
                 {recurring ? tr('恢复打卡') : tr('重新打开')}
               </Button>
+            </>
+          ) : counting ? (
+            <>
+              <CountUndoButton store={store} task={task} today={today} className="" />
+              <span className="grow" />
+              <CountQuickButtons task={task} add={addCount} variant="primary" className="primary-action" />
             </>
           ) : primary || secondary ? (
             <>

@@ -83,6 +83,7 @@ checkins:
 | `type` / `item` | type_id / library_item_id | 类型、挂的资料（id） |
 | `fields` | type_data | 只有任务字段（看到哪、读到第几页…）；资料字段在资料文件里。图片字段写 `assets/…` |
 | `completion` `target` `unit` `target_date` | 完成方式与目标 | once / timer / count / countdown；计时的 target 是毫秒 |
+| `count` | 计数的步长和快捷按钮（只有计数任务、设过才写） | `{ step: 250, step_set: true, quick: [250, 500] }`；没写 = 步长 1 |
 | `repeat` | recurrence | RRULE 子集（见 recurrence.ts） |
 | `checkin_category` | checkin_category_id | |
 | `remind` | remind_time | 「HH:MM」，加了引号（有的 YAML 1.1 解析器会把 08:00 当数字） |

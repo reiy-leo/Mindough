@@ -11,7 +11,8 @@ function titleOf(store: Store, id: string) {
 }
 
 /** 结束（完成 / 关闭）后的提示：解锁了哪些后续 + “然后呢？”一键新建后续 + 撤销。 */
-export function announceComplete(store: Store, ui: Ui, result: CompleteResult, prev: TaskStatus) {
+/** undo：撤销时做什么（默认改回原来的状态；计数加量完成的，撤销那一次加量）。 */
+export function announceComplete(store: Store, ui: Ui, result: CompleteResult, prev: TaskStatus, undo?: () => void) {
   const n = result.unlocked.length;
   const names = result.unlocked.slice(0, 3).map((t) => tr('「{titleOf}」', { titleOf: titleOf(store, t.id) })).join(tr('、'));
   const verb = result.task.status === '关闭' ? tr('已关闭') : tr('已完成');
@@ -24,7 +25,7 @@ export function announceComplete(store: Store, ui: Ui, result: CompleteResult, p
           label: tr('然后呢？'),
           onPress: () => ui.openQuickCreate({ group_id: result.task.group_id }, { after: result.task.id }),
         },
-        { label: tr('撤销'), onPress: () => store.setStatus(result.task.id, prev) },
+        { label: tr('撤销'), onPress: undo ?? (() => store.setStatus(result.task.id, prev)) },
       ],
     },
     7000,

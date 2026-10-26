@@ -34,6 +34,7 @@ packages/core/src/      纯逻辑，无 DOM（每个模块都有 test/*.test.ts�
   related.ts            相关任务（task_link，无方向、不阻塞）：规范顺序、确定 id、前后关系优先
   recurrence.ts         RRULE 子集、周期键、连续天数
   checkin.ts            check_in 事件折叠出进度（计时/计量/点一下/倒数日）、热力图比例索引
+  count.ts              计数的步长和快捷按钮（Rei 2026-10-26）：单位 → 默认步长、task.count_config 读写、手输「1200 / +330」解析
   heatmap.ts myday.ts   热力图网格与档位、我的一天（昨天没做完、建议）
   preview.ts search.ts  无标题任务的预览、⌘K 搜索
   library.ts            资料库：库名叫法、资料 / 任务字段拆分、去重与模糊搜索、旧数据迁移计划、占位图配色
@@ -107,7 +108,7 @@ docs/                   PLAN.md、PRODUCT.md、COPY.md（界面文案）、EXPOR
 - 代码和文档里的概念名是固定的：任务 / 组 / 分类 / 前置 / 后续 / 可开始 / 被阻塞 / 琐事列表 / 任务类型（含显示变体与创建模板）/ 完成方式（once 勾选完成、timer 计时、count 计数、countdown 倒数日）。界面上怎么叫，以 COPY.md 为准（比如“前置/后续”在界面上叫「先做完这些 / 做完后解锁」，“被阻塞”叫「还不能开始」；“组”在界面上叫「项目」/ Project，Rei 2026-10-25 改的，代码、表名、字段、`#/groups` 深链接都还叫 group，别跟着改）。
 - 新建和详情是两个组件：新建是 `components/task/TaskComposer.tsx`（快速、安静，完成方式在新建时选），详情是 `components/task/TaskDetail.tsx`（内容在前、状态用操作按钮、属性、关系（前后关系 + 相关任务））；两者共用 `components/task/pickers.tsx`。详情的单值属性是一行胶囊 `components/task/PropChips.tsx`（Rei 2026-10-25 方案 A：只显示设过的；默认值、适用与否、清除回默认都在 `lib/prop-chips.ts`，加新的单值属性就在那里加 PropId 和默认值）；资料行、任务字段还是属性卡片里的 `PropRow`。
 - 三列布局（Rei 2026-10-23，PLAN「三列布局」）：任务详情不用弹窗。桌面上在右列（`components/task/DetailPane.tsx`，侧边栏 | 列表 | 详情；< 1100 侧边栏收成图标栏），手机整页推入，只有桌面置顶小窗里是弹窗（`TaskDetail mode`）。打开都用 `ui.openEditor(id)`（选中的任务写在 hash 的 `?task=` 里，别另存状态），手机上关掉用 `ui.closeDetail()`；能被 ↑ ↓ 选中、要高亮的列表项带 `data-task-id` 和 `is-selected`（参照 `TaskRow`）。别再给任务详情加新的弹窗；新弹层（挑任务、确认）可以照旧用 Sheet。
-- 进度都由 check_in 事件累加出来，不直接改写进度字段（多端合并靠的就是这个）。
+- 进度都由 check_in 事件累加出来，不直接改写进度字段（多端合并靠的就是这个）。计数的加量、手输、撤销都在 `components/CountControls.tsx`：手输总数记成差值事件，撤销用 `store.undoCheckIn`（打墓碑）；步长和快捷按钮读 core `countStep` / `quickAmounts`，空的 `count_config` 就是老任务（+1）。
 - 资料库：类型字段分 资料字段（`scope` 省略 = item，存在 library_item 上）与 任务字段（`scope: 'task'`，存在 task.type_data）；显示任务时都用 `store.taskData(task)` / `lib/view.ts` 的 `viewOf` / `titleOf`，不要直接读 `task.type_data` 当完整数据。
 - 类型编辑（M4）：取类型列表用 `store.pickableTypes()` / `orderedTypes()` / `editableTypes()`，不要自己按 sort 排；显示字段用 `shownFields` / `itemFieldsOf` / `taskFieldsOf`（不含隐藏、删掉的），别直接遍历 `type.fields` 去显示；删字段用 `removeField`（留墓碑），不要从数组里真删。
 - 新字段种类（多选、金额、站点编号、更多链接、看到哪）逻辑写在 core，界面在 `FieldInput` 里按 kind 分派；改内置类型定义就把 `BUILTIN_TYPES_REVISION` 加一，旧值的迁移写进 `planFieldMigration`（只动旧形状的值）。

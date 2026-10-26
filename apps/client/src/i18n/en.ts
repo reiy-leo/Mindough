@@ -12,6 +12,27 @@ const n = (v: unknown, one: string, other: string) => `${v} ${pl(v, one, other)}
 const c = (p: Params, k: string) => p.count ?? p[k];
 
 export const EN: Record<string, EnValue> = {
+  // ── 计数步长、快捷按钮、手输、撤销（components/CountControls.tsx，Rei 2026-10-26）──
+  "{amount} {unit}": "{amount} {unit}",
+  "{amount} 次": "{amount}×",
+  "改成了 {amount}": "Set to {amount}",
+  "减了 {amount}": "Subtracted {amount}",
+  "加了 {amount}": "Added {amount}",
+  "加 {amount} {unit}": "Add {amount} {unit}",
+  "加 {amount} 次": "Add {amount}",
+  "现在是 {value}，点一下手动输入": "Now {value}. Click to type a number",
+  "点一下手动输入": "Click to type a number",
+  "输入总数，或 +330 这样加上": "Type a total, or +330 to add",
+  "总数或 +量": "Total or +amount",
+  "撤销了 {amount}": "Undid {amount}",
+  "撤销上一次": "Undo Last",
+  "加够就算完成": "done when you reach it",
+  "每次加": "Add",
+  "每次加多少": "Amount per tap",
+  "快捷按钮": "Quick buttons",
+  "快捷按钮 {n}": "Quick button {n}",
+  "去掉 {amount}": "Remove {amount}",
+  "加一个快捷按钮": "Add quick button",
   // ── 从滴答清单导入（components/DidaImport.tsx、lib/dida.ts、菜单栏，Rei 2026-10-21）──
   从滴答清单导入: 'Import from Dida365',
   '导入计数|任务': 'Tasks',
@@ -169,7 +190,6 @@ export const EN: Record<string, EnValue> = {
   '今天的打卡完成了 🎉': 'All checked in for today 🎉',
   今天已打卡: 'Checked in today',
   已打卡: 'Checked In',
-  '加 1{unit}': (p) => (p.unit ? `Add 1 ${p.unit}` : 'Add 1'),
   未开始: 'Not started',
   暂停: 'Pause',
   结束: 'Finish',
@@ -418,7 +438,6 @@ export const EN: Record<string, EnValue> = {
   目标数量: 'Goal amount',
   单位: 'Unit',
   次: 'times',
-  '每次 +1，加够就算完成': 'Add 1 each time — done when you reach the goal',
   目标日期: 'Target date',
   选一天: 'Choose a day',
   '到时显示「{countdownPhrase}」': 'Shows “{countdownPhrase}”',

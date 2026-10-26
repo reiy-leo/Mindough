@@ -6,6 +6,27 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  // ── 计数步长（Rei 2026-10-26）──
+  "{amount} {unit}": "{amount} {unit}",
+  "{amount} 次": "{amount} kali",
+  "改成了 {amount}": "Diubah jadi {amount}",
+  "减了 {amount}": "Dikurangi {amount}",
+  "加了 {amount}": "Ditambah {amount}",
+  "加 {amount} {unit}": "Tambah {amount} {unit}",
+  "加 {amount} 次": "Tambah {amount}",
+  "现在是 {value}，点一下手动输入": "Sekarang {value}. Klik untuk mengetik angka",
+  "点一下手动输入": "Klik untuk mengetik angka",
+  "输入总数，或 +330 这样加上": "Ketik total, atau +330 untuk menambah",
+  "总数或 +量": "Total atau +jumlah",
+  "撤销了 {amount}": "{amount} dibatalkan",
+  "撤销上一次": "Batalkan yang terakhir",
+  "加够就算完成": "selesai saat tercapai",
+  "每次加": "Tambah",
+  "每次加多少": "Jumlah per ketuk",
+  "快捷按钮": "Tombol cepat",
+  "快捷按钮 {n}": "Tombol cepat {n}",
+  "去掉 {amount}": "Hapus {amount}",
+  "加一个快捷按钮": "Tambah tombol cepat",
   // ── core ──
   "念头团": "Mindough",
   "滴答清单": "Dida365",
@@ -530,7 +551,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "今天的打卡完成了 🎉": "Semua sudah dicatat hari ini 🎉",
   "今天已打卡": "Dicatat hari ini",
   "已打卡": "Dicatat",
-  "加 1{unit}": (p) => (p.unit ? `Tambah 1 ${p.unit}` : 'Tambah 1'),
   "未开始": "Belum dimulai",
   "暂停": "Jeda",
   "结束": "Selesaikan",
@@ -740,7 +760,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "目标数量": "Jumlah target",
   "单位": "Satuan",
   "次": "kali",
-  "每次 +1，加够就算完成": "Tambah 1 tiap kali — selesai saat mencapai target",
   "目标日期": "Tanggal target",
   "选一天": "Pilih hari",
   "到时显示「{countdownPhrase}」": "Menampilkan “{countdownPhrase}”",

@@ -53,6 +53,8 @@ export interface CheckInResult {
   progress: Progress;
   /** 非重复的打卡任务达标后会自动完成，并可能解锁后续。 */
   completed: CompleteResult | null;
+  /** 这次记下的事件（撤销用 store.undoCheckIn(event.id)）。 */
+  event: TableMap['check_in'];
 }
 
 type Tables = { [K in TableName]: Map<string, TableMap[K]> };
@@ -97,6 +99,8 @@ export type NewTaskInput = Partial<Omit<Task, 'id' | 'updated_at' | 'deleted'>> 
 
 /** 用户点过「不是同一个」的重复组（pref，值是组签名数组）。 */
 export const NOT_DUPLICATES_PREF = 'library.not_duplicates';
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** 同一行写了多次只留最后一次。 */
 function dedupeRows(rows: Array<{ table: TableName; row: BaseRow }>) {
@@ -148,6 +152,8 @@ export class Store {
         if (t === 'task' && (row as Task).remind_time === undefined) (row as Task).remind_time = null;
         // v8 之前没有 time_zone（空 = 跟着设备）：同上
         if (t === 'task' && (row as Task).time_zone === undefined) (row as Task).time_zone = null;
+        // v9 之前没有 count_config（空 = 步长 1）：同上
+        if (t === 'task' && !isPlainObject((row as Task).count_config)) (row as Task).count_config = {};
         // v5 之前没有 merged_into：同上
         if ((t === 'library_item' || t === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
         map.set(row.id, row);
@@ -344,6 +350,7 @@ export class Store {
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
         if (t.time_zone === undefined) t.time_zone = null;
+        if (!isPlainObject(t.count_config)) t.count_config = {};
       }
       if (c.table === 'attachment') {
         const a = row as Attachment;
@@ -820,6 +827,7 @@ export class Store {
       completion_mode: input.completion_mode ?? resolvedType?.default_completion_mode ?? 'once',
       target_value: input.target_value ?? null,
       unit: input.unit ?? null,
+      count_config: input.count_config ?? {},
       target_date: input.target_date ?? null,
       recurrence: input.recurrence ?? null,
       checkin_category_id: input.checkin_category_id ?? null,
@@ -1007,12 +1015,44 @@ export class Store {
     if (!task) throw new Error(tr('任务不存在'));
     const period_key = periodKeyForTask(task, date);
     const before = this.progress(taskId, date);
-    this.insert('check_in', { task_id: taskId, period_key, kind, amount, at: this.now().toISOString() });
+    const event = this.insert('check_in', { task_id: taskId, period_key, kind, amount, at: this.now().toISOString() });
     const progress = this.progress(taskId, date)!;
     let completed: CompleteResult | null = null;
     if (!task.recurrence && progress.met && !before?.met && task.status !== '完成') completed = this.completeTask(taskId);
     else if (!task.recurrence && kind === 'start' && task.status === '待办') this.updateTask(taskId, { status: '进行中' });
-    return { progress, completed };
+    return { progress, completed, event };
+  }
+
+  /**
+   * 计数里最后一次加量（这个周期、没撤销过的 add 事件）；没有是 undefined。
+   * 「撤销上一次」用它。
+   */
+  lastCountAdd(taskId: string, date: string = toDateKey(this.now())): TableMap['check_in'] | undefined {
+    const task = this.get('task', taskId);
+    if (!task) return undefined;
+    const key = periodKeyForTask(task, date);
+    let last: TableMap['check_in'] | undefined;
+    for (const e of this.list('check_in')) {
+      if (e.task_id !== taskId || e.period_key !== key || e.kind !== 'add') continue;
+      if (!last || e.at > last.at || (e.at === last.at && e.id > last.id)) last = e;
+    }
+    return last;
+  }
+
+  /**
+   * 撤销一条打卡事件（打墓碑，同步到别的设备也撤销）。
+   * 只做一次的任务：因为这条才完成的，撤销后不再达标就改回待办。返回撤销后的进度。
+   */
+  undoCheckIn(eventId: string): Progress | null {
+    const e = this.get('check_in', eventId);
+    if (!e) return null;
+    const task = this.get('task', e.task_id);
+    this.remove('check_in', eventId);
+    if (!task) return null;
+    const all = this.list('check_in').filter((x) => x.task_id === task.id && x.period_key === e.period_key);
+    const progress = computeProgress(task, all, this.now());
+    if (!task.recurrence && task.status === '完成' && !progress.met) this.reopenTask(task.id);
+    return progress;
   }
 
   // ───────────── 人物 ─────────────

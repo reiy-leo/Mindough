@@ -1,5 +1,6 @@
-import { Check, Pause, Play, Plus, Square } from 'lucide-react';
-import { formatDuration, toDateKey, type Store, type Task } from '@mindough/core';
+import { Check, Pause, Play, Square } from 'lucide-react';
+import { formatAmount, formatDuration, toDateKey, type Store, type Task } from '@mindough/core';
+import { CountNumber, CountQuickButtons, useCountAdd } from './CountControls';
 import { Button, ProgressRing } from '../ui/primitives';
 import { useUi } from '../lib/ui';
 import { announceComplete } from '../lib/actions';
@@ -31,25 +32,8 @@ export function CheckInControl({ store, task, compact }: { store: Store; task: T
           {!compact && (p.met ? tr('已打卡') : tr('打卡'))}
         </Button>
       );
-    case 'count': {
-      const unit = task.unit ?? '';
-      return (
-        <div className="ci-group">
-          <ProgressRing value={p.ratio} size={compact ? 26 : 30} />
-          <span className="ci-value">
-            {p.value}
-            <span className="ci-target">
-              /{p.target}
-              <span className="ci-unit">{unit}</span>
-            </span>
-          </span>
-          <Button variant="tonal" className="ci-btn" onPress={() => record('add', 1)} aria-label={tr('加 1{unit}', { unit })}>
-            <Plus size={16} />
-            {!compact && '1'}
-          </Button>
-        </div>
-      );
-    }
+    case 'count':
+      return <CountCheckIn store={store} task={task} today={today} compact={compact} ratio={p.ratio} value={p.value} target={p.target ?? 1} />;
     case 'timer': {
       const target = p.target ? ` / ${formatDuration(p.target).replace(/ 00 分$/, '')}` : '';
       return (
@@ -109,4 +93,23 @@ export function CheckInControl({ store, task, compact }: { store: Store; task: T
       );
     }
   }
+}
+
+/** 计数：进度环、点数字手输、快捷加量（列表行只放第一个快捷按钮）。 */
+function CountCheckIn({ store, task, today, compact, ratio, value, target }: { store: Store; task: Task; today: string; compact?: boolean; ratio: number; value: number; target: number }) {
+  const add = useCountAdd(store, task, today);
+  const unit = task.unit ?? '';
+  return (
+    <div className="ci-group">
+      <ProgressRing value={ratio} size={compact ? 26 : 30} />
+      <CountNumber value={value} onSubmit={add} className="ci-value">
+        {formatAmount(value)}
+        <span className="ci-target">
+          /{formatAmount(target)}
+          <span className="ci-unit">{unit}</span>
+        </span>
+      </CountNumber>
+      <CountQuickButtons task={task} add={add} compact={compact} />
+    </div>
+  );
 }

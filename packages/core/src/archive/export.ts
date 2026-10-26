@@ -268,6 +268,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       completion: t.completion_mode,
       target: t.target_value ?? undefined,
       unit: t.unit ?? undefined,
+      count: t.completion_mode === 'count' && t.count_config && Object.keys(t.count_config).length ? t.count_config : undefined,
       target_date: t.target_date ?? undefined,
       repeat: t.recurrence ?? undefined,
       checkin_category: t.checkin_category_id ? new Noted(t.checkin_category_id, dataLabel(store.get('checkin_category', t.checkin_category_id)?.name ?? '')) : undefined,

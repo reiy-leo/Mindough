@@ -89,6 +89,16 @@ export interface LinkValue {
  */
 export type FieldValue = string | number | boolean | string[] | LinkValue[] | MoneyValue | EpisodeValue | null;
 
+/** 计数配置（task.count_config）。都可省略。 */
+export interface CountConfig {
+  /** 每次加多少（正数，可以是小数）。 */
+  step?: number;
+  /** 手改过步长：之后换单位不再自动填默认步长。 */
+  step_set?: boolean;
+  /** 快捷按钮（最多三个）；没设过按步长算（见 count.ts quickAmounts）。 */
+  quick?: number[];
+}
+
 export interface Task extends BaseRow {
   /** 无标题的 markdown 正文；列表显示首行。 */
   body_md: string;
@@ -101,6 +111,10 @@ export interface Task extends BaseRow {
   /** 计时：目标毫秒数；计量：目标数量。 */
   target_value: number | null;
   unit: string | null;
+  /**
+   * 计数的步长和快捷按钮（Rei 2026-10-26，见 count.ts）。空对象 = 老任务（步长 1、只有 +1）。SQLite 迁移 v9。
+   */
+  count_config: CountConfig;
   /** 倒数日目标日期。 */
   target_date: DateKey | null;
   /** RRULE 子集，见 recurrence.ts；null 表示不重复。 */

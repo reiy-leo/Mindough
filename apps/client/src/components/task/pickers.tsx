@@ -14,12 +14,22 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from 'react-aria-components';
-import { CalendarClock, Check, ChevronDown, CircleCheck, Hash, ImagePlus, Timer } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, CircleCheck, Hash, ImagePlus, Plus, Timer, X } from 'lucide-react';
 import {
   COMPLETION_MODES,
   COMPLETION_MODE_HINT,
   COMPLETION_MODE_LABEL,
   DURATION_UNIT_LABEL,
+  MAX_QUICK,
+  countConfigForUnit,
+  countConfigOf,
+  countConfigWithQuick,
+  countConfigWithStep,
+  countStep,
+  formatDelta,
+  newCountConfig,
+  quickAmounts,
+  roundAmount,
   countdownPhrase,
   durationMs,
   durationParts,
@@ -78,7 +88,7 @@ export function CompletionChoice({ value, onChange, compact }: { value: Completi
   );
 }
 
-export type CompletionValue = Pick<Task, 'completion_mode' | 'target_value' | 'unit' | 'target_date'>;
+export type CompletionValue = Pick<Task, 'completion_mode' | 'target_value' | 'unit' | 'target_date' | 'count_config'>;
 
 function InlineSelect<T extends string>({ label, value, onChange, options }: { label: string; value: T; onChange: (v: T) => void; options: Array<{ id: T; label: string }> }) {
   return (
@@ -97,6 +107,69 @@ function InlineSelect<T extends string>({ label, value, onChange, options }: { l
         </ListBox>
       </Popover>
     </RacSelect>
+  );
+}
+
+/**
+ * 计数的设置（Rei 2026-10-26「喝2000mL水的话，每次只能加1，太不合理了」）：
+ * 目标 + 单位；每次加多少（选单位时自动填，手改过不再跟着单位变）；最多三个快捷按钮。
+ */
+function CountSentence({ value, onChange }: { value: CompletionValue; onChange: (p: Partial<CompletionValue>) => void }) {
+  const cfg = countConfigOf(value);
+  const step = countStep(value);
+  const quick = quickAmounts(value);
+  const unit = value.unit ?? '';
+  const setQuick = (list: number[]) => onChange({ count_config: countConfigWithQuick(cfg, list) });
+  return (
+    <div className="sentence count-sentence">
+      <div className="count-line">
+        <span>{tr('目标')}</span>
+        <InlineNumber label={tr('目标数量')} value={value.target_value ?? 1} onChange={(v) => onChange({ target_value: Math.max(1, v) })} width={4} />
+        <InlineText
+          label={tr('单位')}
+          value={unit}
+          onChange={(u) => {
+            const next = u.trim() ? u : null;
+            onChange({ unit: next, count_config: countConfigForUnit(cfg, next) });
+          }}
+          placeholder={tr('次')}
+          width={5}
+        />
+        <span className="sentence-note">{tr('加够就算完成')}</span>
+      </div>
+      <div className="count-line">
+        <span>{tr('每次加')}</span>
+        <InlineNumber label={tr('每次加多少')} value={step} min={0.01} onChange={(v) => onChange({ count_config: countConfigWithStep(cfg, v) })} width={4} />
+        <span className="sentence-note">{unit || tr('次')}</span>
+      </div>
+      <div className="count-line count-quick-edit" role="group" aria-label={tr('快捷按钮')}>
+        <span>{tr('快捷按钮')}</span>
+        {quick.map((q, i) => (
+          <span key={i} className="quick-chip">
+            <span aria-hidden>+</span>
+            <InlineNumber label={tr('快捷按钮 {n}', { n: i + 1 })} value={q} min={0.01} onChange={(v) => setQuick(quick.map((x, j) => (j === i ? v : x)))} width={4} />
+            {quick.length > 1 && (
+              <RacButton className="quick-chip-x" aria-label={tr('去掉 {amount}', { amount: formatDelta(q) })} onPress={() => setQuick(quick.filter((_, j) => j !== i))}>
+                <X size={12} />
+              </RacButton>
+            )}
+          </span>
+        ))}
+        {quick.length < MAX_QUICK && (
+          <RacButton
+            className="quick-chip-add"
+            aria-label={tr('加一个快捷按钮')}
+            onPress={() => {
+              let next = roundAmount((quick.at(-1) ?? 0) + step);
+              while (quick.includes(next)) next = roundAmount(next + step);
+              setQuick([...quick, next]);
+            }}
+          >
+            <Plus size={14} />
+          </RacButton>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -122,14 +195,7 @@ export function CompletionSentence({ value, onChange, today }: { value: Completi
       );
     }
     case 'count':
-      return (
-        <div className="sentence">
-          <span>{tr('目标')}</span>
-          <InlineNumber label={tr('目标数量')} value={value.target_value ?? 1} onChange={(v) => onChange({ target_value: Math.max(1, v) })} width={3} />
-          <InlineText label={tr('单位')} value={value.unit ?? ''} onChange={(u) => onChange({ unit: u.trim() ? u : null })} placeholder={tr('次')} width={3} />
-          <span className="sentence-note">{tr('每次 +1，加够就算完成')}</span>
-        </div>
-      );
+      return <CountSentence value={value} onChange={onChange} />;
     case 'countdown':
       return (
         <div className="sentence">
@@ -166,7 +232,8 @@ export function CompletionSentence({ value, onChange, today }: { value: Completi
 export function modeDefaults(mode: CompletionMode, cur: CompletionValue): Partial<CompletionValue> {
   if (mode === cur.completion_mode) return {};
   if (mode === 'timer') return { completion_mode: mode, target_value: 10 * 60_000 };
-  if (mode === 'count') return { completion_mode: mode, target_value: 1 };
+  // 计数：按单位填默认步长（Rei 2026-10-26）；已经有步长的（以前设过）不动
+  if (mode === 'count') return { completion_mode: mode, target_value: 1, ...(countConfigOf(cur).step ? {} : { count_config: { ...countConfigOf(cur), ...newCountConfig(cur.unit) } }) };
   return { completion_mode: mode };
 }
 

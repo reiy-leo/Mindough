@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { Button as RacButton } from 'react-aria-components';
 import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
 import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, friendlyDate, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
-import { shownFields } from '@mindough/core';
+import { newCountConfig, shownFields } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -96,6 +96,8 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     completion_mode: mode,
     target_value: d.target_value ?? (mode === 'timer' ? 10 * 60_000 : mode === 'count' ? 1 : null),
     unit: d.unit ?? null,
+    // 计数的步长（Rei 2026-10-26）：按单位填默认值
+    count_config: d.count_config ?? newCountConfig(d.unit),
     target_date: d.target_date ?? null,
     // 打开时指定了完成方式（比如在倒数日页新建）：换类型时不跟着类型的默认完成方式变
     modeTouched: d.completion_mode != null,
@@ -202,6 +204,7 @@ function Composer() {
       completion_mode: d.completion_mode,
       target_value: d.completion_mode === 'timer' || d.completion_mode === 'count' ? d.target_value : null,
       unit: d.completion_mode === 'count' ? d.unit : null,
+      count_config: d.completion_mode === 'count' ? d.count_config : {},
       target_date: d.completion_mode === 'countdown' ? d.target_date : null,
       recurrence: d.recurrence,
       checkin_category_id: recurring ? d.categoryId : null,

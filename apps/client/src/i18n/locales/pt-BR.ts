@@ -6,6 +6,27 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  // ── 计数步长（Rei 2026-10-26）──
+  "{amount} {unit}": "{amount} {unit}",
+  "{amount} 次": "{amount} vezes",
+  "改成了 {amount}": "Alterado para {amount}",
+  "减了 {amount}": "Subtraído {amount}",
+  "加了 {amount}": "Adicionado {amount}",
+  "加 {amount} {unit}": "Adicionar {amount} {unit}",
+  "加 {amount} 次": "Adicionar {amount}",
+  "现在是 {value}，点一下手动输入": "Agora {value}. Toque para digitar um número",
+  "点一下手动输入": "Toque para digitar um número",
+  "输入总数，或 +330 这样加上": "Digite o total, ou +330 para somar",
+  "总数或 +量": "Total ou +quantidade",
+  "撤销了 {amount}": "Desfeito {amount}",
+  "撤销上一次": "Desfazer o último",
+  "加够就算完成": "concluída ao atingir a meta",
+  "每次加": "Somar",
+  "每次加多少": "Quantidade por toque",
+  "快捷按钮": "Botões rápidos",
+  "快捷按钮 {n}": "Botão rápido {n}",
+  "去掉 {amount}": "Remover {amount}",
+  "加一个快捷按钮": "Adicionar botão rápido",
   // ── core ──
   "念头团": "Mindough",
   "滴答清单": "Dida365",
@@ -530,7 +551,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "今天的打卡完成了 🎉": "Tudo registrado hoje 🎉",
   "今天已打卡": "Registrado hoje",
   "已打卡": "Registrado",
-  "加 1{unit}": (p) => (p.unit ? `Adicionar 1 ${p.unit}` : 'Adicionar 1'),
   "未开始": "Não iniciado",
   "暂停": "Pausar",
   "结束": "Terminar",
@@ -740,7 +760,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "目标数量": "Quantidade da meta",
   "单位": "Unidade",
   "次": "vezes",
-  "每次 +1，加够就算完成": "Some 1 a cada vez: feita quando chegar à meta",
   "目标日期": "Data-alvo",
   "选一天": "Escolha um dia",
   "到时显示「{countdownPhrase}」": "Mostra “{countdownPhrase}”",

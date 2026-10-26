@@ -13,6 +13,8 @@ import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
 import { tr } from '../i18n';
 import { normalizeTimeZone } from '../timezone';
+import { cleanQuick } from '../count';
+import type { CountConfig } from '../types';
 import { isDateKey, journalEntryId } from '../journal';
 import { isFileKey, safeFileName } from '../attachments';
 import {
@@ -145,6 +147,17 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isId = (v: unknown): v is string => typeof v === 'string' && UUID.test(v.trim());
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : typeof v === 'number' || typeof v === 'boolean' ? String(v) : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
+/** front matter 的 count（步长、快捷按钮）→ count_config；没有或看不懂是空对象。 */
+const countConfigFrom = (v: unknown): CountConfig => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const o = v as Record<string, unknown>;
+  const out: CountConfig = {};
+  const step = num(o.step);
+  if (step !== null && step > 0) out.step = step;
+  if (o.step_set === true) out.step_set = true;
+  if (Array.isArray(o.quick)) out.quick = cleanQuick(o.quick.map((x) => num(x)));
+  return out;
+};
 const dateKey = (v: unknown): string | null => {
   const s = v instanceof Date ? v.toISOString().slice(0, 10) : str(v)?.trim();
   return s && DATE.test(s.slice(0, 10)) ? s.slice(0, 10) : null;
@@ -546,6 +559,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       completion_mode: completion,
       target_value: num(fm.target),
       unit: str(fm.unit),
+      count_config: countConfigFrom(fm.count),
       target_date: dateKey(fm.target_date),
       recurrence: repeat,
       checkin_category_id: cat,

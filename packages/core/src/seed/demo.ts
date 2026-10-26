@@ -2,6 +2,7 @@
  * 演示数据：相对“今天”生成，含组、依赖链、人物、各类型任务、打卡历史（确定性伪随机）。
  */
 import { addDays, toDateKey } from '../dates';
+import { newCountConfig } from '../count';
 import { formatRecurrence, isDueOn, parseRecurrence, periodKeyFor } from '../recurrence';
 import type { Store } from '../store';
 import type { CheckInKind, FieldValue, Task } from '../types';
@@ -243,11 +244,12 @@ export function seedDemo(store: Store): void {
     const C = BUILTIN_CHECKIN_CATEGORY_IDS;
     const water = task(tr('每天喝 8 杯水'), { completion_mode: 'count', target_value: 8, unit: tr('杯'), recurrence: daily, checkin_category_id: C.diet, created_at: iso(-200) });
     const fast = task(tr('16 小时轻断食'), { completion_mode: 'timer', target_value: 16 * 3600_000, recurrence: daily, checkin_category_id: C.diet, created_at: iso(-120) });
-    const read = task(tr('读书 30 页'), { completion_mode: 'count', target_value: 30, unit: tr('页'), recurrence: daily, checkin_category_id: C.reading, created_at: iso(-260) });
+    const read = task(tr('读书 30 页'), { completion_mode: 'count', target_value: 30, unit: tr('页'), count_config: newCountConfig(tr('页')), recurrence: daily, checkin_category_id: C.reading, created_at: iso(-260) });
     const run = task(tr('跑步 5 公里'), {
       completion_mode: 'count',
       target_value: 5,
       unit: tr('公里'),
+      count_config: newCountConfig(tr('公里')),
       recurrence: formatRecurrence({ kind: 'weekly', weekdays: [1, 3, 5] }),
       checkin_category_id: C.sport,
       created_at: iso(-300),

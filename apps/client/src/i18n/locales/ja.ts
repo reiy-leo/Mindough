@@ -6,6 +6,27 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  // ── 计数步长（Rei 2026-10-26）──
+  "{amount} {unit}": "{amount}{unit}",
+  "{amount} 次": "{amount}回",
+  "改成了 {amount}": "{amount} に変更しました",
+  "减了 {amount}": "{amount} 減らしました",
+  "加了 {amount}": "{amount} 追加しました",
+  "加 {amount} {unit}": "{amount}{unit} 追加",
+  "加 {amount} 次": "{amount} 追加",
+  "现在是 {value}，点一下手动输入": "現在 {value}。クリックして数値を入力",
+  "点一下手动输入": "クリックして数値を入力",
+  "输入总数，或 +330 这样加上": "合計を入力、または +330 のように追加",
+  "总数或 +量": "合計 / +量",
+  "撤销了 {amount}": "{amount} を取り消しました",
+  "撤销上一次": "直前を取り消す",
+  "加够就算完成": "達成したら完了",
+  "每次加": "1 回に",
+  "每次加多少": "1 回に足す量",
+  "快捷按钮": "クイックボタン",
+  "快捷按钮 {n}": "クイックボタン {n}",
+  "去掉 {amount}": "{amount} を削除",
+  "加一个快捷按钮": "クイックボタンを追加",
   // ── core ──
   "念头团": "Mindough",
   "滴答清单": "Dida365",
@@ -530,7 +551,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "今天的打卡完成了 🎉": "今日の記録はすべて完了 🎉",
   "今天已打卡": "今日記録済み",
   "已打卡": "記録済み",
-  "加 1{unit}": (p) => (p.unit ? `1${p.unit}追加` : '1追加'),
   "未开始": "未開始",
   "暂停": "一時停止",
   "结束": "終了",
@@ -740,7 +760,6 @@ export const MESSAGES: Record<string, MessageValue> = {
   "目标数量": "目標の数",
   "单位": "単位",
   "次": "回",
-  "每次 +1，加够就算完成": "毎回1ずつ増やし、目標に達したら完了",
   "目标日期": "目標日",
   "选一天": "日を選ぶ",
   "到时显示「{countdownPhrase}」": "「{countdownPhrase}」と表示",

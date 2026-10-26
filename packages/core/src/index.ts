@@ -7,6 +7,7 @@ export * from './dag';
 export * from './related';
 export * from './recurrence';
 export * from './checkin';
+export * from './count';
 export * from './heatmap';
 export * from './myday';
 export * from './backlog';

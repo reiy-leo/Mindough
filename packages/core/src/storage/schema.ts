@@ -27,6 +27,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     completion_mode: 'text',
     target_value: 'real?',
     unit: 'text?',
+    count_config: 'json',
     target_date: 'text?',
     recurrence: 'text?',
     checkin_category_id: 'text?',
@@ -230,6 +231,13 @@ CREATE INDEX IF NOT EXISTS "attachment_owner" ON "attachment" ("owner_type", "ow
     name: '任务时区（task.time_zone）',
     sql: `
 ALTER TABLE "task" ADD COLUMN "time_zone" TEXT;
+`,
+  },
+  {
+    version: 9,
+    name: '计数的步长和快捷按钮（task.count_config）',
+    sql: `
+ALTER TABLE "task" ADD COLUMN "count_config" TEXT NOT NULL DEFAULT '{}';
 `,
   },
 ];
