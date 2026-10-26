@@ -388,3 +388,26 @@ export function placeholderArt(name: string): { initials: string; from: string; 
   else initials = [...n].slice(0, 2).join('').toUpperCase();
   return { initials: initials || '?', from: `hsl(${hue} 62% 58%)`, to: `hsl(${hue2} 58% 38%)` };
 }
+
+// ───────────── 侧边栏里的资料库 ─────────────
+
+/**
+ * 放进侧边栏的资料库（Rei 2026-10-26「资料库中，任何一个资料库都可以“在侧边栏显示”，“取消在侧边栏显示”」）。
+ * 存成同步偏好 `library.sidebar`（类型 id 列表），不加列、不改类型行：
+ * - 改类型行会让内置资料库变成「用户改过」，以后内置升级就不覆盖它了（同 type_order 的理由）；
+ * - 旧客户端只认已知列，改一下类型名就会把新列冲掉；偏好行它们原样留着、不碰。
+ * 侧边栏里的顺序跟资料库顺序走（orderedTypes），不看列表里的先后；归档的不出现，但 id 留着，取消归档后回来。
+ */
+export const LIBRARY_SIDEBAR_PREF = 'library.sidebar';
+
+/** 偏好值 → id 列表（坏值、非字符串都丢掉，去重）。 */
+export function sidebarLibraryIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((x): x is string => typeof x === 'string' && x.length > 0))];
+}
+
+/** 打开 / 关掉一个资料库的侧边栏入口，返回新的 id 列表（没变就原样返回同样的内容）。 */
+export function withSidebarLibrary(ids: readonly string[], id: string, on: boolean): string[] {
+  const rest = ids.filter((x) => x !== id);
+  return on ? [...rest, id] : rest;
+}

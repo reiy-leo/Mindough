@@ -14,6 +14,9 @@ const c = (p: Params, k: string) => p.count ?? p[k];
 export const EN: Record<string, EnValue> = {
   // ── 类型（统一的分类，2026-10-26）──
   "导航|管理": "Manage",
+  "在侧边栏显示": "Show in Sidebar",
+  "取消在侧边栏显示": "Hide from Sidebar",
+  "资料库操作": "Collection Actions",
   "分类|类型": "Category",
   "已经有「{name}」了": "“{name}” already exists",
   "新类型的名字": "Name of the new category",

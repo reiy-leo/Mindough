@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Tags, Users, X, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Tags, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route, type SettingsSection } from './lib/router';
 import { openSettingsWindow } from './lib/windows';
 import { isTauri } from './store/sqlite-tauri';
@@ -13,7 +13,10 @@ import { BacklogPage } from './pages/Backlog';
 import { GroupDetailPage, GroupsPage } from './pages/Groups';
 import { PersonDetailPage } from './pages/People';
 import { LibraryItemPage, LibraryPage } from './pages/Library';
-import { BUILTIN_TYPE_IDS } from '@mindough/core';
+import { BUILTIN_TYPE_IDS, libraryCopy, type Store } from '@mindough/core';
+import { activeLibraryEntry, libraryRoute, manageEntries } from './lib/nav';
+import { typeIcon } from './lib/icons';
+import { librarySidebarAction } from './lib/library-sidebar';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { COUNTDOWN_DEFAULTS, CountdownsPage } from './pages/Countdowns';
@@ -30,7 +33,7 @@ import { toDateKey } from '@mindough/core';
 import { LoginErrorBanner } from './components/LoginErrorBanner';
 import { ReminderHost } from './components/ReminderHost';
 import { useLunarSubScheduler } from './lib/lunar';
-import { Tip } from './ui/primitives';
+import { MenuAt, Tip, useContextMenuAt } from './ui/primitives';
 import { useAppMenu } from './lib/app-menu';
 
 const DidaImportSheet = lazy(() => import('./components/DidaImport').then((m) => ({ default: m.DidaImportSheet })));
@@ -41,13 +44,24 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   match: Route['page'][];
+  /** 列表里的 key；省略 = page。放进侧边栏的库是 lib:<类型 id>。 */
+  key?: string;
+  /** 点了去哪；省略 = { page }。 */
+  to?: Route;
+  /** 自己判断亮不亮（资料库和放进侧边栏的库）；省略 = 看 match。 */
+  activeFor?: (route: Route) => boolean;
+  /** 放进侧边栏的库：类型 id（右键菜单「取消在侧边栏显示」用）。 */
+  libraryId?: string;
 }
 
 /**
  * 导航分区（Rei 2026-10-16：「侧边栏分一下section，太乱了」）：
- * 今天（要动手的）· 计划（怎么安排）· 持续（天天记、慢慢攒的）· 管理（资料库、人物、类型）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
+ * 今天（要动手的）· 计划（怎么安排）· 持续（天天记、慢慢攒的）· 管理（资料库、放进侧边栏的库、类型）；设置固定在底部。手机标签栏按同样的顺序，其余放进「更多」并分同样的组。
  * 「管理」（Rei 2026-10-26 18:02「主窗口侧边栏的“资料”section，更改成“管理”，任务入口删掉，添加一个“类型”入口」）：原来叫「资料」；
  *   小节 id 还是 library（本机记的收起状态不丢）。小节里本来没有「任务」入口，只加了「类型」。
+ * 「人物」入口删掉（Rei 2026-10-26 18:54「侧边栏的：管理-人物入口删掉」）：人物页、#/people、深链、⌘K 都照旧，从资料库标签条「人物」进。
+ * 放进侧边栏的库（Rei 2026-10-26 18:55「资料库中，任何一个资料库都可以“在侧边栏显示”，“取消在侧边栏显示”」）：
+ *   排在「资料库」下面，按资料库顺序；存同步偏好（core LIBRARY_SIDEBAR_PREF），所以这一节由 navSections(store) 现算。
  * 「持续」（Rei 2026-10-26「把倒数日从“打卡”中拆出来单独一个侧边栏入口，把打卡、倒数日、日记放在另一个section：持续」）：打卡、倒数日、日记。
  */
 interface NavSection {
@@ -88,13 +102,40 @@ const NAV_SECTIONS: NavSection[] = [
     id: 'library',
     get title() { return trc('导航', '管理'); },
     items: [
-      { page: 'library', get label() { return tr('资料库'); }, icon: Library, match: ['library', 'libitem'] },
-      { page: 'people', get label() { return tr('人物'); }, icon: Users, match: ['people', 'person'] },
+      { page: 'library', get label() { return tr('资料库'); }, icon: Library, match: ['library', 'libitem', 'people', 'person'] },
       { page: 'types', get label() { return trc('分类', '类型'); }, icon: Tags, match: ['types'] },
     ],
   },
 ];
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+const LIBRARY_ITEM = NAV.find((n) => n.page === 'library')!;
+const TYPES_ITEM = NAV.find((n) => n.page === 'types')!;
+
+/** 侧边栏各节；「管理」一节带上放进侧边栏的库（lib/nav.ts manageEntries）。 */
+function navSections(store: Store): NavSection[] {
+  const pinned = store.sidebarLibraries();
+  const pinnedIds = pinned.map((t) => t.id);
+  return NAV_SECTIONS.map((sec) => {
+    if (sec.id !== 'library') return sec;
+    const items = manageEntries(pinned).map((e): NavItem => {
+      if (e.kind === 'library') return { ...LIBRARY_ITEM, activeFor: (r) => activeLibraryEntry(r, pinnedIds) === 'library' };
+      if (e.kind === 'types') return TYPES_ITEM;
+      const t = pinned.find((x) => x.id === e.typeId)!;
+      const to = libraryRoute(t.id);
+      return {
+        key: `lib:${t.id}`,
+        page: to.page,
+        to,
+        label: libraryCopy(t).name,
+        icon: typeIcon(t.icon) as LucideIcon,
+        match: [],
+        activeFor: (r) => activeLibraryEntry(r, pinnedIds) === t.id,
+        libraryId: t.id,
+      };
+    });
+    return { id: sec.id, title: sec.title, items };
+  });
+}
 const SETTINGS: NavItem = { page: 'settings', get label() { return tr('设置'); }, icon: Settings, match: ['settings'] };
 const MOBILE_TABS: Route['page'][] = ['myday', 'backlog', 'checkin', 'agenda'];
 /** 有任务列表的页面：宽屏上右列常驻（没选中时是空状态）；别的页面（日记、资料库、设置…）只在打开任务时才出现右列。 */
@@ -134,10 +175,11 @@ function useNarrow(): boolean {
 }
 
 function NavLink({ item, active, badge, onOpen }: { item: NavItem; active: boolean; badge?: number; onOpen?: () => void }) {
+  if (item.libraryId) return <PinnedLibraryLink item={item} active={active} />;
   const Icon = item.icon;
   return (
     <a
-      href={href({ page: item.page } as Route)}
+      href={href(item.to ?? ({ page: item.page } as Route))}
       onClick={
         onOpen
           ? (e) => {
@@ -153,6 +195,34 @@ function NavLink({ item, active, badge, onOpen }: { item: NavItem; active: boole
       <span className="nav-label">{item.label}</span>
       {badge ? <span className="nav-badge">{badge}</span> : null}
     </a>
+  );
+}
+
+/** 放进侧边栏的库：缩进一点挂在「资料库」下面；右键 / 长按能「取消在侧边栏显示」。 */
+function PinnedLibraryLink({ item, active }: { item: NavItem; active: boolean }) {
+  const store = useStore();
+  const menu = useContextMenuAt();
+  const Icon = item.icon;
+  const t = store.get('task_type', item.libraryId!);
+  return (
+    <>
+      <a
+        href={href(item.to!)}
+        {...menu.props}
+        onClick={(e) => {
+          if (menu.consumeLongPress()) e.preventDefault();
+        }}
+        className={`nav-item nav-item-sub${active ? ' is-active' : ''}`}
+        aria-current={active ? 'page' : undefined}
+        title={item.label}
+      >
+        <span className="nav-icon">
+          <Icon size={18} />
+        </span>
+        <span className="nav-label">{item.label}</span>
+      </a>
+      {t && <MenuAt at={menu.at} label={item.label} items={[librarySidebarAction(store, t)]} onClose={menu.close} />}
+    </>
   );
 }
 
@@ -204,8 +274,9 @@ function NewTaskFab({ onPress }: { onPress: () => void }) {
 }
 
 function MorePage() {
+  const store = useStore();
   const sections = [
-    ...NAV_SECTIONS.map((sec) => ({ id: sec.id, title: sec.title, items: sec.items.filter((n) => !MOBILE_TABS.includes(n.page)) })),
+    ...navSections(store).map((sec) => ({ id: sec.id, title: sec.title, items: sec.items.filter((n) => !MOBILE_TABS.includes(n.page)) })),
     { id: 'settings', title: '', items: [SETTINGS] },
   ].filter((sec) => sec.items.length > 0);
   return (
@@ -220,7 +291,7 @@ function MorePage() {
             {sec.items.map((n) => {
               const Icon = n.icon;
               return (
-                <a key={n.page} className="more-item" href={href({ page: n.page } as Route)}>
+                <a key={n.key ?? n.page} className={`more-item${n.libraryId ? ' more-item-sub' : ''}`} href={href(n.to ?? ({ page: n.page } as Route))}>
                   <span className="more-icon">
                     <Icon size={20} />
                   </span>
@@ -297,7 +368,9 @@ export function App() {
     if (history.length > 1) history.back();
     else location.replace('#/myday');
   }, [settingsInWindow, route, openSettings]);
-  const isActive = (n: NavItem) => n.match.includes(route.page);
+  const isActive = (n: NavItem) => (n.activeFor ? n.activeFor(route) : n.match.includes(route.page));
+  const sections = navSections(store);
+  const nav = sections.flatMap((s) => s.items);
   const [collapsed, toggleSection] = useCollapsed();
   const todayCount = store.list('my_day').filter((e) => e.date === toDateKey(store.now()) && store.get('task', e.task_id)).length;
 
@@ -322,7 +395,7 @@ export function App() {
 
   const newTask = () => ui.openQuickCreate(newTaskDefaults(route), { myDay: route.page === 'myday' });
   const backlogCount = store.backlog(toDateKey(store.now())).length;
-  const current = [...NAV, SETTINGS].find(isActive);
+  const current = [...nav, SETTINGS].find(isActive);
   // 中等宽度：侧边栏是图标栏，小节标题不显示，收起的小节也照样列出来（不然点不开）
   const narrow = useNarrow();
   const selected = !!store.get('task', ui.editingId);
@@ -342,7 +415,7 @@ export function App() {
             <kbd className="kbd">{skin === 'apple' ? '⌘K' : 'Ctrl K'}</kbd>
           </RacButton>
           <nav className="nav" aria-label={tr('主导航')}>
-            {NAV_SECTIONS.map((sec) => {
+            {sections.map((sec) => {
               const isCollapsed = !narrow && collapsed.includes(sec.id) && !sec.items.some(isActive);
               return (
                 <div key={sec.id} className="nav-section" role="group" aria-labelledby={`nav-sec-${sec.id}`}>
@@ -351,7 +424,7 @@ export function App() {
                     <ChevronRight size={12} aria-hidden className={`nav-section-chevron${isCollapsed ? '' : ' is-open'}`} />
                   </RacButton>
                   {!isCollapsed &&
-                    sec.items.map((n) => <NavLink key={n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : n.page === 'backlog' ? backlogCount : undefined} />)}
+                    sec.items.map((n) => <NavLink key={n.key ?? n.page} item={n} active={isActive(n)} badge={n.page === 'myday' ? todayCount : n.page === 'backlog' ? backlogCount : undefined} />)}
                 </div>
               );
             })}

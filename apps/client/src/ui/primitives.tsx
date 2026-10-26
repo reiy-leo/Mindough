@@ -1,7 +1,7 @@
 /**
  * Headless React Aria 组件 + 语义类名。外观全部来自皮肤层（tokens.css / app.css / skins.css）。
  */
-import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import {
   Switch as RacSwitch,
   Button as RacButton,
@@ -265,6 +265,94 @@ export function OverflowMenu({
       </Popover>
     </MenuTrigger>
   );
+}
+
+/**
+ * 在某个点弹出的菜单（右键、长按用）：和 ··· 菜单同一套样子。at 为 null 时不显示。
+ */
+export function MenuAt({ at, label, items, onClose }: { at: { x: number; y: number } | null; label: string; items: MenuAction[]; onClose: () => void }) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  if (!at) return null;
+  return (
+    <>
+      <span ref={anchorRef} className="row-menu-anchor" style={{ left: at.x, top: at.y }} aria-hidden />
+      <Popover triggerRef={anchorRef} isOpen onOpenChange={(open) => !open && onClose()} className="popover menu-popover" placement="bottom start" offset={2}>
+        <Menu
+          className="menu"
+          aria-label={label}
+          autoFocus="first"
+          disabledKeys={items.filter((i) => i.disabled).map((i) => i.id)}
+          onAction={(k) => {
+            onClose();
+            items.find((i) => i.id === k)?.onAction();
+          }}
+        >
+          {items.flatMap((i, n) => [
+            ...(i.separator && n > 0 ? [<Separator key={`sep-${i.id}`} className="menu-sep" />] : []),
+            <MenuItem key={i.id} id={i.id} className={`menu-item${i.danger ? ' is-danger' : ''}`} textValue={i.label}>
+              {i.icon}
+              <span>{i.label}</span>
+            </MenuItem>,
+          ])}
+        </Menu>
+      </Popover>
+    </>
+  );
+}
+
+/**
+ * 右键 + 长按（手机 480ms）打开 MenuAt。props 挂到元素上；键盘菜单键没有坐标时贴着元素左下。
+ * 长按打开后，接下来那次点按要忽略：点击处理里先看 consumeLongPress()。
+ */
+export function useContextMenuAt() {
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const long = useRef(false);
+  const cancel = () => {
+    if (press.current) window.clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  const props = {
+    onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
+      e.preventDefault();
+      let x = e.clientX;
+      let y = e.clientY;
+      if (!x && !y) {
+        const r = e.currentTarget.getBoundingClientRect();
+        x = r.left + 8;
+        y = r.bottom;
+      }
+      setAt({ x, y });
+    },
+    onPointerDownCapture: (e: ReactPointerEvent<HTMLElement>) => {
+      long.current = false;
+      if (e.pointerType !== 'touch') return;
+      const x = e.clientX;
+      const y = e.clientY;
+      cancel();
+      press.current = {
+        x,
+        y,
+        timer: window.setTimeout(() => {
+          press.current = null;
+          long.current = true;
+          setAt({ x, y });
+        }, 480),
+      };
+    },
+    onPointerMoveCapture: (e: ReactPointerEvent<HTMLElement>) => {
+      const p = press.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancel();
+    },
+    onPointerUpCapture: cancel,
+    onPointerCancelCapture: cancel,
+  };
+  const consumeLongPress = () => {
+    const was = long.current;
+    long.current = false;
+    return was;
+  };
+  return { at, close: () => setAt(null), props, consumeLongPress };
 }
 
 /** 确认框（删除等不可撤销的操作）。 */

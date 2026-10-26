@@ -8,6 +8,9 @@ import type { MessageValue } from '@mindough/core';
 export const MESSAGES: Record<string, MessageValue> = {
   // ── 类型（统一的分类，2026-10-26）──
   "导航|管理": "Verwalten",
+  "在侧边栏显示": "In der Seitenleiste anzeigen",
+  "取消在侧边栏显示": "Aus der Seitenleiste entfernen",
+  "资料库操作": "Sammlungsaktionen",
   "分类|类型": "Kategorie",
   "已经有「{name}」了": "„{name}“ gibt es schon",
   "新类型的名字": "Name der neuen Kategorie",

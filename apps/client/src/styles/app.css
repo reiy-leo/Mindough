@@ -3452,3 +3452,9 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
 .types-groups .more-item[data-hovered] {
   background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
+
+/* 放进侧边栏的资料库（Rei 2026-10-26）：挂在「资料库」下面，图标往里缩一点；图标栏（中等宽度）不缩 */
+.app-desktop:not(.is-narrow) .nav-item-sub .nav-icon,
+.more-item-sub .more-icon {
+  margin-inline-start: 18px;
+}

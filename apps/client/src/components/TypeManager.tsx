@@ -28,6 +28,8 @@ import {
   Link2,
   ListChecks,
   Lock,
+  PanelLeft,
+  PanelLeftDashed,
   Plus,
   Settings2,
   SquareCheck,
@@ -46,6 +48,7 @@ import {
   LIBRARY_LAYOUTS,
   SITES,
   TYPE_LAYOUT_LABEL,
+  hasLibrary,
   isArchivedType,
   isFixedField,
   liveFields,
@@ -66,6 +69,7 @@ import { useSettings } from '../lib/settings';
 import { useUi } from '../lib/ui';
 import { isDragPress, useReorderGuard } from '../lib/drag-guard';
 import { layoutShape } from './library/Library';
+import { sidebarToggleLabel } from '../lib/library-sidebar';
 
 import { dataLabel, tr, trc } from '../lib/i18n';
 
@@ -203,6 +207,17 @@ function TypeList({ onOpen }: { onOpen: (id: string) => void }) {
                 <span className="type-row-name">{name}</span>
                 <span className="type-row-sub">{usageText(store.typeUsage(t.id)) || (t.builtin ? tr('内置') : tr('自定义'))}</span>
               </span>
+              {/* 在侧边栏显示 / 取消在侧边栏显示（Rei 2026-10-26）：亮着 = 在侧边栏 */}
+              {hasLibrary(t) && (
+                  <IconButton
+                    label={sidebarToggleLabel(store.isLibraryInSidebar(t.id))}
+                    aria-pressed={store.isLibraryInSidebar(t.id)}
+                    className={`type-row-sidebar${store.isLibraryInSidebar(t.id) ? ' is-on' : ''}`}
+                    onPress={() => store.setLibraryInSidebar(t.id, !store.isLibraryInSidebar(t.id))}
+                  >
+                    {store.isLibraryInSidebar(t.id) ? <PanelLeft size={16} /> : <PanelLeftDashed size={16} />}
+                  </IconButton>
+              )}
               <IconButton label={tr('归档「{name}」', { name })} onPress={() => archive(t)}>
                 <Archive size={16} />
               </IconButton>

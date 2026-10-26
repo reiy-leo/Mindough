@@ -16,6 +16,9 @@ import {
   entryOfPerson,
   findSameName,
   hasLibrary,
+  LIBRARY_SIDEBAR_PREF,
+  sidebarLibraryIds,
+  withSidebarLibrary,
   isPersonLibrary,
   isArchivedType,
   isPickableType,
@@ -1564,6 +1567,24 @@ export class Store {
     // 没列到的（普通、人物…）保持原来的相对位置：普通在最前，其余接在后面
     const head = rest.filter((id) => id === PLAIN_TYPE_ID);
     this.setPref(TYPE_ORDER_PREF, [...head, ...picked, ...rest.filter((id) => id !== PLAIN_TYPE_ID)]);
+  }
+
+  /** 放进侧边栏的资料库：按资料库顺序，不含归档的、没有资料库的（见 library.ts LIBRARY_SIDEBAR_PREF）。 */
+  sidebarLibraries(): TableMap['task_type'][] {
+    const ids = sidebarLibraryIds(this.pref(LIBRARY_SIDEBAR_PREF));
+    return this.orderedTypes().filter((t) => hasLibrary(t) && ids.includes(t.id));
+  }
+
+  /** 这个资料库在不在侧边栏（归档的也照偏好回答，侧边栏里只是不显示）。 */
+  isLibraryInSidebar(id: string): boolean {
+    return sidebarLibraryIds(this.pref(LIBRARY_SIDEBAR_PREF)).includes(id);
+  }
+
+  /** 在侧边栏显示 / 取消在侧边栏显示（同步偏好，LWW）。 */
+  setLibraryInSidebar(id: string, on: boolean): void {
+    const ids = sidebarLibraryIds(this.pref(LIBRARY_SIDEBAR_PREF));
+    if (ids.includes(id) === on) return;
+    this.setPref(LIBRARY_SIDEBAR_PREF, withSidebarLibrary(ids, id, on));
   }
 
   /** 编辑器列表里上移 / 下移一位。 */

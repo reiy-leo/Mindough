@@ -26,7 +26,9 @@ import { useSettings } from '../lib/settings';
 import { useUi } from '../lib/ui';
 import { href, navigate } from '../lib/router';
 import { typeIcon } from '../lib/icons';
-import { Button, ConfirmDialog, OverflowMenu, Section } from '../ui/primitives';
+import { Button, ConfirmDialog, MenuAt, OverflowMenu, Section, useContextMenuAt } from '../ui/primitives';
+import { librarySidebarAction } from '../lib/library-sidebar';
+import { libraryRoute } from '../lib/nav';
 import { PageHeader } from '../components/PageHeader';
 import { TypeManager } from '../components/TypeManager';
 import { TaskRow } from '../components/TaskRow';
@@ -94,6 +96,38 @@ function Tile({ entry, type, onPress, selected, onSelect }: { entry: LibraryEntr
   );
 }
 
+/** 资料库标签：右键 / 长按出菜单（在侧边栏显示 / 取消在侧边栏显示）。 */
+function LibTab({ type: t, active, onOpen }: { type: TaskType; active: boolean; onOpen: () => void }) {
+  const store = useStore();
+  const menu = useContextMenuAt();
+  const TIcon = typeIcon(t.icon);
+  const c = libraryCopy(t);
+  const n = store.libraryEntries(t.id).length;
+  return (
+    <>
+      <a
+        href={href(libraryRoute(t.id))}
+        className={`lib-tab${active ? ' is-active' : ''}`}
+        aria-current={active ? 'page' : undefined}
+        style={{ '--chip-color': t.color } as CSSProperties}
+        {...menu.props}
+        onClick={(e) => {
+          if (menu.consumeLongPress()) {
+            e.preventDefault();
+            return;
+          }
+          onOpen();
+        }}
+      >
+        <TIcon size={15} aria-hidden />
+        <span>{c.short}</span>
+        {n > 0 && <span className="lib-tab-count">{n}</span>}
+      </a>
+      <MenuAt at={menu.at} label={tr('资料库操作')} items={[librarySidebarAction(store, t)]} onClose={menu.close} />
+    </>
+  );
+}
+
 export function LibraryPage({ typeId }: { typeId?: string }) {
   const store = useStore();
   const libs = useLibraries();
@@ -140,29 +174,14 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
       />
       <div className="lib-tabs-row">
       <nav className="lib-tabs" aria-label={tr('资料库')}>
-        {libs.map((t) => {
-          const TIcon = typeIcon(t.icon);
-          const active = t.id === type.id;
-          const c = libraryCopy(t);
-          const n = store.libraryEntries(t.id).length;
-          return (
-            <a
-              key={t.id}
-              href={href(t.id === BUILTIN_TYPE_IDS.person ? { page: 'people' } : { page: 'library', typeId: t.id })}
-              className={`lib-tab${active ? ' is-active' : ''}`}
-              aria-current={active ? 'page' : undefined}
-              style={{ '--chip-color': t.color } as CSSProperties}
-              onClick={() => setQuery('')}
-            >
-              <TIcon size={15} aria-hidden />
-              <span>{c.short}</span>
-              {n > 0 && <span className="lib-tab-count">{n}</span>}
-            </a>
-          );
-        })}
+        {libs.map((t) => (
+          <LibTab key={t.id} type={t} active={t.id === type.id} onOpen={() => setQuery('')} />
+        ))}
       </nav>
         <RacButton className="btn btn-quiet filter-edit lib-tabs-edit" aria-label={tr('编辑资料库')} onPress={() => setManaging(true)}>
           {tr('编辑')}</RacButton>
+        {/* 这个库的 ··· 菜单（Rei 2026-10-26：在侧边栏显示 / 取消在侧边栏显示）；归档的库不给（侧边栏不显示归档的） */}
+        {!isArchivedType(type) && <OverflowMenu label={tr('资料库操作')} items={[librarySidebarAction(store, type)]} className="lib-tabs-more" />}
       </div>
       <TypeManager isOpen={managing} onOpenChange={setManaging} />
       <div className="lib-toolbar">
