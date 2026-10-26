@@ -21,7 +21,33 @@ const ICONS = {
   languages: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  login: '<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
+  fileCode: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/>',
+  key: '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+  server: '<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
+  devices: '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3"/>',
 };
+
+/** ydiyr（你的数据你负责）：Rei 的另一个站，介绍只把数据存在用户自己设备和网盘里的 app（Rei 2026-10-26）。 */
+export const YDIYR_URL = 'https://your-data-is-your-responsibility.rei8t.dev';
+
+/**
+ * 自己部署的六步（Rei 2026-10-26「web介绍页，要显示自己部署的步骤图」）。说明文字在 text.ts，命令各语言一样。
+ * 例子域名用 todo.example.com。命令跟仓库里的实际做法保持一致：apps/server/README.md、wrangler.deploy.jsonc、package.json 的 deploy。
+ */
+const SELF_HOST_STEPS: [keyof typeof ICONS, Key, Key, string][] = [
+  ['terminal', 's1t', 's1d', 'git clone https://github.com/reiy-leo/mindough.git\ncd mindough && pnpm install'],
+  ['database', 's2t', 's2d', 'cd apps/server\npnpm exec wrangler r2 bucket create mindough-web\npnpm exec wrangler r2 bucket create mindough-assets\nturso db create mindough'],
+  ['login', 's3t', 's3d', 'https://todo.example.com/auth/callback'],
+  ['fileCode', 's4t', 's4d', '"name": "mindough",\n"routes": [{ "pattern": "todo.example.com", "custom_domain": true }]'],
+  ['key', 's5t', 's5d', 'for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SESSION_SECRET \\\n  ALLOWED_EMAILS TURSO_DB_URL TURSO_DB_TOKEN; do\n  pnpm exec wrangler secret put $k -c wrangler.deploy.jsonc\ndone'],
+  ['rocket', 's6t', 's6d', 'pnpm run deploy'],
+];
 
 export { LANDING_TEXT, LANDING_LANGS, LANG_NAMES, HTML_LANG, matchLang, type LandingLang } from './text';
 type Key = LandingKey;
@@ -43,6 +69,17 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   const features = FEATURES.map(
     ([ic, title, desc]) => `<li class="card"><span class="ic">${icon(ICONS[ic])}</span><h3 ${tx(title)}</h3><p ${tx(desc)}</p></li>`,
   ).join('');
+  const steps = SELF_HOST_STEPS.map(
+    ([ic, title, desc, cmd], i) =>
+      `<li class="step"><span class="num" aria-hidden="true">${i + 1}</span><div class="body"><h3><span class="sic">${icon(ICONS[ic])}</span><span ${tx(title)}</span></h3><p ${tx(desc)}</p><pre><code>${esc(cmd)}</code></pre></div></li>`,
+  ).join('');
+  const arch = `<div class="arch" aria-hidden="true">
+      <div class="node">${icon(ICONS.devices)}<b data-t="archDev">${esc(t.archDev)}</b></div>
+      <span class="link">${icon(ICONS.sync)}</span>
+      <div class="node">${icon(ICONS.server)}<b data-t="archWorker">${esc(t.archWorker)}</b><small data-t="archWorkerD">${esc(t.archWorkerD)}</small></div>
+      <span class="link">${icon(ICONS.arrow)}</span>
+      <div class="node">${icon(ICONS.database)}<b data-t="archStore">${esc(t.archStore)}</b><small data-t="archStoreD">${esc(t.archStoreD)}</small></div>
+    </div>`;
   const langOptions = LANDING_LANGS.map(
     (l) => `<option value="${l}" lang="${HTML_LANG[l]}"${l === lang ? ' selected' : ''}>${esc(LANG_NAMES[l])}</option>`,
   ).join('');
@@ -62,6 +99,8 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   @media (prefers-color-scheme: dark) { :root { --bg:#0f1218; --fg:#e8ebf2; --muted:#9aa3b5; --card:#171b24; --line:#262c38; --accent:#5b8ff5; --accent-fg:#0b1020; --soft:#1b2640; } }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body { background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; -webkit-font-smoothing: antialiased; }
   a { color: inherit; }
   .wrap { max-width: 960px; margin: 0 auto; padding: 24px 24px 48px; }
@@ -96,6 +135,32 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
   .moved h2 { margin: 0 0 6px; font-size: 18px; }
   .moved p { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
   .moved .actions { justify-content: flex-start; margin-top: 16px; }
+  .sec { margin-top: 64px; scroll-margin-top: 16px; }
+  .sec > h2 { font-size: 28px; line-height: 1.25; margin: 0 0 8px; text-align: center; }
+  .sec > .lead { max-width: 640px; margin: 0 auto; text-align: center; color: var(--muted); }
+  .arch { display: flex; align-items: stretch; justify-content: center; gap: 8px; margin: 28px auto 8px; max-width: 760px; }
+  .arch .node { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 10px; color: var(--accent); }
+  .arch .node b { color: var(--fg); font-size: 15px; }
+  .arch .node small { color: var(--muted); font-size: 13px; }
+  .arch .link { display: flex; align-items: center; color: var(--muted); flex: none; }
+  .steps { list-style: none; padding: 0; margin: 32px auto 0; max-width: 760px; }
+  .step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
+  .step:not(:last-child)::before { content: ""; position: absolute; left: 17px; top: 40px; bottom: 4px; width: 2px; background: var(--line); }
+  .step .num { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .step .body { flex: 1 1 auto; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .step h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 17px; }
+  .step .sic { display: inline-flex; color: var(--accent); }
+  .step .sic svg { width: 18px; height: 18px; }
+  .step p { margin: 0 0 10px; color: var(--muted); font-size: 15px; }
+  .step pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .note { max-width: 760px; margin: 4px auto 0; color: var(--muted); font-size: 14px; text-align: center; }
+  .yd { display: flex; gap: 16px; align-items: center; max-width: 760px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .yd .ic { flex: none; display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; border-radius: 12px; background: var(--soft); color: var(--accent); }
+  .yd .txt { flex: 1 1 auto; min-width: 0; }
+  .yd h2 { margin: 0 0 4px; font-size: 18px; }
+  .yd p { margin: 0; color: var(--muted); font-size: 15px; }
+  .yd .btn { flex: none; white-space: nowrap; }
+  @media (max-width: 640px) { .arch { flex-direction: column; } .arch .link { justify-content: center; transform: rotate(90deg); } .yd { flex-direction: column; align-items: flex-start; } .yd .btn { width: 100%; justify-content: center; } }
   @media (max-width: 480px) { .wrap { padding: 16px 16px 40px; } .hero { padding: 28px 0 20px; } .hero h1 { font-size: 32px; } .hero p { font-size: 16px; } .btn { flex: 1 1 auto; justify-content: center; } }
 </style>
 </head>
@@ -123,10 +188,25 @@ export function landingHtml(lang: LandingLang = 'zh'): string {
       <div class="actions">
         <a class="btn primary" id="open" href="${APP_ORIGIN}/"><span data-t="open">${esc(t.open)}</span>${icon(ICONS.arrow)}</a>
         <a class="btn ghost" href="${RELEASES_URL}" rel="noopener">${icon(ICONS.download)}<span data-t="download">${esc(t.download)}</span></a>
+        <a class="btn ghost" id="self-btn" href="#self-host">${icon(ICONS.server)}<span data-t="selfBtn">${esc(t.selfBtn)}</span></a>
       </div>
     </section>
     <ul class="cards">${features}</ul>
     <p class="dl" data-t="dl">${esc(t.dl)}</p>
+    <section class="sec" id="self-host">
+      <h2 data-t="shT">${esc(t.shT)}</h2>
+      <p class="lead" data-t="shD">${esc(t.shD)}</p>
+      ${arch}
+      <ol class="steps">${steps}</ol>
+      <p class="note" data-t="shNote">${esc(t.shNote)}</p>
+    </section>
+    <section class="sec" id="ydiyr">
+      <div class="yd">
+        <span class="ic">${icon(ICONS.shield)}</span>
+        <div class="txt"><h2 data-t="ydT">${esc(t.ydT)}</h2><p data-t="ydD">${esc(t.ydD)}</p></div>
+        <a class="btn ghost" href="${YDIYR_URL}" rel="noopener"><span data-t="ydBtn">${esc(t.ydBtn)}</span>${icon(ICONS.external)}</a>
+      </div>
+    </section>
   </main>
   <footer data-t="footer">${esc(t.footer)}</footer>
 </div>
