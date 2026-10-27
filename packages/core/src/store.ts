@@ -31,7 +31,8 @@ import {
   type LibraryEntry,
 } from './library';
 import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTypes, updateField, type NewFieldInput } from './typedef';
-import { BUILTIN_CATEGORIES, pickFrequentCategories } from './seed/builtin-checkin-categories';
+import { BUILTIN_CATEGORIES } from './seed/builtin-checkin-categories';
+import { CATEGORY_FREQUENT_PREF, CATEGORY_GROUP_PREF, categoryGroupOf, categoryGroupOverrides, categoryLastUsed, categoryStateOf, frequentCategoryIds, orderPickerCategories, withCategoryGroup, withCategoryState, type CategoryGroup, type CategoryState } from './category-prefs';
 import { CategoryDeleteError, categoryFromCheckin, categoryNameTaken, fillCategory, planCategoryMerges, resolveCategoryId, sortCategories, DEFAULT_CATEGORY_COLOR, DEFAULT_CATEGORY_ICON } from './categories';
 import { mergeCycleSurvivors, planItemMerge, planPersonMerge, resolveMerged, duplicateGroups, type DuplicateGroup, type MergeChoices } from './merge';
 import { TABLES, isFinished, normalizeStatus, type BaseRow, type Category, type CheckInCategory, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
@@ -1357,13 +1358,67 @@ export class Store {
     return this.category(task?.category_id);
   }
 
-  /** 「常用」类型（选择器第一屏）：按挂了它的任务和项目件数，不够用默认几个补齐。 */
+  /**
+   * 选择器第一屏（方案 C，Rei 2026-10-28）：常用的全放上，不足 n 个时按 pickerCategories 的顺序（最近用过的在前）补齐。
+   * 不显示的不在里面。
+   */
   frequentCategories(n = 6): Category[] {
-    const usage = [
-      ...this.list('task').map((t) => ({ categoryId: resolveCategoryId((x) => this.tables.category.get(x), t.category_id), at: t.created_at })),
-      ...this.list('group').map((g) => ({ categoryId: resolveCategoryId((x) => this.tables.category.get(x), g.category_id), at: '' })),
-    ];
-    return pickFrequentCategories(this.categories(), usage, n);
+    const all = this.pickerCategories();
+    const pinned = this.frequentCategoryIds().filter((id) => all.some((c) => c.id === id)).length;
+    return all.slice(0, Math.max(n, pinned));
+  }
+
+  /** 选择器里全部能选的类型，按顺序：常用的在前，其余按最近用过，没用过的按默认组（category-prefs.ts orderPickerCategories）。 */
+  pickerCategories(): Category[] {
+    return orderPickerCategories(this.categories(), this.frequentCategoryIds(), this.categoryLastUsed(), this.categoryGroupOverrides());
+  }
+
+  /** 每个类型最近一次用到的时间（任务创建、打卡记录里最晚的；顺着合并算到留下的那个）。 */
+  categoryLastUsed(): Map<string, string> {
+    const resolve = (id: string | null) => resolveCategoryId((x) => this.tables.category.get(x), id);
+    return categoryLastUsed(
+      this.list('task').map((t) => ({ id: t.id, category: resolve(t.category_id), created_at: t.created_at })),
+      this.list('check_in'),
+    );
+  }
+
+  /** 标成「常用」的类型 id（同步偏好 category.frequent，按设成常用的先后）。 */
+  frequentCategoryIds(): string[] {
+    return frequentCategoryIds(this.pref(CATEGORY_FREQUENT_PREF));
+  }
+
+  /** 常用 / 普通 / 不显示。 */
+  categoryState(id: string): CategoryState {
+    const c = this.category(id);
+    return c ? categoryStateOf(c, this.frequentCategoryIds()) : 'normal';
+  }
+
+  /** 改档：常用（显示 + 进常用列表）、普通（显示、出常用列表）、不显示（hidden = true、出常用列表）。返回改之前的档（撤销用）。 */
+  setCategoryState(id: string, state: CategoryState): CategoryState {
+    const prev = this.categoryState(id);
+    const c = this.get('category', id);
+    if (!c) return prev;
+    const hidden = state === 'hidden';
+    if (c.hidden !== hidden) this.update('category', id, { hidden });
+    const ids = this.frequentCategoryIds();
+    const next = withCategoryState(ids, id, state);
+    if (next.join() !== ids.join()) this.setPref(CATEGORY_FREQUENT_PREF, next);
+    return prev;
+  }
+
+  /** 自己改过的大类。 */
+  categoryGroupOverrides(): Map<string, CategoryGroup> {
+    return categoryGroupOverrides(this.pref(CATEGORY_GROUP_PREF));
+  }
+
+  /** 类型在哪个大类（内置的默认见 seed，自定义的默认「其他」）。 */
+  categoryGroup(id: string): CategoryGroup {
+    return categoryGroupOf(id, this.categoryGroupOverrides());
+  }
+
+  /** 换大类（同步偏好 category.groups）。 */
+  setCategoryGroup(id: string, group: CategoryGroup): void {
+    this.setPref(CATEGORY_GROUP_PREF, withCategoryGroup(this.pref(CATEGORY_GROUP_PREF), id, group));
   }
 
   /** 类型上移 / 下移一位（含不显示的一起排）；只改 sort，id 不变。 */

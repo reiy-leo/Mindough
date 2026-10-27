@@ -64,6 +64,22 @@ export const BUILTIN_CATEGORIES: Category[] = SEED.map(([n, , name, icon, color]
 /** 旧名字（打卡分类时代）。 */
 export const BUILTIN_CHECKIN_CATEGORIES = BUILTIN_CATEGORIES;
 
+/**
+ * 内置类型的默认大类（docs/CATEGORY-EDITOR.md 方案 C，Rei 2026-10-28 按默认）。组 id 见 category-prefs.ts 的 CATEGORY_GROUPS。
+ * 用户改过的存同步偏好 category.groups，不改这里。
+ */
+const GROUP_OF: Record<SeedKey, 'body' | 'life' | 'study' | 'hobby' | 'people'> = {
+  health: 'body', sport: 'body', sleep: 'body', meditation: 'body', medicine: 'body', skincare: 'body', 'personal-care': 'body', diet: 'body',
+  tidy: 'life', clean: 'life', shopping: 'life', maintenance: 'life', plant: 'life', pet: 'life', finance: 'life',
+  study: 'study', reading: 'study', writing: 'study', language: 'study', work: 'study', record: 'study',
+  game: 'hobby', fun: 'hobby', watch: 'hobby', instrument: 'hobby', create: 'hobby',
+  social: 'people',
+};
+/** 内置类型 id → 默认大类。 */
+export const BUILTIN_CATEGORY_GROUPS: Record<string, 'body' | 'life' | 'study' | 'hobby' | 'people'> = Object.fromEntries(
+  SEED.map(([n, key]) => [cid(n), GROUP_OF[key]]),
+);
+
 /** 还没用过几个分类时，「常用」先放这几个（按日常最常见的打卡）。 */
 export const DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS: readonly SeedKey[] = ['health', 'sport', 'study', 'reading', 'diet', 'sleep'];
 

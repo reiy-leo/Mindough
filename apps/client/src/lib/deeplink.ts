@@ -74,9 +74,11 @@ function toAction(host: string, segs: string[], q: URLSearchParams, now: Date, r
     case 'view': {
       const route = VIEWS[(segs[0] ?? '').toLowerCase()];
       // view/settings/appearance：直接打开设置的某一项（Rei 2026-10-26 设置分成五项）
-      // view/settings/library（或 types）：资料库在「任务」那项里（Rei 2026-10-26 类型改叫资料库）
+      // view/settings/library：资料库在「任务」那项里（Rei 2026-10-26 类型改叫资料库）
+      // view/settings/types：设置里不再有类型（Rei 2026-10-28「去掉设置中的入口」），改去类型页
       const sec0 = (segs[1] ?? '').toLowerCase();
-      const sec = sec0 === 'library' || sec0 === 'types' ? 'tasks' : sec0;
+      if (route?.page === 'settings' && (sec0 === 'types' || sec0 === 'categories')) return { kind: 'view', route: { page: 'types' } };
+      const sec = sec0 === 'library' ? 'tasks' : sec0;
       if (route?.page === 'settings' && isSettingsSection(sec)) return { kind: 'view', route: { page: 'settings', section: sec } };
       return route ? { kind: 'view', route } : { kind: 'invalid', url: raw };
     }
