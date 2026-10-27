@@ -2062,3 +2062,11 @@
 .count-undo {
   color: var(--text-2);
 }
+/* 行标记的悬停提示（ui/HoverTip，Rei 2026-10-27） */
+.hover-tip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: fade 0.12s var(--ease);
+}

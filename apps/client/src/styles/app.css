@@ -872,10 +872,11 @@ button {
 }
 .meta-state.state-closed {
   color: var(--state-closed);
-  border: 1px solid color-mix(in srgb, var(--state-closed) 45%, transparent);
-  border-radius: 999px;
-  padding: 0 6px;
-  line-height: 16px;
+}
+.meta-tz {
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .dep-item.is-closed .dep-title {
@@ -908,6 +909,7 @@ button {
 }
 .meta-state {
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .meta-related {
   color: var(--text-3);

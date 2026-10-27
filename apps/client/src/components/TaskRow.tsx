@@ -1,6 +1,7 @@
 import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { Button as RacButton, Checkbox, Menu, MenuItem, Popover, Separator } from 'react-aria-components';
-import { Check, Link2, Lock, PanelRight, Repeat, Sun, SunDim, X } from 'lucide-react';
+import { Ban, Check, CirclePlay, Globe, Link2, Lock, LockOpen, PanelRight, Repeat, Sun, SunDim, X } from 'lucide-react';
+import { HoverTip } from '../ui/HoverTip';
 import { describeRecurrence, isCheckInTask, isTaskOverdue, parseRecurrence, timeZoneBadge, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
@@ -107,7 +108,7 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   return (
     <div
       ref={rowRef}
-      className={`task-row ${STATE_CLASS[state ?? ''] ?? ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}${selected ? ' is-selected' : ''}`}
+      className={`task-row ${STATE_CLASS[state ?? ''] ? `row-${STATE_CLASS[state!]}` : ''}${done ? ' is-done' : ''}${closed ? ' is-closed' : ''}${selected ? ' is-selected' : ''}`}
       data-task-id={task.id}
       onContextMenu={onContextMenu}
       // 捕获阶段：行里的按钮（React Aria usePress）会拦住冒泡的 pointerdown
@@ -152,14 +153,28 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               {dataLabel(v.type.name)}
             </span>
           )}
+          {/* 状态只用图标标在标题下，悬停看文字；不给整行上色（Rei 2026-10-27） */}
           {state === '被阻塞' && (
-            <span className="meta-state state-blocked">
-              <Lock size={11} />
-              {tr('还在等 {length} 件事', { length: v.derived!.missing.length })}</span>
+            <HoverTip className="meta-state state-blocked" tip={tr('还在等 {length} 件事', { length: v.derived!.missing.length })}>
+              <Lock size={12} aria-hidden />
+              {v.derived!.missing.length}
+            </HoverTip>
           )}
-          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && <span className="meta-state state-ready">{tr('可开始')}</span>}
-          {task.status === '进行中' && <span className="meta-state state-doing">{tr('进行中')}</span>}
-          {closed && <span className="meta-state state-closed">{tr('已关闭')}</span>}
+          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && (
+            <HoverTip className="meta-state state-ready" tip={tr('可开始')}>
+              <LockOpen size={12} aria-hidden />
+            </HoverTip>
+          )}
+          {task.status === '进行中' && (
+            <HoverTip className="meta-state state-doing" tip={tr('进行中')}>
+              <CirclePlay size={12} aria-hidden />
+            </HoverTip>
+          )}
+          {closed && (
+            <HoverTip className="meta-state state-closed" tip={tr('已关闭')}>
+              <Ban size={12} aria-hidden />
+            </HoverTip>
+          )}
           {showGroup && v.group && (
             <span className="meta-group">
               {v.group.icon} {v.group.name}
@@ -172,7 +187,12 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           )}
           {spanNote && <span className="meta-span">{spanNote}</span>}
           {/* 按天分组的列表不写日期，但任务时区和设备不同时照样标出偏移（Rei 2026-10-25 任务时区） */}
-          {!showDate && tzBadge && <span className="tz-badge" title={tr('时区：{zone}', { zone: task.time_zone ?? '' })}>{tzBadge}</span>}
+          {!showDate && tzBadge && (
+            <HoverTip className="meta-tz" tip={tr('时区：{zone}', { zone: task.time_zone ?? '' })}>
+              <Globe size={11} aria-hidden />
+              {tzBadge}
+            </HoverTip>
+          )}
           {rec && (
             <span className="meta-rec">
               <Repeat size={11} />
@@ -180,10 +200,10 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
             </span>
           )}
           {relatedCount > 0 && (
-            <span className="meta-related" role="img" aria-label={tr('{relatedCount} 件相关任务', { relatedCount })}>
+            <HoverTip className="meta-related" tip={tr('{relatedCount} 件相关任务', { relatedCount })}>
               <Link2 size={11} aria-hidden />
               {relatedCount}
-            </span>
+            </HoverTip>
           )}
           {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}
         </span>
