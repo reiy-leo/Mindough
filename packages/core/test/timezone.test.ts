@@ -127,3 +127,24 @@ describe('完整时区列表都有中文名（Rei 2026-10-27：显示更多后�
     expect(bad).toEqual([]);
   });
 });
+
+describe('时区城市名跟着界面语言（Rei 2026-10-27：其他语言也要本地化）', () => {
+  it('日 / 俄 / 西 / 德 / 法 / 葡 / 印尼 / 英', async () => {
+    const { timeZoneCity } = await import('../src/timezone');
+    const cases: [Parameters<typeof setLocale>[0], string, string][] = [
+      ['ja', 'Asia/Shanghai', '上海'],
+      ['ja', 'America/New_York', 'ニューヨーク'],
+      ['ru', 'Europe/London', 'Лондон'],
+      ['es', 'Europe/London', 'Londres'],
+      ['de', 'Europe/Vienna', 'Wien'],
+      ['fr', 'Europe/London', 'Londres'],
+      ['pt-BR', 'America/New_York', 'Nova York'],
+      ['id', 'Asia/Jakarta', 'Jakarta'],
+      ['en', 'Asia/Ho_Chi_Minh', 'Ho Chi Minh City'],
+    ];
+    for (const [l, tz, want] of cases) {
+      setLocale(l);
+      expect(timeZoneCity(tz), `${l} ${tz}`).toBe(want);
+    }
+  });
+});

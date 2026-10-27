@@ -25,6 +25,7 @@ const SKIP = [
   'episode.ts', // 认「第二季第三集」的正则与中文数字
   'money.ts', // 币种中文名与搜索别名（显示走 currencyName）
   'timezone-names.ts', // 时区的中文城市名：只在中文界面用，英文用 IANA 名
+  'timezone-names-intl.ts', // 其他语言的时区城市名（CLDR 数据，日文里有汉字）
   'lunar/names.ts', // 农历月名、日名、节气、节日：中英文界面都照中文显示（同 Apple 日历），英文说法在同文件里按语言分支
   'lunar/data.ts', // 生成的数据表（注释）
 ];
