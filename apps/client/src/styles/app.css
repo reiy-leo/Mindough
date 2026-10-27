@@ -3605,6 +3605,9 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
   display: flex;
   width: 168px;
 }
+.cat-item-wrap:not(.is-swiped):not(.is-dragging) .cat-swipe-actions {
+  visibility: hidden;
+}
 .cat-swipe-btn {
   flex: 1;
   border: 0;

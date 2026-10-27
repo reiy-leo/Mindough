@@ -335,7 +335,7 @@ function CategoryRow({
   const suppressClick = useRef(false);
   const label = count ? tr('{name}，用了 {n} 次', { name, n: count }) : name;
   return (
-    <div className={`cat-item-wrap${swiped ? ' is-swiped' : ''}`}>
+    <div className={`cat-item-wrap${swiped ? ' is-swiped' : ''}${drag.current?.on ? ' is-dragging' : ''}`}>
       {mobile && (
         <div className="cat-swipe-actions" aria-hidden={!swiped}>
           <button type="button" className="cat-swipe-btn is-frequent" tabIndex={swiped ? 0 : -1} onClick={() => onState(state === 'frequent' ? 'normal' : 'frequent')}>
