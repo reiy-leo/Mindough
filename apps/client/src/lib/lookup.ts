@@ -151,7 +151,10 @@ async function enrich(store: Store, type: TaskType, id: string, r: LookupResult,
 }
 
 export interface OnlineSearchState {
-  status: 'idle' | 'loading' | 'done' | 'error';
+  /** unavailable：有要找的，但没登录或没网（界面要说一声，不能整栏不见，Rei 2026-10-28）。 */
+  status: 'idle' | 'unavailable' | 'loading' | 'done' | 'error';
+  /** status 是 unavailable 时：为什么找不了。 */
+  reason?: 'signed_out' | 'offline';
   results: LookupResult[];
   sources: LookupSearchResponse['sources'];
   error?: LookupHttpError;
@@ -172,8 +175,12 @@ export function useOnlineSearch(kind: LookupKind | null, text: string, delay = 3
   useEffect(() => {
     const my = ++seq.current;
     const q = key ? (JSON.parse(key) as NonNullable<ReturnType<typeof lookupSearchText>>) : null;
-    if (!kind || !available || !q) {
+    if (!kind || !q) {
       setState(IDLE);
+      return;
+    }
+    if (!available) {
+      setState({ status: 'unavailable', reason: online() ? 'signed_out' : 'offline', results: [], sources: [] });
       return;
     }
     const ctrl = new AbortController();

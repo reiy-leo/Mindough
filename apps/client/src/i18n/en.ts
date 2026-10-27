@@ -1019,6 +1019,8 @@ export const EN: Record<string, EnValue> = {
   '数据先存在这台设备上，离线也能用': 'Your data lives on this device first and works offline',
   '本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。': 'This product uses the TMDB API but is not endorsed or certified by TMDB.',
   '游戏资料来自 IGDB.com': 'Game data from IGDB.com',
+  '现在没联网，联网后才能在线找': "You're offline. Connect to search online.",
+  '登录后才能在线找，到设置里登录': "Sign in to search online. You can sign in from Settings.",
   // ── 日记（Rei 2026-10-17） ──
   日记: 'Journal',
   '{n} 篇日记': (p) => n(p.n, 'journal entry', 'journal entries'),

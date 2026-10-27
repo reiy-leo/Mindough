@@ -903,6 +903,15 @@ button {
   gap: 3px;
   white-space: nowrap;
 }
+.row-meta > .meta-type {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.meta-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
 .meta-sub {
   overflow: hidden;
   text-overflow: ellipsis;

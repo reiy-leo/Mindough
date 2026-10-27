@@ -1298,6 +1298,8 @@ export const MESSAGES: Record<string, MessageValue> = {
   "数据先存在这台设备上，离线也能用": "Vos données restent d’abord sur cet appareil et fonctionnent hors ligne",
   "本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。": "Ce produit utilise l’API TMDB, mais n’est ni approuvé ni certifié par TMDB.",
   "游戏资料来自 IGDB.com": "Données de jeux\u00a0: IGDB.com",
+  "现在没联网，联网后才能在线找": "Hors ligne. Connectez-vous à Internet pour chercher en ligne.",
+  "登录后才能在线找，到设置里登录": "Connectez-vous pour chercher en ligne, depuis les Réglages.",
   "日记": "Journal",
   "{n} 篇日记": "{n, plural, one {# entrée de journal} other {# entrées de journal}}",
   "写今天的日记": "Écrire l’entrée du jour",

@@ -382,7 +382,8 @@ export function ItemSheet({
   const ok = d.name.trim() !== '';
   // 自动补全：影视 / 书 / 游戏，登录且在线时才有
   const lookupOn = useLookupAvailable();
-  const canLookup = !!lookupKindOf(type) && lookupOn;
+  // 没登录 / 没网时按钮照样在，只是灰掉并说明原因（Rei 2026-10-28：不能一声不吐）
+  const canLookup = !!lookupKindOf(type);
   const [filling, setFilling] = useState(false);
   const save = () => {
     if (!ok || filling) return;
@@ -406,10 +407,12 @@ export function ItemSheet({
         filling ? undefined : (
         <>
           {canLookup && (
-            <Button variant="quiet" className="item-autofill" onPress={() => setFilling(true)}>
-              <Sparkles size={15} aria-hidden />
-              {tr('自动补全')}
-            </Button>
+            <span title={lookupOn ? undefined : tr('登录后才能在线找，到设置里登录')}>
+              <Button variant="quiet" className="item-autofill" isDisabled={!lookupOn} onPress={() => setFilling(true)}>
+                <Sparkles size={15} aria-hidden />
+                {tr('自动补全')}
+              </Button>
+            </span>
           )}
           {uses > 1 && <span className="foot-note">{tr('改动会同步到用到它的 {uses} 件任务', { uses })}</span>}
           <span className="grow" />

@@ -145,12 +145,14 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
           ui.openEditor(task.id);
         }}
       >
-        <span className="row-title">{v.title}</span>
+        {/* 列表不显示副标题（Rei 2026-10-27）。带资料又写了正文的任务：标题用正文首行，资料名挪到类型后面（Rei 2026-10-28「连任务名称都不显示了」） */}
+        <span className="row-title">{v.subtitle || v.title}</span>
         <span className="row-meta">
           {v.type && v.type.layout !== 'text' && (
             <span className="meta-type" style={{ color: v.type.color }}>
               <TypeIcon size={12} />
               {dataLabel(v.type.name)}
+              {v.subtitle && v.title ? <span className="meta-item"> · {v.title}</span> : null}
             </span>
           )}
           {showGroup && v.group && (

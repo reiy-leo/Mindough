@@ -63,7 +63,10 @@ function OnlineArt({ r, shape, className = 'lib-option-art' }: { r: LookupResult
 /** 这次问了哪些来源：「TMDB、豆瓣」。没配置的不算在标题里（下面单独提一句）。 */
 function headLabel(kind: LookupKind, state: OnlineSearchState): string {
   const asked = state.sources.filter((s) => s.status !== 'unconfigured').map((s) => s.source);
-  const list = asked.length ? asked : [PRIMARY_SOURCE[kind]];
+  const list = asked.length
+    ? asked
+    : (Object.keys(LOOKUP_SOURCES) as LookupSource[]).filter((s) => s !== 'douban' && LOOKUP_SOURCES[s].kinds.includes(kind));
+  if (!list.length) list.push(PRIMARY_SOURCE[kind]);
   return list.map(sourceLabel).join(tr('、'));
 }
 
@@ -97,6 +100,7 @@ export function OnlineOptions({
   const unconfigured = state.sources.find((s) => s.status === 'unconfigured');
   const failed = state.sources.filter((s) => s.status === 'error' || s.status === 'blocked');
   const notes: ReactNode[] = [];
+  if (state.status === 'unavailable') notes.push(state.reason === 'offline' ? tr('现在没联网，联网后才能在线找') : tr('登录后才能在线找，到设置里登录'));
   if (state.status === 'loading' && results.length === 0) notes.push(tr('正在找…'));
   if (state.status === 'error') notes.push(tr('暂时找不到（{status}）', { status: statusText(state.error?.status) || tr('连不上') }));
   if (unconfigured) notes.push(tr('{source} 还没配置', { source: sourceLabel(unconfigured.source) }));
