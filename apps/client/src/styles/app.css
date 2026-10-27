@@ -3693,6 +3693,7 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
 }
 .cat-style .swatches {
   max-width: none;
+  justify-content: flex-start;
 }
 .icon-search {
   margin-bottom: var(--space-2);
