@@ -28,6 +28,8 @@ const SKIP = [
   'timezone-names-intl.ts', // 其他语言的时区城市名（CLDR 数据，日文里有汉字）
   'lunar/names.ts', // 农历月名、日名、节气、节日：中英文界面都照中文显示（同 Apple 日历），英文说法在同文件里按语言分支
   'lunar/data.ts', // 生成的数据表（注释）
+  'pinyin-polyphone.ts', // 拼音搜索的多音字表（只用来对搜索词，不显示）
+  'lib/icon-keywords.ts', // 图标搜索的中文关键词（只用来对搜索词，不显示）
 ];
 /** 数据文件：里面的中文都要在 DATA_EN（显示时 dataLabel 翻译）。 */
 const DATA_FILES = ['seed/builtin-types.ts', 'seed/builtin-checkin-categories.ts', 'links.ts'];

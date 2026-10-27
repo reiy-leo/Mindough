@@ -104,6 +104,11 @@ export function dataLabel(s: string | null | undefined): string {
   return (current !== 'en' && LDATA[current]?.[s]) || DATA[s]!;
 }
 
+/** 内置数据的英文名（不看当前语言；没有就原样）。搜索用：任何语言下都能用英文名搜到内置类型。 */
+export function dataEnglish(s: string): string {
+  return DATA[s] ?? s;
+}
+
 export function hasDataMessage(zh: string): boolean {
   return zh in DATA;
 }

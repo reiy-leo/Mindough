@@ -11,6 +11,7 @@
  * 旧客户端只认已知列、改名时会把新列冲掉；偏好行它们原样留着、不碰。
  */
 import TinyPinyin from 'tiny-pinyin';
+import { POLYPHONE } from './pinyin-polyphone';
 import { BUILTIN_CATEGORY_GROUPS, DEFAULT_FREQUENT_CHECKIN_CATEGORY_KEYS, BUILTIN_CATEGORY_IDS } from './seed/builtin-checkin-categories';
 import type { Category } from './types';
 
@@ -143,11 +144,6 @@ export function orderPickerCategories<C extends Pick<Category, 'id' | 'sort' | '
 }
 
 // ───────────── 搜索（拼音首字母） ─────────────
-
-/** 多音字：tiny-pinyin 只给一个读音，常见的另一个读音的首字母补在这里（「乐器」要能用 yq 搜到）。 */
-const POLYPHONE: Record<string, string> = {
-  乐: 'ly', 行: 'xh', 长: 'cz', 重: 'zc', 还: 'hh', 发: 'f', 和: 'h', 好: 'h', 调: 'td', 便: 'bp', 朝: 'zc', 参: 'cs', 解: 'jx', 降: 'jx', 曾: 'zc', 藏: 'cz', 弹: 'td', 着: 'zz', 种: 'z', 数: 's', 传: 'cz', 角: 'jj', 校: 'xj', 会: 'hk', 都: 'dd', 得: 'dd', 地: 'dd', 车: 'cj', 落: 'll', 约: 'y', 说: 's', 率: 'ls', 卡: 'kq', 拍: 'p', 打: 'd', 画: 'h',
-};
 
 let pinyinOk: boolean | null = null;
 const pinyinCache = new Map<string, { initials: string[][]; full: string }>();

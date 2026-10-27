@@ -14,7 +14,7 @@ import {
   type Task,
 } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
-import { CategoryLabel, NO_CATEGORY, openCategorySettings } from '../components/CategoryPicker';
+import { CategoryLabel, NO_CATEGORY, openCategoryPage } from '../components/CategoryPicker';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
 import { Button, ChipPicker, Empty, Section, Segmented, TipButton } from '../ui/primitives';
@@ -144,7 +144,7 @@ export function CheckInsPage() {
               ...(hasUncategorized ? [{ id: NO_CATEGORY, label: tr('没有类型') }] : []),
             ]}
           />
-          <RacButton className="btn btn-quiet filter-edit" onPress={openCategorySettings}>
+          <RacButton className="btn btn-quiet filter-edit" onPress={openCategoryPage}>
             {tr('编辑')}</RacButton>
           <Segmented
             label={tr('排列方式')}

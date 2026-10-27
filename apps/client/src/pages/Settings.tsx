@@ -18,7 +18,6 @@ import { formatRemindTime } from '../components/task/RemindPanel';
 import { notifyPermission, onReminderSettings, remindersEnabled, requestNotifyPermission, setRemindersEnabled, type NotifyPermission } from '../lib/reminders';
 import { PageHeader } from '../components/PageHeader';
 import { TypeManager } from '../components/TypeManager';
-import { CategoryManager } from '../components/CategoryManager';
 import { LunarSection } from '../components/LunarSettings';
 import { useSettings, type Settings } from '../lib/settings';
 import { PLATFORM_LABEL, SKIN_LABEL, skinForPlatform } from '../skin/platform';
@@ -53,7 +52,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { id: 'appearance', icon: Palette, label: () => tr('外观'), hint: () => tr('皮肤、语言、明暗、布局') },
   { id: 'data', icon: Database, label: () => tr('数据'), hint: () => tr('导入导出、本机存储') },
   { id: 'reminders', icon: Bell, label: () => trc('设置分区', '提醒'), hint: () => tr('任务提醒的通知') },
-  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('资料库、类型、日期显示、农历') : tr('资料库、类型、日期显示')) },
+  { id: 'tasks', icon: ListTodo, label: () => trc('设置分区', '任务'), hint: () => (isChineseLocale() ? tr('资料库、日期显示、农历') : tr('资料库、日期显示')) },
   { id: 'journal', icon: NotebookPen, label: () => tr('日记'), hint: () => tr('一天从几点开始、每天提醒写日记') },
   { id: 'about', icon: Info, label: () => tr('关于'), hint: () => tr('版本、数据来源') },
 ];
@@ -90,7 +89,6 @@ function SectionBody({ id }: { id: SettingsSection }) {
       return (
         <>
           <TypesSection />
-          <CategoriesSection />
           <DateDisplaySection />
           <LunarSection />
         </>
@@ -467,34 +465,6 @@ function TypesSection() {
         </div>
       </div>
       <TypeManager isOpen={open} onOpenChange={setOpen} />
-    </Section>
-  );
-}
-
-/**
- * 类型（Rei 2026-10-26：打卡分类和项目分类合成一套，「名称统一成“类型”…可以在设置-任务中修改，和资料库一样，可以添加、不显示、修改、不能删除」）。
- * 打开 CategoryManager（里面是 CategoryEditor，和侧栏「管理 → 类型」页同一个组件）。
- */
-function CategoriesSection() {
-  const store = useStore();
-  const [open, setOpen] = useState(false);
-  const all = store.categories(true);
-  const hidden = all.filter((c) => c.hidden).length;
-  return (
-    <Section title={trc('分类', '类型')}>
-      <div className="card settings-card">
-        <div className="setting">
-          <div className="setting-text">
-            <div className="setting-name">{tr('全部类型')}</div>
-            <div className="setting-hint">
-              {hidden ? tr('{n} 个，{h} 个不显示。打卡、倒数日、项目和所有任务共用一套。', { n: all.length, h: hidden }) : tr('{n} 个。打卡、倒数日、项目和所有任务共用一套。', { n: all.length })}
-            </div>
-          </div>
-          <Button variant="secondary" onPress={() => setOpen(true)}>
-            {tr('编辑类型')}</Button>
-        </div>
-      </div>
-      <CategoryManager isOpen={open} onOpenChange={setOpen} />
     </Section>
   );
 }

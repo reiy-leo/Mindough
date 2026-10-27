@@ -6,7 +6,7 @@
  * 「普通」「人物」不在这里出现（人物类型已删，人物库保留）。文案见 docs/COPY.md「类型编辑器」。
  */
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { GridList, GridListItem, Input, TextField, useDragAndDrop, Button as RacButton } from 'react-aria-components';
+import { GridList, GridListItem, Input, SearchField, TextField, useDragAndDrop, Button as RacButton } from 'react-aria-components';
 import {
   Archive,
   ArchiveRestore,
@@ -31,6 +31,7 @@ import {
   PanelLeft,
   PanelLeftDashed,
   Plus,
+  Search,
   Settings2,
   SquareCheck,
   Trash2,
@@ -48,6 +49,7 @@ import {
   LIBRARY_LAYOUTS,
   SITES,
   TYPE_LAYOUT_LABEL,
+  categoryMatches,
   hasLibrary,
   isArchivedType,
   isFixedField,
@@ -63,6 +65,7 @@ import {
   type TypeLayout,
 } from '@mindough/core';
 import { PICKER_ICONS, isEmojiIcon, typeIcon } from '../lib/icons';
+import { ICON_KEYWORDS } from '../lib/icon-keywords';
 import { AutoTextarea, Button, ConfirmDialog, IconButton, PopoverPanel, Section, Segmented, Select, Sheet } from '../ui/primitives';
 import { useStore } from '../store/StoreProvider';
 import { useSettings } from '../lib/settings';
@@ -389,17 +392,25 @@ function PropLine({ label, hint, children }: { label: string; hint?: string; chi
   );
 }
 
-/** 图标选择：lucide 图标网格 + 自己填一个 emoji。 */
-export function IconPicker({ value, onChange }: { value: string; onChange: (icon: string) => void }) {
+/** 图标选择：lucide 图标网格 + 自己填一个 emoji。searchable：网格上面加一个搜索框（类型页用，Rei 2026-10-28 方案 C）。 */
+export function IconPicker({ value, onChange, searchable }: { value: string; onChange: (icon: string) => void; searchable?: boolean }) {
   const [emoji, setEmoji] = useState(isEmojiIcon(value) ? value : '');
+  const [q, setQ] = useState('');
   const submitEmoji = () => {
     const e = [...emoji.trim()].slice(0, 2).join('');
     if (e && isEmojiIcon(e)) onChange(e);
   };
+  const icons = q.trim() ? PICKER_ICONS.filter((n) => categoryMatches([n.replace(/-\d+$/, '').replace(/-/g, ' '), ...(ICON_KEYWORDS[n] ?? '').split(' ')], q)) : PICKER_ICONS;
   return (
     <div className="icon-picker">
+      {searchable && (
+        <SearchField aria-label={tr('搜索图标')} value={q} onChange={setQ} className="cat-search icon-search">
+          <Search size={14} aria-hidden className="cat-search-icon" />
+          <Input className="input" placeholder={tr('搜图标，比如“书”“运动”')} />
+        </SearchField>
+      )}
       <div className="icon-grid" role="listbox" aria-label={tr('图标')}>
-        {PICKER_ICONS.map((n) => {
+        {icons.map((n) => {
           const I = typeIcon(n);
           return (
             <RacButton key={n} className={`icon-cell${value === n ? ' is-selected' : ''}`} aria-label={n} onPress={() => onChange(n)}>
@@ -407,6 +418,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
             </RacButton>
           );
         })}
+        {!icons.length && <p className="muted small icon-none">{tr('没有对得上的图标，可以在下面填一个 emoji')}</p>}
       </div>
       <div className="icon-emoji-row">
         <TextField aria-label={tr('或者用一个 emoji')} value={emoji} onChange={setEmoji} className="icon-emoji-field">

@@ -1,17 +1,21 @@
 /**
  * 类型（统一的分类，Rei 2026-10-26）的标签和单选。任务属性胶囊「类型」、新建面板、项目都用这一个。
- * 类型多（内置 27 个），第一屏只放「常用」6 个（按挂了它的任务和项目件数，不够用默认补齐）+ 当前选中的 + 「更多」；
- * 点「更多」展开搜索框和其余类型。不显示的不在里面（当前挂着的除外）。底部「管理类型…」去设置 → 任务 → 类型。
+ * 顺序不靠手排（方案 C，Rei 2026-10-28 定「用「常用 + 最近用过」代替手动排序」）：标成「常用」的在前，其余按最近用过排（core orderPickerCategories）。
+ * 第一屏放常用的（不足 6 个用最近用过的补齐）+ 当前选中的 + 「更多」；点「更多」展开搜索框和其余类型，名字、英文名、拼音首字母都能搜。
+ * 不显示的不在里面（当前挂着的除外）。底部「管理类型…」去侧栏「管理 → 类型」页（设置里不再有类型，Rei 2026-10-28）。
  */
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Button as RacButton, Input, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { ChevronDown, Search } from 'lucide-react';
-import { categoryIcon, type Category, type Store } from '@mindough/core';
+import { categoryIcon, categoryMatchRank, categoryMatches, dataEnglish, type Category, type Store } from '@mindough/core';
 import { typeIcon } from '../lib/icons';
 import { navigate } from '../lib/router';
 import { dataLabel, tr, trc } from '../lib/i18n';
 
 export const NO_CATEGORY = '__none';
+
+/** 搜索用的几个名字：存着的、当前语言的、英文的。 */
+export const categoryNames = (c: Pick<Category, 'name'>) => [c.name, dataLabel(c.name), dataEnglish(c.name)];
 
 /** 类型小标签：图标 + 名称，颜色跟随类型。 */
 export function CategoryLabel({ c, size = 13 }: { c: Category; size?: number }) {
@@ -24,9 +28,9 @@ export function CategoryLabel({ c, size = 13 }: { c: Category; size?: number }) 
   );
 }
 
-/** 「管理类型…」：去设置 → 任务（类型在那一项里；桌面 app 会开设置窗口）。 */
-export function openCategorySettings() {
-  navigate({ page: 'settings', section: 'tasks' });
+/** 「管理类型…」：去侧栏「管理 → 类型」页。 */
+export function openCategoryPage() {
+  navigate({ page: 'types' });
 }
 
 /** 类型单选。compact：先显示当前类型，点开再出网格。label = false 时不显示上面的小标题（胶囊弹层里用）。 */
@@ -34,7 +38,7 @@ export function CategoryPicker({ store, value, onChange, compact, label = true }
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(!compact);
   const cur = store.category(value);
-  const cats = store.categories();
+  const cats = store.pickerCategories();
   const frequent = store.frequentCategories(6);
   // 已选但不在常用里（或者不显示）的类型也放进第一屏，免得“看不见当前值”
   const first = cur && !frequent.some((c) => c.id === cur.id) ? [...frequent, cur] : frequent;
@@ -42,7 +46,7 @@ export function CategoryPicker({ store, value, onChange, compact, label = true }
   const [more, setMore] = useState(false);
   const term = q.trim().toLowerCase();
   const all = cur && cur.hidden ? [...cats, cur] : cats;
-  const matches = term ? all.filter((c) => (c.name + ' ' + dataLabel(c.name)).toLowerCase().includes(term)) : null;
+  const matches = term ? all.filter((c) => categoryMatches(categoryNames(c), term)).sort((a, b) => categoryMatchRank(categoryNames(a), term) - categoryMatchRank(categoryNames(b), term)) : null;
   const pick = (id: string | null) => {
     onChange(id);
     if (compact) setOpen(false);
@@ -104,7 +108,7 @@ export function CategoryPicker({ store, value, onChange, compact, label = true }
           )}
           {matches ? (matches.length > 0 && group(tr('搜到的类型'), matches.map(tile))) : more && group(tr('更多类型'), rest.map(tile))}
           {matches && !matches.length && <p className="muted small">{tr('没有叫“{q}”的类型，可以在「管理类型…」里添加。', { q })}</p>}
-          <RacButton className="cat-manage-link" onPress={openCategorySettings}>
+          <RacButton className="cat-manage-link" onPress={openCategoryPage}>
             {tr('管理类型…')}</RacButton>
         </div>
       )}

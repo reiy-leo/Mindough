@@ -3472,6 +3472,239 @@ html:not(:lang(zh)):not(:lang(ja)) .heatmap {
   background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
 
+/* ───────── 类型页改版（方案 C，Rei 2026-10-28）：搜索 + 按大类分组的列表、右边详情 ───────── */
+.cat-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28%;
+  background: var(--chip-color, var(--text-3));
+  color: #fff;
+}
+.cat-badge-add {
+  width: 28px;
+  height: 28px;
+  background: var(--surface-3);
+  color: var(--accent);
+}
+.cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.cat-list-search .input {
+  width: 100%;
+}
+.cat-list-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.cat-section + .cat-section {
+  margin-top: var(--space-2);
+}
+.cat-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  outline: none;
+  border-radius: var(--radius-sm);
+  text-align: start;
+}
+.cat-section-head[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.cat-section-head svg {
+  transition: transform 0.15s var(--ease, ease);
+  flex: none;
+}
+.cat-section-head svg.is-collapsed {
+  transform: rotate(-90deg);
+}
+.cat-section-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cat-section-count {
+  margin-inline-start: auto;
+  color: var(--text-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.cat-section-rows {
+  display: flex;
+  flex-direction: column;
+}
+.cat-item-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+.cat-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+  touch-action: pan-y;
+  transition: transform 0.18s var(--ease, ease);
+  outline: none;
+}
+.cat-item:hover {
+  background: var(--surface-hover);
+}
+.cat-item.is-active {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.cat-item.is-selected {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.cat-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cat-item.is-hidden .cat-item-name {
+  color: var(--text-3);
+}
+.cat-item.is-hidden .cat-badge {
+  opacity: 0.45;
+}
+.cat-item-tag {
+  flex: none;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.cat-item-create .cat-item-name {
+  color: var(--accent);
+}
+.cat-swipe-actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  width: 168px;
+}
+.cat-swipe-btn {
+  flex: 1;
+  border: 0;
+  font: inherit;
+  font-size: var(--fs-small);
+  color: #fff;
+  padding: 0 4px;
+  overflow-wrap: anywhere;
+}
+.cat-swipe-btn.is-frequent {
+  background: var(--accent);
+}
+.cat-swipe-btn.is-hide {
+  background: var(--text-3);
+}
+.cat-list-note {
+  margin: var(--space-2) 0 0;
+}
+.cat-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.cat-head-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.cat-badge-btn {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 14px;
+  cursor: pointer;
+  outline: none;
+}
+.cat-badge-btn[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.cat-badge-btn[data-hovered] .cat-badge {
+  filter: brightness(1.08);
+}
+.cat-head-name {
+  flex: 1;
+  min-width: 0;
+}
+.cat-head-name .input {
+  width: 100%;
+  font-size: 20px;
+  font-weight: 600;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.cat-head-name .input:hover {
+  border-color: var(--border);
+}
+.cat-head-name .input:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.cat-head-props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+}
+.cat-head-state {
+  min-width: 0;
+}
+.cat-head-group {
+  min-width: 160px;
+}
+.cat-head-hint,
+.cat-head-note {
+  margin: 0;
+}
+.cat-style {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  width: min(340px, calc(100vw - 32px));
+}
+.cat-style .swatches {
+  max-width: none;
+}
+.icon-search {
+  margin-bottom: var(--space-2);
+}
+.icon-none {
+  grid-column: 1 / -1;
+  margin: var(--space-2) 0;
+}
+.types-page .types-list {
+  max-height: none;
+}
+
 /* 放进侧边栏的资料库（Rei 2026-10-26）：挂在「资料库」下面，图标往里缩一点；图标栏（中等宽度）不缩 */
 .app-desktop:not(.is-narrow) .nav-item-sub .nav-icon,
 .more-item-sub .more-icon {
