@@ -128,7 +128,7 @@ function navSections(store: Store): NavSection[] {
         key: `lib:${t.id}`,
         page: to.page,
         to,
-        label: libraryCopy(t).name,
+        label: libraryCopy(t).short,
         icon: typeIcon(t.icon) as LucideIcon,
         match: [],
         activeFor: (r) => activeLibraryEntry(r, pinnedIds) === t.id,

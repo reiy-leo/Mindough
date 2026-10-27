@@ -278,3 +278,9 @@
   line-height: 1.45;
   color: var(--text-3);
 }
+/* 资料库页搜索框下的在线结果：不限高度，和网格一样宽 */
+.lib-page-online {
+  max-height: none;
+  margin-top: 16px;
+  max-width: 560px;
+}

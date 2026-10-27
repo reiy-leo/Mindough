@@ -11,11 +11,13 @@ import {
   linkChips,
   fieldDisplay,
   fieldText,
+  findLookupTwin,
   hasLibrary,
   isArchivedType,
   isFinished,
   isPersonLibrary,
   libraryCopy,
+  lookupKindOf,
   searchLibrary,
   sourceOfFields,
   type LibraryEntry,
@@ -34,7 +36,8 @@ import { TypeManager } from '../components/TypeManager';
 import { TaskRow } from '../components/TaskRow';
 import { Markdown } from '../components/Markdown';
 import { ItemArt, ItemSheet, artShape, entryArt } from '../components/library/Library';
-import { SourceNote } from '../components/library/Lookup';
+import { OnlineOptions, SourceNote } from '../components/library/Lookup';
+import { createItemFromLookup, useOnlineSearch } from '../lib/lookup';
 import { LinkChips } from '../components/library/LinkFields';
 import { DuplicatesSheet, MergeIntoSheet, MergeSheet } from '../components/library/MergeSheet';
 import { PersonDialog } from './People';
@@ -125,6 +128,33 @@ function LibTab({ type: t, active, onOpen }: { type: TaskType; active: boolean; 
       </a>
       <MenuAt at={menu.at} label={tr('资料库操作')} items={[librarySidebarAction(store, t)]} onClose={menu.close} />
     </>
+  );
+}
+
+/**
+ * 资料库页搜索框也在线找（Rei 2026-10-28「不可以在资料库中搜索框中添加影视、游戏么」）：
+ * 本地结果下面列在线结果，点一条直接加进库并打开它；库里已有的同一条不再列出。
+ */
+function LibraryOnline({ type, query }: { type: TaskType; query: string }) {
+  const store = useStore();
+  const kind = lookupKindOf(type);
+  const online = useOnlineSearch(kind, query);
+  const results = useMemo(() => {
+    const items = store.list('library_item');
+    return online.results.filter((r) => !findLookupTwin(items, type.id, r));
+  }, [online.results, store, store.version, type.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [active, setActive] = useState(-1);
+  if (!kind || !query.trim()) return null;
+  const choose = (i: number) => {
+    const r = results[i];
+    if (!r) return;
+    const { id } = createItemFromLookup(store, type, r);
+    navigate({ page: 'libitem', typeId: type.id, id });
+  };
+  return (
+    <ul role="listbox" aria-label={libraryCopy(type).name} className="lib-picker-list lib-page-online">
+      <OnlineOptions kind={kind} state={online} results={results} start={0} active={active} shape={artShape(type)} optId={(i) => `lib-online-${i}`} onHover={setActive} onChoose={choose} />
+    </ul>
   );
 }
 
@@ -276,6 +306,7 @@ export function LibraryPage({ typeId }: { typeId?: string }) {
         />
       )}
       {dupes && <DuplicatesSheet store={store} type={type} onClose={() => setDupes(false)} />}
+      {!selection && <LibraryOnline type={type} query={query} />}
       {adding !== null &&
         (person ? (
           <PersonDialog initialName={adding} onClose={() => setAdding(null)} />
