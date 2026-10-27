@@ -327,7 +327,7 @@ describe('Open Library 与 Steam', () => {
     expect(s.results[0]).toMatchObject({ sourceId: '1245620', fields: { platform: ['PC（Steam）'] } });
     const d = (await (await call('/api/lookup/item?source=steam&id=1245620&lang=en', baseEnv())).json()) as Record<string, unknown>;
     expect(calls[1]!.url.searchParams.get('l')).toBe('english');
-    expect(d).toMatchObject({ name: 'ELDEN RING', year: 2022, subtitle: 'FromSoftware, Inc.', fields: { platform: ['PC（Steam）', 'macOS', 'Linux / Steam Deck'], links: [{ url: 'https://www.eldenring.com' }] } });
+    expect(d).toMatchObject({ name: 'ELDEN RING', year: 2022, subtitle: 'FromSoftware, Inc.', fields: { platform: ['PC（Steam）', 'macOS', 'Linux / Steam Deck'], links: [{ url: 'https://www.eldenring.com' }, { url: expect.stringMatching(/store.steampowered.com\/app\/\d+/) }] } });
     expect(steamPlatforms(undefined)).toEqual([]);
   });
 
@@ -355,7 +355,7 @@ describe('Open Library 与 Steam', () => {
     expect(s.results[2]).toMatchObject({ name: 'Elden Ring', fields: { platform: ['PC（其他）'] } });
     const d = (await (await call('/api/lookup/item?source=igdb&id=the-legend-of-zelda-tears-of-the-kingdom&lang=en', env)).json()) as Record<string, unknown>;
     expect(d).toMatchObject({ name: 'Zelda: Tears of the Kingdom', url: 'https://www.igdb.com/games/the-legend-of-zelda-tears-of-the-kingdom' });
-    expect(igdbResult(games[0]!, 'zh')).toMatchObject({ name: '黑神话：悟空', subtitle: 'Black Myth: Wukong · Game Science', fields: { platform: ['PC（Steam）', 'PlayStation 5'], links: [{ url: 'https://www.heishenhua.com' }] } });
+    expect(igdbResult(games[0]!, 'zh')).toMatchObject({ name: '黑神话：悟空', subtitle: 'Black Myth: Wukong · Game Science', fields: { platform: ['PC（Steam）', 'PlayStation 5'], links: expect.arrayContaining([{ url: 'https://www.heishenhua.com' }]) } });
     expect(allowedImageHost('https://images.igdb.com/igdb/image/upload/t_cover_big_2x/a.jpg')).toBe(true);
   });
 
@@ -470,3 +470,18 @@ const SUBJECT_HTML = `<!DOCTYPE html><html><head><title>
   <span class="pl">片长:</span> <span property="v:runtime" content="169">169分钟</span><br/>
   <span class="pl">IMDb:</span> tt0816692<br>
 </div></body></html>`;
+
+import { igdbLinks } from '../src/lookup/igdb';
+describe('IGDB 商店链接（Rei 2026-10-28）', () => {
+  it('官网、Steam、Nintendo、PlayStation 都进更多链接，社交站不进，按官网→商店排', () => {
+    const links = igdbLinks({ websites: [
+      { type: 5, url: 'https://twitter.com/x' },
+      { type: 24, url: 'https://www.nintendo.com/us/store/products/reanimal-switch-2/' },
+      { type: 13, url: 'https://store.steampowered.com/app/2486180' },
+      { type: 1, url: 'https://reanimal.com' },
+      { type: 23, url: 'https://store.playstation.com/concept/10010338' },
+      { type: 999, url: 'https://www.xbox.com/games/store/reanimal/9N' },
+    ] });
+    expect(links.map((l) => new URL(l.url).hostname)).toEqual(['reanimal.com', 'store.steampowered.com', 'www.nintendo.com', 'store.playstation.com', 'www.xbox.com']);
+  });
+});

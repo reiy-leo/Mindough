@@ -77,8 +77,8 @@ export function igdbResult(g: Game, lang: Lang): LookupResult | null {
   const fields: LookupResult['fields'] = {};
   const platform = igdbPlatforms(g);
   if (platform.length) fields.platform = platform;
-  const site = (g.websites ?? []).find((w) => w.type === SITE_OFFICIAL && w.url && /^https?:\/\//.test(w.url));
-  if (site) fields.links = [{ url: site.url! }];
+  const links = igdbLinks(g);
+  if (links.length) fields.links = links;
   const img = g.cover?.image_id;
   return {
     source: 'igdb',
@@ -90,6 +90,33 @@ export function igdbResult(g: Game, lang: Lang): LookupResult | null {
     fields,
     url: `https://www.igdb.com/games/${g.slug}`,
   };
+}
+
+/**
+ * 资料「更多链接」：官网 + 各商店（Rei 2026-10-28：游戏信息里要有 Steam、Nintendo 这些链接）。
+ * IGDB website_types：1 官网、10 iPhone、11 iPad、12 Android、13 Steam、15 itch、16 Epic、17 GOG、22 Xbox、23 PlayStation、24 Nintendo。
+ * 按这个顺序排，同一网址只留一次；显示名由 core 的 detectLinkLabel 按域名认。
+ */
+const LINK_ORDER = [SITE_OFFICIAL, SITE_STEAM, 24, 23, 22, SITE_EPIC, 17, 15, 10, 11, 12];
+export function igdbLinks(g: Pick<Game, 'websites'>): Array<{ url: string }> {
+  const out: Array<{ url: string }> = [];
+  const seen = new Set<string>();
+  // 编号对不上时按域名认商店（IGDB 的编号表改过几次）
+  const STORE_HOST = /(^|\.)(steampowered\.com|nintendo\.(com|co\.jp|com\.hk)|playstation\.com|xbox\.com|epicgames\.com|gog\.com|itch\.io|apps\.apple\.com|play\.google\.com)$/;
+  const typeOf = (w: { url?: string; type?: number }) => {
+    if (w.type && LINK_ORDER.includes(w.type)) return w.type;
+    try { if (STORE_HOST.test(new URL(w.url ?? '').hostname)) return 99; } catch { /* 坏网址 */ }
+    return undefined;
+  };
+  for (const type of [...LINK_ORDER, 99]) {
+    for (const w of g.websites ?? []) {
+      if (typeOf(w) !== type || !w.url || !/^https?:\/\//.test(w.url) || seen.has(w.url)) continue;
+      if (type === 11 && out.some((l) => /apps\.apple\.com/.test(l.url))) continue;
+      seen.add(w.url);
+      out.push({ url: w.url });
+    }
+  }
+  return out;
 }
 
 /** Steam appid（IGDB 的 Steam 商店链接里取），用来和 Steam 的结果去重。 */

@@ -70,7 +70,8 @@ export async function steamItem(id: string, lang: Lang): Promise<LookupResult> {
   const fields: LookupResult['fields'] = {};
   const platform = steamPlatforms(d.platforms);
   if (platform.length) fields.platform = platform;
-  if (d.website && /^https?:\/\//.test(d.website)) fields.links = [{ url: d.website }];
+  // 官网 + Steam 商店页（Rei 2026-10-28：游戏信息里要有 Steam 链接）
+  fields.links = [...(d.website && /^https?:\/\//.test(d.website) ? [{ url: d.website }] : []), { url: `https://store.steampowered.com/app/${id}/` }];
   const dev = (d.developers ?? []).slice(0, 2).join(', ');
   return {
     source: 'steam',
