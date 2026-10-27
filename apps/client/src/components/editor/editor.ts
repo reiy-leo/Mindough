@@ -23,7 +23,10 @@ export { finishMarkdown, prepareMarkdown, sameMarkdown } from './markdown';
 // ───────── markdown 读写（每个 schema 一份）─────────
 
 const ios = new WeakMap<Schema, MarkdownIO>();
-export function markdownIO(schema: Schema): MarkdownIO {
+export function markdownIO(schema: Schema | null | undefined): MarkdownIO {
+  // 编辑器 destroy 后 Tiptap 会把 editor.schema 置成 null（React 开发模式会装两次、切任务也会销毁旧的），
+  // 这时还有回调拿它来读写；用通用 schema 兜住，别让 WeakMap 抛错把详情整块弄崩。
+  if (!schema) schema = baseSchema();
   let io = ios.get(schema);
   if (!io) {
     io = createMarkdownIO(schema, {
@@ -237,6 +240,7 @@ export class MdController {
 
   /** 编辑器建好了：记下文档现在写出去的样子（之后没变就不算改动）。 */
   attach(editor: Editor) {
+    if (editor.isDestroyed) return;
     if (this.editor === editor && this.lastOut != null) return;
     this.editor = editor;
     this.lastOut = this.serialize();
@@ -247,8 +251,13 @@ export class MdController {
     return markdownIO(ed.schema).serialize(ed.state.doc);
   }
 
+  private alive() {
+    const ed = this.editor;
+    return !!ed && !ed.isDestroyed && !!ed.schema;
+  }
+
   private changed() {
-    if (!this.editor) return;
+    if (!this.alive()) return;
     const out = this.serialize();
     if (this.lastOut == null) this.lastOut = out;
     if (out === this.lastOut) return;
@@ -261,7 +270,7 @@ export class MdController {
   /** 外面的值：和上次的一样就不动；不一样整篇换掉（不进撤销历史），光标回到开头。 */
   setMarkdown(md: string) {
     const ed = this.editor;
-    if (!ed || sameMarkdown(md, this.lastValue)) return;
+    if (!ed || !this.alive() || sameMarkdown(md, this.lastValue)) return;
     this.lastValue = md;
     const doc = markdownIO(ed.schema).parse(md);
     const view = ed.view;
@@ -269,6 +278,11 @@ export class MdController {
     tr.setSelection(TextSelection.atStart(tr.doc));
     this.lastOut = markdownIO(ed.schema).serialize(tr.doc);
     view.dispatch(tr.setMeta('addToHistory', false));
+  }
+
+  /** 最近一次的原文（编辑器已销毁时 getMarkdown 用）。 */
+  value() {
+    return this.lastValue;
   }
 
   handle(): MdEditorHandle {
@@ -282,7 +296,7 @@ function makeHandle(editor: Editor, ctl: MdController): MdEditorHandle {
   return {
     editor,
     setMarkdown: (md) => ctl.setMarkdown(md),
-    getMarkdown: () => markdownIO(editor.schema).serialize(editor.state.doc),
+    getMarkdown: () => (editor.isDestroyed ? ctl.value() : markdownIO(editor.schema).serialize(editor.state.doc)),
     focus: () => view().focus(),
     destroy: () => editor.destroy(),
     linkAtSelection: () => linkAtSelection(editor.state),

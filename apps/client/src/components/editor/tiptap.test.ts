@@ -273,3 +273,16 @@ describe('清单、撤销、快捷键', () => {
     done();
   });
 });
+
+describe('编辑器销毁后不崩（Rei 2026-10-27：点任务白屏「WeakMap keys must be objects」）', () => {
+  it('销毁后再读写、再 attach 都不抛错', async () => {
+    const { h, root } = setup('你好 **世界**');
+    const ed = h.editor;
+    h.destroy();
+    expect(ed.schema).toBeFalsy();
+    expect(() => h.getMarkdown()).not.toThrow();
+    expect(h.getMarkdown()).toBe('你好 **世界**');
+    expect(() => h.setMarkdown('别的')).not.toThrow();
+    root.remove();
+  });
+});
