@@ -153,28 +153,6 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               {dataLabel(v.type.name)}
             </span>
           )}
-          {/* 状态只用图标标在标题下，悬停看文字；不给整行上色（Rei 2026-10-27） */}
-          {state === '被阻塞' && (
-            <HoverTip className="meta-state state-blocked" tip={tr('还在等 {length} 件事', { length: v.derived!.missing.length })}>
-              <Lock size={12} aria-hidden />
-              {v.derived!.missing.length}
-            </HoverTip>
-          )}
-          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && (
-            <HoverTip className="meta-state state-ready" tip={tr('可开始')}>
-              <LockOpen size={12} aria-hidden />
-            </HoverTip>
-          )}
-          {task.status === '进行中' && (
-            <HoverTip className="meta-state state-doing" tip={tr('进行中')}>
-              <CirclePlay size={12} aria-hidden />
-            </HoverTip>
-          )}
-          {closed && (
-            <HoverTip className="meta-state state-closed" tip={tr('已关闭')}>
-              <Ban size={12} aria-hidden />
-            </HoverTip>
-          )}
           {showGroup && v.group && (
             <span className="meta-group">
               {v.group.icon} {v.group.name}
@@ -205,6 +183,29 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               {relatedCount}
             </HoverTip>
           )}
+          {/* 状态只用图标标在标题下，悬停看文字；不给整行上色；排在属性后面（Rei 2026-10-27） */}
+          {state === '被阻塞' && (
+            <HoverTip className="meta-state state-blocked" tip={tr('还在等 {length} 件事', { length: v.derived!.missing.length })}>
+              <Lock size={12} aria-hidden />
+              {v.derived!.missing.length}
+            </HoverTip>
+          )}
+          {state === '可开始' && store.edges().some((e) => e.succ_id === task.id) && (
+            <HoverTip className="meta-state state-ready" tip={tr('可开始')}>
+              <LockOpen size={12} aria-hidden />
+            </HoverTip>
+          )}
+          {task.status === '进行中' && (
+            <HoverTip className="meta-state state-doing" tip={tr('进行中')}>
+              <CirclePlay size={12} aria-hidden />
+            </HoverTip>
+          )}
+          {closed && (
+            <HoverTip className="meta-state state-closed" tip={tr('已关闭')}>
+              <Ban size={12} aria-hidden />
+            </HoverTip>
+          )}
+          {/* 副标题是自由文字、会截断，放最后免得挤掉状态图标 */}
           {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}
         </span>
       </RacButton>
