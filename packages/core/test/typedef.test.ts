@@ -219,6 +219,12 @@ describe('Store 类型编辑', () => {
     expect(isArchivedType(store.get('task_type', t.id))).toBe(false);
   });
 
+  it('内置「项目」类型默认归档（r4，Rei 2026-10-28：和侧栏「项目」重名）；老任务照常', async () => {
+    const store = await Store.open(new MemoryAdapter());
+    expect(isArchivedType(store.get('task_type', T.project))).toBe(true);
+    expect(store.archivedTypes().map((x) => x.id)).toContain(T.project);
+  });
+
   it('归档：内置和自定义都一样，不在 pickable / ordered / editable 里，在 archivedTypes 里；取消归档回来', async () => {
     const { store } = await open();
     const t = store.createType({ name: '播客' });
@@ -229,12 +235,12 @@ describe('Store 类型编辑', () => {
       expect(store.orderedTypes().map((x) => x.id)).not.toContain(id);
       expect(store.editableTypes().map((x) => x.id)).not.toContain(id);
     }
-    expect(store.archivedTypes().map((x) => x.id)).toEqual([T.game, t.id]);
+    expect(store.archivedTypes().map((x) => x.id).filter((id) => id !== T.project)).toEqual([T.game, t.id]);
     // 归档不是删：行还在
     expect(store.get('task_type', t.id)).toMatchObject({ deleted: false, name: '播客' });
     store.unarchiveType(t.id);
     expect(store.pickableTypes().map((x) => x.id)).toContain(t.id);
-    expect(store.archivedTypes().map((x) => x.id)).toEqual([T.game]);
+    expect(store.archivedTypes().map((x) => x.id).filter((id) => id !== T.project)).toEqual([T.game]);
     // 普通、人物不能归档
     store.archiveType(T.plain);
     expect(isArchivedType(store.get('task_type', T.plain))).toBe(false);
@@ -285,7 +291,7 @@ describe('Store 类型编辑', () => {
     store.update('task_type', t.id, { hidden: true }); // 旧版本「隐藏」写下的行
     await store.flush();
     const { store: again } = await open(adapter, 'dev1', local(2026, 10, 17, 10).getTime());
-    expect(again.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    expect(again.archivedTypes().map((x) => x.id).filter((id) => id !== T.project)).toEqual([t.id]);
     expect(again.pickableTypes().map((x) => x.id)).not.toContain(t.id);
 
     const { files } = exportArchive(again);
@@ -382,7 +388,7 @@ describe('类型编辑的同步', () => {
     A.store.archiveType(t.id);
     await A.sync();
     await B.sync();
-    expect(B.store.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    expect(B.store.archivedTypes().map((x) => x.id).filter((id) => id !== T.project)).toEqual([t.id]);
     B.advance(3000);
     B.store.unarchiveType(t.id);
     A.advance(1000);
@@ -417,7 +423,7 @@ describe('类型编辑的同步', () => {
     const back = A2.get('task_type', t.id)!;
     expect(back).toMatchObject({ deleted: false, hidden: true, name: '播客' });
     expect(isArchivedType(back)).toBe(true);
-    expect(A2.archivedTypes().map((x) => x.id)).toEqual([t.id]);
+    expect(A2.archivedTypes().map((x) => x.id).filter((id) => id !== T.project)).toEqual([t.id]);
     expect(A2.pickableTypes().map((x) => x.id)).not.toContain(t.id);
     expect(A2.libraryEntries(t.id).map((e) => e.name)).toEqual(['忽左忽右']);
   });
@@ -430,6 +436,6 @@ describe('类型编辑的同步', () => {
     await store.flush();
     const { store: again } = await open(adapter, 'dev1', local(2026, 10, 17, 10).getTime());
     expect(again.get('task_type', t.id)).toBeUndefined();
-    expect(again.archivedTypes()).toEqual([]);
+    expect(again.archivedTypes().filter((x) => x.id !== T.project)).toEqual([]);
   });
 });

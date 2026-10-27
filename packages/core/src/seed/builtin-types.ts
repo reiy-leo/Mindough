@@ -25,9 +25,10 @@ export const BUILTIN_TYPE_IDS = {
  * 内置定义的版本戳。改了内置类型的定义（如资料库拆分 资料字段 / 任务字段）就把序号加一：
  * 打开时，存着的内置类型若仍是更早的内置版本（用户没改过），自动换成新定义；用户改过的（真实 HLC）不动。
  * r1 = 资料库（2026-10-15）；r2 = 影视去掉「平台」、加 IMDb / 豆瓣 / 更多链接，游戏「平台」改多选、加更多链接，购物「价格」改金额 + 币种，「看到哪」认 S02E03 / 第二季第三集（2026-10-15）；
- * r3 = 书籍加出版社、出版年份、ISBN（按 ISBN 在线取那一版，Rei 2026-10-17）。
+ * r3 = 书籍加出版社、出版年份、ISBN（按 ISBN 在线取那一版，Rei 2026-10-17）；
+ * r4 = 「项目」类型归档：和侧栏的「项目」（组）重名、容易混（Rei 2026-10-28「删掉这个项目库吧」；类型不能删，只能归档，老任务照常）。
  */
-export const BUILTIN_TYPES_REVISION = '0000000000000-0003-builtin';
+export const BUILTIN_TYPES_REVISION = '0000000000000-0004-builtin';
 
 /** 游戏平台的选项（多选；界面文案见 docs/COPY.md）。 */
 export const GAME_PLATFORMS = [
@@ -125,6 +126,8 @@ export const BUILTIN_TASK_TYPES: TaskType[] = [
   {
     ...BASE,
     id: BUILTIN_TYPE_IDS.project,
+    // r4 起默认归档（见上）
+    hidden: true,
     name: '项目',
     icon: 'folder-git-2',
     color: '#2f80ed',
