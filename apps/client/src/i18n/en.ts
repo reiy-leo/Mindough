@@ -12,6 +12,8 @@ const n = (v: unknown, one: string, other: string) => `${v} ${pl(v, one, other)}
 const c = (p: Params, k: string) => p.count ?? p[k];
 
 export const EN: Record<string, EnValue> = {
+  "这里出错了，内容没显示出来": "Something went wrong here, so this didn’t load",
+  "再试一次": "Try Again",
   // ── 类型（统一的分类，2026-10-26）──
   "导航|管理": "Manage",
   "在侧边栏显示": "Show in Sidebar",

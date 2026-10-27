@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Button as RacButton } from 'react-aria-components';
 import { CalendarCheck2, CalendarDays, ChevronRight, Hourglass, Library, ListChecks, Menu, NotebookPen, Plus, Search, Settings, Inbox, Shapes, Sun, Tags, X, type LucideIcon } from 'lucide-react';
 import { href, navigate, useRoute, type Route, type SettingsSection } from './lib/router';
@@ -441,7 +442,7 @@ export function App() {
             <div className="main-scroll">
               <MovedBanner />
               <LoginErrorBanner />
-              {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
+              {!(settingsInWindow && route.page === 'settings') && <ErrorBoundary resetKey={route}><Page route={route} /></ErrorBoundary>}
             </div>
           </main>
           {/* 日记页不放新建按钮（改版 B 按原型默认，待 Rei 确认）：写作区像一页纸，按钮会压在正文上；N 和 ⌘K 照常能新建任务 */}
@@ -468,7 +469,7 @@ export function App() {
         <main className="main">
           <MovedBanner />
           <LoginErrorBanner />
-          {!(settingsInWindow && route.page === 'settings') && <Page route={route} />}
+          {!(settingsInWindow && route.page === 'settings') && <ErrorBoundary resetKey={route}><Page route={route} /></ErrorBoundary>}
         </main>
         {!hideFab && <NewTaskFab onPress={newTask} />}
         <nav className="tabbar" aria-label={tr('主导航')}>
@@ -491,7 +492,7 @@ export function App() {
           </a>
         </nav>
         {/* 手机：任务详情整页推入（不是底部弹窗），返回 / 右滑 / 系统返回键回到列表 */}
-        <TaskDetail mode="page" />
+        <ErrorBoundary resetKey={ui.editingId}><TaskDetail mode="page" /></ErrorBoundary>
       </div>
     );
   }

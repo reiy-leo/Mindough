@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { MousePointerClick } from 'lucide-react';
 import { useUi } from '../../lib/ui';
 import { clampDetailWidth, DETAIL_W_DEFAULT, DETAIL_W_KEY, loadDetailWidth, nextTaskId } from '../../lib/detail-pane';
@@ -131,7 +132,7 @@ export function DetailPane() {
       />
       <div className="detail-pane-box">
         {task ? (
-          <TaskDetail mode="pane" />
+          <ErrorBoundary resetKey={ui.editingId}><TaskDetail mode="pane" /></ErrorBoundary>
         ) : (
           <div className="pane-empty">
             <MousePointerClick size={32} strokeWidth={1.5} aria-hidden />

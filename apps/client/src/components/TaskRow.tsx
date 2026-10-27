@@ -205,8 +205,6 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
               <Ban size={12} aria-hidden />
             </HoverTip>
           )}
-          {/* 副标题是自由文字、会截断，放最后免得挤掉状态图标 */}
-          {v.subtitle && <span className="meta-sub">{v.subtitle}</span>}
         </span>
       </RacButton>
       <AvatarStack store={store} people={v.people.filter((p) => !(v.mediaIsAvatar && v.data.person === p.id))} />

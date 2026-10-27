@@ -6,6 +6,8 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  "这里出错了，内容没显示出来": "Terjadi kesalahan sehingga ini tidak tampil",
+  "再试一次": "Coba Lagi",
   // ── 类型（统一的分类，2026-10-26）──
   "导航|管理": "Kelola",
   "在侧边栏显示": "Tampilkan di bilah samping",

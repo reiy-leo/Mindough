@@ -6,6 +6,8 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  "这里出错了，内容没显示出来": "Algo deu errado e isto não pôde ser exibido",
+  "再试一次": "Tentar de novo",
   // ── 类型（统一的分类，2026-10-26）──
   "导航|管理": "Gerenciar",
   "在侧边栏显示": "Mostrar na barra lateral",

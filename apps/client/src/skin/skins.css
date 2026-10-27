@@ -105,6 +105,10 @@
 .platform-macos-overlay .app-desktop .page {
   padding-top: var(--space-2);
 }
+/* 中间列没有红绿灯，不用留 38px：只留一条 10px 的拖动条（Rei 2026-10-27「顶部还是预留了巨大的空间」） */
+.platform-macos-overlay .app-desktop .main > .titlebar-space {
+  height: 10px;
+}
 
 /* ═════════════════════ Windows 11 / WinUI 3 ═════════════════════ */
 [data-skin='winui'] .sidebar {
