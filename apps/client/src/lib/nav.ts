@@ -47,3 +47,28 @@ export type ManageEntry = { kind: 'library' } | { kind: 'pinned'; typeId: string
 export function manageEntries(pinned: ReadonlyArray<{ id: string }>): ManageEntry[] {
   return [{ kind: 'library' }, ...pinned.map((t) => ({ kind: 'pinned' as const, typeId: t.id })), { kind: 'types' }];
 }
+
+// ───────────── 「计划」一节里的项目（Rei 2026-10-28） ─────────────
+
+/** 「计划」一节的入口，按顺序：列表、项目、放进侧边栏的项目（按项目页顺序，调用方传 store.sidebarGroups()）。 */
+export type PlanEntry = { kind: 'agenda' } | { kind: 'groups' } | { kind: 'pinned'; groupId: string };
+export function planEntries(pinned: ReadonlyArray<{ id: string }>): PlanEntry[] {
+  return [{ kind: 'agenda' }, { kind: 'groups' }, ...pinned.map((g) => ({ kind: 'pinned' as const, groupId: g.id }))];
+}
+
+/**
+ * 侧边栏里哪个项目入口亮：打开的是放进侧边栏的项目就亮它自己，项目列表和其他项目亮「项目」。
+ * 返回 'groups'、某个项目的 id，或 null（不在项目页面）。
+ */
+export function activeGroupEntry(route: Route, pinnedIds: readonly string[]): string | null {
+  if (route.page === 'groups') return 'groups';
+  if (route.page !== 'group') return null;
+  return pinnedIds.includes(route.id) ? route.id : 'groups';
+}
+
+/** 项目图标（emoji，或 "lucide:名字"）→ 图标名，交给 typeIcon 画。空的给 folder。 */
+export function groupIconName(icon: string | undefined | null): string {
+  const s = (icon ?? '').trim();
+  if (!s) return '📁';
+  return s.startsWith('lucide:') ? s.slice('lucide:'.length) : s;
+}

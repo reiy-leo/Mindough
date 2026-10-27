@@ -411,3 +411,13 @@ export function withSidebarLibrary(ids: readonly string[], id: string, on: boole
   const rest = ids.filter((x) => x !== id);
   return on ? [...rest, id] : rest;
 }
+
+// ───────────── 侧边栏里的项目 ─────────────
+
+/**
+ * 放进侧边栏的项目（Rei 2026-10-28「项目和资料库一样，项目也可以显示在侧边栏」）。
+ * 跟资料库一样存成同步偏好 `group.sidebar`（项目 id 列表），不加列、不改项目行（旧客户端改项目名不会把它冲掉）。
+ * 侧边栏里的顺序跟项目页一样（store.list('group') 的顺序），不看列表里的先后；删掉的项目不出现。
+ * 项目没有归档，结束日期过了也照常显示（项目页也照常列着）。id 列表的读写复用 sidebarLibraryIds / withSidebarLibrary。
+ */
+export const GROUP_SIDEBAR_PREF = 'group.sidebar';

@@ -40,6 +40,7 @@ export const MESSAGES: Record<string, MessageValue> = {
   "在侧边栏显示": "In der Seitenleiste anzeigen",
   "取消在侧边栏显示": "Aus der Seitenleiste entfernen",
   "资料库操作": "Sammlungsaktionen",
+  "项目操作": "Projektaktionen",
   "分类|类型": "Kategorie",
   "已经有「{name}」了": "„{name}“ gibt es schon",
   "新类型的名字": "Name der neuen Kategorie",

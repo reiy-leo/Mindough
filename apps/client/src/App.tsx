@@ -15,9 +15,9 @@ import { GroupDetailPage, GroupsPage } from './pages/Groups';
 import { PersonDetailPage } from './pages/People';
 import { LibraryItemPage, LibraryPage } from './pages/Library';
 import { BUILTIN_TYPE_IDS, libraryCopy, type Store } from '@mindough/core';
-import { activeLibraryEntry, libraryRoute, manageEntries } from './lib/nav';
+import { activeGroupEntry, activeLibraryEntry, groupIconName, libraryRoute, manageEntries, planEntries } from './lib/nav';
 import { typeIcon } from './lib/icons';
-import { librarySidebarAction } from './lib/library-sidebar';
+import { groupSidebarAction, librarySidebarAction } from './lib/library-sidebar';
 import { DoablePage } from './pages/Doable';
 import { CheckInsPage } from './pages/CheckIns';
 import { COUNTDOWN_DEFAULTS, CountdownsPage } from './pages/Countdowns';
@@ -54,6 +54,8 @@ interface NavItem {
   activeFor?: (route: Route) => boolean;
   /** 放进侧边栏的库：类型 id（右键菜单「取消在侧边栏显示」用）。 */
   libraryId?: string;
+  /** 放进侧边栏的项目：项目 id（同上，Rei 2026-10-28）。 */
+  groupId?: string;
 }
 
 /**
@@ -111,13 +113,35 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 const LIBRARY_ITEM = NAV.find((n) => n.page === 'library')!;
+const AGENDA_ITEM = NAV.find((n) => n.page === 'agenda')!;
+const GROUPS_ITEM = NAV.find((n) => n.page === 'groups')!;
 const TYPES_ITEM = NAV.find((n) => n.page === 'types')!;
 
-/** 侧边栏各节；「管理」一节带上放进侧边栏的库（lib/nav.ts manageEntries）。 */
+/** 侧边栏各节；「计划」一节带上放进侧边栏的项目（lib/nav.ts planEntries），「管理」一节带上放进侧边栏的库（manageEntries）。 */
 function navSections(store: Store): NavSection[] {
   const pinned = store.sidebarLibraries();
   const pinnedIds = pinned.map((t) => t.id);
+  const pinnedGroups = store.sidebarGroups();
+  const pinnedGroupIds = pinnedGroups.map((g) => g.id);
   return NAV_SECTIONS.map((sec) => {
+    if (sec.id === 'plan') {
+      const items = planEntries(pinnedGroups).map((e): NavItem => {
+        if (e.kind === 'agenda') return AGENDA_ITEM;
+        if (e.kind === 'groups') return { ...GROUPS_ITEM, activeFor: (r) => activeGroupEntry(r, pinnedGroupIds) === 'groups' };
+        const g = pinnedGroups.find((x) => x.id === e.groupId)!;
+        return {
+          key: `group:${g.id}`,
+          page: 'group',
+          to: { page: 'group', id: g.id },
+          label: g.name,
+          icon: typeIcon(groupIconName(g.icon)) as LucideIcon,
+          match: [],
+          activeFor: (r) => activeGroupEntry(r, pinnedGroupIds) === g.id,
+          groupId: g.id,
+        };
+      });
+      return { id: sec.id, title: sec.title, items };
+    }
     if (sec.id !== 'library') return sec;
     const items = manageEntries(pinned).map((e): NavItem => {
       if (e.kind === 'library') return { ...LIBRARY_ITEM, activeFor: (r) => activeLibraryEntry(r, pinnedIds) === 'library' };
@@ -177,7 +201,7 @@ function useNarrow(): boolean {
 }
 
 function NavLink({ item, active, badge, onOpen }: { item: NavItem; active: boolean; badge?: number; onOpen?: () => void }) {
-  if (item.libraryId) return <PinnedLibraryLink item={item} active={active} />;
+  if (item.libraryId || item.groupId) return <PinnedLink item={item} active={active} />;
   const Icon = item.icon;
   return (
     <a
@@ -200,12 +224,14 @@ function NavLink({ item, active, badge, onOpen }: { item: NavItem; active: boole
   );
 }
 
-/** 放进侧边栏的库：缩进一点挂在「资料库」下面；右键 / 长按能「取消在侧边栏显示」。 */
-function PinnedLibraryLink({ item, active }: { item: NavItem; active: boolean }) {
+/** 放进侧边栏的库 / 项目：缩进一点挂在「资料库」/「项目」下面；右键 / 长按能「取消在侧边栏显示」。 */
+function PinnedLink({ item, active }: { item: NavItem; active: boolean }) {
   const store = useStore();
   const menu = useContextMenuAt();
   const Icon = item.icon;
-  const t = store.get('task_type', item.libraryId!);
+  const t = item.libraryId ? store.get('task_type', item.libraryId) : null;
+  const g = item.groupId ? store.get('group', item.groupId) : null;
+  const action = t ? librarySidebarAction(store, t) : g ? groupSidebarAction(store, g) : null;
   return (
     <>
       <a
@@ -223,7 +249,7 @@ function PinnedLibraryLink({ item, active }: { item: NavItem; active: boolean })
         </span>
         <span className="nav-label">{item.label}</span>
       </a>
-      {t && <MenuAt at={menu.at} label={item.label} items={[librarySidebarAction(store, t)]} onClose={menu.close} />}
+      {action && <MenuAt at={menu.at} label={item.label} items={[action]} onClose={menu.close} />}
     </>
   );
 }
@@ -293,7 +319,7 @@ function MorePage() {
             {sec.items.map((n) => {
               const Icon = n.icon;
               return (
-                <a key={n.key ?? n.page} className={`more-item${n.libraryId ? ' more-item-sub' : ''}`} href={href(n.to ?? ({ page: n.page } as Route))}>
+                <a key={n.key ?? n.page} className={`more-item${n.libraryId || n.groupId ? ' more-item-sub' : ''}`} href={href(n.to ?? ({ page: n.page } as Route))}>
                   <span className="more-icon">
                     <Icon size={20} />
                   </span>

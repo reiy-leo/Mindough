@@ -318,7 +318,9 @@ export function useContextMenuAt() {
       let x = e.clientX;
       let y = e.clientY;
       if (!x && !y) {
-        const r = e.currentTarget.getBoundingClientRect();
+        // 外层是 display: contents（没有方框）时，贴着真正收到按键的元素
+        let r = e.currentTarget.getBoundingClientRect();
+        if (!r.width && !r.height && e.target instanceof Element) r = e.target.getBoundingClientRect();
         x = r.left + 8;
         y = r.bottom;
       }

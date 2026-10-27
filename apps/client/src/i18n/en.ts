@@ -46,6 +46,7 @@ export const EN: Record<string, EnValue> = {
   "在侧边栏显示": "Show in Sidebar",
   "取消在侧边栏显示": "Hide from Sidebar",
   "资料库操作": "Collection Actions",
+  "项目操作": "Project Actions",
   "分类|类型": "Category",
   "已经有「{name}」了": "“{name}” already exists",
   "新类型的名字": "Name of the new category",

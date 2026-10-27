@@ -4,7 +4,8 @@ import { CalendarRange, Plus, Shapes } from 'lucide-react';
 import { formatDateZh, isFinished, toDateKey, type Group, type Task } from '@mindough/core';
 import { useStore } from '../store/StoreProvider';
 import { navigate } from '../lib/router';
-import { Button, ChipPicker, Empty, Field, PopoverPanel, ProgressBar, Section, Select, Sheet } from '../ui/primitives';
+import { Button, ChipPicker, Empty, Field, MenuAt, OverflowMenu, PopoverPanel, ProgressBar, Section, Select, Sheet, useContextMenuAt } from '../ui/primitives';
+import { groupSidebarAction } from '../lib/library-sidebar';
 import { CategoryLabel, CategoryPicker, NO_CATEGORY } from '../components/CategoryPicker';
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
@@ -74,6 +75,49 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/**
+ * 项目列表里的一张卡片：点了打开项目；右键 / 长按出菜单「在侧边栏显示 / 取消在侧边栏显示」（Rei 2026-10-28）。
+ * 卡片是 react-aria 的按钮，右键和长按挂在外面一层（display: contents，不影响网格）。
+ */
+function GroupCard({ group: g }: { group: Group }) {
+  const store = useStore();
+  const menu = useContextMenuAt();
+  const tasks = store.tasks().filter((t) => t.group_id === g.id);
+  // 关闭的不算成就：既不算完成，也不计入总数
+  const counted = tasks.filter((t) => t.status !== '关闭');
+  const done = counted.filter((t) => t.status === '完成').length;
+  const blocked = tasks.filter((t) => store.derived().get(t.id)?.state === '被阻塞').length;
+  const c = store.category(g.category_id);
+  const late = g.end_at && g.end_at < toDateKey(store.now()) && done < counted.length;
+  return (
+    <div className="group-card-wrap" {...menu.props}>
+      <RacButton
+        className="card group-card"
+        onPress={() => {
+          if (menu.consumeLongPress()) return;
+          navigate({ page: 'group', id: g.id });
+        }}
+      >
+        <div className="group-card-head">
+          <span className="group-icon">{g.icon}</span>
+          <span className="group-name">{g.name}</span>
+          {c && <CategoryLabel c={c} size={12} />}
+        </div>
+        <div className={`group-range${late ? ' is-late' : ''}`}>
+          <CalendarRange size={13} /> {range(g)}
+        </div>
+        <ProgressBar value={counted.length ? done / counted.length : 0} color={c?.color} />
+        <div className="group-stats">
+          <span>
+            {tr('{done}/{length} 完成', { done, length: counted.length })}</span>
+          {blocked > 0 && <span className="state-blocked">{tr('{blocked} 件还不能开始', { blocked })}</span>}
+        </div>
+      </RacButton>
+      <MenuAt at={menu.at} label={tr('项目操作')} items={[groupSidebarAction(store, g)]} onClose={menu.close} />
+    </div>
+  );
+}
+
 export function GroupsPage() {
   const store = useStore();
   const [creating, setCreating] = useState(false);
@@ -114,33 +158,9 @@ export function GroupsPage() {
         <Empty title={tr('还没有项目')} hint={tr('项目用来装一批相关任务，比如“搬家”“开发某个功能”')} />
       ) : (
         <div className="card-grid">
-          {groups.map((g) => {
-            const tasks = store.tasks().filter((t) => t.group_id === g.id);
-            // 关闭的不算成就：既不算完成，也不计入总数
-            const counted = tasks.filter((t) => t.status !== '关闭');
-            const done = counted.filter((t) => t.status === '完成').length;
-            const blocked = tasks.filter((t) => store.derived().get(t.id)?.state === '被阻塞').length;
-            const c = catOf(g);
-            const late = g.end_at && g.end_at < toDateKey(store.now()) && done < counted.length;
-            return (
-              <RacButton key={g.id} className="card group-card" onPress={() => navigate({ page: 'group', id: g.id })}>
-                <div className="group-card-head">
-                  <span className="group-icon">{g.icon}</span>
-                  <span className="group-name">{g.name}</span>
-                  {c && <CategoryLabel c={c} size={12} />}
-                </div>
-                <div className={`group-range${late ? ' is-late' : ''}`}>
-                  <CalendarRange size={13} /> {range(g)}
-                </div>
-                <ProgressBar value={counted.length ? done / counted.length : 0} color={c?.color} />
-                <div className="group-stats">
-                  <span>
-                    {tr('{done}/{length} 完成', { done, length: counted.length })}</span>
-                  {blocked > 0 && <span className="state-blocked">{tr('{blocked} 件还不能开始', { blocked })}</span>}
-                </div>
-              </RacButton>
-            );
-          })}
+          {groups.map((g) => (
+            <GroupCard key={g.id} group={g} />
+          ))}
         </div>
       )}
       {creating && <GroupDialog onClose={() => setCreating(false)} />}
@@ -212,6 +232,7 @@ export function GroupDetailPage({ id }: { id: string }) {
           <>
             <ViewMenu view={prefs.view} onChange={(view) => setPrefs({ view })} />
             <SortMenu field={prefs.sort} dir={prefs.dir} onChange={(sort, dir) => setPrefs({ sort, dir })} />
+            <OverflowMenu label={tr('项目操作')} items={[groupSidebarAction(store, g)]} />
           </>
         }
       />

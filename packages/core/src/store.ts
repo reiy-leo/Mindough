@@ -17,6 +17,7 @@ import {
   findSameName,
   hasLibrary,
   LIBRARY_SIDEBAR_PREF,
+  GROUP_SIDEBAR_PREF,
   sidebarLibraryIds,
   withSidebarLibrary,
   isPersonLibrary,
@@ -1640,6 +1641,24 @@ export class Store {
     const ids = sidebarLibraryIds(this.pref(LIBRARY_SIDEBAR_PREF));
     if (ids.includes(id) === on) return;
     this.setPref(LIBRARY_SIDEBAR_PREF, withSidebarLibrary(ids, id, on));
+  }
+
+  /** 放进侧边栏的项目：顺序跟项目页一样，删掉的不出现（见 library.ts GROUP_SIDEBAR_PREF）。 */
+  sidebarGroups(): TableMap['group'][] {
+    const ids = sidebarLibraryIds(this.pref(GROUP_SIDEBAR_PREF));
+    return this.list('group').filter((g) => ids.includes(g.id));
+  }
+
+  /** 这个项目在不在侧边栏。 */
+  isGroupInSidebar(id: string): boolean {
+    return sidebarLibraryIds(this.pref(GROUP_SIDEBAR_PREF)).includes(id);
+  }
+
+  /** 项目「在侧边栏显示 / 取消在侧边栏显示」（同步偏好，LWW）。 */
+  setGroupInSidebar(id: string, on: boolean): void {
+    const ids = sidebarLibraryIds(this.pref(GROUP_SIDEBAR_PREF));
+    if (ids.includes(id) === on) return;
+    this.setPref(GROUP_SIDEBAR_PREF, withSidebarLibrary(ids, id, on));
   }
 
   /** 编辑器列表里上移 / 下移一位。 */
