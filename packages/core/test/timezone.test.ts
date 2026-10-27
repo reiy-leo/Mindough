@@ -41,7 +41,7 @@ describe('任务时区（Rei 2026-10-25）', () => {
   it('名字：中文城市名 / 英文 IANA 最后一段', () => {
     expect(timeZoneLabel(SH, '2026-10-25')).toBe('上海 (UTC+8)');
     expect(timeZoneLabel(NY, '2026-07-01')).toBe('纽约 (UTC\u22124)');
-    expect(timeZoneLabel('America/Argentina/Buenos_Aires', '2026-07-01')).toBe('Buenos Aires (UTC\u22123)');
+    expect(timeZoneLabel('America/Argentina/Buenos_Aires', '2026-07-01')).toBe('布宜诺斯艾利斯 (UTC\u22123)');
     setLocale('en');
     expect(timeZoneLabel(NY, '2026-01-01')).toBe('New York (UTC\u22125)');
     expect(timeZoneLabel('UTC', '2026-01-01')).toBe('UTC');
@@ -116,5 +116,14 @@ describe('任务时区（Rei 2026-10-25）', () => {
     const sh = mkTask('sh', { scheduled_date: '2026-10-25' });
     const s = suggestions({ tasks: [ny, sh], entries: [], checkIns: [], derived: new Map(), recentlyUnlocked: [], today: '2026-10-25', now });
     expect(s.map((x) => x.task.id)).toEqual(['sh']);
+  });
+});
+
+describe('完整时区列表都有中文名（Rei 2026-10-27：显示更多后地名没有中文）', () => {
+  it('allTimeZones 每一个在中文下都不是英文地名', async () => {
+    const { allTimeZones, timeZoneCity } = await import('../src/timezone');
+    setLocale('zh');
+    const bad = allTimeZones().filter((tz) => /^[A-Za-z _'.-]+$/.test(timeZoneCity(tz)) && tz !== 'UTC');
+    expect(bad).toEqual([]);
   });
 });
