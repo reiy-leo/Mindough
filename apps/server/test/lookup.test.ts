@@ -5,6 +5,7 @@ import { allowedImageHost } from '../src/lookup';
 import { isV4Token } from '../src/lookup/tmdb';
 import { parseDoubanRexxar, parseDoubanSubject } from '../src/lookup/douban';
 import { steamPlatforms } from '../src/lookup/steam';
+import { igdbResult } from '../src/lookup/igdb';
 import type { AssetBucket, R2Object } from '../src/assets';
 
 const ORIGIN = 'https://app.mindough.rei8t.dev';
@@ -328,6 +329,41 @@ describe('Open Library 与 Steam', () => {
     expect(calls[1]!.url.searchParams.get('l')).toBe('english');
     expect(d).toMatchObject({ name: 'ELDEN RING', year: 2022, subtitle: 'FromSoftware, Inc.', fields: { platform: ['PC（Steam）', 'macOS', 'Linux / Steam Deck'], links: [{ url: 'https://www.eldenring.com' }] } });
     expect(steamPlatforms(undefined)).toEqual([]);
+  });
+
+  it('IGDB（Rei 2026-10-27）：换令牌、中文别名当名字、平台映射、竖版封面；和 Steam 同一款只留 Steam', async () => {
+    const env = baseEnv({ IGDB_CLIENT_ID: 'cid', IGDB_CLIENT_SECRET: 'sec' });
+    const games = [
+      { name: 'Black Myth: Wukong', slug: 'black-myth-wukong', first_release_date: 1724112000, platforms: [6, 167], cover: { image_id: 'co8abc' }, alternative_names: [{ name: '黑神話：悟空', comment: 'Chinese title - traditional' }, { name: '黑神话：悟空', comment: 'Chinese title - simplified' }], websites: [{ type: 13, url: 'https://store.steampowered.com/app/2358720' }, { type: 1, url: 'https://www.heishenhua.com' }], involved_companies: [{ developer: true, company: { name: 'Game Science' } }] },
+      { name: 'Zelda: Tears of the Kingdom', slug: 'the-legend-of-zelda-tears-of-the-kingdom', first_release_date: 1683849600, platforms: [130], cover: { image_id: 'co5vmg' } },
+      { name: 'Elden Ring', slug: 'elden-ring', platforms: [6] },
+    ];
+    const calls = mockFetch({
+      'https://store.steampowered.com/api/storesearch': () => Response.json({ items: [{ type: 'app', id: 2358720, name: '黑神话：悟空' }] }),
+      'https://id.twitch.tv/oauth2/token': () => Response.json({ access_token: 'tok', expires_in: 5000000 }),
+      'https://api.igdb.com/v4/games': (_u, init) => Response.json(String(init?.body).includes('where slug') ? [games[1]] : games),
+    });
+    const s = (await (await call('/api/lookup/search?kind=game&q=x', env)).json()) as { results: Array<Record<string, unknown>> };
+    const tok = calls.find((c) => c.url.hostname === 'id.twitch.tv')!;
+    expect(tok.url.searchParams.get('client_id')).toBe('cid');
+    expect(tok.url.searchParams.get('grant_type')).toBe('client_credentials');
+    const ig = calls.find((c) => c.url.hostname === 'api.igdb.com')!;
+    expect((ig.init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+    expect(s.results.map((r) => r.source)).toEqual(['steam', 'igdb', 'igdb']);
+    expect(s.results[1]).toMatchObject({ sourceId: 'the-legend-of-zelda-tears-of-the-kingdom', year: 2023, fields: { platform: ['Nintendo Switch'] }, image: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co5vmg.jpg' });
+    expect(s.results[1]!.steamId).toBeUndefined();
+    expect(s.results[2]).toMatchObject({ name: 'Elden Ring', fields: { platform: ['PC（其他）'] } });
+    const d = (await (await call('/api/lookup/item?source=igdb&id=the-legend-of-zelda-tears-of-the-kingdom&lang=en', env)).json()) as Record<string, unknown>;
+    expect(d).toMatchObject({ name: 'Zelda: Tears of the Kingdom', url: 'https://www.igdb.com/games/the-legend-of-zelda-tears-of-the-kingdom' });
+    expect(igdbResult(games[0]!, 'zh')).toMatchObject({ name: '黑神话：悟空', subtitle: 'Black Myth: Wukong · Game Science', fields: { platform: ['PC（Steam）', 'PlayStation 5'], links: [{ url: 'https://www.heishenhua.com' }] } });
+    expect(allowedImageHost('https://images.igdb.com/igdb/image/upload/t_cover_big_2x/a.jpg')).toBe(true);
+  });
+
+  it('IGDB 没配密钥：只算没配置，Steam 照常', async () => {
+    mockFetch({ 'https://store.steampowered.com/api/storesearch': () => Response.json({ items: [{ type: 'app', id: 1, name: 'A' }] }) });
+    const s = (await (await call('/api/lookup/search?kind=game&q=a', baseEnv())).json()) as { results: unknown[]; sources: Array<{ source: string; status: string }> };
+    expect(s.results).toHaveLength(1);
+    expect(s.sources).toContainEqual(expect.objectContaining({ source: 'igdb', status: 'unconfigured' }));
   });
 
   it('Steam 看不到这款：404', async () => {

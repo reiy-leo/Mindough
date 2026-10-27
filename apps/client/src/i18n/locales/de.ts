@@ -1297,6 +1297,7 @@ export const MESSAGES: Record<string, MessageValue> = {
   "关于": "Über",
   "数据先存在这台设备上，离线也能用": "Deine Daten liegen zuerst auf diesem Gerät und funktionieren offline",
   "本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。": "Dieses Produkt nutzt die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert.",
+  "游戏资料来自 IGDB.com": "Spieldaten von IGDB.com",
   "日记": "Tagebuch",
   "{n} 篇日记": "{n, plural, one {# Tagebucheintrag} other {# Tagebucheinträge}}",
   "写今天的日记": "Heutigen Eintrag schreiben",

@@ -594,6 +594,11 @@ function AboutSection() {
         </a>
         <p className="about-credit-text">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
         {getLocale() === 'zh' && <p className="about-credit-text">{tr('本产品使用 TMDB 的 API，但没有得到 TMDB 的认可或认证。')}</p>}
+        <p className="about-credit-text">
+          <a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer">
+            {tr('游戏资料来自 IGDB.com')}
+          </a>
+        </p>
       </div>
     </section>
   );

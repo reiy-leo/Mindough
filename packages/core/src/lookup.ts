@@ -1,5 +1,5 @@
 /**
- * 在线补全资料（M4）：按名字或编号从 TMDB / 豆瓣 / Open Library / Steam 找到资料，填进资料库。
+ * 在线补全资料（M4）：按名字或编号从 TMDB / 豆瓣 / Open Library / Steam / IGDB 找到资料，填进资料库。
  * 查询在 Worker 上（apps/server/src/lookup/，GET /api/lookup/search、/api/lookup/item），这里只放纯逻辑：
  * - 哪些类型能在线找（影视 / 书籍 / 游戏这三种内置类型；按类型 id，用户改过名也认）；
  * - Worker 返回的结果形状（与 apps/server/src/lookup/types.ts 一致，两处一起改）；
@@ -17,12 +17,12 @@ import { tr } from './i18n';
 import type { FieldDef, FieldValue, LibraryItem, LinkValue, TaskType } from './types';
 
 export type LookupKind = 'movie' | 'book' | 'game';
-export type LookupSource = 'tmdb' | 'douban' | 'openlibrary' | 'steam';
+export type LookupSource = 'tmdb' | 'douban' | 'openlibrary' | 'steam' | 'igdb';
 
 /** Worker 返回的一条结果。fields 的 key 是内置类型的字段 key（year、kind、imdb、author…）。 */
 export interface LookupResult {
   source: LookupSource;
-  /** 来源里的编号：tmdb 是「movie/550」「tv/1399」，豆瓣是数字，Open Library 是作品「OL45804W」或某一版「OL25840916M」（按 ISBN 取到的），Steam 是 appid。 */
+  /** 来源里的编号：tmdb 是「movie/550」「tv/1399」，豆瓣是数字，Open Library 是作品「OL45804W」或某一版「OL25840916M」（按 ISBN 取到的），Steam 是 appid，IGDB 是 slug（hollow-knight）。 */
   sourceId: string;
   name: string;
   year?: number;
@@ -66,6 +66,7 @@ export const LOOKUP_SOURCES: Record<LookupSource, LookupSourceDef> = {
   douban: { get label() { return tr('豆瓣'); }, home: 'https://movie.douban.com', kinds: ['movie'], covers: true, url: (id) => `https://movie.douban.com/subject/${id}/` },
   openlibrary: { label: 'Open Library', home: 'https://openlibrary.org', kinds: ['book'], covers: false, url: (id) => `https://openlibrary.org/${/M$/.test(id) ? 'books' : 'works'}/${id}` },
   steam: { label: 'Steam', home: 'https://store.steampowered.com', kinds: ['game'], covers: true, url: (id) => `https://store.steampowered.com/app/${id}/` },
+  igdb: { label: 'IGDB', home: 'https://www.igdb.com', kinds: ['game'], covers: true, url: (id) => `https://www.igdb.com/games/${id}` },
 };
 
 /**

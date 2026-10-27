@@ -5,7 +5,7 @@
  */
 export type FieldValue = string | number | boolean | string[] | Array<{ url: string; label?: string }> | null;
 export type LookupKind = 'movie' | 'book' | 'game';
-export type LookupSource = 'tmdb' | 'douban' | 'openlibrary' | 'steam';
+export type LookupSource = 'tmdb' | 'douban' | 'openlibrary' | 'steam' | 'igdb';
 export type Lang = 'zh' | 'en';
 
 export interface LookupResult {
@@ -32,6 +32,9 @@ export interface LookupSourceStatus {
 export interface LookupEnv {
   /** TMDB：v3 API key（32 位十六进制）或 v4 读访问令牌（eyJ… 开头的长串），两种都认。 */
   TMDB_API_KEY?: string;
+  /** IGDB：Twitch 应用的 Client ID 和 Client Secret（client_credentials 换令牌）。 */
+  IGDB_CLIENT_ID?: string;
+  IGDB_CLIENT_SECRET?: string;
 }
 
 /** 来源出错：带 HTTP 状态码与中文说明，接口原样返回给界面。 */
