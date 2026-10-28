@@ -114,12 +114,12 @@
   --jcomp-r: 16px;
 }
 [data-theme='dark'] .journal-page.jf {
-  --jheat-empty: color-mix(in srgb, var(--text) 9%, var(--bg));
+  --jheat-empty: color-mix(in srgb, var(--text) 11%, var(--surface));
   --jcomp-bg: color-mix(in srgb, var(--text) 5%, var(--bg));
 }
 .jf-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
 }
@@ -178,7 +178,9 @@
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  padding: 2px;
+  padding: 4px 4px 2px;
+  /* 左边是更早的日子，滚得到：边上淡出，不露半截格子 */
+  mask-image: linear-gradient(to right, transparent 0, #000 18px);
 }
 .jheat-inner {
   display: inline-flex;
@@ -310,6 +312,10 @@
 .jf-filter-day {
   font-weight: 600;
   font-size: 17px;
+}
+.jf-filter-count {
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 .jf-filter-chip {
   display: inline-flex;
@@ -486,15 +492,11 @@
   gap: var(--space-5);
 }
 .jfeed-day-title {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
   margin: 0 0 var(--space-1);
-  padding: var(--space-2) 0;
-  background: var(--bg);
+  padding: var(--space-1) var(--space-1) 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-2);
@@ -631,10 +633,6 @@
 .jf.is-mobile .jpost {
   grid-template-columns: 42px minmax(0, 1fr) 28px;
   padding-left: var(--space-2);
-}
-.jf.is-mobile .jfeed-day-title {
-  position: static;
-  background: transparent;
 }
 
 /* 我的一天的「今天的日记」小卡：整块点进日记，右边「写一条」 */

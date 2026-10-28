@@ -55,7 +55,7 @@ export function JournalHeatmap({
     if (el) el.scrollLeft = el.scrollWidth;
   }, [data, layout]);
 
-  const cellPx = layout === 'mobile' ? 13 : 14;
+  const cellPx = layout === 'mobile' ? 13 : 12;
   const colorOf = (d: DateKey): string | null => {
     const info = days.get(d);
     if (!info || !palette) return null;

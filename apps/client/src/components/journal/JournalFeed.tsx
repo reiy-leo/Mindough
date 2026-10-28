@@ -21,7 +21,7 @@ export function dayTitle(day: DateKey, today: DateKey): string {
   return rel && rel !== formatDate(day) && rel !== date ? `${rel} · ${date}` : date;
 }
 
-export function JournalFeed({ groups, today }: { groups: ReadonlyArray<{ day: DateKey; posts: JournalPost[] }>; today: DateKey }) {
+export function JournalFeed({ groups, today, single }: { groups: ReadonlyArray<{ day: DateKey; posts: JournalPost[] }>; today: DateKey; /** 只看一天：日期已经写在筛选条上，这里不再写 */ single?: boolean }) {
   const store = useStore();
   const ui = useUi();
   const [confirm, setConfirm] = useState<JournalPost | null>(null);
@@ -33,10 +33,12 @@ export function JournalFeed({ groups, today }: { groups: ReadonlyArray<{ day: Da
     <div className="jfeed">
       {groups.map((g) => (
         <section key={g.day} className="jfeed-day" aria-label={dayTitle(g.day, today)}>
-          <h3 className="jfeed-day-title">
-            <span>{dayTitle(g.day, today)}</span>
-            <span className="jfeed-day-count">{tr('{n} 条', { n: g.posts.length })}</span>
-          </h3>
+          {!single && (
+            <h3 className="jfeed-day-title">
+              <span>{dayTitle(g.day, today)}</span>
+              <span className="jfeed-day-count">{tr('{n} 条', { n: g.posts.length })}</span>
+            </h3>
+          )}
           <ul className="jfeed-list">
             {g.posts.map((p) => (
               <Post key={p.id} post={p} onDelete={() => setConfirm(p)} />

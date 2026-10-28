@@ -219,10 +219,10 @@ export function dayMoodColor(moods: ReadonlyArray<string | null>, palette: Reado
   return mixOklab(moods.map((m) => (m && isMoodId(m) && palette[m]) || neutral));
 }
 
-/** 条数 → 深浅（0–1，和空格子的底色混）：1 条 55%、2 条 70%、3 条 85%、4 条以上 100%。 */
+/** 条数 → 深浅（0–1，和空格子的底色混）：1 条 62%、2 条 78%、3 条 90%、4 条以上 100%。 */
 export function heatStrength(count: number): number {
   if (count <= 0) return 0;
-  return [0.55, 0.7, 0.85][count - 1] ?? 1;
+  return [0.62, 0.78, 0.9][count - 1] ?? 1;
 }
 
 // ───────────── 显示 ─────────────

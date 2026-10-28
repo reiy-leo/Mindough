@@ -56,7 +56,8 @@ export function JournalPage({ date: wanted }: { date?: string }) {
 
   const all = store.list('journal_post');
   const range = useMemo(() => journalHeatRange(all, today), [all, today]);
-  const days = useMemo(() => postsByDay(all), [all]);
+  // 按心情筛着：活动图也只画这个心情的条目（哪些天有、有几条）
+  const days = useMemo(() => postsByDay(mood ? all.filter((p) => p.mood === mood) : all), [all, mood]);
   const counts = useMemo(() => moodCounts(all, range), [all, range]);
   const shown = useMemo(() => groupPostsByDay(filterPosts(all, { day, mood })), [all, day, mood]);
   const canWrite = !day || day === today;
@@ -72,6 +73,7 @@ export function JournalPage({ date: wanted }: { date?: string }) {
   const filterBar = filtered && (
     <div className="jf-filter" role="status">
       {day && <span className="jf-filter-day">{dayTitle(day, today)}</span>}
+      {day && shown.length > 0 && <span className="jf-filter-count">{tr('{n} 条', { n: shown[0]!.posts.length })}</span>}
       {mood && (
         <RacButton className="jf-filter-chip" aria-label={tr('不按「{mood}」筛', { mood: moodLabel(mood) })} onPress={() => setMood(null)}>
           <MoodIcon mood={mood} size={18} />
@@ -124,7 +126,7 @@ export function JournalPage({ date: wanted }: { date?: string }) {
     <>
       {filterBar}
       {canWrite && <JournalComposer ref={composer} onSend={send} />}
-      {empty || <JournalFeed groups={shown} today={today} />}
+      {empty || <JournalFeed groups={shown} today={today} single={!!day} />}
     </>
   );
 

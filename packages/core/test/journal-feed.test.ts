@@ -269,7 +269,7 @@ describe('Feed 流：颜色混合', () => {
     expect(dayMoodColor([], palette, '#888888')).toBeNull();
   });
   it('条数越多越深', () => {
-    expect([0, 1, 2, 3, 4, 9].map(heatStrength)).toEqual([0, 0.55, 0.7, 0.85, 1, 1]);
+    expect([0, 1, 2, 3, 4, 9].map(heatStrength)).toEqual([0, 0.62, 0.78, 0.9, 1, 1]);
   });
 });
 
