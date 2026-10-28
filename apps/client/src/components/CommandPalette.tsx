@@ -3,6 +3,7 @@ import { Dialog, Input, Modal, ModalOverlay, SearchField, Button as RacButton } 
 import { CornerDownLeft, FileDown, FolderOpen, NotebookPen, Plus, Search, Sun, SunDim, UserRound } from 'lucide-react';
 import { TASK_STATUS_LABEL, isFinished, libraryCopy, search, type SearchHit } from '@mindough/core';
 import { MoodIcon } from './journal/MoodIcon';
+import { requestJournalCompose } from '../lib/journal-compose';
 import { useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { navigate } from '../lib/router';
@@ -30,7 +31,7 @@ export function CommandPalette() {
   const hits = useMemo<SearchHit[]>(
     () =>
       search(
-        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item'), journal: store.list('journal_entry'), taskItems: store.list('task_item'), taskCategories: store.list('task_category'), categories: store.list('category') },
+        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item'), journal: store.list('journal_post'), taskItems: store.list('task_item'), taskCategories: store.list('task_category'), categories: store.list('category') },
         q,
         20,
       ),
@@ -39,11 +40,12 @@ export function CommandPalette() {
   const recent = useMemo(() => (q ? [] : store.tasks().filter((t) => !isFinished(t.status)).slice(-6).reverse()), [q, store, store.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = () => ui.setPaletteOpen(false);
-  // 「写今天的日记」：没输入时排最前；输入像「日记 / journal / 写」时也出来
+  // 「写日记」：没输入时排最前；输入像「日记 / journal / 写」时也出来。打开日记页、输入框拿焦点
   const showJournal = !q.trim() || /日记|journal|diary|^写/i.test(q.trim()); // i18n-ignore 匹配用的关键词
   const writeJournal = () => {
     close();
-    navigate({ page: 'journal', date: store.journalToday() });
+    requestJournalCompose();
+    navigate({ page: 'journal' });
   };
   // 「从滴答清单导入…」：没输入时排在日记后面；输入像「滴答 / dida / ticktick / 导入 / import」时也出来
   const showDida = !q.trim() || /滴答|dida|tick|导入|import/i.test(q.trim()); // i18n-ignore 匹配用的关键词
@@ -65,7 +67,7 @@ export function CommandPalette() {
     if (h.kind === 'task') ui.openEditor(h.id);
     else if (h.kind === 'person') navigate({ page: 'person', id: h.id });
     else if (h.kind === 'item') navigate({ page: 'libitem', typeId: h.item.type_id, id: h.id });
-    else if (h.kind === 'journal') navigate({ page: 'journal', date: h.entry.date });
+    else if (h.kind === 'journal') navigate({ page: 'journal', date: h.post.day });
     else navigate({ page: 'group', id: h.id });
   };
   const count = offset + (q ? hits.length : recent.length);
@@ -155,7 +157,7 @@ export function CommandPalette() {
                 <RacButton className="palette-main" onPress={writeJournal}>
                   <span className="thumb thumb-icon"><NotebookPen size={16} /></span>
                   <span className="palette-text">
-                    <span className="palette-title">{tr('写今天的日记')}</span>
+                    <span className="palette-title">{tr('写日记')}</span>
                   </span>
                 </RacButton>
               </li>
@@ -179,7 +181,7 @@ export function CommandPalette() {
                 return (
                   <li key={h.id} className={`palette-item${index === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(index)}>
                     <RacButton className="palette-main" onPress={() => openHit(h)}>
-                      <span className="thumb thumb-icon">{h.entry.mood ? <MoodIcon mood={h.entry.mood} size={22} /> : <NotebookPen size={16} />}</span>
+                      <span className="thumb thumb-icon">{h.post.mood ? <MoodIcon mood={h.post.mood} size={22} /> : <NotebookPen size={16} />}</span>
                       <span className="palette-text">
                         <span className="palette-title">{h.title}</span>
                         <span className="palette-snippet">

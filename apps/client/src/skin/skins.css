@@ -1047,37 +1047,62 @@
   background: color-mix(in srgb, var(--alert) 10%, transparent);
 }
 
-/* ───────── 日记（改版 B，Rei 2026-10-25）：情绪月历格子、心情大脸、写作区的平台形状 ───────── */
-/* Apple：圆角方块格子（像 macOS 小组件），心情大脸是白底圆 */
-[data-skin='apple'] .jcal-cell {
-  --cell-r: 12px;
+/* ───────── 日记 Feed 流（Rei 2026-10-28）：活动图格子、输入框、条目卡片的平台形状 ───────── */
+/* Apple：圆角小方块（像 macOS 小组件），输入框是大圆角卡片，条目分组是 inset grouped 列表 */
+[data-skin='apple'] .journal-page.jf {
+  --jcell-r: 3.5px;
+  --jcomp-r: 18px;
 }
-/* WinUI：CalendarView 式小圆角方格，写作区是阅读窗格（左边分隔线） */
-[data-skin='winui'] .jcal-cell {
-  --cell-r: 4px;
+[data-skin='apple'] .jf-heat,
+[data-skin='apple'] .jfeed-list {
+  border-color: transparent;
+  box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-[data-skin='winui'] .journal-wheel {
-  border-radius: 8px;
+/* WinUI：方一点的格子，输入框和列表是 8px 圆角卡片，发送按钮是强调色的 4px 圆角按钮 */
+[data-skin='winui'] .journal-page.jf {
+  --jcell-r: 2px;
+  --jcomp-r: 8px;
 }
-[data-skin='winui'] .journal-cta {
-  border-radius: 6px;
+[data-skin='winui'] .jcomposer-send {
+  border-radius: 4px;
 }
-/* Material 3：大圆角格子、写作区是 surface 容器，CTA 是 extended FAB 形状 */
-[data-skin='material'] .jcal-cell {
-  --cell-r: 16px;
+[data-skin='winui'] .jcomposer-tool,
+[data-skin='winui'] .jcomposer-mood.is-set {
+  border-radius: 4px;
 }
-[data-skin='material'] .journal-pane {
+[data-skin='winui'] .jcomposer:focus-within {
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-color: var(--border);
+}
+[data-skin='winui'] .jmoods-row {
+  border-radius: 4px;
+}
+/* Material 3：surface 容器、大圆角，格子圆一点，发送是 FAB 色的胶囊 */
+[data-skin='material'] .journal-page.jf {
+  --jcell-r: 4px;
+  --jcomp-r: 24px;
+  --jcomp-bg: var(--surface-2);
+}
+[data-skin='material'] .jf-heat,
+[data-skin='material'] .jfeed-list {
+  border: 0;
+  border-radius: 20px;
   background: var(--surface-2);
 }
-[data-skin='material'] .journal-wheel {
-  border-radius: 28px;
+[data-skin='material'] .jcomposer {
+  border: 0;
   box-shadow: none;
-  background: var(--surface-3);
 }
-[data-skin='material'] .journal-cta {
-  border-radius: 16px;
-  background: var(--accent);
-  color: var(--accent-contrast);
+[data-skin='material'] .jcomposer:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+[data-skin='material'] .jcomposer-send {
+  height: 36px;
+  padding: 0 18px 0 14px;
+  border-radius: 12px;
+}
+[data-skin='material'] .jmoods-row {
+  border-radius: 999px;
 }
 
 /* ═════════════ 三列布局的右列 / 手机整页详情（Rei 2026-10-23） ═════════════ */

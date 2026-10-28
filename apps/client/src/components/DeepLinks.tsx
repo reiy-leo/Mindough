@@ -7,6 +7,7 @@ import { titleOf } from '../lib/view';
 import { useStore } from '../store/StoreProvider';
 import { isTauri } from '../store/sqlite-tauri';
 import { tr } from '../lib/i18n';
+import { requestJournalCompose } from '../lib/journal-compose';
 
 type Ui = ReturnType<typeof useUi>;
 
@@ -37,8 +38,12 @@ export function runDeepLink(store: Store, ui: Ui, a: DeepLinkAction): void {
       navigate(a.route);
       return;
     case 'journal': {
-      // 今天 = 按「一天从几点开始」算的那天；不是真日期 → 打开今天并提示；将来的日子 → 打开那天（页面上写不了）并提示
-      if (a.date === 'today') return navigate({ page: 'journal', date: store.journalToday() });
+      // Feed 流（2026-10-28）：打开日记页并选中那天。今天 = 按「一天从几点开始」算的那天，输入框拿焦点；
+      // 不是真日期 → 打开全部并提示；将来的日子 → 选中那天（没有输入框）并提示
+      if (a.date === 'today') {
+        requestJournalCompose();
+        return navigate({ page: 'journal', date: store.journalToday() });
+      }
       if (!isDateKey(a.date)) {
         navigate({ page: 'journal' });
         return ui.toast({ tone: 'error', message: tr('没有这一天：{date}', { date: a.date }) });

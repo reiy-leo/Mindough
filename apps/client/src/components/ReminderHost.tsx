@@ -6,6 +6,7 @@ import { useUi } from '../lib/ui';
 import { useStore } from '../store/StoreProvider';
 import { navigate } from '../lib/router';
 import { tr } from '../lib/i18n';
+import { requestJournalCompose } from '../lib/journal-compose';
 
 export function ReminderHost() {
   const store = useStore();
@@ -17,7 +18,10 @@ export function ReminderHost() {
       startReminders({
         store,
         open: (id) => uiRef.current.openEditor(id),
-        openJournal: () => navigate({ page: 'journal', date: store.journalToday() }),
+        openJournal: () => {
+          requestJournalCompose();
+          navigate({ page: 'journal' });
+        },
         inApp: (_r, title, body, a) =>
           uiRef.current.toast(
             {

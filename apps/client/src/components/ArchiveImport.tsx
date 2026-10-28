@@ -129,7 +129,7 @@ function Preview({ plan, name, overwrite, setOverwrite }: { plan: ImportPlan; na
     ['library', (n) => tr('{n} 条资料', { n })],
     ['person', (n) => tr('{n} 位人物', { n })],
     ['type', (n) => tr('{n} 个资料库', { n })],
-    ['journal', (n) => tr('{n} 篇日记', { n })],
+    ['journal', (n) => tr('{n} 条日记', { n })],
     ['attachment', (n) => tr('{n} 个附件', { n })],
   ];
   const breakdown = kinds

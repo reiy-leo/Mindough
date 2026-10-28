@@ -497,7 +497,7 @@ function ArchiveRows() {
       toast({
         tone: 'success',
         message:
-          (c.journal ? tr('已导出 {n} 件任务、{j} 篇日记', { n: c.tasks, j: c.journal }) : tr('已导出 {n} 件任务', { n: c.tasks })) +
+          (c.journal ? tr('已导出 {n} 件任务、{j} 条日记', { n: c.tasks, j: c.journal }) : tr('已导出 {n} 件任务', { n: c.tasks })) +
           (c.attachments ? tr('，{a} 个附件', { a: c.attachments }) : '') +
           (c.missedImages ? tr('；{m} 张网上的图片没取到，照原链接写着', { m: c.missedImages }) : '') +
           (c.missingAttachments ? tr('；{m} 个附件的文件没取到，只写了记录', { m: c.missingAttachments }) : ''),
