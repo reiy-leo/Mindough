@@ -18,6 +18,7 @@ import { normalizeRange } from '../date-range';
 import { cleanQuick } from '../count';
 import type { CountConfig } from '../types';
 import { isDateKey, journalEntryId } from '../journal';
+import { migratedPostId, parseJournalDay } from '../journal-feed';
 import { isFileKey, safeFileName } from '../attachments';
 import { categoryFromCheckin, fillCategory } from '../categories';
 import {
@@ -35,6 +36,7 @@ import {
   type LibraryItem,
   type Person,
   type JournalEntry,
+  type JournalPost,
   type Attachment,
   type Pref,
   type TableName,
@@ -494,7 +496,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     add('person', 'person', p.path, name, row);
   }
 
-  // 日记：按日期认（id 由日期算，文件里的 id 只是核对）
+  // 日记：一个文件一天。2026-10-28 起每条一段（标记注释里有 id），按条导入；旧格式（没有标记）还是整篇进旧表，Store 再转成一条
   for (const p of parsed.filter(isJournal)) {
     const date = dateKey(p.fm.date) ?? (/^\d{4}-\d{2}-\d{2}$/.test(stemOf(p.path)) ? stemOf(p.path) : null);
     if (!date || !isDateKey(date)) {
@@ -503,6 +505,16 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     }
     const id = journalEntryId(date);
     if (p.fm.id !== undefined && (!isId(p.fm.id) || p.fm.id.trim() !== id)) warn(p.path, tr('id 和日期对不上，按日期导入'));
+    const posts = parseJournalDay(p.body);
+    if (posts) {
+      for (const x of posts) {
+        const created = iso(x.created) ?? now.toISOString();
+        const pid = x.id && isId(x.id) ? x.id.trim() : uuidv7(Date.parse(created) || now.getTime());
+        const row = fresh<Omit<JournalPost, 'updated_at' | 'deleted'>>({ id: pid, day: date, body_md: body(x.body, p.path), mood: x.mood?.trim() || null, created_at: created });
+        add('journal', 'journal_post', p.path, `${date} ${created.slice(11, 16)}`, row);
+      }
+      continue;
+    }
     const mood = str(p.fm.mood)?.trim() || null;
     const row = fresh<Omit<JournalEntry, 'updated_at' | 'deleted'>>({
       id,
@@ -617,6 +629,12 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
     if (missingPeople) warn(r.path, tr('有 {n} 个人物找不到，没关联', { n: missingPeople }));
   }
 
+  // 旧日记的附件挂在那天的 id 上：那天的旧日记、或它转来的那条（Feed 流）在这次导入里或库里就行
+  const journalOwnerOk = (ownerId: string) => {
+    if (seen.has(`journal_entry:${ownerId}`) || store.get('journal_entry', ownerId)) return true;
+    const pid = migratedPostId(ownerId);
+    return !!pid && (seen.has(`journal_post:${pid}`) || !!store.get('journal_post', pid));
+  };
   // 附件：_meta/attachments.json（挂的任务 / 日记要在这次导入里或库里）
   const attachmentFiles: ImportPlan['attachmentFiles'] = [];
   if (format === 'mindough') {
@@ -624,7 +642,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       const a = r as unknown as Attachment & { file?: unknown };
       const ownerId = a.owner_id.trim();
       const ownerOk =
-        a.owner_type === 'task' ? taskExists(ownerId) : a.owner_type === 'journal' ? seen.has(`journal_entry:${ownerId}`) || !!store.get('journal_entry', ownerId) : false;
+        a.owner_type === 'task' ? taskExists(ownerId) : a.owner_type === 'journal' ? journalOwnerOk(ownerId) : false;
       if (!ownerOk) {
         warn('_meta/attachments.json', tr('附件「{name}」挂的任务或日记找不到，没导入', { name: a.file_name }));
         continue;
@@ -708,7 +726,8 @@ export function applyImport(store: Store, plan: ImportPlan, opts: { overwrite?: 
 
   const active = new Set<string>();
   for (const e of plan.entries) {
-    const write = e.state === 'new' || (overwrite && e.state === 'existing');
+    // 日记的条目发了就不能改：已经有的不覆盖
+    const write = e.state === 'new' || (overwrite && e.state === 'existing' && e.table !== 'journal_post');
     if (write) put(e.table, e.table === 'journal_entry' ? ({ ...e.row, updated_at: '', deleted: false, base_at: store.journalBaseOf(e.id) } as BaseRow) : { ...e.row, updated_at: '', deleted: false });
     if (e.table === 'task' && (e.state === 'new' || overwrite)) active.add(e.id);
   }

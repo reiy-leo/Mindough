@@ -19,6 +19,7 @@ export * from './preview';
 export * from './describe';
 export * from './search';
 export * from './journal';
+export * from './journal-feed';
 export * from './lunar/index';
 export * from './attachments';
 export * from './attachment-cache';

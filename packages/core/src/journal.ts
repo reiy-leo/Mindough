@@ -77,6 +77,14 @@ export class FutureJournalError extends Error {
   }
 }
 
+/** 日记的条目发了就不能改（Rei 2026-10-28：「a feed提交之后就不能修改了，心情也不能修改」）。 */
+export class JournalPostLockedError extends Error {
+  constructor() {
+    super(tr('发出去的日记不能改'));
+    this.name = 'JournalPostLockedError';
+  }
+}
+
 // ───────────── 心情 ─────────────
 
 /** 心情的稳定 id（存进数据库，不改名）。顺序 = 显示顺序，从好到不好。 */

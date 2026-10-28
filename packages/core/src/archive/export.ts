@@ -1,12 +1,14 @@
 /**
  * 导出成 Markdown 文件夹（格式见 docs/EXPORT.md）：一件任务一个 .md（YAML front matter + 正文），
  * 组 = 一层文件夹（_group.md 记组的属性），资料库 library/<库名>/<名字>.md，人物 people/<名字>.md，
- * 日记 journal/YYYY/MM/YYYY-MM-DD.md（front matter 只有 id、date、mood、created），附件 attachments/<文件名>（记录在 _meta/attachments.json，正文后面附一段链接），类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
+ * 日记 journal/YYYY/MM/YYYY-MM-DD.md（一天一个文件，每条一段：标记注释记 id / created / mood，见 journal-feed.ts 的 formatJournalDay），附件 attachments/<文件名>（记录在 _meta/attachments.json，正文后面附一段链接），类型、打卡分类、打卡记录等放 _meta/*.json，图片放 assets/ 并把正文里的引用改成相对路径。
  * id 才是身份：文件名只给人看，改名不影响再导入。
  */
 import type { Store } from '../store';
 import { firstLine } from '../preview';
 import { toDateKey } from '../dates';
+import { journalEntryId } from '../journal';
+import { entryIdOfPost, formatJournalDay, groupPostsByDay } from '../journal-feed';
 import { libraryCopy } from '../library';
 import { dataLabel, tr } from '../i18n';
 import { fileKind, sortAttachments, uniqueFileName } from '../attachments';
@@ -170,6 +172,11 @@ const dateKey = (iso: string) => (Number.isFinite(Date.parse(iso)) ? toDateKey(n
 export function exportableAttachments(store: Store): Attachment[] {
   const tasks = new Set(store.tasks().map((t) => t.id));
   const journal = new Set(store.list('journal_entry').map((e) => e.id));
+  // 旧日记转来的那条还在（旧表那行可能不在，比如导入进来的）也算
+  for (const p of store.list('journal_post')) {
+    const e = entryIdOfPost(p.id);
+    if (e) journal.add(e);
+  }
   return sortAttachments(store.list('attachment').filter((a) => (a.owner_type === 'task' && tasks.has(a.owner_id)) || (a.owner_type === 'journal' && journal.has(a.owner_id))));
 }
 
@@ -339,15 +346,23 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
     files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(p.note_md, path)) });
   }
 
-  // ── 日记：journal/YYYY/MM/YYYY-MM-DD.md（「这一天」汇总是算出来的，不导出） ──
-  const journal = store
-    .list('journal_entry')
-    .filter((e) => e.body_md.trim() || e.mood || attachmentsOf.has(`journal:${e.id}`))
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  for (const e of journal) {
-    const path = `journal/${e.date.slice(0, 4)}/${e.date.slice(5, 7)}/${e.date}.md`;
-    const fm = { id: e.id, date: e.date, mood: e.mood ?? undefined, created: e.created_at };
-    files.push({ path, data: utf8(stringifyFrontMatter(fm) + images.body(e.body_md, path) + block('journal', e.id, path)) });
+  // ── 日记：journal/YYYY/MM/YYYY-MM-DD.md，一天一个文件，每条一段（2026-10-28 改成 Feed 流） ──
+  const days: Array<{ day: string; posts: ReturnType<typeof groupPostsByDay>[number]['posts'] }> = groupPostsByDay(store.list('journal_post')).reverse();
+  // 旧日记只挂了附件、没转出条目的那天：也写一个文件（附件要挂在它上面）
+  const haveDay = new Set(days.map((d) => d.day));
+  for (const e of store.list('journal_entry'))
+    if (!haveDay.has(e.date) && attachmentsOf.has(`journal:${e.id}`)) {
+      days.push({ day: e.date, posts: [] });
+      haveDay.add(e.date);
+    }
+  days.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  let journalPosts = 0;
+  for (const { day, posts } of days) {
+    const path = `journal/${day.slice(0, 4)}/${day.slice(5, 7)}/${day}.md`;
+    const entryId = journalEntryId(day);
+    const fm = { id: entryId, date: day, posts: posts.length };
+    journalPosts += posts.length;
+    files.push({ path, data: utf8(stringifyFrontMatter(fm) + formatJournalDay(posts, (md) => images.body(md, path)) + block('journal', entryId, path)) });
   }
 
   // ── _meta ──
@@ -356,7 +371,7 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
     groups: groups.length,
     library: items.length,
     people: people.length,
-    journal: journal.length,
+    journal: journalPosts,
     images: images.files.size,
     attachments: attachments.length,
     missingAttachments: attachments.length - attachmentPath.size,

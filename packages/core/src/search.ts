@@ -2,9 +2,10 @@
 import { fieldText, taskTitle } from './preview';
 import { itemSubtitle, mergedData } from './library';
 import { isHiddenFieldKey } from './lookup';
-import { isFinished, type Category, type Group, type JournalEntry, type LibraryItem, type Person, type Task, type TaskCategory, type TaskItem, type TaskPerson, type TaskType } from './types';
+import { isFinished, type Category, type Group, type JournalPost, type LibraryItem, type Person, type Task, type TaskCategory, type TaskItem, type TaskPerson, type TaskType } from './types';
 import { formatDate } from './dates';
 import { moodLabel } from './journal';
+import { postTime } from './journal-feed';
 
 import { dataLabel, tr, trc } from './i18n';
 export type SearchHit =
@@ -12,8 +13,8 @@ export type SearchHit =
   | { kind: 'person'; id: string; title: string; snippet: string; score: number; person: Person }
   | { kind: 'group'; id: string; title: string; snippet: string; score: number; group: Group }
   | { kind: 'item'; id: string; title: string; snippet: string; score: number; item: LibraryItem; type: TaskType | undefined }
-  /** 日记：title = 日期（「2026年10月17日 周六」），snippet = 命中附近的文字。排在任务后面。 */
-  | { kind: 'journal'; id: string; title: string; snippet: string; score: number; entry: JournalEntry };
+  /** 日记的一条（2026-10-28 起是 Feed 流）：title = 日期 + 时间（「2026年10月17日 · 14:30」），snippet = 命中附近的文字。排在任务后面。 */
+  | { kind: 'journal'; id: string; title: string; snippet: string; score: number; post: JournalPost };
 
 export interface SearchIndexInput {
   tasks: readonly Task[];
@@ -23,8 +24,8 @@ export interface SearchIndexInput {
   taskPeople: readonly TaskPerson[];
   /** 资料库条目：任务按它补全片名等字段，条目本身也能搜到。 */
   items?: readonly LibraryItem[];
-  /** 日记（搜正文和心情的名字）。 */
-  journal?: readonly JournalEntry[];
+  /** 日记的条目（搜正文和心情的名字）。 */
+  journal?: readonly JournalPost[];
   /** 多类型与多资料（Rei 2026-10-28）：任务挂的其余资料、类型的名字也算进去。 */
   taskItems?: readonly TaskItem[];
   taskCategories?: readonly TaskCategory[];
@@ -121,12 +122,13 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     const s = scoreText(g.name, terms);
     if (s > 0) hits.push({ kind: 'group', id: g.id, title: g.name, snippet: trc('属性', '项目'), score: s + 4, group: g });
   }
-  for (const e of input.journal ?? []) {
-    if (e.deleted || !(e.body_md.trim() || e.mood)) continue;
-    const date = formatDate(e.date, { year: true });
-    const s = scoreText(`${e.body_md} ${moodLabel(e.mood)} ${e.date} ${date}`, terms);
+  for (const p of input.journal ?? []) {
+    if (p.deleted || !(p.body_md.trim() || p.mood)) continue;
+    const date = formatDate(p.day, { year: true });
+    const s = scoreText(`${p.body_md} ${moodLabel(p.mood)} ${p.day} ${date}`, terms);
+    const time = postTime(p.created_at);
     // 比任务低一点（同样命中时任务在前）
-    if (s > 0) hits.push({ kind: 'journal', id: e.id, title: date, snippet: snippetAround(e.body_md.replace(/<\/?(details|summary)[^>]*>/gi, ' '), terms[0]!), score: s - 0.5, entry: e });
+    if (s > 0) hits.push({ kind: 'journal', id: p.id, title: time ? `${date} · ${time}` : date, snippet: snippetAround(p.body_md, terms[0]!) || moodLabel(p.mood), score: s - 0.5, post: p });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }

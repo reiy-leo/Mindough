@@ -403,6 +403,21 @@ export interface JournalEntry extends BaseRow {
 }
 
 /**
+ * 日记的一条（Rei 2026-10-28 改成 Feed 流：「一天可以添加很多条。每一条都可以标记心情」「a feed提交之后就不能修改了，心情也不能修改」）。
+ * SQLite 迁移 v13。只追加，和 check_in 一样：发出去以后正文、心情、日子都不能改，只能删（打墓碑）和撤销删除。
+ * 新写的 id 是随机的 UUIDv7；旧的一天一篇（journal_entry）转过来的，id 由那篇的 id 算（journal-feed.ts 的 migratedPostId），各设备转出来一样。
+ */
+export interface JournalPost extends BaseRow {
+  /** 算在哪天（按「一天从几点开始」，默认 5 点）。 */
+  day: DateKey;
+  body_md: string;
+  /** 心情的稳定 id（journal.ts 的 MOOD_IDS），可空；不认识的（新版本加的）原样保留。 */
+  mood: string | null;
+  /** 发出去的时刻（列表里显示的时间、同一天里的先后都按它）。 */
+  created_at: Timestamp;
+}
+
+/**
  * 附件（Rei 2026-10-17）：挂在任务详情或日记上的文件。SQLite 迁移 v7。
  * 原文件不压缩、不改尺寸，传到 R2（Worker /api/files，要登录才能读）；图片另有一张小缩略图（thumb_key）给网格用。
  * 还没传上去时 r2_key 为 null：文件在本机的上传队列里（lib/attachments-queue.ts），别的设备显示「还在另一台设备上」。
@@ -444,6 +459,7 @@ export interface TableMap {
   library_item: LibraryItem;
   pref: Pref;
   journal_entry: JournalEntry;
+  journal_post: JournalPost;
   attachment: Attachment;
 }
 
@@ -466,6 +482,7 @@ export const TABLES: readonly TableName[] = [
   'task_link',
   'pref',
   'journal_entry',
+  'journal_post',
   'attachment',
 ];
 

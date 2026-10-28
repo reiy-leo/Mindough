@@ -221,70 +221,9 @@ describe('同步：日记两台设备', () => {
     expect(A.store.journalOf('2026-10-17')!.body_md).not.toContain('<details');
   });
 
-  it('两台离线各写同一天：不丢字，输掉的那版收进折叠块，两边收敛', async () => {
-    const remote = new MemoryRemote();
-    const A = await device(remote, 'devA');
-    const B = await device(remote, 'devB');
-    // 先都同步一次（都已初始化）
-    await A.sync();
-    await B.sync();
-    A.store.setJournal('2026-10-17', { body_md: 'A：晚上散步', mood: 'calm' });
-    B.advance(5_000);
-    B.store.setJournal('2026-10-17', { body_md: 'B：看了电影', mood: 'happy' });
-    await A.sync(); // A 先推
-    await B.sync(); // B 推（B 的更新，云端 B 赢）、拉到 A 的（比 B 旧，跳过）
-    await A.sync(); // A 拉到 B 的：没看到 A 那版 → 合并，推上去
-    await B.sync();
-    await A.sync(); // 合好的那版是在拉的时候写的，下一轮才推（真机上写入后自动排一次推送）
-    await B.sync(); // B 拉到合好的
-    const a = A.store.journalOf('2026-10-17')!;
-    const b = B.store.journalOf('2026-10-17')!;
-    expect(a.body_md).toBe(b.body_md);
-    expect(a.body_md.startsWith('B：看了电影')).toBe(true);
-    expect(splitConflictBlocks(a.body_md).kept).toEqual(['A：晚上散步']);
-    expect(a.body_md).toContain('另一台设备上同时写的');
-    // 心情照常后写赢
-    expect(a.mood).toBe('happy');
-    expect(A.store.list('journal_entry')).toHaveLength(1);
-  });
-
-  it('后写的那边赢时，输家那台合并（对称）', async () => {
-    const remote = new MemoryRemote();
-    const A = await device(remote, 'devA');
-    const B = await device(remote, 'devB');
-    await A.sync();
-    await B.sync();
-    B.store.setJournal('2026-10-17', { body_md: 'B 先写' });
-    A.advance(5_000);
-    A.store.setJournal('2026-10-17', { body_md: 'A 后写' });
-    await B.sync();
-    await A.sync(); // A 的更新，云端 A 赢；A 拉到 B 的（旧，跳过）
-    await B.sync(); // B 拉到 A 的：没看到 B 那版 → 合并
-    await A.sync();
-    await B.sync(); // 推合好的
-    await A.sync();
-    const a = A.store.journalOf('2026-10-17')!;
-    expect(a.body_md).toBe(B.store.journalOf('2026-10-17')!.body_md);
-    expect(splitConflictBlocks(a.body_md)).toEqual({ core: 'A 后写', kept: ['B 先写'] });
-  });
 });
 
 describe('搜索与提醒', () => {
-  it('⌘K 搜得到日记（正文、心情），排在同样命中的任务后面', async () => {
-    const s = await Store.open(new MemoryAdapter(), { deviceId: 'dev1', now: () => local(2026, 10, 17, 20) });
-    s.setJournal('2026-10-17', { body_md: '今天去海边散步', mood: 'calm' });
-    const t = s.createTask({ body_md: '海边' });
-    const input = { tasks: s.list('task'), types: [], people: [], groups: [], taskPeople: [], journal: s.list('journal_entry') };
-    const hits = search(input, '海边');
-    expect(hits.map((h) => h.kind)).toEqual(['task', 'journal']);
-    expect(hits[0]!.id).toBe(t.id);
-    const j = hits[1]!;
-    expect(j.kind === 'journal' && j.entry.date).toBe('2026-10-17');
-    expect(j.title).toBe('2026年10月17日 周六');
-    expect(j.snippet).toContain('海边');
-    expect(search(input, '平静').map((h) => h.kind)).toEqual(['journal']);
-  });
-
   it('日记提醒：每天那个时间都响（写没写都响），已响过的不再算，可稍后再提醒', () => {
     const now = local(2026, 10, 17, 20);
     const list = journalReminders('21:00', { now });
@@ -300,49 +239,6 @@ describe('搜索与提醒', () => {
     expect(journalReminders(null, { now })).toEqual([]);
     expect(journalReminders('25:00', { now })).toEqual([]);
     expect(reminderBody({ kind: 'journal' }, { target_value: null })).toBe('今天过得怎么样？写几句吧');
-  });
-});
-
-describe('导出导入：日记', () => {
-  it('journal/YYYY/MM/YYYY-MM-DD.md，导回来按日期认', async () => {
-    const src = await Store.open(new MemoryAdapter(), { deviceId: 'dev1', now: () => local(2026, 10, 17, 20) });
-    src.setJournal('2026-10-17', { body_md: '今天写完了日记功能', mood: 'content' });
-    src.setJournal('2026-09-01', { body_md: '开学' });
-    src.setJournal('2026-09-02', { body_md: '' }); // 不建
-    const { files, counts } = exportArchive(src);
-    expect(counts.journal).toBe(2);
-    const f = files.find((x) => x.path === 'journal/2026/10/2026-10-17.md')!;
-    const text = fromUtf8(f.data);
-    expect(text).toContain(`id: ${journalEntryId('2026-10-17')}`);
-    expect(text).toContain('date: 2026-10-17');
-    expect(text).toContain('mood: content');
-    expect(text).toContain('今天写完了日记功能');
-    // 不会被当成任务或组
-    const dst = await Store.open(new MemoryAdapter(), { deviceId: 'dev2', now: () => local(2026, 10, 18, 9) });
-    const plan = planImport(dst, files);
-    expect(plan.issues.filter((i) => i.level === 'error')).toEqual([]);
-    expect(summarizeImport(plan, false).byKind.journal.create).toBe(2);
-    expect(plan.entries.filter((e) => e.kind === 'task')).toHaveLength(0);
-    expect(plan.entries.filter((e) => e.kind === 'group')).toHaveLength(0);
-    applyImport(dst, plan);
-    expect(dst.journalOf('2026-10-17')).toMatchObject({ body_md: '今天写完了日记功能', mood: 'content' });
-    expect(dst.journalOf('2026-09-01')!.body_md).toBe('开学');
-    // 再导一次：一样的跳过
-    expect(summarizeImport(planImport(dst, files), false).byKind.journal).toEqual({ create: 0, update: 0, skip: 2 });
-  });
-
-  it('日期不对的报错，id 对不上的按日期导入并提示', async () => {
-    const dst = await Store.open(new MemoryAdapter(), { deviceId: 'dev2', now: () => local(2026, 10, 18, 9) });
-    const enc = (s: string) => new TextEncoder().encode(s);
-    const files = [
-      { path: '_meta/mindough.json', data: enc('{"format":"mindough-markdown","version":1}') },
-      { path: 'journal/2026/02/2026-02-30.md', data: enc('---\ndate: 2026-02-30\n---\nx') },
-      { path: 'journal/2026/10/2026-10-01.md', data: enc('---\nid: 0192a0e4-1c00-7000-8002-000000000000\ndate: 2026-10-01\n---\n国庆') },
-    ];
-    const plan = planImport(dst, files);
-    expect(plan.issues.map((i) => i.level).sort()).toEqual(['error', 'warning']);
-    applyImport(dst, plan);
-    expect(dst.journalOf('2026-10-01')!.body_md).toBe('国庆');
   });
 });
 

@@ -41,8 +41,9 @@ import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
 import { parseHlc } from './hlc';
-import { FutureJournalError, JOURNAL_PREFS, canWriteJournal, conflictSummary, isDateKey, isJournalConflict, journalEntryId, journalToday, mergeJournalConflict, normalizeDayStart, type MoodId } from './journal';
-import type { Attachment, AttachmentOwnerType, JournalEntry } from './types';
+import { FutureJournalError, JOURNAL_PREFS, JournalPostLockedError, canWriteJournal, isDateKey, journalEntryId, journalToday, normalizeDayStart, type MoodId } from './journal';
+import type { Attachment, AttachmentOwnerType, JournalEntry, JournalPost } from './types';
+import { canSendPost, entryIdOfPost, planJournalMigration, sortPosts } from './journal-feed';
 import { renamedFileName, safeFileName, sortAttachments } from './attachments';
 export interface StoreOptions {
   deviceId?: string;
@@ -192,6 +193,7 @@ export class Store {
     store.settleMerges();
     store.settleCategories();
     store.backfillRefs();
+    store.adoptJournalEntries([...store.tables.journal_entry.values()]);
     await store.flush();
     return store;
   }
@@ -298,6 +300,8 @@ export class Store {
   /** 写一批行：补 updated_at，改内存，通知，再异步落盘。 */
   write(changes: Array<{ table: TableName; row: BaseRow }>): void {
     if (!changes.length) return;
+    // 日记的条目发了就不能改（Rei 2026-10-28）：只许打墓碑、撤销删除
+    for (const c of changes) if (c.table === 'journal_post') this.assertPostUnchanged(c.row as JournalPost);
     const stampOne = (c: { table: TableName; row: BaseRow }): Change => {
       const row = { ...c.row, updated_at: this.clock.tick() };
       // 类型：旧客户端只认 checkin_category_id，写任务时抄一份过去
@@ -316,9 +320,10 @@ export class Store {
     if (this.batchBuffer) {
       this.batchBuffer.push(...stamped);
       this._version++;
-      return;
-    }
-    this.commit(stamped);
+    } else this.commit(stamped);
+    // 本机写了旧表（导入旧格式的日记）、给旧日记加了附件：同样转成条目
+    const entries = this.touchedEntries(stamped);
+    if (entries.length) this.adoptJournalEntries(entries);
   }
 
   /** 把 fn 里的所有写入合并成一次通知 + 一次落盘（导入、演示数据用）。 */
@@ -356,8 +361,6 @@ export class Store {
    */
   applyRemote(changes: readonly Change[]): number {
     const applied: Change[] = [];
-    /** 日记同步保护：拉下来的一版没看到本机那版，合好的新一版（作为本机写入）。 */
-    const journalMerges: JournalEntry[] = [];
     for (const c of changes) {
       const table = this.tables[c.table] as Map<string, BaseRow> | undefined;
       if (!table || !c.row?.id || typeof c.row.updated_at !== 'string') continue;
@@ -372,15 +375,18 @@ export class Store {
       const row = { ...c.row } as BaseRow;
       // 旧客户端写来的项目分类没有新列：从本机那行补，别把图标、不显示、顺序冲掉
       if (c.table === 'category') Object.assign(row, fillCategory(row as Category, cur as Category | undefined));
+      // 旧的一天一篇（旧客户端还在写）：照存，下面再转成 Feed 的条目。
+      // 同步保护（输家收进折叠块）是写的那台设备做的；这版只读不写旧表，不再合并（2026-10-28 改版）。
       if (c.table === 'journal_entry') {
         const j = row as JournalEntry;
         if (j.mood === undefined) j.mood = null;
         if (j.base_at === undefined) j.base_at = null;
         if (typeof j.body_md !== 'string') j.body_md = '';
-        if (cur && isJournalConflict(cur as JournalEntry, j)) {
-          const merged = mergeJournalConflict(j.body_md, (cur as JournalEntry).body_md, conflictSummary(cur.updated_at));
-          if (merged !== null) journalMerges.push({ ...j, body_md: merged, base_at: j.updated_at });
-        }
+      }
+      if (c.table === 'journal_post') {
+        const p = row as JournalPost;
+        if (p.mood === undefined) p.mood = null;
+        if (typeof p.body_md !== 'string') p.body_md = '';
       }
       if (c.table === 'task') {
         const t = row as Task;
@@ -409,6 +415,9 @@ export class Store {
     const legacy: Change[] = [];
     for (const c of applied) if (c.table === 'task' && !c.row.deleted) legacy.push(...this.legacyLinks(c.row as Task));
     applied.push(...legacy);
+    // 旧客户端写来的一天一篇：转成 Feed 的条目（不进 outbox，各设备各转一遍结果一样）
+    const entries = this.touchedEntries(applied);
+    if (entries.length) applied.push(...this.journalMigrationRows(entries));
     this._version++;
     for (const fn of this.listeners) fn();
     this.pending = this.pending
@@ -418,8 +427,6 @@ export class Store {
     if (applied.some((c) => c.table === 'library_item' || c.table === 'person' || c.table === 'task' || c.table === 'task_person')) this.settleMerges();
     // 类型：拉下来的有同名的就并、指着被并掉的改指留下的
     if (applied.some((c) => c.table === 'category' || c.table === 'task' || c.table === 'group')) this.settleCategories();
-    // 日记：赢家内容 + 末尾折叠块收着本机那版，作为一次新的本机写入推上去（另一台看到的 base_at 就是赢家，不会再合）
-    if (journalMerges.length) this.write(journalMerges.map((row) => ({ table: 'journal_entry' as const, row })));
     return applied.length;
   }
 
@@ -1553,6 +1560,92 @@ export class Store {
     if (cur && !cur.deleted) rows.push({ table: 'journal_entry', row: { ...cur, deleted: true } });
     for (const a of this.list('attachment')) if (a.owner_type === 'journal' && a.owner_id === id) rows.push({ table: 'attachment', row: { ...a, deleted: true } });
     if (rows.length) this.write(rows);
+  }
+
+  // ───────────── 日记 Feed 流（Rei 2026-10-28） ─────────────
+
+  /** 全部条目（没删的），新的在前。 */
+  journalPosts(): JournalPost[] {
+    return sortPosts(this.list('journal_post'));
+  }
+
+  /**
+   * 发一条：算在「今天」（按「一天从几点开始」），id 随机。正文空又没心情不发（返回 undefined）。
+   * 发了就不能改正文和心情（write 里拦着），只能 deleteJournalPost。
+   */
+  addJournalPost(input: { body_md: string; mood?: MoodId | string | null }): JournalPost | undefined {
+    const body = input.body_md.replace(/\s+$/, '');
+    const mood = input.mood || null;
+    if (!canSendPost(body, mood)) return undefined;
+    const now = this.now();
+    const row: JournalPost = { id: uuidv7(now.getTime()), updated_at: '', deleted: false, day: this.journalToday(now), body_md: body, mood, created_at: now.toISOString() };
+    this.write([{ table: 'journal_post', row }]);
+    return this.tables.journal_post.get(row.id);
+  }
+
+  /** 删一条（墓碑，会同步）。返回删之前那条，撤销时交给 restoreJournalPost。 */
+  deleteJournalPost(id: string): JournalPost | undefined {
+    const cur = this.get('journal_post', id);
+    if (!cur) return undefined;
+    this.write([{ table: 'journal_post', row: { ...cur, deleted: true } }]);
+    return cur;
+  }
+
+  /** 撤销删除：墓碑翻回来（新的 HLC，比墓碑新，别的设备也跟着恢复）。 */
+  restoreJournalPost(id: string): JournalPost | undefined {
+    const cur = this.tables.journal_post.get(id);
+    if (!cur || !cur.deleted) return cur && !cur.deleted ? cur : undefined;
+    this.write([{ table: 'journal_post', row: { ...cur, deleted: false } }]);
+    return this.tables.journal_post.get(id);
+  }
+
+  /** 旧日记转来的条目，旧日记上的附件跟着它显示（只看第 0 条：正文那条）。 */
+  attachmentsOfPost(post: Pick<JournalPost, 'id'>): Attachment[] {
+    const entryId = entryIdOfPost(post.id);
+    if (!entryId || !post.id.endsWith('-000000000000')) return [];
+    return this.attachmentsOf('journal', entryId);
+  }
+
+  private assertPostUnchanged(next: JournalPost) {
+    const cur = this.tables.journal_post.get(next.id);
+    if (!cur) return;
+    if (cur.body_md !== next.body_md || (cur.mood ?? null) !== (next.mood ?? null) || cur.day !== next.day || cur.created_at !== next.created_at) throw new JournalPostLockedError();
+  }
+
+  /** 这批改动碰到的旧日记：旧表的行本身，或挂在旧日记上的附件。 */
+  private touchedEntries(changes: readonly Change[]): JournalEntry[] {
+    const out = new Map<string, JournalEntry>();
+    for (const c of changes) {
+      if (c.table === 'journal_entry') out.set(c.row.id, c.row as JournalEntry);
+      else if (c.table === 'attachment' && (c.row as Attachment).owner_type === 'journal') {
+        const e = this.tables.journal_entry.get((c.row as Attachment).owner_id);
+        if (e) out.set(e.id, e);
+      }
+    }
+    return [...out.values()];
+  }
+
+  /** 旧的一天一篇要写进 journal_post 的行（直接改内存，调用方落盘）。 */
+  private journalMigrationRows(entries: readonly JournalEntry[]): Change[] {
+    const attached = new Set<string>();
+    for (const a of this.tables.attachment.values()) if (!a.deleted && a.owner_type === 'journal') attached.add(a.owner_id);
+    const out: Change[] = [];
+    for (const e of entries) {
+      for (const row of planJournalMigration(e, (id) => this.tables.journal_post.get(id), attached.has(e.id))) {
+        this.tables.journal_post.set(row.id, row);
+        out.push({ table: 'journal_post', row });
+      }
+    }
+    return out;
+  }
+
+  /** 旧日记转成条目并落盘（不进 outbox）。打开时、本机写了旧表时用。 */
+  private adoptJournalEntries(entries: readonly JournalEntry[]) {
+    const rows = this.journalMigrationRows(entries);
+    if (!rows.length) return;
+    this._version++;
+    for (const fn of this.listeners) fn();
+    this.pending = this.pending.then(() => this.adapter.applyRemoteChanges(rows)).catch((err) => this.opts.onError?.(err));
   }
 
   // ───────────── 附件 ─────────────

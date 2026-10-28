@@ -68,6 +68,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   task_link: { a_task_id: 'text', b_task_id: 'text', note: 'text', created_at: 'text' },
   pref: { key: 'text', value: 'json' },
   journal_entry: { date: 'text', body_md: 'text', mood: 'text?', base_at: 'text?', created_at: 'text' },
+  journal_post: { day: 'text', body_md: 'text', mood: 'text?', created_at: 'text' },
   attachment: {
     owner_type: 'text',
     owner_id: 'text',
@@ -293,6 +294,19 @@ CREATE TABLE IF NOT EXISTS "task_item" (
 CREATE INDEX IF NOT EXISTS "task_item_task" ON "task_item" ("task_id");
 CREATE INDEX IF NOT EXISTS "task_item_item" ON "task_item" ("item_id");
 ALTER TABLE "task" ADD COLUMN "refs_mirror" TEXT;
+`,
+  },
+  {
+    // Rei 2026-10-28：日记改成 Feed 流，一天多条、发了不能改（docs/JOURNAL.md 顶部）。
+    // 只建表；旧的一天一篇转成一条在 Store 打开时做（行 id 要用 journal-feed.ts 算），不进 outbox。旧表留着给旧客户端。
+    version: 13,
+    name: '日记 Feed 流（journal_post）',
+    sql: `
+CREATE TABLE IF NOT EXISTS "journal_post" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "day" TEXT NOT NULL, "body_md" TEXT NOT NULL DEFAULT '', "mood" TEXT, "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "journal_post_day" ON "journal_post" ("day");
 `,
   },
 ];

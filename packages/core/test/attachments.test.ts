@@ -283,7 +283,10 @@ describe('导出 / 导入', () => {
     expect(plan.attachmentFiles.map((f) => f.path).sort()).toEqual(['attachments/notes.md', 'attachments/photo.jpg', 'attachments/收据 (1) 2.PDF', 'attachments/收据 (1).pdf']);
     const receipt = applyImport(dst, plan);
     expect(dst.get('task', s.task.id)?.body_md).toBe(s.task.body_md);
-    expect(dst.get('journal_entry', s.j.id)?.body_md).toBe('');
+    // 只有附件的旧日记转成了一条空正文的条目（Feed 流），附件跟着它
+    const jp = dst.journalPosts().find((p) => p.day === s.date)!;
+    expect(jp.body_md).toBe('');
+    expect(dst.attachmentsOfPost(jp)).toHaveLength(1);
     const got = dst.attachmentsOf('task', s.task.id);
     expect(got.map((a) => a.id)).toEqual([s.pdf.id, s.img.id, s.same.id, s.missing.id]);
     expect(dst.get('attachment', s.img.id)).toMatchObject({ file_name: 'photo.jpg', width: 40, height: 30, r2_key: null, thumb_key: null, size: 3 });
