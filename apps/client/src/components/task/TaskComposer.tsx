@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { Bell, CalendarDays, CircleHelp, CornerDownRight, Link2, Shapes, Sparkles, Users, X } from 'lucide-react';
-import { PLAIN_TYPE_ID, canRemind, episodeOf, findEpisode, firstLine, formatEpisode, stripEpisode, formatTaskDate, formatTaskDateRange, formatTaskTime, normalizeRange, shouldJoinMyDay, hasLibrary, isPersonLibrary, libraryCopy, taskFieldsOf, toDateKey, type CompletionMode, type FieldValue, type NewTaskInput, type Store, type Task } from '@mindough/core';
+import { Bell, CalendarDays, CircleHelp, CornerDownRight, Library, Link2, Shapes, Sparkles, Tag, X } from 'lucide-react';
+import { PLAIN_TYPE_ID, canRemind, findEpisode, firstLine, formatEpisode, formatTaskDate, formatTaskDateRange, formatTaskTime, normalizeRange, shouldJoinMyDay, hasLibrary, isPersonLibrary, taskFieldsOf, toDateKey, type CompletionMode, type FieldDef, type FieldValue, type LibraryEntry, type NewTaskInput, type Store, type Task, type TaskType } from '@mindough/core';
 import { newCountConfig, shownFields } from '@mindough/core';
 import { useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
@@ -9,14 +9,11 @@ import { useSettings } from '../../lib/settings';
 import { useDateDisplay } from '../../lib/date-display';
 import { Button, PopoverPanel, Sheet, Tip } from '../../ui/primitives';
 import { LazyMdEditor } from '../editor/LazyMdEditor';
-import { formatRemindTime, RemindPanel } from './RemindPanel';
-import { CategoryPicker } from '../CategoryPicker';
-import { AvatarStack } from '../Avatar';
-import { typeIcon } from '../../lib/icons';
+import { RemindPanel } from './RemindPanel';
+import { CategoryLabels, CategoryList } from '../CategoryPicker';
 import { titleOf } from '../../lib/view';
-import { ItemCard, ItemEditor, LibraryPicker, draftEntry, emptyDraft, saveDraft, type ItemDraft } from '../library/Library';
-import { createItemFromLookup } from '../../lib/lookup';
-import { CompletionChoice, CompletionSentence, GroupList, PeopleList, RepeatEditor, TypeFields, TypeGrid, modeDefaults, type CompletionValue } from './pickers';
+import { RefList, RefPicker, type RefKey } from '../library/RefPicker';
+import { CompletionChoice, CompletionSentence, GroupList, RepeatEditor, TypeFields, modeDefaults, type CompletionValue } from './pickers';
 import { DatePanel } from './DatePanel';
 import { TaskSearch } from './TaskSearch';
 
@@ -60,11 +57,11 @@ import { dataLabel, tr, trc } from '../../lib/i18n';
 import { trx } from '../../lib/trx';
 interface Draft extends CompletionValue {
   body: string;
-  typeId: string;
   typeData: Record<string, FieldValue>;
   modeTouched: boolean;
   recurrence: string | null;
-  categoryId: string | null;
+  /** 类型（Rei 2026-10-28 起能选几个），按顺序。 */
+  categoryIds: string[];
   date: string | null;
   /** 日期段的结束日（Rei 2026-10-26），空 = 单日。 */
   endDate: string | null;
@@ -73,28 +70,25 @@ interface Draft extends CompletionValue {
   /** 任务时区（Rei 2026-10-25）：在日期面板里选过才有，空 = 跟着设备。 */
   timeZone: string | null;
   groupId: string | null;
-  people: string[];
+  /** 资料（Rei 2026-10-28：跨库多选，人物也在这里），按挑的先后。 */
+  refs: RefKey[];
   /** 相关任务：建好后连成「相关」（只是有关系，不分先后）。 */
   related: string[];
-  /** 资料库：选中的条目（资料或人物 id）、正在新建的资料、搜索词。 */
-  entryId: string | null;
-  newItem: ItemDraft | null;
-  query: string;
-  /** 看到哪：不要自动识别（点了 × 或撤销）。 */
+  /** 看到哪：不要从正文第一行自动识别（点了 ×）。 */
   epIgnored: boolean;
-  /** 已经从名字里识别并填进看到哪的：原来的整段名字（撤销时还回去）。 */
-  epApplied: { fullName: string } | null;
 }
 
-function initialDraft(store: Store, d: NewTaskInput): Draft {
-  const group = store.get('group', d.group_id ?? null);
-  // 组的默认类型归档了照样用它（effectiveDefaultTypeId）；类型选择器里不列归档的，但当前值照常显示
-  const typeId = d.type_id ?? store.effectiveDefaultTypeId(group) ?? PLAIN_TYPE_ID;
+function initialDraft(store: Store, d: NewTaskInput, people: readonly string[]): Draft {
+  const typeId = d.type_id ?? null;
   const type = store.get('task_type', typeId);
   const mode: CompletionMode = d.completion_mode ?? type?.default_completion_mode ?? 'once';
+  const refs: RefKey[] = [];
+  if (d.library_item_id) refs.push({ kind: 'item', id: d.library_item_id });
+  if (type && isPersonLibrary(type) && typeof d.type_data?.person === 'string') refs.push({ kind: 'person', id: d.type_data.person });
+  for (const pid of people) if (!refs.some((r) => r.id === pid)) refs.push({ kind: 'person', id: pid });
+  const cat = d.category_id ?? d.checkin_category_id ?? null;
   return {
     body: d.body_md ?? '',
-    typeId,
     typeData: d.type_data ?? {},
     completion_mode: mode,
     target_value: d.target_value ?? (mode === 'timer' ? 10 * 60_000 : mode === 'count' ? 1 : null),
@@ -102,30 +96,44 @@ function initialDraft(store: Store, d: NewTaskInput): Draft {
     // 计数的步长（Rei 2026-10-26）：按单位填默认值
     count_config: d.count_config ?? newCountConfig(d.unit),
     target_date: d.target_date ?? null,
-    // 打开时指定了完成方式（比如在倒数日页新建）：换类型时不跟着类型的默认完成方式变
+    // 打开时指定了完成方式（比如在倒数日页新建）：挂上资料时不跟着库的默认完成方式变
     modeTouched: d.completion_mode != null,
     recurrence: d.recurrence ?? null,
-    categoryId: d.category_id ?? d.checkin_category_id ?? null,
+    categoryIds: cat ? [cat] : [],
     date: d.scheduled_date ?? null,
     endDate: d.scheduled_date && d.end_date && d.end_date > d.scheduled_date ? d.end_date : null,
     remindTime: d.remind_time ?? null,
     timeZone: d.time_zone ?? null,
     groupId: d.group_id ?? null,
-    people: [],
+    refs,
     related: [],
-    entryId: d.library_item_id ?? (type && isPersonLibrary(type) && typeof d.type_data?.person === 'string' ? d.type_data.person : null),
-    newItem: null,
-    query: '',
     epIgnored: false,
-    epApplied: null,
   };
 }
 
-/** 新建任务：先写内容，再选怎么算完成、多久一次；类型 / 日期 / 组 / 人物是一排小胶囊。 */
+/** 新建任务：先写内容，再选怎么算完成、多久一次；类型 / 资料 / 日期 / 组是一排小胶囊。 */
 export function TaskComposer() {
   const ui = useUi();
   if (!ui.quickCreate) return null;
   return <Composer key={JSON.stringify(ui.quickCreate)} />;
+}
+
+/** 挂着的资料（含人物）按库分组，给 RefList 用。 */
+function refGroups(store: Store, refs: readonly RefKey[]): Array<{ type: TaskType; entries: LibraryEntry[] }> {
+  const out: Array<{ type: TaskType; entries: LibraryEntry[] }> = [];
+  const personLib = store.refLibraries().find((t) => isPersonLibrary(t)) ?? store.list('task_type').find((t) => isPersonLibrary(t));
+  for (const r of refs) {
+    const typeId = r.kind === 'person' ? personLib?.id : store.get('library_item', r.id)?.type_id;
+    const type = store.get('task_type', typeId);
+    if (!type) continue;
+    const entry = store.libraryEntries(type.id).find((e) => e.id === r.id);
+    if (!entry) continue;
+    const g = out.find((x) => x.type.id === type.id);
+    if (g) g.entries.push(entry);
+    else out.push({ type, entries: [entry] });
+  }
+  // 人物放最后（同详情）
+  return [...out.filter((g) => !isPersonLibrary(g.type)), ...out.filter((g) => isPersonLibrary(g.type))];
 }
 
 function Composer() {
@@ -133,9 +141,9 @@ function Composer() {
   const store = useStore();
   const { skin } = useSettings();
   const req = ui.quickCreate!;
-  const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults), related: req.related ?? [], people: req.people ?? [] }));
+  const [d, setD] = useState<Draft>(() => ({ ...initialDraft(store, req.defaults, req.people ?? []), related: req.related ?? [] }));
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
-  // 从在线结果建的资料：关掉面板时还没有任务用到的（取消了、或换了一个）就删掉，不在库里留下没用的条目
+  // 从在线结果建的资料：关掉面板时还没有任务用到的（取消了、或去掉了）就删掉，不在库里留下没用的条目
   const onlineCreated = useRef<string[]>([]);
   useEffect(
     () => () => {
@@ -145,65 +153,77 @@ function Composer() {
   );
   const today = toDateKey(store.now());
   const dateMode = useDateDisplay();
-  const types = useMemo(() => store.pickableTypes(), [store]);
-  const type = store.get('task_type', d.typeId);
-  const lib = hasLibrary(type) ? type : null;
-  const person = !!lib && isPersonLibrary(lib);
-  const taskFields = lib ? taskFieldsOf(lib) : [];
-  const typed = !!type && type.id !== PLAIN_TYPE_ID && shownFields(type).length > 0;
-  const entry = lib && d.entryId ? store.libraryEntries(lib.id).find((e) => e.id === d.entryId) : undefined;
   const group = store.get('group', d.groupId);
-  const people = d.people.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
+  // 项目的默认资料库（或打开时指定的库）：资料面板先打开它，它的任务字段也先列出来
+  const defaultLib = store.get('task_type', req.defaults.type_id ?? store.effectiveDefaultTypeId(group));
+  const groups = refGroups(store, d.refs);
+  const firstItemType = groups.find((g) => !isPersonLibrary(g.type))?.type;
+  // 任务的「主库」= 第一条资料的库，没有资料时用默认库（决定任务字段、正文模板）
+  const mainType = firstItemType ?? (hasLibrary(defaultLib) ? defaultLib : undefined);
+  const legacyType = !mainType && defaultLib && defaultLib.id !== PLAIN_TYPE_ID && shownFields(defaultLib).length > 0 ? defaultLib : undefined;
+  // 任务字段：每个挂着资料的库各自的，外加默认库；同一个 key 只要一个
+  const fieldLibs = [...groups.map((g) => g.type), ...(mainType && !groups.some((g) => g.type.id === mainType.id) ? [mainType] : [])];
+  const seen = new Set<string>();
+  const fieldSets = fieldLibs
+    .map((type) => ({ type, fields: taskFieldsOf(type).filter((f) => (seen.has(f.key) ? false : (seen.add(f.key), true))) }))
+    .filter((x) => x.fields.length > 0);
+  const allTaskFields: FieldDef[] = fieldSets.flatMap((x) => x.fields);
+  const cats = d.categoryIds.map((id) => store.category(id)).filter((c): c is NonNullable<typeof c> => !!c);
   const after = req.after ? store.get('task', req.after) : undefined;
   const relatedTasks = d.related.map((id) => store.get('task', id)).filter((t): t is Task => !!t);
   const afterTitle = after ? titleOf(store, after) : '';
-  const primaryKey = type?.fields.find((f) => f.primary)?.key;
-  // 看到哪：从搜索框 / 内容第一行认出 S02E03、第二季第三集
-  const epDef = taskFields.find((f) => f.kind === 'episode');
+  // 看到哪：从内容第一行认出 S02E03、第二季第三集
+  const epDef = allTaskFields.find((f) => f.kind === 'episode');
   const epFilled = !!epDef && d.typeData[epDef.key] !== undefined && d.typeData[epDef.key] !== null && d.typeData[epDef.key] !== '';
-  const queryEp = epDef && !d.epIgnored ? stripEpisode(d.query) : { rest: d.query, match: null };
-  const bodyEp = epDef && !d.epIgnored && !epFilled && !queryEp.match ? findEpisode(firstLine(d.body)) : null;
-  const withEp = (typeData: Record<string, FieldValue>): Partial<Draft> =>
-    epDef && queryEp.match && !epFilled ? { typeData: { ...typeData, [epDef.key]: queryEp.match.value }, epApplied: { fullName: d.query.trim() } } : {};
-  const hasItem = !!entry || !!d.newItem?.name.trim();
-  const hasContent = d.body.trim() !== '' || hasItem || (!lib && !!primaryKey && !!d.typeData[primaryKey]);
+  const bodyEp = epDef && !d.epIgnored && !epFilled ? findEpisode(firstLine(d.body)) : null;
+  const hasContent = d.body.trim() !== '' || d.refs.length > 0 || (!!legacyType && Object.values(d.typeData).some((v) => v !== null && v !== ''));
   const needsDate = d.completion_mode === 'countdown' && !d.target_date;
   const canAdd = hasContent && !needsDate;
 
   useEffect(() => {
     // 打开即可输入：React Aria 的 Dialog 会先把焦点放在自己身上，晚一帧再聚焦正文
-    // 资料库类型由选择框自己聚焦
-    if (lib && !entry) return;
     const t = setTimeout(() => document.querySelector<HTMLElement>('.composer-body .ProseMirror')?.focus(), 30);
     return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const focusBody = () => setTimeout(() => document.querySelector<HTMLElement>('.composer-body .ProseMirror')?.focus(), 30);
+  }, []);
 
   const title = after ? tr('接下来做什么') : group && req.defaults.group_id ? tr('在「{name}」里新建', { name: group.name }) : req.defaults.recurrence ? tr('新建打卡') : tr('新建任务');
 
   const remindable = canRemind({ recurrence: d.recurrence, completion_mode: d.completion_mode, scheduled_date: d.date, target_date: d.target_date });
 
+  /** 挂上 / 去掉一条资料。挂上第一条资料时：正文空着就套这个库的正文模板，完成方式没手选过就用库的默认。 */
+  const toggleRef = (k: RefKey, on: boolean) => {
+    setD((x) => {
+      if (!on) return { ...x, refs: x.refs.filter((r) => r.id !== k.id) };
+      if (x.refs.some((r) => r.id === k.id)) return x;
+      const next: Draft = { ...x, refs: [...x.refs, k] };
+      const hadItem = x.refs.some((r) => r.kind === 'item');
+      const type = k.kind === 'item' ? store.get('task_type', store.get('library_item', k.id)?.type_id) : undefined;
+      if (type && !hadItem) {
+        if (!x.body.trim() && type.body_template) next.body = dataLabel(type.body_template);
+        if (!x.modeTouched) Object.assign(next, modeDefaults(type.default_completion_mode, x));
+      }
+      return next;
+    });
+  };
+
   const submit = () => {
     if (!canAdd) return;
     const recurring = !!d.recurrence;
-    // 资料库类型：资料存进库（新建的先存），任务只留任务字段
     let typeData = d.typeData;
     if (epDef && bodyEp) typeData = { ...typeData, [epDef.key]: bodyEp.value };
-    let itemId: string | null = null;
-    if (lib) {
-      const own = new Set(taskFields.map((f) => f.key));
-      typeData = Object.fromEntries(Object.entries(d.typeData).filter(([k]) => own.has(k)));
-      const id = d.newItem?.name.trim() ? saveDraft(store, lib, d.newItem) : d.entryId;
-      if (person) {
-        if (id) typeData = { ...typeData, [primaryKey!]: id };
-      } else itemId = id;
+    // 有库的：任务只留任务字段（资料字段在资料上）；旧式没库的类型照旧整份存
+    if (mainType) {
+      const own = new Set(allTaskFields.map((f) => f.key));
+      typeData = Object.fromEntries(Object.entries(typeData).filter(([k]) => own.has(k)));
     }
+    const items = d.refs.filter((r) => r.kind === 'item').map((r) => r.id);
+    const people = d.refs.filter((r) => r.kind === 'person').map((r) => r.id);
+    const typeId = mainType?.id ?? legacyType?.id ?? null;
     const input: NewTaskInput = {
       ...(d.body.trim() ? { body_md: d.body.trim() } : {}),
-      type_id: d.typeId === PLAIN_TYPE_ID ? null : d.typeId,
+      type_id: typeId === PLAIN_TYPE_ID ? null : typeId,
       type_data: typeData,
-      library_item_id: itemId,
+      library_item_id: items[0] ?? null,
       group_id: d.groupId,
       scheduled_date: d.date,
       end_date: d.recurrence ? null : d.endDate,
@@ -213,13 +233,14 @@ function Composer() {
       count_config: d.completion_mode === 'count' ? d.count_config : {},
       target_date: d.completion_mode === 'countdown' ? d.target_date : null,
       recurrence: d.recurrence,
-      // 类型（Rei 2026-10-26）：任何任务都能挂，不再只给重复任务
-      category_id: d.categoryId,
+      category_id: d.categoryIds[0] ?? null,
       remind_time: remindable ? d.remindTime : null,
       time_zone: d.timeZone,
     };
     const t = req.after ? store.createSuccessor(req.after, input) : store.createTask(input);
-    for (const pid of d.people) store.linkPerson(t.id, pid);
+    if (d.categoryIds.length > 1) store.setTaskCategories(t.id, d.categoryIds);
+    if (items.length > 1) store.setTaskItems(t.id, items);
+    for (const pid of people) store.linkPerson(t.id, pid);
     // 和「接在后面」的那件已经有前后关系了，就不再标相关
     for (const rid of d.related) if (rid !== req.after && store.get('task', rid)) store.linkTasks(t.id, rid);
     // 只有从「我的一天」新建的才放进今天（Rei 2026-10-16 改了 M0 决定 8）；别处新建、没日期的默认在「待安排」
@@ -244,18 +265,9 @@ function Composer() {
     }
   };
 
-  const pickType = (id: string) => {
-    const nt = store.get('task_type', id);
-    const p: Partial<Draft> = { typeId: id, entryId: null, newItem: null, query: '', epIgnored: false, epApplied: null };
-    // 已经写了一行字再选类型：把它当作要找的名字（「沙丘」→ 选影视 → 直接搜到）
-    if (hasLibrary(nt) && d.body.trim() && !d.body.includes('\n') && d.body.trim().length <= 40) Object.assign(p, { query: d.body.trim(), body: '' });
-    // 类型可以带默认的完成方式（如旅行 → 倒数日）；用户自己挑过就不动
-    if (nt && !d.modeTouched) Object.assign(p, modeDefaults(nt.default_completion_mode, d));
-    set(p);
-  };
-
-  const TypeIcon = typeIcon(type?.icon ?? 'file-text');
   const mod = skin === 'apple' ? '⌘' : 'Ctrl';
+  const refCount = d.refs.length;
+  const firstRef = groups[0]?.entries[0];
 
   return (
     <Sheet
@@ -274,7 +286,7 @@ function Composer() {
           <span className="grow" />
           <Button variant="secondary" className="composer-cancel" onPress={() => ui.closeQuickCreate()}>
             {tr('取消')}</Button>
-          <Tip content={needsDate ? tr('先选好目标日期') : !hasContent ? (lib ? libraryCopy(lib).pick.replace('…', '') : tr('先写下要做什么')) : `${mod} + Enter`}>
+          <Tip content={needsDate ? tr('先选好目标日期') : !hasContent ? tr('先写下要做什么') : `${mod} + Enter`}>
             <Button variant="primary" className="composer-add" isDisabled={!canAdd} onPress={submit}>
               {tr('添加')}</Button>
           </Tip>
@@ -288,89 +300,27 @@ function Composer() {
             <span className="ellipsis">{tr('做完「{afterTitle}」之后', { afterTitle })}</span>
           </div>
         )}
-        {lib &&
-          (entry ? (
-            <ItemCard
-              store={store}
-              type={lib}
-              entry={entry}
-              actions={
-                <Button variant="quiet" className="item-card-swap" onPress={() => set({ entryId: null, query: '' })}>
-                  {tr('换一个')}</Button>
-              }
-            />
-          ) : d.newItem ? (
-            <section className="composer-newitem" aria-label={tr('新的{short}', { short: libraryCopy(lib).short })}>
-              <div className="composer-newitem-head">
-                <span>
-                  {tr('添加到{name}', { name: libraryCopy(lib).name })}
-                </span>
-                <RacButton className="link-btn" onPress={() => set({ newItem: null, query: d.newItem?.name ?? '' })}>
-                  {tr('换一个')}</RacButton>
-              </div>
-              <ItemEditor store={store} type={lib} value={d.newItem} onChange={(v) => set({ newItem: v })} />
-            </section>
-          ) : (
-            <LibraryPicker
-              store={store}
-              type={lib}
-              query={d.query}
-              searchText={queryEp.rest}
-              onQueryChange={(q) => set({ query: q })}
-              autoFocus
-              onPick={(e) => {
-                set({ entryId: e.id, query: '', ...withEp(d.typeData) });
-                focusBody();
-              }}
-              onPickOnline={(r) => {
-                const { id, created } = createItemFromLookup(store, lib, r);
-                if (created) onlineCreated.current.push(id);
-                set({ entryId: id, query: '', ...withEp(d.typeData) });
-                focusBody();
-              }}
-              onCreate={(name) => {
-                set({ newItem: emptyDraft(name), ...withEp(d.typeData) });
-                setTimeout(() => document.querySelector<HTMLInputElement>('.composer-newitem .item-editor-fields input')?.focus(), 40);
-              }}
-            />
-          ))}
-        {epDef && ((queryEp.match && !epFilled) || bodyEp || (d.epApplied && epFilled)) && (
-          <EpisodeChip
-            text={formatEpisode(((queryEp.match && !epFilled ? queryEp.match : null) ?? bodyEp)?.value ?? episodeOf(d.typeData[epDef.key]) ?? {})}
-            pending={!!((queryEp.match && !epFilled) || bodyEp)}
-            onUndo={() => {
-              if ((queryEp.match && !epFilled) || bodyEp) return set({ epIgnored: true });
-              const typeData = { ...d.typeData };
-              delete typeData[epDef.key];
-              set({ typeData, epApplied: null, epIgnored: true, ...(d.newItem && d.epApplied ? { newItem: { ...d.newItem, name: d.epApplied.fullName } } : {}) });
-            }}
-          />
-        )}
+        {epDef && bodyEp && <EpisodeChip text={formatEpisode(bodyEp.value)} pending onUndo={() => set({ epIgnored: true })} />}
         <LazyMdEditor
           label={tr('内容')}
           className="composer-body"
           onEscape={() => ui.closeQuickCreate()}
-          autoFocus={!(lib && !entry)}
+          autoFocus
           value={d.body}
           onChange={(v) => set({ body: v })}
-          placeholder={lib || typed ? tr('还想记点什么？（可以不填）') : tr('要做什么？')}
+          placeholder={refCount ? tr('还想记点什么？（可以不填）') : tr('要做什么？')}
         />
 
         <div className="prop-chips" role="group" aria-label={tr('更多属性')}>
-          <PopoverPanel label={trc('属性', '资料库')} trigger={<PropChip icon={<TypeIcon size={14} />} label={trc('属性', '资料库')} {...(d.typeId !== PLAIN_TYPE_ID && type ? { value: dataLabel(type.name), color: type.color } : {})} />}>
-            {(close) => (
-              <div className="pop-section">
-                <TypeGrid
-                  types={types}
-                  value={d.typeId}
-                  onChange={(id) => {
-                    pickType(id);
-                    close();
-                  }}
-                />
-                <p className="pop-note">{tr('放进资料库后，卡片换成它的样子，还会带上一组要填的信息。')}</p>
-              </div>
-            )}
+          <PopoverPanel label={trc('分类', '类型')} className="is-wide is-sheet cat-select-pop" trigger={<PropChip icon={<Tag size={14} />} label={trc('分类', '类型')} {...(cats.length ? { value: <CategoryLabels cats={cats} />, color: cats[0]!.color } : {})} />}>
+            <CategoryList store={store} value={d.categoryIds} onChange={(ids) => set({ categoryIds: ids })} />
+          </PopoverPanel>
+          <PopoverPanel
+            label={tr('资料')}
+            className="is-wide is-sheet"
+            trigger={<PropChip icon={<Library size={14} />} label={tr('资料')} {...(firstRef ? { value: refCount > 1 ? `${firstRef.name} +${refCount - 1}` : firstRef.name } : {})} />}
+          >
+            <RefPicker store={store} selected={new Set(d.refs.map((r) => r.id))} defaultLibrary={defaultLib?.id ?? null} onToggle={toggleRef} onCreatedOnline={(id) => onlineCreated.current.push(id)} />
           </PopoverPanel>
           <PopoverPanel
             label={tr('日期')}
@@ -428,18 +378,6 @@ function Composer() {
             )}
           </PopoverPanel>
           <PopoverPanel
-            label={tr('和谁有关')}
-            trigger={
-              <PropChip
-                icon={people.length ? <AvatarStack store={store} people={people} size={16} /> : <Users size={14} />}
-                label={tr('和谁有关')}
-                {...(people.length ? { value: people.map((p) => p.name).join(tr('、')) } : {})}
-              />
-            }
-          >
-            <PeopleList store={store} value={d.people} onChange={(ids) => set({ people: ids })} />
-          </PopoverPanel>
-          <PopoverPanel
             label={tr('相关任务')}
             trigger={
               <PropChip
@@ -460,9 +398,12 @@ function Composer() {
           </PopoverPanel>
         </div>
 
-        {lib
-          ? taskFields.length > 0 && <TypeFields bare store={store} type={{ ...lib, fields: taskFields }} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />
-          : typed && type && <TypeFields store={store} type={type} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />}
+        {groups.length > 0 && <RefList store={store} groups={groups} onRemove={(e) => toggleRef({ kind: e.kind, id: e.id }, false)} />}
+
+        {fieldSets.map(({ type, fields }) => (
+          <TypeFields key={type.id} bare store={store} type={{ ...type, fields }} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />
+        ))}
+        {legacyType && <TypeFields store={store} type={legacyType} data={d.typeData} onChange={(k, v) => set({ typeData: { ...d.typeData, [k]: v } })} />}
 
         <section className="composer-section">
           <h3 className="composer-label">{tr('怎么算完成')}</h3>
@@ -473,10 +414,6 @@ function Composer() {
         <section className="composer-section">
           <h3 className="composer-label">{tr('多久一次')}</h3>
           <RepeatEditor value={d.recurrence} today={today} onChange={(r) => set({ recurrence: r })} />
-        </section>
-
-        <section className="composer-section">
-          <CategoryPicker compact store={store} value={d.categoryId} onChange={(id) => set({ categoryId: id })} />
         </section>
       </div>
     </Sheet>

@@ -21,10 +21,8 @@ import { dataLabel, tr, trc } from '../lib/i18n';
 /** 每个类型挂了多少件任务 + 项目（没删的；顺着合并算到留下的那个）。 */
 export function categoryUsage(store: Store): Map<string, number> {
   const m = new Map<string, number>();
-  for (const t of store.list('task')) {
-    const c = store.categoryOf(t);
-    if (c) m.set(c.id, (m.get(c.id) ?? 0) + 1);
-  }
+  // 一件任务能挂几个类型（Rei 2026-10-28）：每个都算一次
+  for (const t of store.list('task')) for (const id of store.categoryIdsOfTask(t)) m.set(id, (m.get(id) ?? 0) + 1);
   for (const g of store.list('group')) {
     const c = store.category(g.category_id);
     if (c) m.set(c.id, (m.get(c.id) ?? 0) + 1);

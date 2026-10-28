@@ -14,7 +14,7 @@ import {
   type Task,
 } from '@mindough/core';
 import { useNow, useStore } from '../store/StoreProvider';
-import { CategoryLabel, NO_CATEGORY, openCategoryPage } from '../components/CategoryPicker';
+import { CategoryLabel, CategoryLabels, NO_CATEGORY, openCategoryPage } from '../components/CategoryPicker';
 import { useUi } from '../lib/ui';
 import { useSettings } from '../lib/settings';
 import { Button, ChipPicker, Empty, Section, Segmented, TipButton } from '../ui/primitives';
@@ -43,10 +43,12 @@ export function CheckInsPage() {
   const allRecurring = tasks.filter((t) => parseRecurrence(t.recurrence) && !isFinished(t.status));
   // 类型（Rei 2026-10-26：和项目、倒数日共用一套）：顺着合并找到留下的那个
   const catOf = (t: Task) => store.categoryOf(t);
+  // 一件任务能挂几个类型（Rei 2026-10-28）：筛选看挂没挂这个类型；按类型分组时放在第一个类型下面（不重复出现）
+  const hasCat = (t: Task, id: string) => store.categoryIdsOfTask(t).includes(id);
   // 筛选标签：只列出有重复任务挂着的类型（按类型顺序，不显示的也算，挂着就列），有没类型的再加一个“没有类型”
-  const usedCats = store.categories(true).filter((c) => allRecurring.some((t) => catOf(t)?.id === c.id));
+  const usedCats = store.categories(true).filter((c) => allRecurring.some((t) => hasCat(t, c.id)));
   const hasUncategorized = allRecurring.some((t) => !catOf(t));
-  const recurring = cat === 'all' ? allRecurring : allRecurring.filter((t) => (cat === NO_CATEGORY ? !catOf(t) : catOf(t)?.id === cat));
+  const recurring = cat === 'all' ? allRecurring : allRecurring.filter((t) => (cat === NO_CATEGORY ? !catOf(t) : hasCat(t, cat)));
   const dueNow = recurring.filter((t) => dueToday(t, today));
   const others = recurring.filter((t) => !dueToday(t, today));
   const metToday = dueNow.filter((t) => store.progress(t.id, today)?.met).length;
@@ -76,7 +78,7 @@ export function CheckInsPage() {
         <RacButton className="habit-main" aria-current={ui.editingId === t.id ? 'true' : undefined} onPress={() => ui.openEditor(t.id)}>
           <span className="habit-title">{title(t)}</span>
           <span className="habit-meta">
-            {arrange !== 'category' && catOf(t) && <CategoryLabel c={catOf(t)!} size={12} />}
+            {arrange !== 'category' && catOf(t) && <CategoryLabels cats={store.categoriesOfTask(t)} size={12} />}
             {describeRecurrence(parseRecurrence(t.recurrence), { lunar: lunarUi, today })}
             {s && (
               <span className="habit-streak">

@@ -6,7 +6,7 @@ import { useDateDisplay } from '../lib/date-display';
 import { useNow, useStore } from '../store/StoreProvider';
 import { useUi } from '../lib/ui';
 import { Button, ChipPicker, Empty, Section, Segmented } from '../ui/primitives';
-import { CategoryLabel, NO_CATEGORY } from '../components/CategoryPicker';
+import { CategoryLabel, CategoryLabels, NO_CATEGORY } from '../components/CategoryPicker';
 import { PageHeader } from '../components/PageHeader';
 import { titleOf } from '../lib/view';
 import { typeIcon } from '../lib/icons';
@@ -37,9 +37,11 @@ export function CountdownsPage() {
   const [cat, setCat] = useState<string>('all');
   const [arrange, setArrange] = useState<'date' | 'category'>('date');
   const catOf = (t: Task) => store.categoryOf(t);
-  const usedCats = store.categories(true).filter((c) => countdowns.some(({ t }) => catOf(t)?.id === c.id));
+  // 一件任务能挂几个类型（Rei 2026-10-28）：筛选看挂没挂这个类型；按类型分组时放在第一个类型下面（不重复出现）
+  const hasCat = (t: Task, id: string) => store.categoryIdsOfTask(t).includes(id);
+  const usedCats = store.categories(true).filter((c) => countdowns.some(({ t }) => hasCat(t, c.id)));
   const hasUncategorized = countdowns.some(({ t }) => !catOf(t));
-  const shown = cat === 'all' ? countdowns : countdowns.filter(({ t }) => (cat === NO_CATEGORY ? !catOf(t) : catOf(t)?.id === cat));
+  const shown = cat === 'all' ? countdowns : countdowns.filter(({ t }) => (cat === NO_CATEGORY ? !catOf(t) : hasCat(t, cat)));
   const newCountdown = () => ui.openQuickCreate({ ...COUNTDOWN_DEFAULTS, ...(cat !== 'all' && cat !== NO_CATEGORY ? { category_id: cat } : {}) });
   const grid = (list: typeof countdowns, withCat: boolean) => (
     <div className="countdown-grid">
@@ -58,7 +60,7 @@ export function CountdownsPage() {
             </span>
             <span className="countdown-date">
               {dateMode === 'auto' ? formatDateZh(t.target_date!) : formatTaskDate(t.target_date!, { mode: dateMode, today })}
-              {c && <CategoryLabel c={c} size={12} />}
+              {c && <CategoryLabels cats={store.categoriesOfTask(t)} size={12} />}
             </span>
           </RacButton>
         );

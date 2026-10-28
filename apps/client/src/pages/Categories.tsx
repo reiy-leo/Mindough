@@ -178,7 +178,7 @@ function CategoryHead({ c }: { c: Category }) {
 function CategoryUses({ c }: { c: Category }) {
   const store = useStore();
   const groups = store.list('group').filter((g) => store.category(g.category_id)?.id === c.id);
-  const tasks = store.tasks().filter((t) => store.categoryOf(t)?.id === c.id);
+  const tasks = store.tasksOfCategory(c.id);
   const open = tasks.filter((t) => !isFinished(t.status));
   const ended = tasks.filter((t) => isFinished(t.status));
   return (

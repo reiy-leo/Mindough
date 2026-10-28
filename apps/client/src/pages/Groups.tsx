@@ -6,7 +6,7 @@ import { useStore } from '../store/StoreProvider';
 import { navigate } from '../lib/router';
 import { Button, ChipPicker, Empty, Field, MenuAt, OverflowMenu, PopoverPanel, ProgressBar, Section, Select, Sheet, useContextMenuAt } from '../ui/primitives';
 import { groupSidebarAction } from '../lib/library-sidebar';
-import { CategoryLabel, CategoryPicker, NO_CATEGORY } from '../components/CategoryPicker';
+import { CategoryField, CategoryLabel, CategoryPicker, NO_CATEGORY } from '../components/CategoryPicker';
 import { TaskRow } from '../components/TaskRow';
 import { PageHeader } from '../components/PageHeader';
 import { QuickAddBar } from '../components/QuickAddBar';
@@ -62,7 +62,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
         <Field label={tr('开始')} type="date" value={start} onChange={setStart} />
         <Field label={tr('结束')} type="date" value={end} onChange={setEnd} />
         <div className="editor-grid-wide">
-          <CategoryPicker compact store={store} value={cat} onChange={setCat} />
+          <CategoryField store={store} value={cat ? [cat] : []} multiple={false} onChange={(ids) => setCat(ids[0] ?? null)} />
         </div>
         <Select
           label={tr('默认资料库')}

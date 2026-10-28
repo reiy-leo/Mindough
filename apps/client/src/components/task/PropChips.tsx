@@ -1,7 +1,9 @@
 /**
  * 任务详情的属性胶囊行（Rei 2026-10-25 选方案 A · 胶囊行）：
  * - 只显示设置过的单值属性（默认值 = 没设，见 lib/prop-chips.ts），一行胶囊、自动换行，顺序固定；
- * - 点胶囊打开这个属性原来的选择器（类型格子、完成方式、日期面板、重复、类型、提醒、组、人物）；
+ * - 点胶囊打开这个属性原来的选择器（类型下拉、完成方式、日期面板、重复、提醒、组）；
+ * - 类型能挂多个（Rei 2026-10-28）：胶囊写「游戏、运动」，点开是可搜索的多选下拉；
+ * - 资料（含人物）不是胶囊，挂了就在胶囊下面按库分组（TaskDetail 的 RefsSection）；一条没挂时「+」菜单里有「资料」；
  * - 桌面悬停出现小 ×，点了清除回默认（胶囊消失，提示里可撤销）；触屏没有 ×，在选择器里选「无」那一项；
  * - 键盘：Tab 到胶囊，Enter / 空格打开，Backspace / Delete 清除；
  * - 行尾「+」：菜单列出没设的属性，选一项直接打开它的选择器；全都设了「+」隐藏；一个都没设时是「+ 添加属性」。
@@ -10,9 +12,8 @@
  */
 import { useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { Button as RacButton, Dialog, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
-import { Bell, CalendarDays, Paperclip, Plus, Repeat, Shapes, Tag, Users, X } from 'lucide-react';
+import { Bell, CalendarDays, Library, Paperclip, Plus, Repeat, Shapes, Tag, X } from 'lucide-react';
 import {
-  PLAIN_TYPE_ID,
   describeCompletion,
   describeRecurrence,
   formatTaskDate,
@@ -24,7 +25,6 @@ import {
   parseRecurrence,
   taskToday,
   timeZoneBadge,
-  type Person,
   type Store,
   type Task,
   categoryIcon,
@@ -33,10 +33,10 @@ import { useUi } from '../../lib/ui';
 import { useLunarUi } from '../../lib/lunar';
 import { dataLabel, tr, trc } from '../../lib/i18n';
 import { typeIcon } from '../../lib/icons';
-import { addMenuItems, clearPatch, setProps, unsetProps, type AddMenuId, type PropId } from '../../lib/prop-chips';
-import { AvatarStack } from '../Avatar';
-import { CategoryPicker } from '../CategoryPicker';
-import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, PeopleList, RepeatEditor, TypeGrid, modeDefaults } from './pickers';
+import { addMenuItems, clearPatch, setProps, type AddMenuId, type PropId } from '../../lib/prop-chips';
+import { CategoryList } from '../CategoryPicker';
+import { RefPicker } from '../library/RefPicker';
+import { CompletionChoice, CompletionSentence, GroupList, MODE_ICON, RepeatEditor, modeDefaults } from './pickers';
 import { DatePanel } from './DatePanel';
 import { TaskDateText } from '../TaskDateText';
 import { useDateDisplay } from '../../lib/date-display';
@@ -45,8 +45,8 @@ import { formatRemindTime, RemindPanel } from './RemindPanel';
 /** 属性名（胶囊的 aria-label、「+」菜单、弹层标题共用；叫法同原来的属性列表）。 */
 export function propLabel(id: PropId): string {
   switch (id) {
-    case 'type':
-      return trc('属性', '资料库');
+    case 'refs':
+      return tr('资料');
     case 'mode':
       return tr('完成方式');
     case 'date':
@@ -59,13 +59,13 @@ export function propLabel(id: PropId): string {
       return tr('提醒');
     case 'group':
       return trc('属性', '项目');
-    case 'people':
-      return tr('和谁有关');
   }
 }
 
 /** 弹层要宽一点的（里面是一段句子 / 列表）。 */
-const WIDE: ReadonlySet<PropId> = new Set(['mode', 'repeat', 'category']);
+const WIDE: ReadonlySet<PropId> = new Set(['mode', 'repeat', 'category', 'refs']);
+/** 手机上从底部出来的（下拉列表）。 */
+const SHEET: ReadonlySet<PropId> = new Set(['category', 'refs']);
 
 interface ChipView {
   icon: ReactNode;
@@ -80,15 +80,11 @@ export function PropChips({
   store,
   task,
   today,
-  people,
-  linked,
   onAttach,
 }: {
   store: Store;
   task: Task;
   today: string;
-  people: Person[];
-  linked: string[];
   /** 给了就在「+」菜单最后放「附件」，选好的文件交给它（走 addAttachments）。 */
   onAttach?: (files: File[]) => void;
 }) {
@@ -102,21 +98,19 @@ export function PropChips({
   const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const shown = setProps(task, people.length);
-  const missing = unsetProps(task, people.length);
-  const addItems = addMenuItems(task, people.length, !!onAttach);
+  const cats = store.categoriesOfTask(task);
+  const refGroups = store.taskRefs(task.id);
+  const counts = { categories: cats.length, refs: refGroups.reduce((n, g) => n + g.entries.length, 0) };
+  const shown = setProps(task, counts);
+  const addItems = addMenuItems(task, counts, !!onAttach);
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
-  const type = store.get('task_type', task.type_id);
   const group = store.get('group', task.group_id);
-  const cat = store.categoryOf(task);
+  const cat = cats[0];
 
   const view = (id: PropId): ChipView => {
     switch (id) {
-      case 'type': {
-        const Icon = typeIcon(type?.icon ?? 'file-text');
-        const name = type ? dataLabel(type.name) : tr('不放进资料库');
-        return { icon: <Icon size={14} />, text: name, aria: name, ...(type?.color ? { color: type.color } : {}) };
-      }
+      case 'refs':
+        return { icon: <Library size={14} />, text: '', aria: '' };
       case 'mode': {
         const Icon = MODE_ICON[task.completion_mode];
         const s = describeCompletion(task, today, dateMode);
@@ -143,7 +137,7 @@ export function PropChips({
         return { icon: <Repeat size={14} />, text: s, aria: s };
       }
       case 'category': {
-        const s = cat ? dataLabel(cat.name) : '';
+        const s = cats.map((c) => dataLabel(c.name)).join(tr('、'));
         const Icon = cat ? typeIcon(categoryIcon(cat)) : Tag;
         return { icon: <Icon size={14} />, text: s, aria: s, ...(cat?.color ? { color: cat.color } : {}) };
       }
@@ -155,24 +149,18 @@ export function PropChips({
         const s = group?.name ?? '';
         return { icon: group?.icon ? <span className="pchip-emoji">{group.icon}</span> : <Shapes size={14} />, text: s, aria: s };
       }
-      case 'people': {
-        const s = people.map((p) => p.name).join(tr('、'));
-        return { icon: <AvatarStack store={store} people={people.slice(0, 3)} size={16} />, text: s, aria: s };
-      }
     }
   };
 
   /** 清除回默认（提示里可撤销）；焦点交给下一个胶囊或「+」。 */
   const clear = (id: PropId) => {
     let undo: () => void;
-    if (id === 'type') {
-      const snap = { type_id: task.type_id, library_item_id: task.library_item_id, type_data: task.type_data, body_md: task.body_md };
-      store.changeTaskType(task.id, PLAIN_TYPE_ID);
-      undo = () => store.updateTask(task.id, snap);
-    } else if (id === 'people') {
-      const ids = [...linked];
-      for (const pid of ids) store.unlinkPerson(task.id, pid);
-      undo = () => ids.forEach((pid) => store.linkPerson(task.id, pid));
+    if (id === 'category') {
+      const ids = cats.map((c) => c.id);
+      store.setTaskCategories(task.id, []);
+      undo = () => store.setTaskCategories(task.id, ids);
+    } else if (id === 'refs') {
+      return;
     } else {
       const p = clearPatch(id)!;
       const snap = Object.fromEntries(Object.keys(p).map((k) => [k, task[k as keyof Task]])) as Partial<Task>;
@@ -197,20 +185,14 @@ export function PropChips({
 
   const picker = (id: PropId): ReactNode => {
     switch (id) {
-      case 'type':
+      case 'refs':
         return (
-          <div className="pop-section">
-            <TypeGrid
-              types={store.pickableTypes()}
-              value={task.type_id ?? PLAIN_TYPE_ID}
-              onChange={(tid) => {
-                // 换资料库清空原来的资料（Rei 2026-10-16），新资料库从「未选」开始；正文为空时套用模板
-                store.changeTaskType(task.id, tid);
-                close();
-              }}
-            />
-            {(task.library_item_id || Object.keys(task.type_data ?? {}).length > 0) && <p className="pop-note">{tr('换资料库会清空原来的资料')}</p>}
-          </div>
+          <RefPicker
+            store={store}
+            selected={new Set(refGroups.flatMap((g) => g.entries.map((e) => e.id)))}
+            defaultLibrary={store.get('task_type', task.type_id)?.id ?? null}
+            onToggle={(k, on) => store.toggleTaskRef(task.id, k, on)}
+          />
         );
       case 'mode':
         return (
@@ -244,19 +226,7 @@ export function PropChips({
           </div>
         );
       case 'category':
-        return (
-          <div className="pop-section">
-            <CategoryPicker
-              store={store}
-              value={task.category_id}
-              label={false}
-              onChange={(cid) => {
-                patch({ category_id: cid });
-                close();
-              }}
-            />
-          </div>
-        );
+        return <CategoryList store={store} value={cats.map((c) => c.id)} onChange={(ids) => store.setTaskCategories(task.id, ids)} onDone={close} />;
       case 'remind':
         return (
           <RemindPanel
@@ -278,34 +248,6 @@ export function PropChips({
               close();
             }}
           />
-        );
-      case 'people':
-        return (
-          <>
-            <PeopleList
-              store={store}
-              value={linked}
-              onChange={(ids) => {
-                const next = new Set(ids);
-                for (const pid of linked) if (!next.has(pid)) store.unlinkPerson(task.id, pid);
-                for (const pid of ids) if (!linked.includes(pid)) store.linkPerson(task.id, pid);
-              }}
-            />
-            {linked.length > 0 && (
-              <div className="pop-foot">
-                <RacButton
-                  className="link-btn"
-                  onPress={() => {
-                    close();
-                    clear('people');
-                  }}
-                >
-                  <X size={13} aria-hidden />
-                  {tr('清除')}
-                </RacButton>
-              </div>
-            )}
-          </>
         );
     }
   };
@@ -403,7 +345,7 @@ export function PropChips({
           triggerRef={anchor as RefObject<HTMLElement>}
           isOpen
           onOpenChange={(o) => !o && close()}
-          className={`popover popover-panel${WIDE.has(open.id) || open.id === 'people' ? ' is-wide' : ''}`}
+          className={`popover popover-panel${WIDE.has(open.id) ? ' is-wide' : ''}${SHEET.has(open.id) ? ' is-sheet' : ''}`}
           placement="bottom start"
           offset={6}
         >
@@ -419,10 +361,8 @@ export function PropChips({
 /** 「+」菜单里每项的图标（同胶囊）。 */
 function addIcon(id: PropId, task: Task): ReactNode {
   switch (id) {
-    case 'type': {
-      const Icon = typeIcon('file-text');
-      return <Icon size={16} />;
-    }
+    case 'refs':
+      return <Library size={16} />;
     case 'mode': {
       const Icon = MODE_ICON[task.completion_mode];
       return <Icon size={16} />;
@@ -437,7 +377,5 @@ function addIcon(id: PropId, task: Task): ReactNode {
       return <Bell size={16} />;
     case 'group':
       return <Shapes size={16} />;
-    case 'people':
-      return <Users size={16} />;
   }
 }

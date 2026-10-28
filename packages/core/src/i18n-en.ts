@@ -10,6 +10,7 @@ const pl = (n: unknown, one: string, other: string) => (new Intl.PluralRules('en
 const count = (n: unknown, one: string, other: string) => `${n} ${pl(n, one, other)}`;
 
 export const CORE_EN: Record<string, V> = {
+  '周末和小林窝在家：先看片，再一起打游戏': 'A weekend in with Lin: a movie first, then games together',
   // ── 类型（统一的分类，2026-10-26）──
   "类型不能删，可以设成不显示": "Categories can’t be deleted, but you can hide them",
   // App 名字（i18n.ts appName，Rei 2026-10-24）

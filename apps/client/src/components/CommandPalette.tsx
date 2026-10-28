@@ -30,7 +30,7 @@ export function CommandPalette() {
   const hits = useMemo<SearchHit[]>(
     () =>
       search(
-        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item'), journal: store.list('journal_entry') },
+        { tasks: store.list('task'), types: store.list('task_type'), people: store.list('person'), groups: store.list('group'), taskPeople: store.list('task_person'), items: store.list('library_item'), journal: store.list('journal_entry'), taskItems: store.list('task_item'), taskCategories: store.list('task_category'), categories: store.list('category') },
         q,
         20,
       ),

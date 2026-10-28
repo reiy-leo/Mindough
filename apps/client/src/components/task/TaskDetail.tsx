@@ -17,22 +17,20 @@ import {
   successorsOf,
   taskStreak,
   hasLibrary,
-  isPersonLibrary,
   libraryCopy,
   taskFieldsOf,
   toDateKey,
   type FieldDef,
   type FieldValue,
   type LibraryEntry,
-  type LookupResult,
   type Store,
   type Task,
   type TaskType,
 } from '@mindough/core';
 import { shownFields } from '@mindough/core';
 import { navigate } from '../../lib/router';
-import { ItemCard, ItemSheet, LibraryPicker, artShape, entryArt } from '../library/Library';
-import { createItemFromLookup } from '../../lib/lookup';
+import { ItemCard, ItemSheet, artShape, entryArt } from '../library/Library';
+import { RefList, RefPicker } from '../library/RefPicker';
 import { useNow, useStore } from '../../store/StoreProvider';
 import { useUi } from '../../lib/ui';
 import { useSettings } from '../../lib/settings';
@@ -670,153 +668,119 @@ function Relations({ store, task }: { store: Store; task: Task }) {
 }
 
 /**
- * 属性里的「资料」一行（Rei 2026-10-16 方案 A：不再压在标题上面）：没选时淡淡一行「未选」，点开搜索；
- * 选了显示缩略图 + 名字，点开是资料卡（编辑资料、在库里看）和「换一个」。资料改了，用到它的任务都会变。
+ * 详情里的「资料」（Rei 2026-10-28，docs/MULTI-TYPE.md）：挂的资料按库分组，每条点开是资料卡（编辑资料、在库里看），
+ * 行尾 × 去掉（只解开关联，资料留在库里，提示里能撤销）。每个库下面接这个库的任务字段（看到哪、进度…）。
+ * 底部「添加资料」打开跨库的挑选面板。类型和资料无关，换类型不动资料。
  */
-function LibraryRow({ store, type, task }: { store: Store; type: TaskType; task: Task }) {
+function RefsSection({ store, task, today }: { store: Store; task: Task; today: string }) {
   const ui = useUi();
-  const LibIcon = typeIcon(type.icon);
-  const person = isPersonLibrary(type);
-  const key = type.fields.find((f) => f.primary)!.key;
-  // 合并过的资料 / 人物：顺着 merged_into 找到留下的那条
-  const entryId = person ? (typeof task.type_data[key] === 'string' ? (store.resolvePersonId(task.type_data[key] as string) ?? (task.type_data[key] as string)) : null) : (store.itemOf(task)?.id ?? task.library_item_id);
-  const entry = entryId ? store.libraryEntries(type.id).find((e) => e.id === entryId) : undefined;
-  const copy = libraryCopy(type);
-  const [query, setQuery] = useState('');
-  const [sheet, setSheet] = useState<null | { edit: true } | { create: string }>(null);
-  const attach = (id: string | null) => {
-    if (person) {
-      const cur = store.get('task', task.id) ?? task;
-      const td = { ...cur.type_data };
-      if (id) td[key] = id;
-      else delete td[key];
-      store.updateTask(task.id, { type_data: td });
-    } else store.setTaskItem(task.id, id);
+  const groups = store.taskRefs(task.id);
+  const [edit, setEdit] = useState<{ type: TaskType; id: string } | null>(null);
+  const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
+  const selected = new Set(groups.flatMap((g) => g.entries.map((e) => e.id)));
+  // 任务字段：挂着资料的库各自的，外加老任务只选了库没选资料的那个库（type_id）；同一个 key 只出现一次
+  const seen = new Set<string>();
+  const fieldsOf = (type: TaskType) =>
+    taskFieldsOf(type).filter((f) => {
+      if (seen.has(f.key)) return false;
+      seen.add(f.key);
+      return true;
+    });
+  const legacy = store.get('task_type', task.type_id);
+  const legacyLib = hasLibrary(legacy) && !groups.some((g) => g.type.id === legacy.id) ? legacy : null;
+  const remove = (e: LibraryEntry) => {
+    const items = store.itemIdsOfTask(task.id);
+    store.toggleTaskRef(task.id, e, false);
+    ui.toast(
+      {
+        message: tr('已不再关联「{name}」', { name: e.name }),
+        actions: [{ label: tr('撤销'), onPress: () => (e.kind === 'person' ? store.linkPerson(task.id, e.id) : store.setTaskItems(task.id, items)) }],
+      },
+      5000,
+    );
   };
-  /** 不选了：回到什么都没选（资料本身还在库里），提示里可以撤销。 */
-  const detach = () => {
-    const prev = entryId;
-    attach(null);
-    ui.toast({ message: tr('已不再关联「{name}」', { name: entry?.name ?? '' }), actions: [{ label: tr('撤销'), onPress: () => attach(prev) }] }, 5000);
-  };
-  const picker = (close: () => void) => (
-    <LibraryPicker
-      store={store}
-      type={type}
-      query={query}
-      onQueryChange={setQuery}
-      exclude={entryId}
-      autoFocus
-      className="in-popover"
-      onPick={(e: LibraryEntry) => {
-        attach(e.id);
-        setQuery('');
-        close();
-      }}
-      onCreate={(name) => {
-        close();
-        setQuery('');
-        setSheet({ create: name });
-      }}
-      {...(person ? {} : {
-        onPickOnline: (r: LookupResult) => {
-          attach(createItemFromLookup(store, type, r).id);
-          setQuery('');
-          close();
-        },
-      })}
-    />
-  );
-  const open = () => {
-    if (!entryId) return;
+  const open = (type: TaskType, e: LibraryEntry) => {
     ui.openEditor(null);
-    navigate(person ? { page: 'person', id: entryId } : { page: 'libitem', typeId: type.id, id: entryId });
+    navigate(e.kind === 'person' ? { page: 'person', id: e.id } : { page: 'libitem', typeId: type.id, id: e.id });
   };
-  const label = dataLabel(type.name);
+  const fieldRows = (type: TaskType) =>
+    fieldsOf(type).map((f) => <TaskFieldRow key={f.key} store={store} def={f} task={task} today={today} onChange={(v) => patch({ type_data: { ...task.type_data, [f.key]: v } })} />);
+  if (!groups.length && !legacyLib) return null;
   return (
-    <>
-      <PropRow
-        icon={<LibIcon size={15} />}
-        label={label}
-        empty={!entry}
-        wide
-        value={
-          entry ? (
-            <span className="prop-entry">
-              {entryArt(store, entry, artShape(type), 'prop-entry-art')}
-              <span className="prop-entry-name">{entry.name}</span>
-            </span>
-          ) : (
-            tr('未选')
-          )
+    <div className="prop-list ref-section" role="group" aria-label={tr('资料')}>
+      <RefList
+        store={store}
+        groups={groups}
+        onRemove={remove}
+        renderEntry={(e, type) => (
+          <PopoverPanel
+            label={e.name}
+            placement="bottom start"
+            className="is-wide"
+            trigger={
+              <RacButton className="ref-entry">
+                {entryArt(store, e, artShape(type), 'ref-entry-art')}
+                <span className="ref-entry-text">
+                  <span className="ref-entry-name">{e.name}</span>
+                  {e.subtitle && <span className="ref-entry-sub">{e.subtitle}</span>}
+                </span>
+              </RacButton>
+            }
+          >
+            {(close) => (
+              <div className="pop-section lib-pop">
+                <ItemCard
+                  store={store}
+                  type={type}
+                  size="lg"
+                  entry={e}
+                  actions={
+                    <>
+                      <Button
+                        variant="secondary"
+                        className="btn-sm"
+                        onPress={() => {
+                          close();
+                          setEdit({ type, id: e.id });
+                        }}
+                      >
+                        {tr('编辑资料')}
+                      </Button>
+                      <RacButton
+                        className="link-btn item-card-open"
+                        onPress={() => {
+                          close();
+                          open(type, e);
+                        }}
+                      >
+                        {tr('在{name}里看', { name: libraryCopy(type).name })}
+                        {e.uses > 1 ? tr(' · {uses} 件任务', { uses: e.uses }) : ''}
+                        <ChevronRight size={13} aria-hidden />
+                      </RacButton>
+                    </>
+                  }
+                />
+              </div>
+            )}
+          </PopoverPanel>
+        )}
+        extra={fieldRows}
+      />
+      {legacyLib && fieldRows(legacyLib)}
+      <PopoverPanel
+        label={tr('添加资料')}
+        className="is-wide is-sheet"
+        trigger={
+          <RacButton className="link-btn ref-add">
+            <Plus size={14} aria-hidden />
+            {tr('添加资料')}
+          </RacButton>
         }
       >
-        {(close) =>
-          entry ? (
-            <div className="pop-section lib-pop">
-              <ItemCard
-                store={store}
-                type={type}
-                size="lg"
-                entry={entry}
-                actions={
-                  <>
-                    <Button
-                      variant="secondary"
-                      className="btn-sm"
-                      onPress={() => {
-                        close();
-                        setSheet({ edit: true });
-                      }}
-                    >
-                      {tr('编辑资料')}
-                    </Button>
-                    <RacButton
-                      className="link-btn item-card-open"
-                      onPress={() => {
-                        close();
-                        open();
-                      }}
-                    >
-                      {tr('在{name}里看', { name: copy.name })}
-                      {entry.uses > 1 ? tr(' · {uses} 件任务', { uses: entry.uses }) : ''}
-                      <ChevronRight size={13} aria-hidden />
-                    </RacButton>
-                  </>
-                }
-              />
-              <div className="lib-pop-row">
-                <span className="lib-pop-head">{tr('换一个')}</span>
-                <RacButton
-                  className="link-btn lib-pop-clear"
-                  onPress={() => {
-                    close();
-                    detach();
-                  }}
-                >
-                  <X size={13} aria-hidden />
-                  {tr('不选了')}
-                </RacButton>
-              </div>
-              {picker(close)}
-            </div>
-          ) : (
-            picker(close)
-          )
-        }
-      </PropRow>
-      {sheet && (
-        <ItemSheet
-          store={store}
-          type={type}
-          {...('edit' in sheet ? { itemId: entryId } : { initialName: sheet.create })}
-          onClose={() => setSheet(null)}
-          onSaved={(id) => {
-            if (!('edit' in sheet)) attach(id);
-          }}
-        />
-      )}
-    </>
+        <RefPicker store={store} selected={selected} defaultLibrary={legacyLib?.id ?? null} onToggle={(k, on) => store.toggleTaskRef(task.id, k, on)} />
+      </PopoverPanel>
+      {edit && <ItemSheet store={store} type={edit.type} itemId={edit.id} onClose={() => setEdit(null)} />}
+    </div>
   );
 }
 
@@ -843,11 +807,9 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   const type = store.get('task_type', task.type_id);
   const typed = !!type && type.id !== PLAIN_TYPE_ID && shownFields(type).length > 0;
   const title = titleOf(store, task);
+  // 没有库的旧式类型（只有字段、没有主字段）：还在正文上面显示一块它的信息
   const lib = hasLibrary(type) ? type : null;
-  const taskFields = lib ? taskFieldsOf(lib) : [];
   const patch = (p: Partial<Task>) => store.updateTask(task.id, p);
-  const linked = [...new Set(store.list('task_person').filter((x) => x.task_id === task.id).map((x) => store.resolvePersonId(x.person_id) ?? x.person_id))];
-  const people = linked.map((id) => store.get('person', id)).filter((p): p is NonNullable<typeof p> => !!p);
   const inDay = store.isInMyDay(task.id, today);
   const finished = isFinished(task.status);
   const recurring = !!task.recurrence;
@@ -894,16 +856,9 @@ function Detail({ task, mode }: { task: Task; mode: DetailMode }) {
   // 附件紧跟在胶囊下面、资料卡片上面（Rei 2026-10-25「显示在属性块下方」）：从「+」加的附件就出现在「+」旁边。
   const props = (
     <div className="detail-props">
-      <PropChips store={store} task={task} today={today} people={people} linked={linked} onAttach={addFiles} />
+      <PropChips store={store} task={task} today={today} onAttach={addFiles} />
       <Attachments owner={owner} bare />
-      {lib && (
-        <div className="prop-list" role="group" aria-label={dataLabel(lib.name)}>
-          <LibraryRow store={store} type={lib} task={task} />
-          {taskFields.map((f) => (
-            <TaskFieldRow key={f.key} store={store} def={f} task={task} today={today} onChange={(v) => patch({ type_data: { ...task.type_data, [f.key]: v } })} />
-          ))}
-        </div>
-      )}
+      <RefsSection store={store} task={task} today={today} />
     </div>
   );
 

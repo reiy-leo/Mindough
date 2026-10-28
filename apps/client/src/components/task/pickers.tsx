@@ -48,13 +48,12 @@ import {
   type Recurrence,
   type Store,
   type Task,
-  PLAIN_TYPE_ID, type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
+  type TaskType, weekdayLabel, weekOrder, shownFields, solarToLunar, lunarDayLabel, lunarMonthLabel, nextLunarYearly, formatDate } from '@mindough/core';
 import { useDateDisplay } from '../../lib/date-display';
 import { Field, InlineNumber, InlineText, MultiSelect, PopoverPanel, Select } from '../../ui/primitives';
 import { LinksInput, SiteIdInput } from '../library/LinkFields';
 import { MoneyInput } from '../library/MoneyField';
 import { DatePanel } from './DatePanel';
-import { Avatar } from '../Avatar';
 import { typeIcon } from '../../lib/icons';
 import { imageUrl } from '../../lib/view';
 import { saveImageAsset } from '../../lib/upload';
@@ -377,35 +376,6 @@ export function RepeatEditor({ value, onChange, today, children }: { value: stri
   );
 }
 
-/** 资料库网格（弹层里用）：选一个库就是把任务放进那个库；内置的「普通」显示成「不放进资料库」（Rei 2026-10-26 类型改叫资料库）。 */
-export function TypeGrid({ types, value, onChange }: { types: TaskType[]; value: string; onChange: (id: string) => void }) {
-  return (
-    <ToggleButtonGroup
-      aria-label={trc('属性', '资料库')}
-      className="type-pick-grid"
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={[value]}
-      onSelectionChange={(keys) => {
-        const k = [...keys][0];
-        if (k !== undefined) onChange(String(k));
-      }}
-    >
-      {types.map((t) => {
-        const Icon = typeIcon(t.icon);
-        return (
-          <ToggleButton key={t.id} id={t.id} className="type-pick" style={{ '--chip-color': t.color } as CSSProperties}>
-            <span className="type-pick-icon">
-              <Icon size={16} />
-            </span>
-            <span>{t.id === PLAIN_TYPE_ID ? tr('不放进资料库') : dataLabel(t.name)}</span>
-          </ToggleButton>
-        );
-      })}
-    </ToggleButtonGroup>
-  );
-}
-
 export const NO_GROUP = '__none';
 
 /** 组列表（弹层里用）。 */
@@ -432,30 +402,6 @@ export function GroupList({ store, value, onChange }: { store: Store; value: str
         <ListBoxItem key={g.id} id={g.id} className="listbox-item pick-item" textValue={g.name}>
           <span className="pick-icon">{g.icon}</span>
           <span className="grow">{g.name}</span>
-          <Check size={14} className="pick-check" />
-        </ListBoxItem>
-      ))}
-    </ListBox>
-  );
-}
-
-/** 人物多选（弹层里用）。 */
-export function PeopleList({ store, value, onChange }: { store: Store; value: string[]; onChange: (ids: string[]) => void }) {
-  const people = store.list('person');
-  if (!people.length) return <p className="pick-empty">{tr('还没有人物，可以先去「人物」页添加。')}</p>;
-  return (
-    <ListBox
-      aria-label={tr('和谁有关')}
-      className="listbox pick-list"
-      selectionMode="multiple"
-      selectedKeys={value}
-      onSelectionChange={(keys) => keys !== 'all' && onChange([...keys].map(String))}
-    >
-      {people.map((p) => (
-        <ListBoxItem key={p.id} id={p.id} className="listbox-item pick-item" textValue={p.name}>
-          <Avatar store={store} person={p} size={22} />
-          <span className="grow">{p.name}</span>
-          {p.relation && <span className="pick-meta">{p.relation}</span>}
           <Check size={14} className="pick-check" />
         </ListBoxItem>
       ))}

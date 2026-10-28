@@ -954,9 +954,6 @@
   font-weight: 600;
   color: var(--text-2);
 }
-.composer-section .cat-picker .field-label {
-  font-size: 13px;
-}
 
 /* ───────── 任务详情 ───────── */
 .modal-detail {

@@ -1,0 +1,352 @@
+/* 多类型与多资料（Rei 2026-10-28，docs/MULTI-TYPE.md）：类型下拉（CategoryList）、资料挑选（RefPicker）、已挂的资料（RefList）。只用令牌变量。 */
+
+/* ───────── 类型下拉 ───────── */
+.cat-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.cat-select-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-ctl);
+  background: var(--surface);
+  cursor: text;
+}
+.cat-select-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.cat-select-icon {
+  color: var(--text-3);
+  flex: none;
+}
+.cat-select-input {
+  flex: 1 1 80px;
+  min-width: 80px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 2px 2px;
+}
+.cat-token {
+  --chip-color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 2px 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-color) 14%, var(--surface));
+  font-size: 12px;
+  max-width: 100%;
+}
+.cat-token .cat-label {
+  min-width: 0;
+}
+.cat-token-x {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+}
+.cat-token-x[data-hovered] {
+  background: color-mix(in srgb, var(--chip-color) 24%, transparent);
+  color: var(--text);
+}
+.cat-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(320px, 46vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cat-select-group {
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+}
+.cat-select-group:first-child {
+  padding-top: 2px;
+}
+.cat-option {
+  --chip-color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+.cat-option.is-active {
+  background: var(--surface-hover);
+}
+.cat-option.is-create {
+  color: var(--accent);
+}
+.cat-check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border-strong);
+  color: #fff;
+}
+.cat-check.is-radio {
+  border-radius: 999px;
+}
+.cat-option.is-on .cat-check {
+  background: var(--chip-color);
+  border-color: var(--chip-color);
+}
+.cat-option.is-create .cat-check {
+  border-style: dashed;
+  border-color: currentColor;
+  color: currentColor;
+}
+.cat-select-empty {
+  padding: 10px 8px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.cat-select-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.cat-labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  min-width: 0;
+}
+.cat-field .cat-current {
+  width: 100%;
+}
+
+/* ───────── 资料挑选 ───────── */
+.ref-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ref-libs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 1px;
+}
+.ref-libs::-webkit-scrollbar {
+  display: none;
+}
+.ref-lib {
+  --chip-color: var(--accent);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+.ref-lib svg {
+  color: var(--chip-color);
+}
+.ref-lib[data-hovered] {
+  background: color-mix(in srgb, var(--chip-color) 8%, var(--surface));
+}
+.ref-lib[data-selected] {
+  border-color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 16%, var(--surface));
+}
+.ref-lib[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.lib-option-check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-strong);
+  color: #fff;
+}
+.lib-option-check.is-on {
+  background: var(--chip-color, var(--accent));
+  border-color: var(--chip-color, var(--accent));
+}
+.ref-option-lib {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ───────── 已挂的资料（按库分组） ───────── */
+.ref-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ref-group {
+  --chip-color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ref-group-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  padding: 0 2px 2px;
+}
+.ref-group-head svg {
+  color: var(--chip-color);
+}
+.ref-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+}
+.ref-entry {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+}
+.ref-entry[data-hovered] {
+  background: var(--surface-hover);
+}
+.ref-entry[data-focus-visible] {
+  box-shadow: var(--focus);
+}
+.ref-entry-art {
+  width: 28px;
+  flex: none;
+}
+.ref-entry-art.art-poster {
+  width: 24px;
+}
+.ref-entry-art.art-banner {
+  width: 44px;
+}
+.ref-entry-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ref-entry-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-entry-sub {
+  font-size: var(--fs-small);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-remove {
+  flex: none;
+  opacity: 0;
+  color: var(--text-2);
+}
+.ref-row:hover .ref-remove,
+.ref-remove[data-focus-visible],
+[data-layout='mobile'] .ref-remove {
+  opacity: 1;
+}
+.ref-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ref-section .prop-row {
+  padding-left: 6px;
+}
+.ref-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.composer .ref-list {
+  padding: 2px 0;
+}
+.meta-more {
+  color: var(--text-3);
+}
+
+/* ───────── 手机：下拉从底部出来 ───────── */
+html[data-layout='mobile'] .popover.popover-panel.is-sheet {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: 78vh;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+html[data-layout='mobile'] .popover.popover-panel.is-sheet .cat-select-list {
+  max-height: 50vh;
+}
+html[data-layout='mobile'] .popover.popover-panel.is-sheet .cat-option {
+  min-height: 44px;
+}

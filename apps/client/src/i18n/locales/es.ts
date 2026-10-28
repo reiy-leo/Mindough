@@ -6,6 +6,20 @@
 import type { MessageValue } from '@mindough/core';
 
 export const MESSAGES: Record<string, MessageValue> = {
+  // ── 多类型与多资料（2026-10-28）──
+  "周末和小林窝在家：先看片，再一起打游戏": "Fin de semana en casa con Lin: primero una película y luego juegos juntos",
+  "最近用过": "Usadas recientemente",
+  "去掉{name}": "Quitar {name}",
+  "搜类型，比如“健康”“yd”": "Busca categorías, p. ej. «Salud»",
+  "新建类型“{name}”": "Nueva categoría «{name}»",
+  "类型：{value}": "Categoría: {value}",
+  "选类型": "Elegir categoría",
+  "从哪个库挑": "Elegir de qué colección",
+  "搜所有资料库…": "Buscar en todas las colecciones…",
+  "没有找到。要在线找或新建，先在上面选一个库。": "No se encontró nada. Para buscar en línea o crear uno nuevo, elige antes una colección arriba.",
+  "资料库都还是空的，先在上面选一个库再添加。": "Tus colecciones están vacías. Elige una colección arriba para añadir algo.",
+  "不再关联「{name}」": "Desvincular «{name}»",
+  "添加资料": "Añadir elemento",
   "这里出错了，内容没显示出来": "Algo salió mal y esto no se pudo mostrar",
   "再试一次": "Reintentar",
   // ── 类型页改版（方案 C，2026-10-28）──

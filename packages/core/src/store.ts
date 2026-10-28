@@ -28,7 +28,6 @@ import {
   planLibraryMigration,
   planFieldMigration,
   splitTypeData,
-  allTaskFieldsOf,
   type LibraryEntry,
 } from './library';
 import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTypes, updateField, type NewFieldInput } from './typedef';
@@ -785,6 +784,43 @@ export class Store {
   tasksOfCategory(categoryId: string): Task[] {
     const target = this.resolveCat(categoryId);
     return this.tasks().filter((t) => !!target && this.categoryIdsOfTask(t).includes(target));
+  }
+
+  /** 资料能从哪些库里挑（Rei 2026-10-28：资料库和类型平级，任何库都行）：没归档、有库的，含人物库，按资料库顺序。 */
+  refLibraries(): TableMap['task_type'][] {
+    return this.orderedTypes().filter((t) => hasLibrary(t));
+  }
+
+  /**
+   * 任务挂的资料，按库分组（详情「资料」、新建面板用）：库按第一条资料出现的先后，人物库放最后。
+   * 归档的库里的资料照常列出。
+   */
+  taskRefs(taskId: string): Array<{ type: TableMap['task_type']; entries: LibraryEntry[] }> {
+    const t = this.get('task', taskId);
+    if (!t) return [];
+    const groups = new Map<string, string[]>();
+    for (const it of this.itemsOfTask(t)) groups.set(it.type_id, [...(groups.get(it.type_id) ?? []), it.id]);
+    const people = this.personIdsOfTask(taskId);
+    const personLib = this.list('task_type').find((x) => isPersonLibrary(x));
+    if (people.length && personLib) groups.set(personLib.id, people);
+    const out: Array<{ type: TableMap['task_type']; entries: LibraryEntry[] }> = [];
+    for (const [typeId, ids] of groups) {
+      const type = this.get('task_type', typeId);
+      if (!type || !hasLibrary(type)) continue;
+      const byId = new Map(this.libraryEntries(typeId).map((e) => [e.id, e]));
+      const entries = ids.map((id) => byId.get(id)).filter((e): e is LibraryEntry => !!e);
+      if (entries.length) out.push({ type, entries });
+    }
+    return out;
+  }
+
+  /** 挂上 / 去掉一条资料（人物走人物关联，其余走 task_item）。 */
+  toggleTaskRef(taskId: string, entry: Pick<LibraryEntry, 'kind' | 'id'>, on: boolean): void {
+    if (entry.kind === 'person') {
+      if (on) this.linkPerson(taskId, entry.id);
+      else this.unlinkPerson(taskId, entry.id);
+    } else if (on) this.addTaskItem(taskId, entry.id);
+    else this.removeTaskItem(taskId, entry.id);
   }
 
   /** 改任务的类型（整组，按给的顺序；第一个写进单值）。 */

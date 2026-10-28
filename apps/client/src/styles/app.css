@@ -2508,12 +2508,6 @@ button {
 .checkin-filters {
   margin-top: 14px;
 }
-.cat-picker-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-}
 .cat-search {
   position: relative;
 }
@@ -2531,54 +2525,6 @@ button {
 }
 .cat-search input::-webkit-search-cancel-button {
   display: none;
-}
-.cat-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-height: 212px;
-  overflow-y: auto;
-  padding: 2px;
-}
-.cat-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 2px;
-}
-.cat-flow > .cat-grid {
-  display: contents;
-}
-.cat-tile {
-  --chip-color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: var(--radius-btn);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
-  white-space: nowrap;
-}
-.cat-none {
-  color: var(--text-2);
-}
-.cat-tile[data-hovered] {
-  background: color-mix(in srgb, var(--chip-color) 8%, var(--surface));
-}
-.cat-tile[data-selected] {
-  border-color: var(--chip-color);
-  background: color-mix(in srgb, var(--chip-color) 16%, var(--surface));
-}
-.cat-tile[data-focus-visible] {
-  box-shadow: var(--focus);
 }
 .cat-current {
   justify-content: space-between;
@@ -2750,32 +2696,6 @@ button {
   }
 }
 
-/* 打卡分类：常用 + 更多 */
-.cat-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-btn);
-  background: transparent;
-  color: var(--text-2);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
-}
-.cat-more[data-hovered] {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-.cat-more[data-focus-visible] {
-  box-shadow: var(--focus);
-}
-.cat-more .flip {
-  transform: rotate(180deg);
-}
 
 /* ───────────── 侧边栏分区 ───────────── */
 .nav {

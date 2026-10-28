@@ -211,7 +211,7 @@ export function seedDemo(store: Store): void {
     task(tr('## 想看理由\n过年和家人一起重看一遍\n'), { type_id: T.movie, library_item_id: interstellar.id, scheduled_date: d(9) });
     lib(T.movie, tr('漫长的季节'), { year: 2023, kind: '剧集', douban: '35588177' });
     lib(T.movie, tr('请回答 1988'), { year: 2015, kind: '剧集' });
-    lib(T.movie, tr('奥本海默'), { year: 2023, kind: '电影' });
+    const oppenheimer = lib(T.movie, tr('奥本海默'), { year: 2023, kind: '电影' });
     lib(T.movie, tr('千与千寻'), { year: 2001, kind: '电影' });
     lib(T.book, tr('置身事内'), { author: tr('兰小欢'), total_pages: 320 });
     lib(T.book, tr('长安的荔枝'), { author: tr('马伯庸'), total_pages: 220 });
@@ -219,7 +219,12 @@ export function seedDemo(store: Store): void {
     lib(T.book, tr('原则'), { author: tr('瑞·达利欧') });
     lib(T.game, tr('星露谷物语'), { platform: ['PC（Steam）', 'Nintendo Switch', 'iOS'], links: [{ url: 'https://store.steampowered.com/app/413150/Stardew_Valley/' }] });
     lib(T.game, tr('哈迪斯 2'), { platform: ['PC（Steam）', 'Switch 2'] });
-    lib(T.game, tr('双人成行'), { platform: ['PlayStation 5', 'Xbox Series X|S', 'PC（Steam）'] });
+    const twoWay = lib(T.game, tr('双人成行'), { platform: ['PlayStation 5', 'Xbox Series X|S', 'PC（Steam）'] });
+    // 一件任务挂几个类型、几条不同库的资料和一个人（Rei 2026-10-28 多类型与多资料）
+    const weekend = task(tr('周末和小林窝在家：先看片，再一起打游戏'), { scheduled_date: d(4) });
+    store.setTaskCategories(weekend.id, [BUILTIN_CHECKIN_CATEGORY_IDS.watch, BUILTIN_CHECKIN_CATEGORY_IDS.game, BUILTIN_CHECKIN_CATEGORY_IDS.social]);
+    store.setTaskItems(weekend.id, [oppenheimer.id, twoWay.id]);
+    store.linkPerson(weekend.id, lin.id);
     lib(T.game, tr('集合啦！动物森友会'), { platform: ['Nintendo Switch'] });
     lib(T.project, tr('个人主页'), { link: 'https://rei8t.dev' });
     lib(T.project, tr('家庭相册备份'));

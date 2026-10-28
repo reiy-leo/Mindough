@@ -12,6 +12,19 @@ const n = (v: unknown, one: string, other: string) => `${v} ${pl(v, one, other)}
 const c = (p: Params, k: string) => p.count ?? p[k];
 
 export const EN: Record<string, EnValue> = {
+  // ── 多类型与多资料（2026-10-28）──
+  "最近用过": "Recently Used",
+  "去掉{name}": "Remove {name}",
+  "搜类型，比如“健康”“yd”": "Search categories, e.g. “Health”",
+  "新建类型“{name}”": "New category “{name}”",
+  "类型：{value}": "Category: {value}",
+  "选类型": "Choose Category",
+  "从哪个库挑": "Pick from which collection",
+  "搜所有资料库…": "Search all collections…",
+  "没有找到。要在线找或新建，先在上面选一个库。": "Nothing found. To search online or add a new one, pick a collection above first.",
+  "资料库都还是空的，先在上面选一个库再添加。": "Your collections are empty. Pick a collection above to add something.",
+  "不再关联「{name}」": "Unlink “{name}”",
+  "添加资料": "Add Item",
   "这里出错了，内容没显示出来": "Something went wrong here, so this didn’t load",
   "再试一次": "Try Again",
   // ── 类型页改版（方案 C，2026-10-28）──

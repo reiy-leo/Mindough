@@ -4,7 +4,7 @@
  */
 import { useEffect, useId, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Button as RacButton } from 'react-aria-components';
-import { ImagePlus, Plus, Search, Sparkles } from 'lucide-react';
+import { Check, ImagePlus, Plus, Search, Sparkles } from 'lucide-react';
 import {
   extraItemFieldsOf,
   findLookupTwin,
@@ -68,6 +68,7 @@ export function LibraryPicker({
   searchText,
   allowCreate = true,
   onPickOnline,
+  selected,
 }: {
   store: Store;
   type: TaskType;
@@ -85,6 +86,8 @@ export function LibraryPicker({
   searchText?: string;
   /** 最后一行「新建“xxx”」（合并时挑目标不要）。 */
   allowCreate?: boolean;
+  /** 多选（任务的资料，Rei 2026-10-28）：已经挂上的，行尾打勾，再点一下去掉。 */
+  selected?: ReadonlySet<string>;
 }) {
   const copy = libraryCopy(type);
   const shape = artShape(type);
@@ -171,6 +174,7 @@ export function LibraryPicker({
             data-index={i}
             role="option"
             aria-selected={i === active}
+            {...(selected ? { "aria-checked": selected.has(e.id) } : {})}
             className={`lib-option${i === active ? ' is-active' : ''}`}
             onMouseMove={() => setActive(i)}
             onMouseDown={(ev) => ev.preventDefault()}
@@ -182,6 +186,11 @@ export function LibraryPicker({
               {e.subtitle && <span className="lib-option-sub">{e.subtitle}</span>}
             </span>
             {e.uses > 0 && <span className="lib-option-meta">{tr('{uses} 件任务', { uses: e.uses })}</span>}
+            {selected && (
+              <span className={`lib-option-check${selected.has(e.id) ? ' is-on' : ''}`} aria-hidden>
+                {selected.has(e.id) && <Check size={12} strokeWidth={3} />}
+              </span>
+            )}
           </li>
         ))}
         {canCreate && (

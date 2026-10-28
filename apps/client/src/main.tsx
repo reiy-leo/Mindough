@@ -31,6 +31,7 @@ import './styles/lunar.css';
 import './styles/prop-chips.css';
 import './styles/settings.css';
 import './styles/project.css';
+import './styles/multi-type.css';
 import './skin/skins.css';
 import './styles/vibrancy.css';
 

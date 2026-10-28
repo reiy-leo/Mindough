@@ -2,7 +2,7 @@ import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } 
 import { Button as RacButton, Checkbox, Menu, MenuItem, Popover, Separator } from 'react-aria-components';
 import { Ban, Check, CirclePlay, Globe, Link2, Lock, LockOpen, PanelRight, Repeat, Sun, SunDim, X } from 'lucide-react';
 import { HoverTip } from '../ui/HoverTip';
-import { describeRecurrence, isCheckInTask, isTaskOverdue, parseRecurrence, timeZoneBadge, toDateKey, type Store, type Task } from '@mindough/core';
+import { categoryIcon, describeRecurrence, isCheckInTask, isTaskOverdue, parseRecurrence, timeZoneBadge, toDateKey, type Store, type Task } from '@mindough/core';
 import { useUi } from '../lib/ui';
 import { toggleDone, toggleMyDay } from '../lib/actions';
 import { STATE_CLASS, viewOf } from '../lib/view';
@@ -57,6 +57,14 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
   const state = v.derived?.state;
   const rec = parseRecurrence(task.recurrence);
   const TypeIcon = typeIcon(v.type?.icon);
+  const cats = store.categoriesOfTask(task);
+  const items = store.itemsOfTask(task);
+  const CategoryIcon = typeIcon(cats[0] ? categoryIcon(cats[0]) : undefined);
+  // 行标题用的是正文首行时，第一条资料的名字写在元信息里；标题本来就是资料名就不重复
+  const itemShown = v.subtitle && v.title && items.length ? v.title : null;
+  // 第一条资料总看得见（在标题里或元信息里），其余的才算进 +N
+  const more = Math.max(0, cats.length - 1) + Math.max(0, items.length - 1);
+  const allRefs = [...cats.map((c) => dataLabel(c.name)), ...items.map((i) => i.name)].join(tr('、'));
   const isCheckInRow = checkIn && (task.completion_mode !== 'once' || !!rec);
   const relatedCount = store.relatedTasks(task.id).length;
   // 三列布局：右列正在显示这件
@@ -148,11 +156,28 @@ export function TaskRow({ store, task, showGroup = true, showDate = false, showM
         {/* 列表不显示副标题（Rei 2026-10-27）。带资料又写了正文的任务：标题用正文首行，资料名挪到类型后面（Rei 2026-10-28「连任务名称都不显示了」） */}
         <span className="row-title">{v.subtitle || v.title}</span>
         <span className="row-meta">
-          {v.type && v.type.layout !== 'text' && (
+          {/* 类型和资料（Rei 2026-10-28 能挂多个）：克制地写「游戏 · 生灵重塑 +2」——第一个类型、第一条资料，其余合成 +N，悬停看全部 */}
+          {(cats.length > 0 || itemShown) && (
+            <span className="meta-type meta-refs" style={{ color: cats[0]?.color ?? v.type?.color }}>
+              {cats[0] ? <CategoryIcon size={12} /> : <TypeIcon size={12} />}
+              {cats[0] ? dataLabel(cats[0].name) : null}
+              {itemShown ? <span className="meta-item">{cats[0] ? ' · ' : ''}{itemShown}</span> : null}
+              {more > 0 && (
+                <HoverTip className="meta-more" tip={allRefs}>
+                  {' '}+{more}
+                </HoverTip>
+              )}
+            </span>
+          )}
+          {!cats.length && !itemShown && v.type && v.type.layout !== 'text' && (
             <span className="meta-type" style={{ color: v.type.color }}>
               <TypeIcon size={12} />
               {dataLabel(v.type.name)}
-              {v.subtitle && v.title ? <span className="meta-item"> · {v.title}</span> : null}
+              {more > 0 && (
+                <HoverTip className="meta-more" tip={allRefs}>
+                  {' '}+{more}
+                </HoverTip>
+              )}
             </span>
           )}
           {showGroup && v.group && (
