@@ -194,7 +194,8 @@ Rei：「settings中的这个google登录写清楚数据流向，先经过worker
 - person：id、name、avatar_asset_id、relation、birthday、note_md
 - task_person：task_id、person_id
 - asset：id、sha256、mime、width、height、r2_key（同步后）
-- journal_entry（日记，SQLite 迁移 v6，Rei 2026-10-17）：id（由日期算：`journalEntryId`）、date、body_md、mood（心情英文 id，可空）、base_at（这一版是在哪一版别的设备写的内容上改的，同步保护用）、created_at
+- journal_post（日记的一条，SQLite 迁移 v13，Rei 2026-10-28 改成 Feed 流）：id（新写的随机 UUIDv7；旧日记转来的由那篇的 id 算：`migratedPostId`）、day、body_md、mood（可空）、created_at。只追加：发了不改正文、心情、日子，只能删和撤销删除
+- journal_entry（2026-10-28 起不再写，留给旧客户端；日记，SQLite 迁移 v6，Rei 2026-10-17）：id（由日期算：`journalEntryId`）、date、body_md、mood（心情英文 id，可空）、base_at（这一版是在哪一版别的设备写的内容上改的，同步保护用）、created_at
 - 依赖可以跨组。
 
 ## 视图（MVP）
@@ -731,7 +732,7 @@ Rei 2026-10-26 原话：「我的一天、待安排、可做的中间列的heade
 - **手机（≤ 760）**：页面里也不放大标题，标题挪到顶栏（顶栏原来就有这个字，只是透明），左边写「我的一天 / 待安排 / 可做」，右边搜索不变。别的页面照旧。
 - 检查：`quick-add.test.ts` 加了待安排 / 可做的用例（交给 create 建、不碰我的一天、空白不建）。截图 `work/shots-myday-add/hl-*.png`（脚本 `work/shots-tool/headerless.mjs`）：待安排、可做三皮肤宽屏亮色，待安排暗色，我的一天 macOS 无标题栏模拟，中等宽度 980 的待安排和可做，手机 390 三页（Apple、Material、WinUI），各有加之前和加之后。
 
-### 日记改版：方案 B「心情为中心」✅（2026-10-25）
+### 日记改版：方案 B「心情为中心」✅（2026-10-25；2026-10-28 换成 Feed 流，见下面「日记改版：Feed 流」）
 Rei 2026-10-25 看完三个原型（docs/JOURNAL-REDESIGN.md），回复：「按B实现」。按推荐做：B 的情绪月历和心情轮为主，正文借 C 的大字和留白。数据表没改，不用迁移。
 
 - **桌面**：日记页铺满中间和右边两列。左边一列是「日记」标题、「今天」、搜索（打开 ⌘K），下面是情绪月历、「这个月的心情」分布条、这个月写过的日子。右边是那天的日记：页头按心情色铺一层很淡的渐变，大号日期「25」+「周日 · 2026年10月 · 今天」+ 前一天 / 后一天，右上角一张大脸（白底圆，下面写心情名和「点脸换心情」），正文 20px、行距 1.75，没有白框。中等宽度（侧边栏收成图标栏）和右边开着任务详情时，月历那列收窄到 280–340px。
@@ -1031,6 +1032,24 @@ Rei 2026-10-28 07:29 原话：「项目和资料库一样，项目也可以显�
 - 设置里不加「项目」的侧栏开关。
 - 已经结束（结束日期过了、任务都做完）的项目不自动从侧栏拿掉。
 
+### 日记改版：Feed 流 ✅（2026-10-28，方案 docs/JOURNAL.md 顶部「2026-10-28 改版：Feed 流」）
+Rei 2026-10-28 原话：「日记还是不好用，我更喜欢Feed流，一天可以添加很多条。每一条都可以标记心情。」「a feed提交之后就不能修改了，心情也不能修改。」「两栏，左侧顶部显示activity图，点击可以切换」「activity图的颜色根据心情的颜色mix」「标签不做」「左侧除了activity图，还可以显示一个心情列表」。
+
+- **数据**：新表 `journal_post`（迁移 v13），只追加。Store `addJournalPost` / `deleteJournalPost` / `restoreJournalPost`，改正文、心情、日子的写入一律拦下（`JournalPostLockedError`）。旧的 `journal_entry` 打开时每篇转成一条（id 由那篇算，各设备一样，不进 outbox），折叠块里收着的另一版各成一条；旧客户端后来改了、删了那天，转来的跟着变。旧表留着不删。
+- **core** `journal-feed.ts`：排序、按天分组、按天 / 心情筛选、`journalHeatRange`（至少 26 周，往前补到最早一条）、`moodCounts`、`mixOklab` / `dayMoodColor`（当天各条心情色在 OKLab 里平均，没心情算中性色）、`heatStrength`（1 条 62% 到 4 条以上 100%）、导出 `formatJournalDay` / 导入 `parseJournalDay`（每条一段，标记注释记 id、时刻、心情）。搜索按条命中。
+- **界面**：`pages/Journal.tsx` 两栏，左边 `JournalHeatmap` + `MoodList`，右边 `JournalComposer`（心情弹层、插入图片、列表、发送 / ⌘↵）+ `JournalFeed`（按天分组，右键 / 长按 / ··· 只有「删除」，确认后删，提示里撤销）。点一天 = 路由 `#/journal/<日期>`；按心情筛能叠加，筛着时活动图只画这个心情。选中的不是今天就没有输入框。窄屏上下排，心情是一排横着的胶囊。我的一天小卡改成今天几条 + 最新一条 +「写一条」。⌘K「写今天的日记」改名「写日记」。旧的情绪月历、心情轮（`JournalCalendar`、`MoodWheel`）和 36 个用不到的词条删了（9 种语言）。
+- 检查：core `journal-feed.test.ts`（21 条：只追加、迁移、颜色混合、导出导入来回）、`journal`、`attachments`、`sync`；client `i18n`、`locales`、`deeplink`、`nav`、`prop-chips`；core + client `tsc --noEmit`。截图 `work/shots-journal-feed/`（脚本 `work/shots-tool/jf-*.mjs`）：Apple 宽屏全部 / 选中某天 / 按心情筛 / 某天叠加心情 / 心情弹层 / 写好待发，WinUI 宽屏亮色全部、暗色某天，Material 暗色按心情筛，Apple 390。
+
+替 Rei 定的、待确认（JOURNAL.md 顶部「待确认」有详细说法）：
+1. 删除走菜单 + 确认 + 能撤销，同步墓碑。
+2. 过去的日子不显示输入框，不能补写。
+3. 心情列表按活动图整段算（实际是全部历史），没用过的不显示，点了筛选、能和某天叠加，筛着时活动图只画这个心情。
+4. 发送按钮用皮肤强调色，不是附图里的橙色。
+5. 心情在输入框工具栏的按钮弹层里选。
+6. alpha.9 及以前的旧客户端看不到新条目；旧客户端改了旧日记，转来的那条跟着变。
+7. 我的一天小卡：今天几条 + 最新一条 +「写一条」。
+8. 7 种语言的新文案待母语的人看。
+
 ### M5 项目视角
 - SS / FF / SF 与间隔（lag）。
 - 关键路径与日期推算（沿前后关系推最早开始，超出组结束时间标红）。
@@ -1056,4 +1075,5 @@ Rei 2026-10-28 07:29 原话：「项目和资料库一样，项目也可以显�
 - 🟡 滴答清单导入待问：见 IMPORT-DIDA.md「待 Rei 确认」。
 - 🟡 附件待问：见上面「附件」的待 Rei 确认（50 MB 上限、资料项要不要附件、Tauri 存到哪）。
 - 🟡 日期段待问（2026-10-26）：「可做」现在只看前后关系，开始日还没到的任务也列着（单日任务一样）。要不要改成「开始日到了才算可做」？没改，等 Rei 定。
+- 🟡 日记 Feed 流待确认（2026-10-28）：见上面「日记改版：Feed 流」的待确认 8 条。
 - 🟡 日记待问（J1 没做）：「一天从几点开始」要不要扩展到我的一天 / 打卡 / 提醒；日记页要不要只读的「这一天」；「插入时间」「那年今日」⌘K 按日期跳转。
