@@ -53,6 +53,8 @@ export function emptySnapshot(): Snapshot {
     task_type: [],
     person: [],
     task_person: [],
+    task_category: [],
+    task_item: [],
     my_day: [],
     check_in: [],
     checkin_category: [],

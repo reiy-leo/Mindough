@@ -243,6 +243,8 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
   const peopleOf = new Map<string, string[]>();
   for (const x of store.list('task_person')) if (store.get('person', x.person_id)) peopleOf.set(x.task_id, [...new Set([...(peopleOf.get(x.task_id) ?? []), x.person_id])]);
 
+  const catsOf = (t: Task) => store.categoryIdsOfTask(t);
+  const itemsOf = (t: Task) => store.itemIdsOfTask(t);
   for (const t of tasks) {
     const dir = (t.group_id && groupDir.get(t.group_id)) || '';
     let names = namesIn.get(dir);
@@ -273,6 +275,9 @@ export function exportArchive(store: Store, opts: ExportOptions = {}): ExportRes
       target_date: t.target_date ?? undefined,
       repeat: t.recurrence ?? undefined,
       category: t.category_id ? new Noted(store.categoryOf(t)?.id ?? t.category_id, dataLabel(store.categoryOf(t)?.name ?? '')) : undefined,
+      // 多类型与多资料（Rei 2026-10-28）：有两个以上才写全部；第一个照旧写在 category / item 里（旧版本只读那两项）
+      categories: catsOf(t).length > 1 ? listOf(catsOf(t), (id) => dataLabel(store.category(id)?.name ?? '')) : undefined,
+      items: itemsOf(t).length > 1 ? listOf(itemsOf(t), (id) => store.get('library_item', id)?.name ?? '') : undefined,
       remind: t.remind_time ? new Quoted(t.remind_time) : undefined,
       time_zone: t.time_zone ?? undefined,
       sort: t.sort,

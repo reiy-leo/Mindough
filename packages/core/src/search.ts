@@ -2,11 +2,11 @@
 import { fieldText, taskTitle } from './preview';
 import { itemSubtitle, mergedData } from './library';
 import { isHiddenFieldKey } from './lookup';
-import { isFinished, type Group, type JournalEntry, type LibraryItem, type Person, type Task, type TaskPerson, type TaskType } from './types';
+import { isFinished, type Category, type Group, type JournalEntry, type LibraryItem, type Person, type Task, type TaskCategory, type TaskItem, type TaskPerson, type TaskType } from './types';
 import { formatDate } from './dates';
 import { moodLabel } from './journal';
 
-import { tr, trc } from './i18n';
+import { dataLabel, tr, trc } from './i18n';
 export type SearchHit =
   | { kind: 'task'; id: string; title: string; snippet: string; score: number; task: Task }
   | { kind: 'person'; id: string; title: string; snippet: string; score: number; person: Person }
@@ -25,6 +25,10 @@ export interface SearchIndexInput {
   items?: readonly LibraryItem[];
   /** 日记（搜正文和心情的名字）。 */
   journal?: readonly JournalEntry[];
+  /** 多类型与多资料（Rei 2026-10-28）：任务挂的其余资料、类型的名字也算进去。 */
+  taskItems?: readonly TaskItem[];
+  taskCategories?: readonly TaskCategory[];
+  categories?: readonly Category[];
 }
 
 const norm = (s: string) => s.toLowerCase().normalize('NFKC');
@@ -66,6 +70,16 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
     if (name) peopleOfTask.set(tp.task_id, [...(peopleOfTask.get(tp.task_id) ?? []), name]);
   }
   const itemById = new Map((input.items ?? []).filter((i) => !i.deleted).map((i) => [i.id, i]));
+  const catById = new Map((input.categories ?? []).map((c) => [c.id, c]));
+  const refText = new Map<string, string[]>();
+  const pushRef = (taskId: string, text: string | undefined) => {
+    if (text) refText.set(taskId, [...(refText.get(taskId) ?? []), text]);
+  };
+  for (const x of input.taskItems ?? []) if (!x.deleted) pushRef(x.task_id, itemById.get(x.item_id)?.name);
+  for (const x of input.taskCategories ?? []) {
+    const c = catById.get(x.category_id);
+    if (!x.deleted && c) pushRef(x.task_id, `${c.name} ${dataLabel(c.name)}`);
+  }
   const hits: SearchHit[] = [];
   for (const it of itemById.values()) {
     const type = typeById.get(it.type_id);
@@ -88,7 +102,7 @@ export function search(input: SearchIndexInput, query: string, limit = 30): Sear
         return fieldText(v);
       })
       .join(' ');
-    const extra = [fields, (peopleOfTask.get(t.id) ?? []).join(' '), t.group_id ? (groupById.get(t.group_id)?.name ?? '') : ''].join(' ');
+    const extra = [fields, (peopleOfTask.get(t.id) ?? []).join(' '), (refText.get(t.id) ?? []).join(' '), t.group_id ? (groupById.get(t.group_id)?.name ?? '') : ''].join(' ');
     const title = taskTitle(t, type, (def, v) => (def.kind === 'person' && typeof v === 'string' ? (personById.get(v)?.name ?? '') : fieldText(v)));
     const s = scoreText(`${title} ${t.body_md} ${extra}`, terms);
     if (s > 0) {

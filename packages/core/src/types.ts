@@ -149,7 +149,34 @@ export interface Task extends BaseRow {
    * 日期和提醒时间按这个时区的墙上时间解释（见 timezone.ts）。SQLite 迁移 v8。
    */
   time_zone: string | null;
+  /**
+   * 单值的签名（多类型与多资料，Rei 2026-10-28，见 task-refs.ts）：新客户端写任务时记 `category_id|library_item_id`。
+   * 旧客户端不认这一列，推上来的行没有它或对不上，就知道单值是旧客户端改的。SQLite 迁移 v12。
+   */
+  refs_mirror: string | null;
   done_at: Timestamp | null;
+  sort: number;
+  created_at: Timestamp;
+}
+
+/**
+ * 任务挂的类型（多对多，Rei 2026-10-28「一个任务可以关联多个类型」）。id = taskCategoryId(task_id, category_id)。
+ * 第一个（sort 最小）同时写进 task.category_id，给旧客户端看。SQLite 迁移 v12。
+ */
+export interface TaskCategory extends BaseRow {
+  task_id: string;
+  category_id: string;
+  sort: number;
+  created_at: Timestamp;
+}
+
+/**
+ * 任务挂的资料（多对多，Rei 2026-10-28「一个任务可以连多个资料库的资料」），资料来自哪个库都行。
+ * id = taskItemId(task_id, item_id)。第一条同时写进 task.library_item_id（和它的库 task.type_id）。人物不在这里，还是 task_person。
+ */
+export interface TaskItem extends BaseRow {
+  task_id: string;
+  item_id: string;
   sort: number;
   created_at: Timestamp;
 }
@@ -407,6 +434,8 @@ export interface TableMap {
   task_type: TaskType;
   person: Person;
   task_person: TaskPerson;
+  task_category: TaskCategory;
+  task_item: TaskItem;
   task_link: TaskLink;
   my_day: MyDayEntry;
   check_in: CheckIn;
@@ -427,6 +456,8 @@ export const TABLES: readonly TableName[] = [
   'task_type',
   'person',
   'task_person',
+  'task_category',
+  'task_item',
   'my_day',
   'check_in',
   'checkin_category',

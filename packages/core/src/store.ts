@@ -35,8 +35,9 @@ import { LEGACY_BUILTIN_FIELDS, addField, cleanOptions, isEditableType, orderTyp
 import { BUILTIN_CATEGORIES } from './seed/builtin-checkin-categories';
 import { CATEGORY_FREQUENT_PREF, CATEGORY_GROUP_PREF, categoryGroupOf, categoryGroupOverrides, categoryLastUsed, categoryStateOf, frequentCategoryIds, orderPickerCategories, withCategoryGroup, withCategoryState, type CategoryGroup, type CategoryState } from './category-prefs';
 import { CategoryDeleteError, categoryFromCheckin, categoryNameTaken, fillCategory, planCategoryMerges, resolveCategoryId, sortCategories, DEFAULT_CATEGORY_COLOR, DEFAULT_CATEGORY_ICON } from './categories';
+import { isMirrored, legacyRefPlan, refsMirrorOf, sortLinks, taskCategoryId, taskItemId } from './task-refs';
 import { mergeCycleSurvivors, planItemMerge, planPersonMerge, resolveMerged, duplicateGroups, type DuplicateGroup, type MergeChoices } from './merge';
-import { TABLES, isFinished, normalizeStatus, type BaseRow, type Category, type CheckInCategory, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskPerson, type TaskStatus } from './types';
+import { TABLES, isFinished, normalizeStatus, type BaseRow, type Category, type CheckInCategory, type DateKey, type CheckInKind, type FieldDef, type FieldValue, type LibraryItem, type NewRow, type Person, type TableMap, type TableName, type Task, type TaskCategory, type TaskItem, type TaskPerson, type TaskStatus } from './types';
 import type { Change, StorageAdapter } from './storage/adapter';
 
 import { dataLabel, tr } from './i18n';
@@ -170,6 +171,8 @@ export class Store {
         if (t === 'task' && (row as Task).time_zone === undefined) (row as Task).time_zone = null;
         // v10 之前没有 end_date（空 = 单日）：同上
         if (t === 'task' && (row as Task).end_date === undefined) (row as Task).end_date = null;
+        // v12 之前没有 refs_mirror（多类型与多资料）：同上；null = 当成旧客户端写的，打开时把单值补进多值
+        if (t === 'task' && (row as Task).refs_mirror === undefined) (row as Task).refs_mirror = null;
         // v9 之前没有 count_config（空 = 步长 1）：同上
         if (t === 'task' && !isPlainObject((row as Task).count_config)) (row as Task).count_config = {};
         // v5 之前没有 merged_into：同上
@@ -189,6 +192,7 @@ export class Store {
     store.reviveReferencedTypes();
     store.settleMerges();
     store.settleCategories();
+    store.backfillRefs();
     await store.flush();
     return store;
   }
@@ -295,15 +299,21 @@ export class Store {
   /** 写一批行：补 updated_at，改内存，通知，再异步落盘。 */
   write(changes: Array<{ table: TableName; row: BaseRow }>): void {
     if (!changes.length) return;
-    const stamped: Change[] = changes.map((c) => {
+    const stampOne = (c: { table: TableName; row: BaseRow }): Change => {
       const row = { ...c.row, updated_at: this.clock.tick() };
       // 类型：旧客户端只认 checkin_category_id，写任务时抄一份过去
       if (c.table === 'task' && (row as Task).category_id !== undefined) (row as Task).checkin_category_id = (row as Task).category_id;
+      // 多类型与多资料：任务行总带着单值的签名（见 task-refs.ts）
+      if (c.table === 'task') (row as Task).refs_mirror = refsMirrorOf(row as Task);
       // 资料 / 人物总带着 merged_into（没合并过 = null），和重开后读回的样子一致
       if ((c.table === 'library_item' || c.table === 'person') && (row as LibraryItem).merged_into === undefined) (row as LibraryItem).merged_into = null;
       (this.tables[c.table] as Map<string, BaseRow>).set(row.id, row);
       return { table: c.table, row } as Change;
-    });
+    };
+    let stamped: Change[] = changes.map(stampOne);
+    // 单值和多值对齐（双写）：写了单值的补进多值，多值变了的把第一个抄回单值
+    const extra = this.syncRefs(stamped);
+    if (extra.length) stamped = dedupeRows([...stamped, ...extra.map(stampOne)]) as Change[];
     if (this.batchBuffer) {
       this.batchBuffer.push(...stamped);
       this._version++;
@@ -381,6 +391,7 @@ export class Store {
         if (t.library_item_id === undefined) t.library_item_id = null;
         if (t.remind_time === undefined) t.remind_time = null;
         if (t.time_zone === undefined) t.time_zone = null;
+        if (t.refs_mirror === undefined) t.refs_mirror = null;
         if (!isPlainObject(t.count_config)) t.count_config = {};
       }
       if (c.table === 'attachment') {
@@ -395,6 +406,10 @@ export class Store {
       applied.push({ table: c.table, row } as Change);
     }
     if (!applied.length) return 0;
+    // 旧客户端改了单值（任务行没有签名或对不上）：补进多值，只加不删；同样不进 outbox（各设备各补一遍结果一样）
+    const legacy: Change[] = [];
+    for (const c of applied) if (c.table === 'task' && !c.row.deleted) legacy.push(...this.legacyLinks(c.row as Task));
+    applied.push(...legacy);
     this._version++;
     for (const fn of this.listeners) fn();
     this.pending = this.pending
@@ -610,7 +625,9 @@ export class Store {
 
   /** 用到这条资料的任务（人物库：和这个人有关的任务）。 */
   tasksOfItem(itemId: string): Task[] {
-    return this.tasks().filter((t) => t.library_item_id && (t.library_item_id === itemId || this.resolveItemId(t.library_item_id) === itemId));
+    const ids = new Set<string>();
+    for (const l of this.list('task_item')) if ((this.resolveItemId(l.item_id) ?? l.item_id) === itemId) ids.add(l.task_id);
+    return this.tasks().filter((t) => ids.has(t.id) || (t.library_item_id && (t.library_item_id === itemId || this.resolveItemId(t.library_item_id) === itemId)));
   }
 
   /** 一个库的全部条目（人物类型就是人物列表），带“最近用到”和用到次数，给选择框 / 资料库页用。 */
@@ -636,10 +653,12 @@ export class Store {
     const last = new Map<string, number>();
     const uses = new Map<string, number>();
     for (const t of this.list('task')) {
-      const iid = t.library_item_id ? (this.resolveItemId(t.library_item_id) ?? t.library_item_id) : null;
-      if (!iid) continue;
-      last.set(iid, Math.max(last.get(iid) ?? 0, ms(t.created_at)));
-      uses.set(iid, (uses.get(iid) ?? 0) + 1);
+      // 一件任务能挂几条资料（Rei 2026-10-28）：每条都算用到
+      const iids = new Set(this.itemIdsOfTask(t));
+      for (const iid of iids) {
+        last.set(iid, Math.max(last.get(iid) ?? 0, ms(t.created_at)));
+        uses.set(iid, (uses.get(iid) ?? 0) + 1);
+      }
     }
     return this.libraryItems(typeId).map((i) => entryOfItem(type, i, Math.max(last.get(i.id) ?? 0, ms(i.created_at)), uses.get(i.id) ?? 0));
   }
@@ -675,31 +694,19 @@ export class Store {
     if (!item || item.deleted) return;
     const type = this.get('task_type', item.type_id);
     const rows: Array<{ table: TableName; row: BaseRow }> = [{ table: 'library_item', row: { ...item, deleted: true } }];
-    for (const t of this.list('task'))
-      if (t.library_item_id && this.resolveItemId(t.library_item_id) === id) rows.push({ table: 'task', row: { ...t, library_item_id: null, type_data: { ...itemData(type, item), ...t.type_data } } as BaseRow });
+    const linked = new Set<string>();
+    for (const l of this.list('task_item'))
+      if ((this.resolveItemId(l.item_id) ?? l.item_id) === id) {
+        linked.add(l.task_id);
+        rows.push({ table: 'task_item', row: { ...l, deleted: true } });
+      }
+    for (const t of this.list('task')) {
+      if (!(t.library_item_id && this.resolveItemId(t.library_item_id) === id) && !linked.has(t.id)) continue;
+      // 只剩这一条资料时把资料抄回任务，卡片照样显示；还有别的资料就只解开这条
+      const others = this.itemIdsOfTask(t).filter((x) => x !== id);
+      rows.push({ table: 'task', row: (others.length ? { ...t, library_item_id: null } : { ...t, library_item_id: null, type_data: { ...itemData(type, item), ...t.type_data } }) as BaseRow });
+    }
     this.write(rows);
-  }
-
-  /** 给任务换一条资料（或解开：null）。 */
-  setTaskItem(taskId: string, itemId: string | null): Task {
-    return this.updateTask(taskId, { library_item_id: itemId });
-  }
-
-  /**
-   * 改任务类型（Rei 2026-10-16：「切换类别后就要清空之前类别的状态」）：
-   * 原来挂的资料取消（资料本身留在库里），资料字段不抄回、也不在新类型的库里找同名或新建；
-   * 只留下新类型也有的任务字段（同 key）。新类型的资料从「未选」开始。
-   */
-  changeTaskType(taskId: string, typeId: string | null): Task {
-    const t = this.get('task', taskId);
-    if (!t) throw new Error(tr('任务不存在'));
-    const next = typeId === PLAIN_TYPE_ID ? null : typeId;
-    if (next === t.type_id) return t;
-    const nt = this.get('task_type', next);
-    const keep = new Set(allTaskFieldsOf(nt).map((f) => f.key));
-    const data = Object.fromEntries(Object.entries(t.type_data).filter(([k]) => keep.has(k)));
-    const body = t.body_md.trim() === '' && nt?.body_template ? { body_md: dataLabel(nt.body_template) } : {};
-    return this.updateTask(taskId, { type_id: next, library_item_id: null, type_data: data, ...body });
   }
 
   /** 任务的 type_data 里写着资料（有主字段名字）却没挂资料：找同名或新建一条挂上，type_data 只留任务字段。 */
@@ -710,6 +717,241 @@ export class Store {
     if (!split.name) return t;
     const item = this.findOrCreateLibraryItem(type.id, { name: split.name, image: split.image, fields: split.fields });
     return this.updateTask(t.id, { library_item_id: item.id, type_data: split.task });
+  }
+
+  // ───────────── 多类型与多资料（Rei 2026-10-28，task-refs.ts / docs/MULTI-TYPE.md） ─────────────
+
+  private refIndexCache: { version: number; cats: Map<string, TaskCategory[]>; items: Map<string, TaskItem[]> } | null = null;
+
+  /** 每件任务生效的关联行（按 sort），按版本缓存。 */
+  private refIndex() {
+    if (this.refIndexCache?.version === this._version) return this.refIndexCache;
+    const cats = new Map<string, TaskCategory[]>();
+    const items = new Map<string, TaskItem[]>();
+    for (const r of this.tables.task_category.values()) if (!r.deleted) (cats.get(r.task_id) ?? cats.set(r.task_id, []).get(r.task_id)!).push(r);
+    for (const r of this.tables.task_item.values()) if (!r.deleted) (items.get(r.task_id) ?? items.set(r.task_id, []).get(r.task_id)!).push(r);
+    for (const [k, v] of cats) cats.set(k, sortLinks(v));
+    for (const [k, v] of items) items.set(k, sortLinks(v));
+    this.refIndexCache = { version: this._version, cats, items };
+    return this.refIndexCache;
+  }
+
+  private resolveCat = (id: string | null | undefined): string | null => resolveCategoryId((x) => this.tables.category.get(x), id ?? null);
+
+  /** 任务挂的类型 id（顺着合并找到留下的、去重，按顺序）。没有关联行时退回单值（还没补过的旧数据）。 */
+  categoryIdsOfTask(task: Pick<Task, 'id' | 'category_id'> | string): string[] {
+    const t = typeof task === 'string' ? this.get('task', task) : task;
+    if (!t) return [];
+    const links = this.refIndex().cats.get(t.id);
+    const raw = links?.length ? links.map((l) => l.category_id) : t.category_id ? [t.category_id] : [];
+    const out: string[] = [];
+    for (const id of raw) {
+      const r = this.resolveCat(id);
+      if (r && !out.includes(r) && this.get('category', r)) out.push(r);
+    }
+    return out;
+  }
+
+  /** 任务挂的类型（按顺序）。 */
+  categoriesOfTask(task: Pick<Task, 'id' | 'category_id'> | string): Category[] {
+    return this.categoryIdsOfTask(task).map((id) => this.get('category', id)!);
+  }
+
+  /** 任务挂的资料 id（顺着合并找到留下的、去重、只要还在的，按顺序）。没有关联行时退回单值。不含人物。 */
+  itemIdsOfTask(task: Pick<Task, 'id' | 'library_item_id'> | string): string[] {
+    const t = typeof task === 'string' ? this.get('task', task) : task;
+    if (!t) return [];
+    const links = this.refIndex().items.get(t.id);
+    const raw = links?.length ? links.map((l) => l.item_id) : t.library_item_id ? [t.library_item_id] : [];
+    const out: string[] = [];
+    for (const id of raw) {
+      const r = this.resolveItemId(id);
+      if (r && !out.includes(r)) out.push(r);
+    }
+    return out;
+  }
+
+  /** 任务挂的资料（按顺序，不含人物）。 */
+  itemsOfTask(task: Pick<Task, 'id' | 'library_item_id'> | string): LibraryItem[] {
+    return this.itemIdsOfTask(task).map((id) => this.get('library_item', id)!);
+  }
+
+  /** 和这件任务有关的人（人物库的资料）：人物关联，去重、顺着合并。 */
+  personIdsOfTask(taskId: string): string[] {
+    return [...new Set(this.list('task_person').filter((x) => x.task_id === taskId).map((x) => this.resolvePersonId(x.person_id) ?? x.person_id))].filter((id) => !!this.get('person', id));
+  }
+
+  /** 挂了这个类型的任务（顺着合并算）。 */
+  tasksOfCategory(categoryId: string): Task[] {
+    const target = this.resolveCat(categoryId);
+    return this.tasks().filter((t) => !!target && this.categoryIdsOfTask(t).includes(target));
+  }
+
+  /** 改任务的类型（整组，按给的顺序；第一个写进单值）。 */
+  setTaskCategories(taskId: string, ids: readonly string[]): void {
+    const want = [...new Set(ids.map((id) => this.resolveCat(id)).filter((x): x is string => !!x))];
+    const now = this.now().toISOString();
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const l of this.list('task_category')) {
+      if (l.task_id !== taskId) continue;
+      const r = this.resolveCat(l.category_id);
+      const k = r ? want.indexOf(r) : -1;
+      // 合并掉的那个还挂着、留下的也在列表里：去掉旧行，下面按留下的 id 建
+      if (k < 0 || l.category_id !== r) rows.push({ table: 'task_category', row: { ...l, deleted: true } });
+    }
+    want.forEach((cid, k) => {
+      const id = taskCategoryId(taskId, cid);
+      const cur = this.tables.task_category.get(id);
+      if (cur && !cur.deleted && cur.sort === k) return;
+      rows.push({ table: 'task_category', row: { ...(cur ?? { created_at: now }), id, task_id: taskId, category_id: cid, sort: k, deleted: false, updated_at: '' } as unknown as BaseRow });
+    });
+    this.write(dedupeRows(rows));
+  }
+
+  addTaskCategory(taskId: string, categoryId: string): void {
+    const cur = this.categoryIdsOfTask(taskId);
+    const r = this.resolveCat(categoryId);
+    if (r && !cur.includes(r)) this.setTaskCategories(taskId, [...cur, r]);
+  }
+
+  removeTaskCategory(taskId: string, categoryId: string): void {
+    const r = this.resolveCat(categoryId);
+    this.setTaskCategories(taskId, this.categoryIdsOfTask(taskId).filter((x) => x !== r));
+  }
+
+  /** 改任务的资料（整组，按给的顺序；第一条写进单值，它的库写进 type_id）。去掉的只解开关联，资料留在库里。 */
+  setTaskItems(taskId: string, ids: readonly string[]): void {
+    const want = [...new Set(ids.map((id) => this.resolveItemId(id)).filter((x): x is string => !!x))];
+    const now = this.now().toISOString();
+    const rows: Array<{ table: TableName; row: BaseRow }> = [];
+    for (const l of this.list('task_item')) {
+      if (l.task_id !== taskId) continue;
+      const r = this.resolveItemId(l.item_id);
+      const k = r ? want.indexOf(r) : -1;
+      if (k < 0 || l.item_id !== r) rows.push({ table: 'task_item', row: { ...l, deleted: true } });
+    }
+    want.forEach((iid, k) => {
+      const id = taskItemId(taskId, iid);
+      const cur = this.tables.task_item.get(id);
+      if (cur && !cur.deleted && cur.sort === k) return;
+      rows.push({ table: 'task_item', row: { ...(cur ?? { created_at: now }), id, task_id: taskId, item_id: iid, sort: k, deleted: false, updated_at: '' } as unknown as BaseRow });
+    });
+    const t = this.get('task', taskId);
+    // 单值里的那条也要去掉（它可能还没补进多值）：不然下面对齐时又会被补回来
+    if (t && t.library_item_id && !want.includes(this.resolveItemId(t.library_item_id) ?? t.library_item_id)) rows.push({ table: 'task', row: { ...t, library_item_id: null } as BaseRow });
+    this.write(dedupeRows(rows));
+  }
+
+  addTaskItem(taskId: string, itemId: string): void {
+    const cur = this.itemIdsOfTask(taskId);
+    const r = this.resolveItemId(itemId);
+    if (r && !cur.includes(r)) this.setTaskItems(taskId, [...cur, r]);
+  }
+
+  removeTaskItem(taskId: string, itemId: string): void {
+    const r = this.resolveItemId(itemId) ?? itemId;
+    this.setTaskItems(taskId, this.itemIdsOfTask(taskId).filter((x) => x !== r));
+  }
+
+  /**
+   * write() 里调用：这批写入之后，把单值和多值对齐。
+   * - 这批里写了任务行、单值不在多值里（导入、旧代码路径直接写了 category_id / library_item_id）：补一行关联，排第一。
+   * - 多值的第一个和单值不一样：把第一个抄回单值（library_item_id 的库也写进 type_id）。
+   * 返回要再写的行（调用方打时间戳）。
+   */
+  private syncRefs(stamped: readonly Change[]): Array<{ table: TableName; row: BaseRow }> {
+    const touched = new Set<string>();
+    const wroteTask = new Set<string>();
+    for (const c of stamped) {
+      if (c.table === 'task') {
+        touched.add(c.row.id);
+        wroteTask.add(c.row.id);
+      } else if (c.table === 'task_category' || c.table === 'task_item') touched.add((c.row as TaskCategory).task_id);
+    }
+    if (!touched.size) return [];
+    const out: Array<{ table: TableName; row: BaseRow }> = [];
+    const now = this.now().toISOString();
+    for (const id of touched) {
+      const t = this.tables.task.get(id);
+      if (!t || t.deleted) continue;
+      const idx = this.refIndexFresh(id);
+      let cats = idx.cats;
+      let items = idx.items;
+      if (wroteTask.has(id)) {
+        const rc = this.resolveCat(t.category_id);
+        if (rc && !cats.some((l) => this.resolveCat(l.category_id) === rc)) {
+          const lid = taskCategoryId(id, rc);
+          const row = { ...(this.tables.task_category.get(lid) ?? { created_at: now }), id: lid, task_id: id, category_id: rc, sort: (cats[0]?.sort ?? 1) - 1, deleted: false, updated_at: '' } as TaskCategory;
+          out.push({ table: 'task_category', row });
+          cats = [row, ...cats];
+        }
+        const ri = this.resolveItemId(t.library_item_id);
+        if (ri && !items.some((l) => this.resolveItemId(l.item_id) === ri)) {
+          const lid = taskItemId(id, ri);
+          const row = { ...(this.tables.task_item.get(lid) ?? { created_at: now }), id: lid, task_id: id, item_id: ri, sort: (items[0]?.sort ?? 1) - 1, deleted: false, updated_at: '' } as TaskItem;
+          out.push({ table: 'task_item', row });
+          items = [row, ...items];
+        }
+      }
+      const firstCat = cats.map((l) => this.resolveCat(l.category_id)).find((x): x is string => !!x && !!this.get('category', x)) ?? null;
+      const firstItemId = items.map((l) => this.resolveItemId(l.item_id)).find((x): x is string => !!x) ?? null;
+      const firstItem = this.get('library_item', firstItemId);
+      const next: Task = { ...t, category_id: firstCat, library_item_id: firstItemId };
+      // 资料所在的库 = 任务的「主库」（版式、任务字段、旧客户端的显示）；一条资料都没有时 type_id 不动（老任务只选了库没选资料）
+      if (firstItem) next.type_id = firstItem.type_id;
+      if (next.category_id !== t.category_id || next.library_item_id !== t.library_item_id || next.type_id !== t.type_id || t.refs_mirror !== refsMirrorOf(next)) out.push({ table: 'task', row: next as BaseRow });
+    }
+    return out;
+  }
+
+  /** 一件任务现在生效的关联（不走版本缓存：write 里表刚改过）。 */
+  private refIndexFresh(taskId: string): { cats: TaskCategory[]; items: TaskItem[] } {
+    const cats: TaskCategory[] = [];
+    const items: TaskItem[] = [];
+    for (const r of this.tables.task_category.values()) if (!r.deleted && r.task_id === taskId) cats.push(r);
+    for (const r of this.tables.task_item.values()) if (!r.deleted && r.task_id === taskId) items.push(r);
+    return { cats: sortLinks(cats), items: sortLinks(items) };
+  }
+
+  /**
+   * 旧客户端写的任务（没有签名或对不上）：单值不在多值里就补一行关联（task-refs.ts legacyRefPlan，只加不删）。
+   * 改的是内存，返回要落盘的行（不进 outbox；updated_at 用任务行的，各设备各补一遍结果一样）。
+   */
+  private legacyLinks(t: Task): Change[] {
+    if (t.deleted || isMirrored(t)) return [];
+    const out: Change[] = [];
+    const allCats = [...this.tables.task_category.values()].filter((l) => l.task_id === t.id).map((l) => ({ ...l, ref: l.category_id }));
+    const allItems = [...this.tables.task_item.values()].filter((l) => l.task_id === t.id).map((l) => ({ ...l, ref: l.item_id }));
+    const rc = this.resolveCat(t.category_id);
+    if (rc) {
+      const lid = taskCategoryId(t.id, rc);
+      const plan = legacyRefPlan(t, rc, (x) => this.resolveCat(x) ?? x, allCats, allCats.find((l) => l.id === lid));
+      if (plan) {
+        const row: TaskCategory = { id: lid, updated_at: t.updated_at, deleted: false, task_id: t.id, category_id: rc, sort: plan.sort, created_at: t.created_at };
+        this.tables.task_category.set(lid, row);
+        out.push({ table: 'task_category', row });
+      }
+    }
+    const ri = t.library_item_id ? (this.resolveItemId(t.library_item_id) ?? t.library_item_id) : null;
+    if (ri) {
+      const lid = taskItemId(t.id, ri);
+      const plan = legacyRefPlan(t, ri, (x) => this.resolveItemId(x) ?? x, allItems, allItems.find((l) => l.id === lid));
+      if (plan) {
+        const row: TaskItem = { id: lid, updated_at: t.updated_at, deleted: false, task_id: t.id, item_id: ri, sort: plan.sort, created_at: t.created_at };
+        this.tables.task_item.set(lid, row);
+        out.push({ table: 'task_item', row });
+      }
+    }
+    return out;
+  }
+
+  /** 打开时：老数据（v12 之前、旧客户端写的）的单值搬进多值表。不进 outbox。 */
+  private backfillRefs() {
+    const rows: Change[] = [];
+    for (const t of this.tables.task.values()) rows.push(...this.legacyLinks(t));
+    if (!rows.length) return;
+    this._version++;
+    this.pending = this.pending.then(() => this.adapter.applyRemoteChanges(rows));
   }
 
   // ───────────── 合并 ─────────────
@@ -925,6 +1167,7 @@ export class Store {
       library_item_id: input.library_item_id ?? null,
       remind_time: input.remind_time ?? null,
       time_zone: input.time_zone ?? null,
+      refs_mirror: null,
       done_at: input.done_at ?? null,
       sort: input.sort ?? maxSort + 1,
       created_at: input.created_at ?? now.toISOString(),
@@ -955,6 +1198,8 @@ export class Store {
       if (d.pred_id === id || d.succ_id === id) rows.push({ table: 'dependency', row: { ...d, deleted: true } });
     for (const m of this.list('my_day')) if (m.task_id === id) rows.push({ table: 'my_day', row: { ...m, deleted: true } });
     for (const p of this.list('task_person')) if (p.task_id === id) rows.push({ table: 'task_person', row: { ...p, deleted: true } });
+    for (const x of this.list('task_category')) if (x.task_id === id) rows.push({ table: 'task_category', row: { ...x, deleted: true } });
+    for (const x of this.list('task_item')) if (x.task_id === id) rows.push({ table: 'task_item', row: { ...x, deleted: true } });
     for (const l of this.list('task_link')) if (l.a_task_id === id || l.b_task_id === id) rows.push({ table: 'task_link', row: { ...l, deleted: true } });
     for (const a of this.list('attachment')) if (a.owner_type === 'task' && a.owner_id === id) rows.push({ table: 'attachment', row: { ...a, deleted: true } });
     this.write(rows);
@@ -1376,9 +1621,8 @@ export class Store {
 
   /** 每个类型最近一次用到的时间（任务创建、打卡记录里最晚的；顺着合并算到留下的那个）。 */
   categoryLastUsed(): Map<string, string> {
-    const resolve = (id: string | null) => resolveCategoryId((x) => this.tables.category.get(x), id);
     return categoryLastUsed(
-      this.list('task').map((t) => ({ id: t.id, category: resolve(t.category_id), created_at: t.created_at })),
+      this.list('task').map((t) => ({ id: t.id, categories: this.categoryIdsOfTask(t), created_at: t.created_at })),
       this.list('check_in'),
     );
   }

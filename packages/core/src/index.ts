@@ -44,3 +44,4 @@ export * from './seed/demo';
 export * from './sync/protocol';
 export * from './sync/engine';
 export * from './sync/memory-remote';
+export * from './task-refs';

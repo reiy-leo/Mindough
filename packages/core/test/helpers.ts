@@ -35,6 +35,7 @@ export function mkTask(id: string, patch: Partial<Task> = {}): Task {
     category_id: null,
     checkin_category_id: null,
     library_item_id: null,
+    refs_mirror: null,
     remind_time: null,
     time_zone: null,
     count_config: {},

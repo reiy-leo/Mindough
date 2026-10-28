@@ -215,6 +215,7 @@ export function applyDida(store: Store, plan: DidaPlan, opts: DidaOptions): Dida
       recurrence,
       category_id: null,
       checkin_category_id: null,
+      refs_mirror: null,
       library_item_id: null,
       remind_time: didaRemindTime(r.reminder, when, r.allDay || !when?.minutes),
       time_zone: null,

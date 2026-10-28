@@ -77,6 +77,7 @@ function snapshot(s: Store) {
     if (t === 'task_person') rows = rows.map(({ id: _i, ...r }) => r);
     if (t === 'my_day') rows = rows.map(({ id: _i, added_at: _a, sort: _s, ...r }) => r);
     if (t === 'task_link') rows = rows.map(({ created_at: _c, ...r }) => r);
+    if (t === 'task_category' || t === 'task_item') rows = rows.map(({ created_at: _c, ...r }) => r);
     // data URL 按内容比（导出成文件再读回来是 base64 写法，内容不变）
     const stable = (v: unknown): string => JSON.stringify(v, (_k, x: unknown) => typeof x === 'string' && x.startsWith('data:') ? dataKey(x) : (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
     out[t] = rows.map(stable).sort();

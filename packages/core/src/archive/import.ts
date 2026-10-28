@@ -11,6 +11,7 @@ import { firstLine } from '../preview';
 import { normalizeName } from '../library';
 import { parseRecurrence } from '../recurrence';
 import { canonicalPair, taskLinkId } from '../related';
+import { taskCategoryId, taskItemId } from '../task-refs';
 import { tr } from '../i18n';
 import { normalizeTimeZone } from '../timezone';
 import { normalizeRange } from '../date-range';
@@ -94,6 +95,9 @@ interface TaskRefs {
   related: string[];
   people: string[];
   myDay: string[];
+  /** 多类型与多资料（Rei 2026-10-28）：文件里写了 categories / items 才有，按顺序。 */
+  categories: string[];
+  items: string[];
 }
 
 export interface ImportPlan {
@@ -219,6 +223,8 @@ const content = (r: BaseRow) => {
   if (rest.merged_into == null) delete rest.merged_into;
   // 日记的 base_at 是同步用的记号，不算内容
   delete (rest as { base_at?: unknown }).base_at;
+  // 任务的 refs_mirror 也是同步用的记号（多类型与多资料，task-refs.ts）
+  delete (rest as { refs_mirror?: unknown }).refs_mirror;
   return stableJson(rest);
 };
 
@@ -578,6 +584,7 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       category_id: cat,
       checkin_category_id: cat,
       library_item_id: item,
+      refs_mirror: null,
       remind_time: remind && /^\d{1,2}:\d{2}$/.test(remind) ? remind.padStart(5, '0') : null,
       time_zone: normalizeTimeZone(fm.time_zone),
       done_at: iso(fm.done) ?? null,
@@ -585,7 +592,10 @@ export function planImport(store: Store, input: readonly ArchiveFile[], opts: Im
       created_at: iso(fm.created) ?? now.toISOString(),
     });
     add('task', 'task', p.path, firstLine((row as unknown as Task).body_md) || stemOf(p.path), row);
-    refs.push({ taskId: id, path: p.path, after: idList(fm.after), related: idList(fm.related), people: idList(fm.people), myDay: dateList(fm.my_day) });
+    refs.push({ taskId: id, path: p.path, after: idList(fm.after), related: idList(fm.related), people: idList(fm.people), myDay: dateList(fm.my_day),
+      categories: idList(fm.categories).filter((c) => archiveCats.has(c) || archiveCheckinCats.has(c) || !!store.get('category', c)),
+      items: idList(fm.items).filter((i) => archiveItems.has(i) || !!store.get('library_item', i)),
+    });
   }
 
   // 打卡记录：只给这次导入里的任务
@@ -765,6 +775,22 @@ export function applyImport(store: Store, plan: ImportPlan, opts: { overwrite?: 
       const id = `${r.taskId}-person-${pid}`;
       put('task_person', { id, updated_at: '', deleted: false, task_id: r.taskId, person_id: pid } as BaseRow);
     }
+    // 多类型与多资料：文件里写了全部的，按顺序挂上；只写了一个的由任务的 category / item 补（Store.write 对齐）
+    for (const [table, list, mkId, key] of [
+      ['task_category', r.categories, taskCategoryId, 'category_id'],
+      ['task_item', r.items, taskItemId, 'item_id'],
+    ] as const) {
+      const want = list;
+      if (!want.length) continue;
+      const have = store.listAll(table).filter((x) => x.task_id === r.taskId);
+      if (overwrite) for (const x of have) if (!x.deleted && !want.includes((x as unknown as Record<string, string>)[key]!)) put(table, { ...x, deleted: true });
+      want.forEach((ref, k) => {
+        const id = mkId(r.taskId, ref);
+        const cur = have.find((x) => x.id === id);
+        if (cur && !cur.deleted && !overwrite) return;
+        put(table, { id, updated_at: '', deleted: false, task_id: r.taskId, [key]: ref, sort: k, created_at: cur?.created_at ?? store.now().toISOString() } as unknown as BaseRow);
+      });
+    }
     for (const date of new Set(r.myDay)) {
       if (md.some((m) => m.task_id === r.taskId && m.date === date)) continue;
       const sort = (mdSort.get(date) ?? 0) + 1;
@@ -809,6 +835,10 @@ export function undoImport(store: Store, receipt: ImportReceipt): number {
     if (b.row) rows.push({ table: b.table, row: { ...b.row } });
     else if (cur && !cur.deleted) rows.push({ table: b.table, row: { ...cur, deleted: true } });
   }
+  // 新建的任务撤掉了：写入时自动补的类型 / 资料关联（Store.write 对齐单值）也一起打墓碑
+  const gone = new Set(rows.filter((r) => r.table === 'task' && r.row.deleted).map((r) => r.row.id));
+  for (const table of ['task_category', 'task_item'] as const)
+    for (const x of store.list(table)) if (gone.has(x.task_id) && !rows.some((r) => r.table === table && r.row.id === x.id)) rows.push({ table, row: { ...x, deleted: true } });
   store.batch(() => store.write(rows));
   return rows.length;
 }

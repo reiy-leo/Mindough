@@ -80,23 +80,22 @@ export function withCategoryState(frequent: readonly string[], id: string, state
 
 /** 每个类型最近一次用到的时间（ISO 字符串）：任务的创建时间、打卡记录的时间里最晚的那个。 */
 export function categoryLastUsed(
-  tasks: readonly { id: string; category: string | null; created_at: string }[],
+  tasks: readonly { id: string; category?: string | null; categories?: readonly string[]; created_at: string }[],
   checkIns: readonly { task_id: string; at: string }[],
 ): Map<string, string> {
-  const byTask = new Map<string, string>();
+  const byTask = new Map<string, string[]>();
   const out = new Map<string, string>();
   const bump = (cid: string, at: string) => {
     if (at > (out.get(cid) ?? '')) out.set(cid, at);
   };
   for (const t of tasks) {
-    if (!t.category) continue;
-    byTask.set(t.id, t.category);
-    bump(t.category, t.created_at);
+    // 一件任务能挂几个类型（Rei 2026-10-28）：每个都算用过
+    const cats = t.categories ?? (t.category ? [t.category] : []);
+    if (!cats.length) continue;
+    byTask.set(t.id, [...cats]);
+    for (const c of cats) bump(c, t.created_at);
   }
-  for (const e of checkIns) {
-    const cid = byTask.get(e.task_id);
-    if (cid) bump(cid, e.at);
-  }
+  for (const e of checkIns) for (const cid of byTask.get(e.task_id) ?? []) bump(cid, e.at);
   return out;
 }
 

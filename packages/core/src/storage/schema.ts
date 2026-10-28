@@ -36,6 +36,7 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
     library_item_id: 'text?',
     remind_time: 'text?',
     time_zone: 'text?',
+    refs_mirror: 'text?',
     done_at: 'text?',
     sort: 'real',
     created_at: 'text',
@@ -57,6 +58,8 @@ export const COLUMNS: { [K in TableName]: Columns<TableMap[K]> } = {
   },
   person: { name: 'text', avatar_asset_id: 'text?', relation: 'text?', birthday: 'text?', note_md: 'text', merged_into: 'text?' },
   task_person: { task_id: 'text', person_id: 'text' },
+  task_category: { task_id: 'text', category_id: 'text', sort: 'real', created_at: 'text' },
+  task_item: { task_id: 'text', item_id: 'text', sort: 'real', created_at: 'text' },
   my_day: { task_id: 'text', date: 'text', sort: 'real', added_at: 'text' },
   check_in: { task_id: 'text', period_key: 'text', kind: 'text', amount: 'real', at: 'text' },
   checkin_category: { name: 'text', icon: 'text', color: 'text', builtin: 'bool', hidden: 'bool', sort: 'real' },
@@ -266,6 +269,30 @@ INSERT OR IGNORE INTO "category" ("id", "updated_at", "deleted", "name", "color"
 ALTER TABLE "task" ADD COLUMN "category_id" TEXT;
 UPDATE "task" SET "category_id" = "checkin_category_id" WHERE "category_id" IS NULL AND "checkin_category_id" IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "task_category" ON "task" ("category_id");
+`,
+  },
+  {
+    // Rei 2026-10-28：一个任务能挂多个类型、多条资料（docs/MULTI-TYPE.md）。
+    // 只建表加列；原来的单值搬进新表在 Store 打开时做（行 id 要用 task-refs.ts 算，SQL 里算不了），不进 outbox。
+    version: 12,
+    name: '多类型与多资料（task_category、task_item、task.refs_mirror）',
+    // v11 的任务索引也叫 "task_category"（SQLite 里索引和表同一个命名空间），先改名再建表。
+    sql: `
+DROP INDEX IF EXISTS "task_category";
+CREATE INDEX IF NOT EXISTS "task_category_id" ON "task" ("category_id");
+CREATE TABLE IF NOT EXISTS "task_category" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "task_id" TEXT NOT NULL, "category_id" TEXT NOT NULL, "sort" REAL NOT NULL DEFAULT 0, "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "task_category_task" ON "task_category" ("task_id");
+CREATE INDEX IF NOT EXISTS "task_category_cat" ON "task_category" ("category_id");
+CREATE TABLE IF NOT EXISTS "task_item" (
+  "id" TEXT PRIMARY KEY NOT NULL, "updated_at" TEXT NOT NULL, "deleted" INTEGER NOT NULL DEFAULT 0,
+  "task_id" TEXT NOT NULL, "item_id" TEXT NOT NULL, "sort" REAL NOT NULL DEFAULT 0, "created_at" TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "task_item_task" ON "task_item" ("task_id");
+CREATE INDEX IF NOT EXISTS "task_item_item" ON "task_item" ("item_id");
+ALTER TABLE "task" ADD COLUMN "refs_mirror" TEXT;
 `,
   },
 ];

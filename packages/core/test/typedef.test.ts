@@ -165,12 +165,14 @@ describe('Store 类型编辑', () => {
     expect(store.addTypeField(T.movie, { label: '平台', kind: 'text' })).toBe('platform');
   });
 
-  it('改类型时隐藏 / 删掉的任务字段的值也留着（同 key）', async () => {
+  it('换成别的库的资料时，隐藏 / 删掉的任务字段的值也留着（同 key）', async () => {
     const { store } = await open();
     const task = store.createTask({ type_id: T.book, type_data: { title: '三体', pages: 50 } });
     store.setTypeFields(T.book, updateField(store.get('task_type', T.book)!.fields, 'pages', { hidden: true }));
     const copy = store.duplicateType(T.book, '书 2');
-    store.changeTaskType(task.id, copy.id);
+    const item = store.createLibraryItem(copy.id, { name: '三体' });
+    store.setTaskItems(task.id, [item.id]);
+    expect(store.get('task', task.id)!.type_id).toBe(copy.id);
     expect(store.get('task', task.id)!.type_data.pages).toBe(50);
   });
 
