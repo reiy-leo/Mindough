@@ -162,7 +162,8 @@ function Composer() {
   const mainType = firstItemType ?? (hasLibrary(defaultLib) ? defaultLib : undefined);
   const legacyType = !mainType && defaultLib && defaultLib.id !== PLAIN_TYPE_ID && shownFields(defaultLib).length > 0 ? defaultLib : undefined;
   // 任务字段：每个挂着资料的库各自的，外加默认库；同一个 key 只要一个
-  const fieldLibs = [...groups.map((g) => g.type), ...(mainType && !groups.some((g) => g.type.id === mainType.id) ? [mainType] : [])];
+  // 人物库不显示任务字段（和详情一样）
+  const fieldLibs = [...groups.map((g) => g.type).filter((t) => !isPersonLibrary(t)), ...(mainType && !groups.some((g) => g.type.id === mainType.id) ? [mainType] : [])];
   const seen = new Set<string>();
   const fieldSets = fieldLibs
     .map((type) => ({ type, fields: taskFieldsOf(type).filter((f) => (seen.has(f.key) ? false : (seen.add(f.key), true))) }))

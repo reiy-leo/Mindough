@@ -17,6 +17,7 @@ import {
   successorsOf,
   taskStreak,
   hasLibrary,
+  isPersonLibrary,
   libraryCopy,
   taskFieldsOf,
   toDateKey,
@@ -680,8 +681,9 @@ function RefsSection({ store, task, today }: { store: Store; task: Task; today: 
   const selected = new Set(groups.flatMap((g) => g.entries.map((e) => e.id)));
   // 任务字段：挂着资料的库各自的，外加老任务只选了库没选资料的那个库（type_id）；同一个 key 只出现一次
   const seen = new Set<string>();
+  // 人物库不显示任务字段（人物库自带的「事由」等字段只在人物卡里用）
   const fieldsOf = (type: TaskType) =>
-    taskFieldsOf(type).filter((f) => {
+    (isPersonLibrary(type) ? [] : taskFieldsOf(type)).filter((f) => {
       if (seen.has(f.key)) return false;
       seen.add(f.key);
       return true;

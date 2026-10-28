@@ -158,15 +158,12 @@
   gap: 8px;
   min-width: 0;
 }
+/* 库按钮折行排（原来横向滚动、滚动条藏着，鼠标滚不过去，排在后面的「人物」点不到） */
 .ref-libs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding: 1px;
-}
-.ref-libs::-webkit-scrollbar {
-  display: none;
 }
 .ref-lib {
   --chip-color: var(--accent);
@@ -313,6 +310,13 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+/* 资料区第一行别贴卡片上沿（.prop-list 卡片只有左右内边距） */
+.detail .prop-list.ref-section,
+.detail.is-stacked .prop-list.ref-section,
+.pane-detail .detail.is-stacked .detail-props > .prop-list.ref-section {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
 }
 .ref-section .prop-row {
   padding-left: 6px;
