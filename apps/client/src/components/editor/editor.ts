@@ -188,8 +188,8 @@ export interface MdEditorOptions {
   onLinkHover?: (link: LinkRange | null, el: HTMLElement | null) => void;
   /** 点了链接：打开它。 */
   onLinkOpen?: (href: string) => void;
-  /** 粘贴 / 拖进正文的图片：上传，返回地址（null = 没传成）。不给就不接图片。 */
-  uploadImage?: (file: File) => Promise<string | null>;
+  /** 粘贴 / 拖进正文的图片被拦下了（正文不收新图片）。 */
+  onImageBlocked?: () => void;
 }
 
 /** 编辑器的状态和回调（React 外壳和 createMdEditor 共用）。opts 用 getter 取，React 里每次渲染换最新的回调。 */
@@ -216,7 +216,7 @@ export class MdController {
         onLinkShortcut: o.onLinkShortcut ? () => this.get().onLinkShortcut?.() : undefined,
         onLinkHover: (r, el) => this.get().onLinkHover?.(r, el),
         onLinkOpen: o.onLinkOpen ? (u) => this.get().onLinkOpen?.(u) : undefined,
-        uploadImage: o.uploadImage ? (f) => this.get().uploadImage?.(f) ?? Promise.resolve(null) : undefined,
+        onImageBlocked: () => this.get().onImageBlocked?.(),
         io,
       }),
     ];

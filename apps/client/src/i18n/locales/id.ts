@@ -771,6 +771,7 @@ export const MESSAGES: Record<string, MessageValue> = {
   "文字": "Teks",
   "不填就用网址": "Kosongkan untuk menampilkan URL",
   "登录并联网后才能把图片放进正文": "Masuk dan sambungkan ke internet untuk menambahkan gambar ke teks",
+  "正文里不能放图片": "Gambar tidak bisa dimasukkan ke teks",
   "图片没传上去，稍后再试": "Gambar gagal diunggah. Coba lagi nanti",
   "填一个网址": "Masukkan URL",
   "这不像网址，检查一下": "Itu tidak seperti URL",

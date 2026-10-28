@@ -428,6 +428,7 @@ export const EN: Record<string, EnValue> = {
   文字: 'Text',
   不填就用网址: 'Leave empty to use the URL',
   登录并联网后才能把图片放进正文: 'Sign in and go online to add images to the text',
+  正文里不能放图片: "Images can't go in the text",
   '图片没传上去，稍后再试': "The image didn't upload. Try again later",
   填一个网址: 'Enter a URL',
   '这不像网址，检查一下': 'That doesn’t look like a URL',

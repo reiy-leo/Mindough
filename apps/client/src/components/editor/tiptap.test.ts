@@ -132,40 +132,35 @@ describe('粘贴', () => {
   });
 });
 
-describe('图片：粘贴 / 拖进正文就上传，插 ![](地址)', () => {
+describe('图片：正文不收新图片（Rei 2026-10-29）', () => {
   const png = () => new File([new Uint8Array([1, 2, 3])], 'a.png', { type: 'image/png' });
 
-  it('粘贴图片：上传完插在光标处', async () => {
-    const up = vi.fn(async () => 'https://mindough.rei8t.dev/api/assets/u/1.webp');
-    const { view, h, root, done } = setup('前后', { uploadImage: up });
+  it('粘贴图片文件：拦下、什么都不插、提示一下', async () => {
+    const blocked = vi.fn();
+    const { view, h, root, done } = setup('前后', { onImageBlocked: blocked });
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 2)));
     expect(paste(view, transfer({}, [png()]))).toBe(true);
-    expect(root.querySelector('.md-image-uploading')).not.toBeNull();
-    await vi.waitFor(() => expect(h.getMarkdown()).toBe('前![](https://mindough.rei8t.dev/api/assets/u/1.webp)后\n'));
-    expect(up).toHaveBeenCalledTimes(1);
-    expect(root.querySelector('.md-image-uploading')).toBeNull();
-    expect(root.querySelector('img')?.getAttribute('src')).toBe('https://mindough.rei8t.dev/api/assets/u/1.webp');
-    done();
-  });
-
-  it('没传成：什么都不插，标记去掉', async () => {
-    const { view, h, root, done } = setup('前后', { uploadImage: async () => null });
-    paste(view, transfer({}, [png()]));
-    await flush();
     await flush();
     expect(h.getMarkdown()).toBe('前后\n');
-    expect(root.querySelector('.md-image-uploading')).toBeNull();
+    expect(root.querySelector('img')).toBeNull();
+    expect(blocked).toHaveBeenCalledTimes(1);
     done();
   });
 
-  it('混着别的文件、或者没给上传：编辑器不接（交给附件 / 浏览器）', () => {
+  it('粘贴网页内容：里面的图去掉，字留下', () => {
+    const blocked = vi.fn();
+    const { view, h, done } = setup('', { onImageBlocked: blocked });
+    view.pasteHTML('<p>字<img src="data:image/png;base64,AAAA">尾</p>');
+    expect(h.getMarkdown()).toBe('字尾\n');
+    expect(blocked).toHaveBeenCalledTimes(1);
+    done();
+  });
+
+  it('混着别的文件：编辑器不接（交给附件）', () => {
     const pdf = new File(['x'], 'a.pdf', { type: 'application/pdf' });
-    const a = setup('', { uploadImage: async () => 'x' });
+    const a = setup('');
     expect(paste(a.view, transfer({}, [png(), pdf]))).toBeFalsy();
     a.done();
-    const b = setup('');
-    expect(paste(b.view, transfer({}, [png()]))).toBeFalsy();
-    b.done();
   });
 
   it('dropGoesToEditor：只有图片、落在能改的正文上才交给编辑器', () => {

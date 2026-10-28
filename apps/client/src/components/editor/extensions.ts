@@ -375,8 +375,8 @@ export interface BehaviorOptions {
   onLinkHover?: (link: LinkRange | null, el: HTMLElement | null) => void;
   /** 点了链接：打开它。 */
   onLinkOpen?: (href: string) => void;
-  /** 粘贴 / 拖进来的图片：上传，返回地址；null = 没传成（外面已经提示过）。 */
-  uploadImage?: (file: File) => Promise<string | null>;
+  /** 粘贴 / 拖进来的图片被拦下了：提示一下。 */
+  onImageBlocked?: () => void;
   /** 拿 markdown 读写（粘贴 markdown、复制成 markdown）。 */
   io: () => MarkdownIO;
 }
@@ -592,43 +592,41 @@ function handleTab(view: EditorView, event: KeyboardEvent): boolean {
   return true;
 }
 
-/** 正在上传的图片：在落点放一个「正在上传」的小标记，传完换成图片。 */
-const uploadKey = new PluginKey<DecorationSet>('md-image-upload');
-
-function uploadPlugin(opts: BehaviorOptions) {
-  return new Plugin<DecorationSet>({
-    key: uploadKey,
-    state: {
-      init: () => DecorationSet.empty,
-      apply(tr, set) {
-        let s = set.map(tr.mapping, tr.doc);
-        const meta = tr.getMeta(uploadKey) as { add?: { id: string; pos: number }; remove?: string } | undefined;
-        if (meta?.add) {
-          const el = document.createElement('span');
-          el.className = 'md-image-uploading';
-          el.textContent = '…';
-          s = s.add(tr.doc, [Decoration.widget(meta.add.pos, el, { id: meta.add.id })]);
-        }
-        if (meta?.remove) s = s.remove(s.find(undefined, undefined, (spec) => spec.id === meta.remove));
-        return s;
-      },
-    },
+/**
+ * 正文不收新图片（Rei 2026-10-29：「任务的editor居然可以粘贴图片……要禁止这些操作」）：
+ * 粘贴 / 拖进来的图片文件拦下来、不上传，提示一句；粘贴的网页内容里带的图也去掉。
+ * 已经在正文里的图照常显示、照常保存。
+ */
+function noImagePlugin(opts: BehaviorOptions) {
+  const block = (view: EditorView, event: Event, data: DataTransfer | null) => {
+    if (!view.editable || !imageFiles(data).length) return false;
+    event.preventDefault();
+    opts.onImageBlocked?.();
+    return true;
+  };
+  return new Plugin({
     props: {
-      decorations: (state) => uploadKey.getState(state),
-      handlePaste(view, event) {
-        const files = imageFiles(event.clipboardData);
-        if (!files.length || !opts.uploadImage || !view.editable) return false;
-        event.preventDefault();
-        void insertImages(view, files, view.state.selection.from, opts);
-        return true;
-      },
-      handleDrop(view, event) {
-        const files = imageFiles(event.dataTransfer);
-        if (!files.length || !opts.uploadImage || !view.editable) return false;
-        event.preventDefault();
-        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from;
-        void insertImages(view, files, at, opts);
-        return true;
+      handlePaste: (view, event) => block(view, event, event.clipboardData),
+      handleDrop: (view, event) => block(view, event, (event as DragEvent).dataTransfer),
+      transformPasted: (slice, view) => {
+        const image = view.state.schema.nodes.image;
+        if (!image) return slice;
+        let found = false;
+        const strip = (frag: Fragment): Fragment => {
+          const out: PMNode[] = [];
+          frag.forEach((n) => {
+            if (n.type === image) {
+              found = true;
+              return;
+            }
+            out.push(n.isLeaf ? n : n.copy(strip(n.content)));
+          });
+          return Fragment.fromArray(out);
+        };
+        const content = strip(slice.content);
+        if (!found) return slice;
+        opts.onImageBlocked?.();
+        return new Slice(content, slice.openStart, slice.openEnd);
       },
     },
   });
@@ -640,33 +638,6 @@ export function imageFiles(data: DataTransfer | null): File[] {
   const files = [...(data.files ?? [])];
   if (!files.length || !files.every((f) => f.type.startsWith('image/'))) return [];
   return files;
-}
-
-let uploadSeq = 0;
-async function insertImages(view: EditorView, files: File[], pos: number, opts: BehaviorOptions) {
-  for (const file of files) {
-    const id = `up${++uploadSeq}`;
-    view.dispatch(view.state.tr.setMeta(uploadKey, { add: { id, pos } }).setMeta('addToHistory', false));
-    let url: string | null = null;
-    try {
-      url = await opts.uploadImage!(file);
-    } catch (err) {
-      console.error('图片上传失败', err);
-    }
-    if ((view as unknown as { isDestroyed?: boolean }).isDestroyed || !view.dom.isConnected) return;
-    const found = uploadKey.getState(view.state)?.find(undefined, undefined, (spec) => spec.id === id)[0];
-    const at = found ? found.from : pos;
-    const tr = view.state.tr.setMeta(uploadKey, { remove: id });
-    const image = view.state.schema.nodes.image;
-    if (url && image) {
-      const node = image.create({ src: url, alt: '', title: '' });
-      const $at = tr.doc.resolve(Math.min(at, tr.doc.content.size));
-      if ($at.parent.inlineContent) tr.insert($at.pos, node);
-      else tr.insert($at.pos, view.state.schema.nodes.paragraph!.create(null, node));
-      pos = tr.mapping.map(at) + 1;
-    }
-    view.dispatch(tr);
-  }
 }
 
 /** 粘贴纯文字：当 markdown 读（和以前一样）；复制出去：写成 markdown。网络图片不加载（在不挂页面的文档里转换）。 */
@@ -728,7 +699,7 @@ function markdownClipboard(opts: BehaviorOptions) {
   });
 }
 
-/** 编辑器的行为扩展：占位、清单勾、链接、手打语法、Tab / Esc / ⌘K、图片上传、剪贴板。优先级高于 StarterKit。 */
+/** 编辑器的行为扩展：占位、清单勾、链接、手打语法、Tab / Esc / ⌘K、不收新图片、剪贴板。优先级高于 StarterKit。 */
 export function behaviorExtension(opts: BehaviorOptions) {
   return Extension.create({
     name: 'mindoughBehavior',
@@ -763,7 +734,7 @@ export function behaviorExtension(opts: BehaviorOptions) {
             },
           },
         }),
-        uploadPlugin(opts),
+        noImagePlugin(opts),
         markdownClipboard(opts),
         taskToggle(),
         linkPointer(opts),

@@ -14,7 +14,7 @@
  *   网址没协议补 https://，不像网址就在框里提示、不关。回车保存（输入法选字的回车不算）、Esc 取消，Tab 只在框里转。
  *   点框外面 = 取消。
  * - 外面的值变了（同步下来）且不是自己刚写的：替换内容。
- * - 粘贴 / 拖进正文的图片：上传到 R2，正文里插 `![](地址)`（别的文件、拖到正文外面的仍是附件，见 Attachments.tsx useFileDrop）。
+ * - 粘贴 / 拖进正文的图片：拦下、不上传，提示「正文里不能放图片」（Rei 2026-10-29）。拖到正文外面的文件仍是附件，见 Attachments.tsx useFileDrop。
  * 内核是 Tiptap 3（@tiptap/react 的 useEditor + EditorContent，Rei 2026-10-25 从 Milkdown 换过来），读写 markdown 见 editor.ts / markdown.ts。
  * 这个文件按需加载（LazyMdEditor），加载完之前显示排好版的预览。
  */
@@ -24,9 +24,6 @@ import { Button as RacButton, Input, Label, TextField } from 'react-aria-compone
 import { tr } from '../../lib/i18n';
 import { externalHref, openExternal } from '../../lib/external';
 import { useUiOptional } from '../../lib/ui';
-import { getAccount } from '../../lib/account';
-import { uploadImage } from '../../lib/upload';
-import { normalizeImage } from '../../lib/image';
 import { MdController, normalizeHref, stopTab, type LinkRange, type MdEditorHandle, type MdEditorOptions } from './editor';
 
 export interface MdEditorProps {
@@ -117,22 +114,6 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
   openRef.current = openLinkForm;
   const initial = useRef(value);
 
-  /** 粘贴 / 拖进正文的图片：统一宽高（长边不超过 1600）后上传；没登录或离线不插，提示一下。 */
-  const putImage = async (file: File): Promise<string | null> => {
-    if (getAccount().status !== 'in' || navigator.onLine === false) {
-      ui?.toast({ tone: 'error', message: tr('登录并联网后才能把图片放进正文') }, 5000);
-      return null;
-    }
-    try {
-      const { blob } = await normalizeImage(file, null);
-      const up = await uploadImage(blob);
-      if (up) return up.url;
-    } catch (err) {
-      console.error('图片上传失败', err);
-    }
-    ui?.toast({ tone: 'error', message: tr('图片没传上去，稍后再试') }, 5000);
-    return null;
-  };
   const optsRef = useRef<MdEditorOptions>(null as unknown as MdEditorOptions);
   optsRef.current = {
     value: initial.current,
@@ -164,7 +145,7 @@ export function MdEditor({ value, onChange, label, placeholder = '', autoFocus, 
       } else scheduleHide();
     },
     onLinkOpen: (u) => openLink(u),
-    uploadImage: putImage,
+    onImageBlocked: () => ui?.toast({ message: tr('正文里不能放图片') }, 4000),
   };
   const ctl = useMemo(() => new MdController(() => optsRef.current), []);
   // 编辑器只建一次（官方 useEditor）；value 的变化走下面的 setMarkdown
