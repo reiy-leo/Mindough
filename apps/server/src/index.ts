@@ -6,9 +6,9 @@ import { serveFromR2, type R2Like } from './static-r2';
 import { currentSession, handleCallback, handleLogin, handleLogout } from './auth';
 import { handlePull, handlePush, handleSyncToken, type SyncEnv } from './sync';
 import { handleExchange, issueNativeCode } from './native';
-import { handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
+import { handleAssetCheck, handleAssetGet, handleAssetUpload, type AssetEnv } from './assets';
 import { handleLookup } from './lookup';
-import { handleFileGet, handleFileUpload } from './files';
+import { handleFileCheck, handleFileGet, handleFileUpload } from './files';
 import { handleIcsProxy } from './calendar';
 import { handleDidaProxy } from './dida';
 import { purgeAfterPush, purgeOrphans, type PurgeBucket } from './purge';
@@ -102,6 +102,7 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
     if (method !== 'POST') return json({ error: '405 方法不允许：请用 POST' }, 405);
     return handleAssetUpload(request, env);
   }
+  if (pathname.startsWith('/api/assets/check/') && method === 'GET') return handleAssetCheck(request, pathname.slice('/api/assets/check/'.length), env);
   if (pathname.startsWith('/api/assets/') && method === 'GET') return handleAssetGet(pathname.slice('/api/assets/'.length), env);
 
   // 附件（任务、日记）：传、读都要登录，只能读自己的
@@ -109,6 +110,7 @@ async function route(request: Request, env: Env, url: URL, pathname: string, met
     if (method !== 'POST') return json({ error: '405 方法不允许：请用 POST' }, 405);
     return handleFileUpload(request, env);
   }
+  if (pathname.startsWith('/api/files/check/') && method === 'GET') return handleFileCheck(request, pathname.slice('/api/files/check/'.length), env);
   if (pathname.startsWith('/api/files/') && (method === 'GET' || method === 'HEAD')) return handleFileGet(request, pathname.slice('/api/files/'.length), env, url);
 
   // 农历订阅：代拉 ICS（不用登录，只收日历文件）

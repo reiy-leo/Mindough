@@ -5,6 +5,7 @@
 import type { Store } from '@mindough/core';
 import { API_BASE, authInit, getAccount } from './account';
 import { normalizeImage, type ArtShape } from './image';
+import { checkExisting } from './content-hash';
 
 export function readFileAsDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,9 +23,11 @@ export interface UploadedAsset {
   mime: string;
 }
 
-/** 上传到 R2；不行就返回 null（调用方退回 data: 地址）。 */
+/** 上传到 R2；先在本机算哈希问服务器，已经有了就不传。不行就返回 null（调用方退回 data: 地址）。 */
 export async function uploadImage(file: File | Blob, fetcher: typeof fetch = (...a) => fetch(...a)): Promise<UploadedAsset | null> {
   if (getAccount().status !== 'in' || navigator.onLine === false) return null;
+  const existing = await checkExisting<UploadedAsset>('assets', file, fetcher);
+  if (existing?.url && existing.r2_key) return existing;
   try {
     const res = await fetcher(`${API_BASE}/api/assets`, authInit({ method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file }));
     if (!res.ok) return null;

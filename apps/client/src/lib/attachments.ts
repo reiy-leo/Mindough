@@ -10,6 +10,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { attachmentCache } from './attachment-cache';
 import { MAX_ATTACHMENT_BYTES, canThumbnail, formatFileSize, tooLarge, type Attachment, type AttachmentOwnerType, type Store } from '@mindough/core';
+import { checkExisting } from './content-hash';
 import { API_BASE, authInit, getAccount, statusZh, subscribeAccount } from './account';
 import { pendingQueue } from './attachments-queue';
 import { forgetProbe, probeKey } from './attachment-gone';
@@ -103,8 +104,17 @@ export class UploadError extends Error {
 
 export type UploadFn = (blob: Blob, onProgress: (loaded: number, total: number) => void, signal: AbortSignal) => Promise<UploadedFile>;
 
-/** XMLHttpRequest 上传（fetch 拿不到上传进度）。 */
-export const xhrUpload: UploadFn = (blob, onProgress, signal) =>
+/** 先在本机算哈希问服务器，已经有这份内容就不传（进度直接满）；没有再用 XMLHttpRequest 传（fetch 拿不到上传进度）。 */
+export const xhrUpload: UploadFn = async (blob, onProgress, signal) => {
+  const existing = await checkExisting<UploadedFile>('files', blob, undefined, signal);
+  if (existing?.r2_key) {
+    onProgress(blob.size, blob.size);
+    return existing;
+  }
+  return xhrSend(blob, onProgress, signal);
+};
+
+const xhrSend: UploadFn = (blob, onProgress, signal) =>
   new Promise((resolve, reject) => {
     const init = authInit({ headers: { 'content-type': blob.type || 'application/octet-stream' } });
     const xhr = new XMLHttpRequest();

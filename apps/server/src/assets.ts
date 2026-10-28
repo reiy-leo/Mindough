@@ -3,6 +3,8 @@
  * - POST /api/assets           会话（cookie / Bearer）或同步凭据；body 是图片本身（content-type image/*，≤ 10 MB）
  *                              → { url, r2_key, sha256, mime, size }
  * - GET  /api/assets/<key>     公开读（key = 用户哈希 / 内容 SHA-256，猜不到），长缓存
+ * - GET  /api/assets/check/<sha256>  会话或同步凭据；这个人有没有这张图：有 → 200 { url, r2_key, sha256, mime, size }，没有 → 404 未找到。
+ *                              客户端先在本机算 SHA-256 来问，有了就不传（Rei 2026-10-29「本地先算好hash，去云端查看是否重复，不重复再上传」）。
  * 同一张图（同内容）只存一份。
  */
 import { currentSession, type AuthEnv } from './auth';
@@ -70,6 +72,19 @@ export async function storeAsset(files: AssetBucket, who: string, buf: ArrayBuff
   const key = `${owner}/${sha}`;
   if (!(await files.head(key))) await files.put(key, buf, { httpMetadata: { contentType: mime } });
   return { url: `${origin}/api/assets/${key}`, r2_key: key, sha256: sha, mime, size: buf.byteLength };
+}
+
+/** 查重：key 按这个人和内容哈希算出来，在 R2 里有就把地址给回去（不用再传）。 */
+export async function handleAssetCheck(req: Request, sha: string, env: AssetEnv): Promise<Response> {
+  if (!/^[0-9a-f]{64}$/.test(sha)) return json({ error: '400 请求有误：不是 SHA-256' }, 400);
+  const who = await requestUser(req, env);
+  if (who instanceof Response) return who;
+  if (!env.FILES) return json({ error: '503 服务不可用：图片存储还没配置' }, 503);
+  const owner = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(who))).slice(0, 16);
+  const key = `${owner}/${sha}`;
+  const h = (await env.FILES.head(key)) as { size?: number; httpMetadata?: { contentType?: string } } | null;
+  if (!h) return json({ error: '404 未找到' }, 404);
+  return json({ url: `${new URL(req.url).origin}/api/assets/${key}`, r2_key: key, sha256: sha, mime: h.httpMetadata?.contentType ?? '', size: h.size ?? 0 });
 }
 
 export async function handleAssetGet(key: string, env: AssetEnv): Promise<Response> {

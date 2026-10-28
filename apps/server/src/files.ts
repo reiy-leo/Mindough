@@ -9,6 +9,8 @@
  *                                   安全的图片格式 inline（缩略图、灯箱里显示）；其余、或带 dl=1，一律 attachment 下载，
  *                                   文件名用 ?name=（RFC 5987 编码）。都带 nosniff + CSP sandbox，HTML / SVG 里的脚本不会执行。
  *                                   HEAD 只回头（客户端用它查文件还在不在：404 未找到 = 已经清掉了）。
+ * - GET /api/files/check/<sha256>   要登录；这个人有没有这份内容：有 → 200 { r2_key, sha256, mime, size }，没有 → 404 未找到。
+ *                                   客户端先在本机算 SHA-256 来问，有了就不传（Rei 2026-10-29）。
  * key = <用户哈希 16 位>/f/<内容 SHA-256>。没人用的文件会清掉，见 purge.ts。
  */
 import type { AssetBucket, AssetEnv, R2Object } from './assets';
@@ -54,6 +56,18 @@ export async function storeFile(files: AssetBucket, who: string, buf: ArrayBuffe
   // 也让清理后从本机补传回来的文件 key 不变。
   await files.put(key, buf, { httpMetadata: { contentType: mime } });
   return { r2_key: key, sha256: sha, mime, size: buf.byteLength };
+}
+
+/** 查重：这个人的 `<哈希>/f/<sha>` 在不在。在就直接用，不用再传。 */
+export async function handleFileCheck(req: Request, sha: string, env: AssetEnv): Promise<Response> {
+  if (!/^[0-9a-f]{64}$/.test(sha)) return json({ error: '400 请求有误：不是 SHA-256' }, 400);
+  const who = await requestUser(req, env);
+  if (who instanceof Response) return who;
+  if (!env.FILES) return json({ error: '503 服务不可用：文件存储还没配置' }, 503);
+  const key = `${await ownerHash(who)}/f/${sha}`;
+  const obj = await headObject(env.FILES, key);
+  if (!obj) return json({ error: '404 未找到' }, 404);
+  return json({ r2_key: key, sha256: sha, mime: cleanMime(obj.httpMetadata?.contentType ?? null), size: obj.size });
 }
 
 /** Content-Disposition：ASCII 兜底名 + RFC 5987 的 UTF-8 名。 */

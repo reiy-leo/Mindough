@@ -95,6 +95,33 @@ describe('附件 /api/files', () => {
     expect((await call(`/api/files/${img.r2_key.replace(/.$/, img.r2_key.endsWith('0') ? '1' : '0')}`, env)).status).toBe(404);
   });
 
+  it('查重 /api/files/check/<sha>：有 200 带 key，没有 404，只看自己的，不是 SHA-256 400，没登录 401', async () => {
+    const FILES = new MemBucket();
+    const env = envOf(FILES);
+    const pdf = new TextEncoder().encode('%PDF-1.7 check');
+    const up = (await (await upload(env, pdf, 'application/pdf')).json()) as { r2_key: string; sha256: string };
+    const hit = await call(`/api/files/check/${up.sha256}`, env);
+    expect(hit.status).toBe(200);
+    expect(await hit.json()).toMatchObject({ r2_key: up.r2_key, sha256: up.sha256, mime: 'application/pdf', size: pdf.byteLength });
+    expect((await call(`/api/files/check/${'0'.repeat(64)}`, env)).status).toBe(404);
+    expect((await call(`/api/files/check/${up.sha256}`, env, {}, 'other@example.com')).status).toBe(404);
+    expect((await call('/api/files/check/xyz', env)).status).toBe(400);
+    expect((await call(`/api/files/check/${up.sha256}`, env, {}, null)).status).toBe(401);
+  });
+
+  it('查重 /api/assets/check/<sha>：有就给地址，没有 404', async () => {
+    const FILES = new MemBucket();
+    const env = envOf(FILES);
+    const png = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
+    const res = await call('/api/assets', env, { method: 'POST', body: png, headers: { 'content-type': 'image/png' } });
+    const up = (await res.json()) as { url: string; r2_key: string; sha256: string };
+    const hit = await call(`/api/assets/check/${up.sha256}`, env);
+    expect(hit.status).toBe(200);
+    expect(await hit.json()).toMatchObject({ url: up.url, r2_key: up.r2_key, sha256: up.sha256 });
+    expect((await call(`/api/assets/check/${'0'.repeat(64)}`, env)).status).toBe(404);
+    expect((await call(`/api/assets/check/${up.sha256}`, env, {}, 'other@example.com')).status).toBe(404);
+  });
+
   it('cleanMime / contentDisposition', () => {
     expect(cleanMime('Image/PNG; charset=x')).toBe('image/png');
     expect(cleanMime('')).toBe('application/octet-stream');
