@@ -1368,6 +1368,17 @@
 [data-skin='apple'] .cat-section-rows .cat-item {
   border-radius: 0;
 }
+/* 首行、末行跟着分组的圆角走，不然选中和键盘高亮的描边会被分组的圆角切掉（Rei 2026-10-28） */
+[data-skin='apple'] .cat-section-rows .cat-item-wrap:first-child,
+[data-skin='apple'] .cat-section-rows .cat-item-wrap:first-child .cat-item {
+  border-start-start-radius: 10px;
+  border-start-end-radius: 10px;
+}
+[data-skin='apple'] .cat-section-rows .cat-item-wrap:last-child,
+[data-skin='apple'] .cat-section-rows .cat-item-wrap:last-child .cat-item {
+  border-end-start-radius: 10px;
+  border-end-end-radius: 10px;
+}
 [data-skin='apple'] .cat-section-head {
   text-transform: none;
   color: var(--text-3);
